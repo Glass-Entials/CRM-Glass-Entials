@@ -163,7 +163,10 @@ def register():
 @login_required
 def customers():
     all_customers = Customer.query.filter_by(is_deleted=False).order_by(Customer.created_at.desc()).all()
-    return render_template('customer/customer.html', customers=all_customers)
+    all_employees = Employee.query.filter_by(is_deleted=False).all()
+    # Get unique cities for filter dropdown
+    unique_cities = sorted(list(set(c.city for c in all_customers if c.city)))
+    return render_template('customer/customer.html', customers=all_customers, employees=all_employees, cities=unique_cities)
 
 @app.route('/export-customers/<string:format>')
 @login_required

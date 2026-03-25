@@ -78,6 +78,7 @@
                 <span class="search-icon">🔍</span>
                 <input type="text" placeholder="Search customers..." id="customerSearch">
             </div>
+            
             <div class="btn-group">
                 <div class="export-dropdown">
                     <button class="btn-action outline export-trigger">
@@ -98,6 +99,50 @@
                     ➕ Add Customer
                 </a>
             </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar" style="display: flex; gap: 1.5rem; align-items: center; margin-bottom: 2rem; background: #fff; padding: 1.25rem 1.5rem; border-radius: 12px; border: 1px solid rgba(13, 27, 42, 0.1); box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
+            <div style="display: flex; align-items: center; gap: 8px; color: var(--primary-color); font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                <span style="font-size: 1.2rem;">⚡</span> Filters
+            </div>
+            
+            <div class="filter-group" style="display: flex; gap: 12px; align-items: center; flex: 1;">
+                <div style="position: relative; flex: 1; max-width: 200px;">
+                    <select id="cityFilter" class="form-control" style="padding: 0.7rem 1rem; height: auto; font-size: 0.9rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.15); background-color: #f8fafc; cursor: pointer; width: 100%;">
+                        <option value="">All Cities</option>
+                        {% for city in cities %}
+                            <option value="{{ city }}">{{ city }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div style="position: relative; flex: 1; max-width: 220px;">
+                    <select id="assigneeFilter" class="form-control" style="padding: 0.7rem 1rem; height: auto; font-size: 0.9rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.15); background-color: #f8fafc; cursor: pointer; width: 100%;">
+                        <option value="">All Staff</option>
+                        <option value="Unassigned">Unassigned</option>
+                        {% for emp in employees %}
+                            <option value="{{ emp.name }}">{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div style="position: relative; flex: 1; max-width: 200px;">
+                    <select id="statusFilter" class="form-control" style="padding: 0.7rem 1rem; height: auto; font-size: 0.9rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.15); background-color: #f8fafc; cursor: pointer; width: 100%;">
+                        <option value="">All Status</option>
+                        <option value="New">New</option>
+                        <option value="Active">Active</option>
+                        <option value="Pending">Pending</option>
+                        <option value="In Discussion">In Discussion</option>
+                        <option value="Closed Won">Closed Won</option>
+                    </select>
+                </div>
+            </div>
+            
+            <button onclick="window.location.reload()" class="action-pill edit-pill" style="padding: 0.6rem 1.2rem; display: flex; align-items: center; gap: 6px; background: #fff;">
+                <span>🔄</span> Reset
+            </button>
+        </div>
         </div>
 
         <!-- Table Section -->
@@ -122,7 +167,7 @@
                             <td class="customer-name">{{ customer.name }}</td>
                             <td>{{ customer.email }}</td>
                             <td>{{ customer.phone_number }}</td>
-                            <td>{{ customer.city or '—' }}</td>
+                            <td class="customer-city">{{ customer.city or '—' }}</td>
                             <td>{{ customer.company or '—' }}</td>
                             <td>
                                 {% if customer.status == 'Active' or customer.status == 'Closed Won' %}
@@ -130,8 +175,9 @@
                                 {% else %}
                                 <span class="status-badge status-pending">{{ customer.status }}</span>
                                 {% endif %}
+                                <span class="raw-status" style="display:none;">{{ customer.status }}</span>
                             </td>
-                            <td>
+                            <td class="customer-assignee">
                                 {% if customer.assignee %}
                                     {{ customer.assignee.name }}
                                 {% else %}
@@ -175,19 +221,35 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Simple Search Filter Logic
             const searchInput = document.getElementById('customerSearch');
+            const cityFilter = document.getElementById('cityFilter');
+            const assigneeFilter = document.getElementById('assigneeFilter');
+            const statusFilter = document.getElementById('statusFilter');
             const tableBody = document.querySelector('.customer-table tbody');
+            const noResultsRow = document.getElementById('noResultsRow');
             const noDataRow = document.getElementById('noDataRow');
 
-            searchInput.addEventListener('input', function () {
-                const query = this.value.toLowerCase();
+            function applyFilters() {
+                const query = searchInput.value.toLowerCase();
+                const city = cityFilter.value.toLowerCase();
+                const assignee = assigneeFilter.value.toLowerCase();
+                const status = statusFilter.value.toLowerCase();
+                
                 const rows = tableBody.querySelectorAll('tr:not(.no-data-row)');
                 let visibleCount = 0;
 
                 rows.forEach(row => {
-                    const textContent = row.textContent.toLowerCase();
-                    if (textContent.includes(query)) {
+                    const rowText = row.textContent.toLowerCase();
+                    const rowCity = row.querySelector('.customer-city').textContent.toLowerCase();
+                    const rowAssignee = row.querySelector('.customer-assignee').textContent.toLowerCase();
+                    const rowStatus = row.querySelector('.raw-status').textContent.toLowerCase();
+
+                    const matchesSearch = rowText.includes(query);
+                    const matchesCity = !city || rowCity === city;
+                    const matchesAssignee = !assignee || rowAssignee.includes(assignee);
+                    const matchesStatus = !status || rowStatus === status;
+
+                    if (matchesSearch && matchesCity && matchesAssignee && matchesStatus) {
                         row.style.display = '';
                         visibleCount++;
                     } else {
@@ -195,12 +257,19 @@
                     }
                 });
 
-                if (visibleCount === 0) {
-                    noDataRow.style.display = 'table-row';
-                } else {
-                    noDataRow.style.display = 'none';
+                if (noResultsRow) {
+                    noResultsRow.style.display = (visibleCount === 0 && (query || city || assignee || status)) ? 'table-row' : 'none';
                 }
-            });
+                if (noDataRow && !(query || city || assignee || status)) {
+                    // Only show "No customers yet" if no filters are active and table is empty
+                    // But if it's the noDataRow from the loop, it only exists if customers list is empty
+                }
+            }
+
+            searchInput.addEventListener('input', applyFilters);
+            cityFilter.addEventListener('change', applyFilters);
+            assigneeFilter.addEventListener('change', applyFilters);
+            statusFilter.addEventListener('change', applyFilters);
         });
     </script>
 </body>
