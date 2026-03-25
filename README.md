@@ -96,5 +96,5 @@ python app.py
 ---
 <p align="center">
   <em>Crafted with precision for <strong>GlassEntials</strong>. Every shard of data counts.</em><br>
-  <strong>Developer: Ratandeep | AI Partner: Antigravity</strong>
+  <strong>Developer: Ratandeep</strong>
 </p>
