@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | GlassEntials Staff Portal</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/dashboard.css') }}">
+</head>
+<body class="dashboard-page">
+    
+    <!-- Top Navbar -->
+    <header class="dash-nav">
+        <div class="logo">
+            <a href="/home" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+            <span class="crm-badge">Staff Dashboard</span>
+        </div>
+        
+        <nav class="dash-menu">
+            <a href="#" class="active">Dashboard</a>
+            <a href="{{ url_for('customers') }}">Customers</a>
+            <a href="#">Leads</a>
+            <a href="#">Deals</a>
+            <a href="#">Tasks</a>
+            <div class="dropdown">
+                <a href="#">Settings ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('employee') }}">Employee Portal</a>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="user-profile" style="display:flex; align-items:center; gap: 15px;">
+            <span style="font-weight: 600; font-size: 0.95rem; color: var(--primary-color);">Welcome, {{ current_user.username }}</span>
+            <a href="{{ url_for('logout') }}" class="btn-action outline" style="padding: 0.5rem 1rem;">Logout</a>
+        </div>
+    </header>
+
+    {% with messages = get_flashed_messages(category_filter=["loginsuccess"]) %}
+      {% if messages %}
+        {% for message in messages %}
+        <div class="flash-message" style="padding: 15px; background-color: rgba(212, 175, 55, 0.1); border-left: 4px solid #d4af37; font-family: var(--font-body); color: var(--primary-color); display: flex; align-items: center; gap: 10px; margin: 20px 5%; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+          <span style="color: #d4af37; font-size: 1.4rem; line-height: 1;">✧</span> <strong>Success:</strong> {{ message }}
+        </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- Dashboard Container -->
+    <main class="dash-container">
+        <!-- Header & Quick Actions -->
+        <div class="dash-header">
+            <div>
+                <h1>Overview</h1>
+                <p>Track your business metrics and ongoing deals.</p>
+            </div>
+            <div class="quick-actions">
+                <a href="{{ url_for('add_customer') }}" class="btn-action dark" style="text-decoration: none;">
+                    Add Customer
+                </a>
+                <button class="btn-action gold">
+                    Create Deal
+                </button>
+                <button class="btn-action outline" style="border: 1px solid var(--primary-color); color: var(--primary-color);">
+                    Add Follow-up
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Cards Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-info">
+                    <h3>{{ all_customers | length }}</h3>
+                    <p>Total Customers</p>
+                </div>
+                <div class="stat-icon">👥</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-info">
+                    <h3>42</h3>
+                    <p>Active Deals</p>
+                </div>
+                <div class="stat-icon">💼</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-info">
+                    <h3>$1.2M</h3>
+                    <p>Total Revenue</p>
+                </div>
+                <div class="stat-icon">📈</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-info">
+                    <h3>18</h3>
+                    <p>Pending Tasks</p>
+                </div>
+                <div class="stat-icon">🔔</div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="dash-content">
+            <!-- Table Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Recent Customers</h2>
+                    <a href="{{ url_for('customers') }}" style="color: var(--accent-gold); font-weight: 600; font-size: 0.9rem;">View All →</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="customer-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>City</th>
+                                <th>Assigned To</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in all_customers[:5] %}
+                            <tr>
+                                <td class="customer-name">{{ customer.name }}</td>
+                                <td>{{ customer.phone_number }}</td>
+                                <td>{{ customer.email }}</td>
+                                <td>{{ customer.city or '—' }}</td>
+                                <td>{{ customer.assignee.name if customer.assignee else 'Unassigned' }}</td>
+                                <td>
+                                    {% if customer.status in ['Active', 'Closed Won'] %}
+                                    <span class="status-badge status-active">{{ customer.status }}</span>
+                                    {% else %}
+                                    <span class="status-badge status-pending">{{ customer.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                                    No customers yet. <a href="{{ url_for('add_customer') }}" style="color: var(--accent-gold); font-weight: 600;">Add one →</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Recent Activity Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Recent Activity</h2>
+                </div>
+                <div class="activity-list">
+                    <div class="activity-item">
+                        <div class="activity-bullet"></div>
+                        <div class="activity-content">
+                            <p><strong>Rajat</strong> added new customer</p>
+                            <span>10 mins ago • Arjun Mehta</span>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-bullet" style="background: #10b981;"></div>
+                        <div class="activity-content">
+                            <p><strong>Amit K.</strong> closed a deal</p>
+                            <span>1 hour ago • Lux Interiors ($45,000)</span>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-bullet" style="background: var(--primary-color);"></div>
+                        <div class="activity-content">
+                            <p><strong>Neha R.</strong> scheduled a follow-up</p>
+                            <span>3 hours ago • Tech Glass Solutions</span>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-bullet"></div>
+                        <div class="activity-content">
+                            <p><strong>Rajat</strong> created a new deal</p>
+                            <span>Yesterday • Rahul Verma ($12,500)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        setTimeout(() => {
+            document.querySelectorAll('.flash-message').forEach(el => {
+                el.style.transition = 'opacity 0.5s ease';
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 500);
+            });
+        }, 3000);
+    </script>
+</body>
+</html>

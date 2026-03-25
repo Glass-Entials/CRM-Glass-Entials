@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Employee | GlassEntials Staff Portal</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/customer.css') }}">
+</head>
+<body class="dashboard-page">
+    
+    <!-- Top Navbar -->
+    <header class="dash-nav">
+        <div class="logo">
+            <a href="/home" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+            <span class="crm-badge">Staff Dashboard</span>
+        </div>
+        
+        <nav class="dash-menu">
+            <a href="{{ url_for('home_page') }}">Dashboard</a>
+            <a href="{{ url_for('customers') }}">Customers</a>
+            <a href="#">Leads</a>
+            <a href="#">Deals</a>
+            <a href="#">Tasks</a>
+            <div class="dropdown">
+                <a href="#" class="active">Settings ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('employee') }}">Employee Portal</a>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="user-profile" style="display:flex; align-items:center; gap: 15px;">
+            <span style="font-weight: 600; font-size: 0.95rem; color: var(--primary-color);">Welcome, {{ current_user.username }}</span>
+            <a href="{{ url_for('logout') }}" class="btn-action outline" style="padding: 0.5rem 1rem;">Logout</a>
+        </div>
+    </header>
+
+    <main class="container" style="max-width: 1000px; padding-top: 3rem;">
+        <!-- Top Section -->
+        <div class="top-bar" style="border-bottom: 2px solid rgba(212, 175, 55, 0.2); padding-bottom: 1.5rem; margin-bottom: 2rem;">
+            <h1 style="color: var(--primary-color); font-size: 2rem; font-family: var(--font-heading);">Edit Employee Profile</h1>
+            <a href="{{ url_for('employee') }}" class="btn-action outline" style="text-decoration:none;">← Back to Portal</a>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(category_filter=["employeeerror"]) %}
+          {% if messages %}
+            {% for message in messages %}
+            <div class="flash-message" style="padding: 15px; background-color: rgba(139, 0, 0, 0.04); border-left: 4px solid rgba(139, 0, 0, 0.5); font-family: var(--font-body); color: #8b0000; display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; border-radius: 4px;">
+              <span style="font-size: 1.2rem; line-height: 1;">⚠</span> {{ message }}
+            </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- Form Container -->
+        <div class="form-container" style="animation: none;">
+            <div class="panel" style="border-top: 4px solid var(--accent-gold);">
+                <form action="{{ url_for('edit_employee', employee_id=employee.id) }}" method="POST" class="customer-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Full Name <span style="color: red; opacity: 0.7;">*</span></label>
+                            <input type="text" name="name" class="form-control" value="{{ employee.name }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email <span style="color: red; opacity: 0.7;">*</span></label>
+                            <input type="email" name="email" class="form-control" value="{{ employee.email }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Phone Number <span style="color: red; opacity: 0.7;">*</span></label>
+                            <input type="tel" id="phone_number" name="phone_number" class="form-control" value="{{ employee.phone_number }}" required pattern="\d{10}" title="Please enter exactly 10 digits (0-9)">
+                        </div>
+                        <div class="form-group">
+                            <label>Position / Role <span style="color: red; opacity: 0.7;">*</span></label>
+                            <select name="position" class="form-control" required>
+                                <option value="Manager" {% if employee.position == 'Manager' %}selected{% endif %}>Manager</option>
+                                <option value="HR" {% if employee.position == 'HR' %}selected{% endif %}>HR</option>
+                                <option value="Sales Agent" {% if employee.position == 'Sales Agent' %}selected{% endif %}>Sales Agent</option>
+                                <option value="Technician" {% if employee.position == 'Technician' %}selected{% endif %}>Technician</option>
+                                <option value="Staff" {% if employee.position == 'Staff' %}selected{% endif %}>Staff</option>
+                                <option value="Software Developer" {% if employee.position == 'Software Developer' %}selected{% endif %}>Software Developer</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; justify-content: flex-end; gap: 1rem; margin-top: 3rem;">
+                        <a href="{{ url_for('employee') }}" class="btn-action outline" style="text-decoration:none;">Cancel</a>
+                        <button type="submit" class="btn-action gold">Update Profile</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

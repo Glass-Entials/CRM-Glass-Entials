@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Page Not Found | GlassEntials</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/dashboard.css') }}">
+    <style>
+        .error-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: radial-gradient(circle at center, rgba(212, 175, 55, 0.05) 0%, transparent 70%), var(--bg-tertiary);
+            padding: 2rem;
+        }
+        .error-code {
+            font-size: 10rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            line-height: 1;
+            margin-bottom: 1rem;
+            font-family: var(--font-heading);
+            position: relative;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .error-message {
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+            max-width: 500px;
+        }
+        .btn-home {
+            padding: 1rem 2.5rem;
+            font-size: 1rem;
+            text-decoration: none;
+            box-shadow: 0 10px 20px rgba(13, 27, 42, 0.1);
+        }
+    </style>
+</head>
+<body class="dashboard-page">
+    <div class="error-container">
+        <div class="error-code">404</div>
+        <h2 style="font-family: var(--font-heading); font-size: 2.5rem; margin-bottom: 1rem;">Oops! Lost in the Glass?</h2>
+        <p class="error-message">The page you're looking for was moved, removed, or never existed in the first place.</p>
+        <a href="{{ url_for('home_page') }}" class="btn-action gold btn-home">Return to Dashboard</a>
+    </div>
+</body>
+</html>

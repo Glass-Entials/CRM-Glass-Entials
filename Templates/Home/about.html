@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us | GlassEntials staff Portal</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/home.css') }}">
+</head>
+<body>
+    <header class="navbar fade-in">
+        <div class="logo">
+            <a href="/" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+            <span class="crm-badge">Staff</span>
+        </div>
+        <nav class="nav-links">
+            <a href="{{ url_for('about') }}">About Us</a>
+            <a href="#">Dashboard</a>
+            <a href="#">Directory</a>
+            <a href="#">Resources</a>
+            <a href="{{ url_for('login') }}">Login</a>
+            <a href="{{ url_for('register') }}" class="btn-outline">Create Account</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="about-hero fade-in">
+            <div>
+                <span class="eyebrow" style="margin-bottom: 2rem;">Our Heritage</span>
+                <h1>A Legacy of Premium Solutions</h1>
+                <p>Glassentials is a glass and mirror-based company providing premium solutions for residential, commercial, and luxury projects across Pan India.</p>
+            </div>
+        </section>
+
+        <!-- Detailed Content Section -->
+        <section class="about-content-section">
+            <div class="editorial-text fade-up delay-1">
+                <h3>Our Vision & Craftsmanship</h3>
+                <p>We specialize in glass partitions, doors, railings, and customized installations tailored strictly to our client's most profound requirements. Our operation encompasses high-level consultation, intense design support, and deeply professional installation services built firmly around the premise of uncompromising perfection.</p>
+            </div>
+
+            <!-- Beautiful Masonry Representation -->
+            <div class="image-masonry">
+                <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Glass Workspace" class="fade-up delay-1">
+                <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" alt="Luxury Architecture" class="fade-up delay-2">
+                <img src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Premium Glass Setup" class="fade-up delay-3">
+            </div>
+        </section>
+
+        <!-- The CRM Fusion -->
+        <section class="crm-fusion-section">
+            <div class="workflow-content slide-right" style="flex: 1;">
+                <span class="eyebrow">The GlassEntials CRM</span>
+                <h2>Powered By Precision <br><em>and Data</em></h2>
+                <p>Delivering high-quality products and timely execution requires more than just glass; it requires a state-of-the-art internal nerve center. Our proprietary CRM empowers our staff to build long-term relationships based on trust, superior workmanship, and lightning-fast logistics mapping.</p>
+                <div style="margin-top: 2rem;">
+                    <a href="{{ url_for('register') }}" class="btn-primary">Join the Network</a>
+                </div>
+            </div>
+            <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" alt="Data Dashboard" class="crm-fusion-img slide-left">
+        </section>
+    </main>
+
+    <footer class="site-footer fade-in delay-2">
+        <div class="footer-content">
+            <div class="logo">
+                <a href="/" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo" style="filter: brightness(0) invert(1);">
+                </a>
+            </div>
+            <div class="footer-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Internal Use</a>
+                <a href="#">Help Desk</a>
+            </div>
+            <p>&copy; 2026 GlassEntials Internal Network. Restricted to authorized personnel only.</p>
+        </div>
+    </footer>
+
+    <!-- Scroll Animation Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.15
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            const animatedElements = document.querySelectorAll('.fade-up, .fade-in, .slide-right, .slide-left');
+            animatedElements.forEach(el => observer.observe(el));
+        });
+    </script>
+</body>
+</html>

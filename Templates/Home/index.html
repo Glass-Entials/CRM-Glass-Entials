@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GlassEntials Staff Portal | Internal CRM</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/home.css') }}">
+</head>
+
+<body>
+    <header class="navbar fade-in">
+        <div class="logo">
+            <a href="/" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+            <span class="crm-badge">Staff</span>
+        </div>
+        <nav class="nav-links">
+            <a href="{{ url_for('about') }}">About Us</a>
+            <a href="#">Dashboard</a>
+            <a href="#">Directory</a>
+            <a href="#">Resources</a>
+            <a href="{{ url_for('login') }}">Login</a>
+            <a href="{{ url_for('register') }}" class="btn-outline">Create Account</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="hero-content slide-right">
+                <span class="eyebrow">Internal Team Workspace</span>
+                <h1>Internal Workflow, <br><em>Perfected.</em></h1>
+                <p>Access your tools, manage client relations, and collaborate seamlessly. Experience the brilliance of
+                    a unified enterprise.</p>
+                <div class="cta-group">
+                    <a href="{{ url_for('register') }}" class="btn-primary">Create Account</a>
+                    <a href="{{ url_for('login') }}" class="btn-text">Log In To Portal &rarr;</a>
+                </div>
+            </div>
+            <div class="hero-image slide-left">
+                <!-- <img src="https://images.unsplash.com/photo-1542744173-8e7e53415bb0?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+                    alt="Photo Placeholder" class="hero-photo-placeholder"> -->
+                <img src="{{ url_for('static', filename='img/Customer Relationship Management Software California.jpeg') }}"
+                    alt="Photo Placeholder" class="hero-photo-placeholder">
+            </div>
+        </section>
+
+        <!-- About Us Preview -->
+        <section class="about-preview">
+            <div class="about-grid">
+                <div class="about-text slide-right">
+                    <span class="eyebrow">Our Heritage</span>
+                    <h2>Premium Glass & <br>Mirror Solutions</h2>
+                    <p>Glassentials is a glass and mirror-based company providing premium solutions for residential, commercial, and luxury projects across Pan India.</p>
+                    <a href="{{ url_for('about') }}" class="read-more">Read Our Story &rarr;</a>
+                </div>
+                <div class="about-image-collage">
+                    <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Luxury Glass" class="img-1 fade-up delay-1">
+                    <img src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="CRM Management" class="img-2 fade-up delay-2">
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Ribbon (Dark Section) -->
+        <section class="stats-ribbon fade-up">
+            <div class="stat-card delay-1">
+                <h2>4.2K+</h2>
+                <p>Active Clients Managed</p>
+            </div>
+            <div class="stat-card delay-2">
+                <h2>99.9%</h2>
+                <p>System Uptime</p>
+            </div>
+            <div class="stat-card delay-3">
+                <h2>0.5s</h2>
+                <p>Average Data Sync</p>
+            </div>
+            <div class="stat-card delay-4">
+                <h2>150+</h2>
+                <p>Staff Operations</p>
+            </div>
+        </section>
+
+        <!-- Main Features -->
+        <section class="features">
+            <div class="feature-card fade-up delay-1">
+                <div class="icon">✧</div>
+                <h3>Unified Client Data</h3>
+                <p>Access comprehensive customer histories instantly to deliver premium service across all touchpoints.
+                </p>
+            </div>
+            <div class="feature-card fade-up delay-2">
+                <div class="icon">♚</div>
+                <h3>Streamlined Processes</h3>
+                <p>Let automation handle routine tasks, freeing your team to focus on high-value conversations.</p>
+            </div>
+            <div class="feature-card fade-up delay-3">
+                <div class="icon">☼</div>
+                <h3>Performance Insights</h3>
+                <p>Track your KPIs and team progress through clear, bright, and highly legible dashboards.</p>
+            </div>
+        </section>
+
+        <!-- Premium Workflow Section (Image left, content right) -->
+        <section class="workflow-highlight">
+            <div class="workflow-image-container slide-right">
+                <img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+                    alt="Corporate Meeting" class="workflow-img">
+                <div class="workflow-glass-overlay fade-up delay-3">
+                    <div class="overlay-stat">
+                        <span class="gold-dot"></span> Live Sync Active
+                    </div>
+                </div>
+            </div>
+            <div class="workflow-content slide-left">
+                <span class="eyebrow">Royal Precision</span>
+                <h2>Flawless Execution in <br><em>Every Task</em></h2>
+                <p>Experience seamless handoffs between sales, support, and administrative teams. Your client data flows
+                    effortlessly through our highly secured, pristine ecosystem designed exclusively for GlassEntials
+                    personnel.</p>
+                <ul class="check-list">
+                    <li class="fade-up delay-1"><span class="check-icon">✓</span> Real-time data synchronization across
+                        all internal devices</li>
+                    <li class="fade-up delay-2"><span class="check-icon">✓</span> Automated client categorization based
+                        on engagement</li>
+                    <li class="fade-up delay-3"><span class="check-icon">✓</span> Priority queuing for premium VIP
+                        clientele</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Company Announcements Section -->
+        <section class="announcements">
+            <div class="section-header fade-up">
+                <h2>Company Updates</h2>
+                <p>The latest news and internal memos</p>
+            </div>
+            <div class="news-grid">
+                <div class="news-card fade-up delay-1">
+                    <span class="date">March 24, 2026</span>
+                    <h4>Q1 Performance Review</h4>
+                    <p>We've achieved a record high in client satisfaction this quarter. Read the full breakdown of our
+                        latest royal achievements.</p>
+                    <a href="#" class="read-more">Read Full Update</a>
+                </div>
+                <div class="news-card fade-up delay-2">
+                    <span class="date">March 20, 2026</span>
+                    <h4>New 'Imperial' Launch</h4>
+                    <p>Internal product training for the upcoming 'Imperial' collection begins next week. Check your
+                        schedule.</p>
+                    <a href="#" class="read-more">Read Full Update</a>
+                </div>
+                <div class="news-card fade-up delay-3">
+                    <span class="date">March 15, 2026</span>
+                    <h4>System Security Upgrade</h4>
+                    <p>Our CRM framework has been patched with bespoke encryption protocols. Ensure credentials are up
+                        to date.</p>
+                    <a href="#" class="read-more">Read Full Update</a>
+                </div>
+                <div class="news-card fade-up delay-4">
+                    <span class="date">March 10, 2026</span>
+                    <h4>Annual Royal Gala</h4>
+                    <p>RSVP for the annual staff gala is now open. Join us for a night celebrating excellence and
+                        craftsmanship.</p>
+                    <a href="#" class="read-more">Read Full Update</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Portal Tools Section -->
+        <section class="portal-tools">
+            <div class="section-header fade-up">
+                <h2>Quick Links</h2>
+                <p>Essential directories for daily workflow</p>
+            </div>
+            <div class="tools-list">
+                <a href="#" class="tool-link fade-up delay-1">
+                    <span class="tool-number">01</span>
+                    <span class="tool-name">Staff Directory</span>
+                    <span class="tool-arrow">&rarr;</span>
+                </a>
+                <a href="#" class="tool-link fade-up delay-2">
+                    <span class="tool-number">02</span>
+                    <span class="tool-name">Knowledge Base</span>
+                    <span class="tool-arrow">&rarr;</span>
+                </a>
+                <a href="#" class="tool-link fade-up delay-3">
+                    <span class="tool-number">03</span>
+                    <span class="tool-name">IT Support</span>
+                    <span class="tool-arrow">&rarr;</span>
+                </a>
+                <a href="#" class="tool-link fade-up delay-4">
+                    <span class="tool-number">04</span>
+                    <span class="tool-name">HR Policies</span>
+                    <span class="tool-arrow">&rarr;</span>
+                </a>
+            </div>
+        </section>
+
+        <!-- Bottom CTA section -->
+        <section class="bottom-cta">
+            <div class="cta-card fade-in delay-1">
+                <h2>Ready to Elevate Your Workflow?</h2>
+                <p>Secure your access to the internal network today.</p>
+                <a href="#" class="btn-secondary">Request Authorization</a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer fade-in delay-2">
+        <div class="footer-content">
+            <div class="logo">
+                <a href="/" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo" style="filter: brightness(0) invert(1);">
+                </a>
+            </div>
+            <div class="footer-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Internal Use</a>
+                <a href="#">Help Desk</a>
+            </div>
+            <p>&copy; 2026 GlassEntials Internal Network. Restricted to authorized personnel only.</p>
+        </div>
+    </footer>
+
+    <!-- Scroll Animation Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.15
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target); // Run once per element
+                    }
+                });
+            }, observerOptions);
+
+            // Observe all elements with these animation classes
+            const animatedElements = document.querySelectorAll('.fade-up, .fade-in, .slide-right, .slide-left');
+            animatedElements.forEach(el => observer.observe(el));
+        });
+    </script>
+</body>
+
+</html>

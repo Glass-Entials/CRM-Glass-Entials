@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | GlassEntials Staff Portal</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/auth.css') }}">
+</head>
+<body class="auth-page">
+    <div class="auth-container register-container">
+        <div class="auth-header">
+            <div class="logo">
+                <a href="/" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+                </a>
+                <span class="crm-badge">Staff</span>
+            </div>
+            <h2>Create Account</h2>
+            <p>Request authorized access to the internal network</p>
+        </div>
+        
+        {% with messages = get_flashed_messages(category_filter=["registererror"]) %}
+          {% if messages %}
+            {% for message in messages %}
+            <div class="flash-message flash-error">
+              {{ message }}
+            </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form action="/register" method="POST">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="username">Full Name (Username)</label>
+                    <input type="text" id="username" name="username" class="form-control" placeholder="e.g. John Doe" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Corporate Email</label>
+                    <input type="email" id="email" name="email" class="form-control" placeholder="john@glassentials.com" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="phone_number">Phone Number</label>
+                    <input type="tel" id="phone_number" name="phone_number" class="form-control" placeholder="+1 (555) 000-0000" required>
+                </div>
+                <div class="form-group">
+                    <label for="role">Staff Role / Department</label>
+                    <select id="role" name="role" class="form-control" required>
+                        <option value="" disabled selected>Select your department</option>
+                        <option value="sales">Sales & Relations</option>
+                        <option value="support">Client Support</option>
+                        <option value="management">Management</option>
+                        <option value="hr">Human Resources</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" class="form-control" placeholder="Create a secure password" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" class="form-control" placeholder="Re-enter your password" required>
+                </div>
+            </div>
+            <div class="password-rules">
+                <p>Password requirements:</p>
+                <ul>
+                    <li id="req-length">8–12 characters</li>
+                    <li id="req-case">Uppercase & lowercase letters</li>
+                    <li id="req-number">At least one number (0-9)</li>
+                    <li id="req-special">A special character (!@#$%^&*)</li>
+                    <li id="req-nocommon">No common sequences or repeating chars</li>
+                </ul>
+            </div>
+            <button type="submit" class="auth-btn">Request Access</button>
+        </form>
+
+        <div class="auth-footer">
+            <p>Already have authorization? <a href="/login">Log In Here</a></p>
+        </div>
+    </div>
+
+    <script>
+        const passwordInput = document.getElementById('password');
+        const reqLength = document.getElementById('req-length');
+        const reqCase = document.getElementById('req-case');
+        const reqNumber = document.getElementById('req-number');
+        const reqSpecial = document.getElementById('req-special');
+        const reqNoCommon = document.getElementById('req-nocommon');
+
+        passwordInput.addEventListener('input', function() {
+            const val = this.value;
+            
+            // Length 8-12
+            if(val.length >= 8 && val.length <= 12) {
+                reqLength.classList.add('valid');
+            } else {
+                reqLength.classList.remove('valid');
+            }
+            
+            // Uppercase and Lowercase
+            if(/[A-Z]/.test(val) && /[a-z]/.test(val)) {
+                reqCase.classList.add('valid');
+            } else {
+                reqCase.classList.remove('valid');
+            }
+            
+            // Number
+            if(/[0-9]/.test(val)) {
+                reqNumber.classList.add('valid');
+            } else {
+                reqNumber.classList.remove('valid');
+            }
+            
+            // Special Char
+            if(/[!@#$%^&*(),.?":{}|<>]/.test(val)) {
+                reqSpecial.classList.add('valid');
+            } else {
+                reqSpecial.classList.remove('valid');
+            }
+            
+            // No common sequences or repeating chars
+            const repeating = /(.)\1{3,}/.test(val); // 4 or more same chars
+            const sequences = /(0123|1234|2345|3456|4567|5678|6789|abcd|bcde|cdef|defg|efgh|fghi|ghij|hijk|ijkl|jklm|klmn|lmno|mnop|nopq|opqr|pqrs|qrst|rstu|stuv|tuvw|uvwx|vwxy|wxyz|qwerty|password)/i.test(val);
+            if(val.length > 0 && !repeating && !sequences) {
+                reqNoCommon.classList.add('valid');
+            } else {
+                reqNoCommon.classList.remove('valid');
+            }
+        });
+
+        // Fade out flash messages after 3 seconds
+        setTimeout(() => {
+            document.querySelectorAll('.flash-message').forEach(el => {
+                el.style.transition = 'opacity 0.5s ease';
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 500);
+            });
+        }, 3000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,391 @@
+/* Dashboard Styles */
+body.dashboard-page {
+    background-color: var(--bg-tertiary);
+    min-height: 100vh;
+}
+
+/* Dashboard Navbar */
+.dash-nav {
+    background: #fff;
+    padding: 0.5rem 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.dash-nav .logo img {
+    height: 120px;
+    margin-top: -40px;
+    margin-bottom: -40px;
+    object-fit: contain;
+}
+
+.dash-menu {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
+
+.dash-menu a {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1rem 0;
+    position: relative;
+}
+
+.dash-menu a:hover, .dash-menu a.active {
+    color: var(--primary-color);
+}
+
+/* Dropdown Support */
+.dash-menu .dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+/* Optimised Smooth Dropdown Support */
+.dash-menu .dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dash-menu .dropdown > a {
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dash-menu .dropdown:hover > a {
+    background: rgba(13, 27, 42, 0.05);
+    color: var(--accent-gold) !important;
+}
+
+.dash-menu .dropdown-content {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: #ffffff;
+    min-width: 220px;
+    box-shadow: 0 20px 50px rgba(13, 27, 42, 0.12);
+    z-index: 1000;
+    border: 1px solid rgba(13, 27, 42, 0.1);
+    border-radius: 0 0 8px 8px;
+    overflow: hidden;
+    
+    /* Smooth Transition Setup */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+}
+
+.dash-menu .dropdown:hover .dropdown-content {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.dash-menu .dropdown-content a {
+    color: var(--primary-color) !important;
+    padding: 1rem 1.5rem !important;
+    text-decoration: none !important;
+    display: flex !important;
+    align-items: center !important;
+    text-transform: none !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    border-bottom: 1px solid rgba(13, 27, 42, 0.04);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    letter-spacing: normal !important;
+}
+
+.dash-menu .dropdown-content a::before {
+    content: '•';
+    color: var(--accent-gold);
+    margin-right: 12px;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: all 0.3s ease;
+}
+
+.dash-menu .dropdown-content a:hover {
+    background-color: rgba(212, 175, 55, 0.05) !important;
+    color: var(--accent-gold) !important;
+    padding-left: 1.8rem !important;
+}
+
+.dash-menu .dropdown-content a:hover::before {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.dash-menu .dropdown-content a:last-child {
+    border-bottom: none;
+}
+
+.dash-menu a.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: var(--accent-gold);
+}
+
+/* Dashboard Layout */
+.dash-container {
+    padding: 2.5rem 5%;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* Header & Quick Actions */
+.dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2.5rem;
+}
+
+.dash-header h1 {
+    font-size: 2.2rem;
+    margin-bottom: 0.5rem;
+}
+
+.dash-header p {
+    color: var(--text-muted);
+}
+
+.quick-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.btn-action {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.2rem;
+    font-family: var(--font-body);
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+    font-size: 0.9rem;
+}
+
+.btn-action.gold {
+    background-color: var(--accent-gold);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+}
+.btn-action.gold:hover {
+    background-color: #bfa032;
+    transform: translateY(-2px);
+}
+
+.btn-action.outline {
+    background-color: transparent;
+    border: 1px solid var(--accent-gold);
+    color: var(--accent-gold);
+}
+.btn-action.outline:hover {
+    background-color: var(--accent-gold);
+    color: #fff;
+}
+
+.btn-action.dark {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+.btn-action.dark:hover {
+    background-color: #1a2c42;
+    transform: translateY(-2px);
+}
+
+/* Stats Cards */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.stat-card {
+    background: #fff;
+    padding: 1.8rem;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.03);
+    border: 1px solid rgba(13, 27, 42, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(212, 175, 55, 0.1);
+    border-color: rgba(212, 175, 55, 0.3);
+}
+
+.stat-info h3 {
+    font-size: 2rem;
+    color: var(--primary-color);
+    margin-bottom: 0.2rem;
+    font-family: var(--font-body);
+    font-weight: 700;
+}
+
+.stat-info p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    background: rgba(212, 175, 55, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--accent-gold);
+}
+
+/* Main Two Columns */
+.dash-content {
+    display: grid;
+    grid-template-columns: 2.5fr 1fr;
+    gap: 2rem;
+}
+
+/* General Panel */
+.panel {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.03);
+    border: 1px solid rgba(13, 27, 42, 0.05);
+    padding: 1.8rem;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.panel-header h2 {
+    font-size: 1.3rem;
+    font-family: var(--font-body);
+}
+
+/* Customer Table */
+.table-responsive {
+    overflow-x: auto;
+}
+
+.customer-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.customer-table th, .customer-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(13, 27, 42, 0.05);
+}
+
+.customer-table th {
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    background: var(--bg-tertiary);
+}
+
+.customer-table tbody tr {
+    transition: background 0.3s ease;
+}
+
+.customer-table tbody tr:hover {
+    background: rgba(212, 175, 55, 0.03);
+}
+
+.customer-name {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.status-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.status-active {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.status-pending {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+/* Recent Activity */
+.activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.activity-item {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.activity-bullet {
+    width: 10px;
+    height: 10px;
+    background: var(--accent-gold);
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.1);
+}
+
+.activity-content p {
+    font-size: 0.95rem;
+    color: var(--primary-color);
+    margin-bottom: 0.2rem;
+}
+
+.activity-content span {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
