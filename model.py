@@ -48,6 +48,24 @@ class ActivityType(Enum):
     NOTE = "Note"
     TASK = "Task"
 
+class Organization(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    unique_code = db.Column(db.String(10), unique=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # User ID who created it
+    is_active = db.Column(db.Boolean, default=True)
+
+    # Relationships
+    users = db.relationship('User', back_populates='organization', foreign_keys='User.organization_id')
+    employees = db.relationship('Employee', back_populates='organization')
+    leads = db.relationship('Lead', back_populates='organization')
+    customers = db.relationship('Customer', back_populates='organization')
+    activities = db.relationship('LeadActivity', back_populates='organization')
+
+    def __repr__(self):
+        return f'<Organization {self.name}>'
+
 # --- MODELS ---
 
 class User(db.Model, UserMixin):
@@ -58,8 +76,12 @@ class User(db.Model, UserMixin):
     phone_number = db.Column(db.String(20), unique=True, nullable=True)
     role = db.Column(db.Enum(UserRole, values_callable=lambda x: [e.value for e in x]), nullable=False, default=UserRole.EMPLOYEE)
     
+    # Multi-tenant field
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True, index=True)
+    
     # 1-to-1 relationship with Employee profile
     employee = db.relationship('Employee', back_populates='user', uselist=False, cascade="all, delete-orphan")
+    organization = db.relationship('Organization', back_populates='users', foreign_keys=[organization_id])
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -70,20 +92,21 @@ class Employee(db.Model):
     name = db.Column(db.String(100), nullable=False)
     position = db.Column(db.String(50), nullable=True)
     
+    # Multi-tenant field
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True, index=True)
+    
+    email = db.Column(db.String(120), nullable=True)
+    phone_number = db.Column(db.String(20), nullable=True)
+    profile_pic = db.Column(db.String(255), nullable=True)  # Filename of profile picture
+    
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     is_deleted = db.Column(db.Boolean, default=False)
     
     # Relationship to User
     user = db.relationship('User', back_populates='employee')
+    organization = db.relationship('Organization', back_populates='employees')
 
-    @property
-    def email(self):
-        return self.user.email if self.user else None
-
-    @property
-    def phone_number(self):
-        return self.user.phone_number if self.user else None
 
     def __repr__(self):
         return f'<Employee {self.name}>'
@@ -100,6 +123,9 @@ class Lead(db.Model):
     address = db.Column(db.String(255), nullable=True)
     city = db.Column(db.String(100), nullable=True)
     
+    # Multi-tenant field
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True, index=True)
+    
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     is_deleted = db.Column(db.Boolean, default=False)
@@ -113,6 +139,7 @@ class Lead(db.Model):
     assignee = db.relationship('Employee', foreign_keys=[assigned_to], backref='assigned_leads')
     creator = db.relationship('Employee', foreign_keys=[created_by], backref='leads_created')
     updater = db.relationship('Employee', foreign_keys=[updated_by], backref='leads_updated')
+    organization = db.relationship('Organization', back_populates='leads')
 
     @property
     def status_display(self):
@@ -135,6 +162,9 @@ class Customer(db.Model):
     status = db.Column(db.Enum(CustomerStatus, values_callable=lambda x: [e.value for e in x]), default=CustomerStatus.NEW, index=True)
     notes = db.Column(db.Text, nullable=True)
     
+    # Multi-tenant field
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True, index=True)
+    
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     is_deleted = db.Column(db.Boolean, default=False)
@@ -149,6 +179,7 @@ class Customer(db.Model):
     assignee = db.relationship('Employee', foreign_keys=[assigned_to], backref='assigned_customers')
     creator = db.relationship('Employee', foreign_keys=[created_by], backref='customers_created')
     updater = db.relationship('Employee', foreign_keys=[updated_by], backref='customers_updated')
+    organization = db.relationship('Organization', back_populates='customers')
 
     @property
     def status_display(self):
@@ -164,10 +195,41 @@ class LeadActivity(db.Model):
     description = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     created_by = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False, index=True)
+    
+    # Multi-tenant field
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True, index=True)
 
     # Relationships
     lead = db.relationship('Lead', backref=db.backref('activities', cascade='all, delete-orphan'))
     creator = db.relationship('Employee', foreign_keys=[created_by], backref='activities_created')
+    organization = db.relationship('Organization', back_populates='activities')
 
     def __repr__(self):
         return f'<LeadActivity {self.activity_type.name} for Lead {self.lead_id}>'
+
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    description = db.Column(db.String(255), nullable=False)
+    due_date = db.Column(db.DateTime, nullable=True)
+    is_completed = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    
+    # Multi-tenant field
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True, index=True)
+    
+    # Foreign Keys
+    assigned_to = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False, index=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey('lead.id'), nullable=True, index=True)
+    
+    # Relationships
+    assignee = db.relationship('Employee', foreign_keys=[assigned_to], backref=db.backref('tasks_assigned', lazy='dynamic'))
+    lead_record = db.relationship('Lead', foreign_keys=[lead_id], backref=db.backref('tasks_related', lazy='dynamic'))
+    org = db.relationship('Organization', foreign_keys=[organization_id], backref=db.backref('tasks_org', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<Task {self.description}>'
+class Project(db.model):
+    id=db.Column(db.Integer, primary_key=True)
+    Project_name=db.Column(db.String(100), nullable=False)
+    description=db.Column(db.String(255), nullable=True)
+    

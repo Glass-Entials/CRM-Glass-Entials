@@ -27,8 +27,8 @@
             <a href="{{ url_for('home_page') }}">Dashboard</a>
             <a href="#">Directory</a>
             <a href="#">Resources</a>
-            <a href="{{ url_for('login') }}">Login</a>
-            <a href="{{ url_for('register') }}" class="btn-outline">Create Account</a>
+            <a href="{{ url_for('auth.login') }}">Login</a>
+            <a href="{{ url_for('auth.register') }}" class="btn-outline">Create Account</a>
         </nav>
     </header>
 
@@ -40,8 +40,8 @@
                 <p>Access your tools, manage client relations, and collaborate seamlessly. Experience the brilliance of
                     a unified enterprise.</p>
                 <div class="cta-group">
-                    <a href="{{ url_for('register') }}" class="btn-primary">Create Account</a>
-                    <a href="{{ url_for('login') }}" class="btn-text">Log In To Portal &rarr;</a>
+                    <a href="{{ url_for('auth.register') }}" class="btn-primary">Create Account</a>
+                    <a href="{{ url_for('auth.login') }}" class="btn-text">Log In To Portal &rarr;</a>
                 </div>
             </div>
             <div class="hero-image slide-left">

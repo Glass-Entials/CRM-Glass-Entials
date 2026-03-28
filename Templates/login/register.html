@@ -54,6 +54,7 @@
                     <label for="role">Staff Role / Department</label>
                     <select id="role" name="role" class="form-control" required>
                         <option value="" disabled selected>Select your department</option>
+                        <option value="admin" style="display:none;" id="role_admin">Admin / Owner</option>
                         <option value="employee">Sales & Relations</option>
                         <option value="employee">Client Support</option>
                         <option value="manager">Management</option>
@@ -61,6 +62,28 @@
                     </select>
                 </div>
             </div>
+            
+            <div class="form-row">
+                <div class="form-group" style="width: 100%;">
+                    <label for="org_option">Organization Action</label>
+                    <select id="org_option" name="org_option" class="form-control" onchange="toggleOrgFields()" required>
+                        <option value="" disabled selected>Select an option</option>
+                        <option value="create">Create New Organization (Admin)</option>
+                        <option value="join">Join Existing Organization (Staff)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row" id="org_details_row" style="display: none;">
+                <div class="form-group" id="org_name_div" style="width: 100%; display: none;">
+                    <label for="org_name">Organization Name</label>
+                    <input type="text" id="org_name" name="org_name" class="form-control" placeholder="Enter your Company Name">
+                </div>
+                <div class="form-group" id="org_code_div" style="width: 100%; display: none;">
+                    <label for="org_code">Organization Code</label>
+                    <input type="text" id="org_code" name="org_code" class="form-control" placeholder="Enter the 8-character unique code">
+                </div>
+            </div>
+
             <div class="form-row">
                 <div class="form-group">
                     <label for="password">Password</label>
@@ -90,6 +113,43 @@
     </div>
 
     <script>
+        function toggleOrgFields() {
+            const val = document.getElementById('org_option').value;
+            const orgRow = document.getElementById('org_details_row');
+            const nameDiv = document.getElementById('org_name_div');
+            const codeDiv = document.getElementById('org_code_div');
+            const nameInput = document.getElementById('org_name');
+            const codeInput = document.getElementById('org_code');
+            const roleSelect = document.getElementById('role');
+            const roleAdminOpt = document.getElementById('role_admin');
+            
+            orgRow.style.display = 'flex';
+            
+            if (val === 'create') {
+                nameDiv.style.display = 'block';
+                nameInput.required = true;
+                codeDiv.style.display = 'none';
+                codeInput.required = false;
+                
+                // Automate and lock role for Organization Creators
+                roleAdminOpt.style.display = 'block';
+                roleSelect.value = 'admin';
+                roleSelect.style.pointerEvents = 'none';
+                roleSelect.style.background = 'var(--bg-tertiary)';
+            } else if (val === 'join') {
+                nameDiv.style.display = 'none';
+                nameInput.required = false;
+                codeDiv.style.display = 'block';
+                codeInput.required = true;
+                
+                // Unlock for joining staff
+                roleAdminOpt.style.display = 'none';
+                if (roleSelect.value === 'admin') roleSelect.value = '';
+                roleSelect.style.pointerEvents = 'auto';
+                roleSelect.style.background = '#fff';
+            }
+        }
+
         const passwordInput = document.getElementById('password');
         const reqLength = document.getElementById('req-length');
         const reqCase = document.getElementById('req-case');

@@ -1,3 +1,3 @@
-Name,Email,Phone,Address,City,Company,Source,Status,Assigned_To
-Rashmi,rashmi123@gmail.com,8795478945,Mehesana,Ahmedabad,Rashmi Writes,Website,Requirement Understood,admin@glassentials.com
-John Admin,admin@glassentials.com,9876543210,123 Glass St,Mumbai,GlassEntials,Referral,Completed,
+Name,Email,Phone,Company,Address,City,Source,Status
+John Doe,john.doe@example.com,5551234567,Doe Industries,123 Business Rd,New York,Google,New
+Jane Smith,jane.smith@example.com,5559876543,GlassWorks LLC,456 Main St,Los Angeles,Referral,Follow Up

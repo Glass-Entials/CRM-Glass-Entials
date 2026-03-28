@@ -147,27 +147,38 @@
             <a href="/home" class="logo-link">
                 <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
             </a>
-            <span class="crm-badge">Staff Dashboard</span>
+            <span class="crm-badge">{{ current_user.organization.name }}</span>
         </div>
 
         <nav class="dash-menu">
             <a href="{{ url_for('home_page') }}">Dashboard</a>
-            <a href="{{ url_for('customers') }}">Customers</a>
-            <a href="{{ url_for('leads') }}" class="active">Leads</a>
-            <a href="#">Deals</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+            <a href="{{ url_for('leads.leads_list') }}" class="active">Leads</a>
+            <a href="#">Projects</a>
             <a href="#">Tasks</a>
             <div class="dropdown">
                 <a href="#">Settings ▾</a>
                 <div class="dropdown-content">
-                    <a href="{{ url_for('employee') }}">Employee Portal</a>
+                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
                 </div>
             </div>
         </nav>
 
-        <div class="user-profile" style="display:flex; align-items:center; gap: 15px;">
-            <span style="font-weight: 600; font-size: 0.95rem; color: var(--primary-color);">Welcome, {{
-                current_user.username }}</span>
-            <a href="{{ url_for('logout') }}" class="btn-action outline" style="padding: 0.5rem 1rem;">Logout</a>
+                <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -218,7 +229,7 @@
                 <a href="/bulk-upload-leads" class="btn-action outline" style="text-decoration: none;">
                     📁 Bulk Upload
                 </a>
-                <a href="{{ url_for('add_lead') }}" class="btn-action gold" style="text-decoration: none;">
+                <a href="{{ url_for('leads.add_lead') }}" class="btn-action gold" style="text-decoration: none;">
                     ➕ Add Lead
                 </a>
             </div>

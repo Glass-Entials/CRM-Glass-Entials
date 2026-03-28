@@ -90,7 +90,7 @@ python app.py
 
 ## 🔮 The Roadmap
 - [ ] **Email Automation**: Automatic follow-up reminders 48h after client addition.
-- [ ] **AI Deal Analysis**: Predicting which leads are most likely to convert based on interaction history.
+- [ ] **AI Project Analysis**: Predicting which leads are most likely to convert based on interaction history.
 - [ ] **Mobile Native Sync**: Real-time push notifications for sales agents on the move.
 
 ---

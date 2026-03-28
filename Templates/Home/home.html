@@ -57,26 +57,38 @@
             <a href="/home" class="logo-link">
                 <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
             </a>
-            <span class="crm-badge">Staff Dashboard</span>
+            <span class="crm-badge">{{ current_user.organization.name }}</span>
         </div>
         
         <nav class="dash-menu">
             <a href="#" class="active">Dashboard</a>
-            <a href="{{ url_for('customers') }}">Customers</a>
-            <a href="{{ url_for('leads') }}">Leads</a>
-            <a href="#">Deals</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+            <a href="#">Projects</a>
             <a href="#">Tasks</a>
             <div class="dropdown">
                 <a href="#">Settings ▾</a>
                 <div class="dropdown-content">
-                    <a href="{{ url_for('employee') }}">Employee Portal</a>
+                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
                 </div>
             </div>
         </nav>
         
-        <div class="user-profile" style="display:flex; align-items:center; gap: 15px;">
-            <span style="font-weight: 600; font-size: 0.95rem; color: var(--primary-color);">Welcome, {{ current_user.username }}</span>
-            <a href="{{ url_for('logout') }}" class="btn-action outline" style="padding: 0.5rem 1rem;">Logout</a>
+                <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -96,14 +108,18 @@
         <div class="dash-header">
             <div>
                 <h1>Overview</h1>
-                <p>Track your business metrics and ongoing deals.</p>
+                <p>Track your business metrics and ongoing projects.</p>
+                <div style="margin-top: 5px; display: flex; align-items: center; gap: 8px;">
+                    <span style="color: var(--text-muted); font-size: 0.9rem;">Organization Code:</span>
+                    <strong style="color: var(--primary-color); font-size: 0.95rem;">{{ current_user.organization.unique_code }}</strong>
+                </div>
             </div>
             <div class="quick-actions">
-                <a href="{{ url_for('add_customer') }}" class="btn-action dark" style="text-decoration: none;">
+                <a href="{{ url_for('customers.add_customer') }}" class="btn-action dark" style="text-decoration: none;">
                     Add Customer
                 </a>
                 <button class="btn-action gold">
-                    Create Deal
+                    Create Project
                 </button>
                 <button class="btn-action outline" style="border: 1px solid var(--primary-color); color: var(--primary-color);">
                     Add Follow-up
@@ -123,7 +139,7 @@
             <div class="stat-card">
                 <div class="stat-info">
                     <h3>42</h3>
-                    <p>Active Deals</p>
+                    <p>Active Projects</p>
                 </div>
                 <div class="stat-icon">💼</div>
             </div>
@@ -185,7 +201,7 @@
                                 {% else %}
                                 <tr>
                                     <td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
-                                        No customers yet. <a href="{{ url_for('add_customer') }}" style="color: var(--accent-gold); font-weight: 600;">Add one →</a>
+                                        No customers yet. <a href="{{ url_for('customers.add_customer') }}" style="color: var(--accent-gold); font-weight: 600;">Add one →</a>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -193,7 +209,7 @@
                         </table>
                     </div>
                     <div style="padding: 1rem; text-align: right;">
-                        <a href="{{ url_for('customers') }}" style="color: var(--accent-gold); font-weight: 600; font-size: 0.9rem; text-decoration: none;">View All Customers →</a>
+                        <a href="{{ url_for('customers.customers_list') }}" style="color: var(--accent-gold); font-weight: 600; font-size: 0.9rem; text-decoration: none;">View All Customers →</a>
                     </div>
                 </div>
 
@@ -233,7 +249,7 @@
                                 {% else %}
                                 <tr>
                                     <td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
-                                        No leads yet. <a href="{{ url_for('leads') }}" style="color: var(--accent-gold); font-weight: 600;">Check leads page →</a>
+                                        No leads yet. <a href="{{ url_for('leads.leads_list') }}" style="color: var(--accent-gold); font-weight: 600;">Check leads page →</a>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -241,7 +257,7 @@
                         </table>
                     </div>
                     <div style="padding: 1rem; text-align: right;">
-                        <a href="{{ url_for('leads') }}" style="color: var(--accent-gold); font-weight: 600; font-size: 0.9rem; text-decoration: none;">View All Leads →</a>
+                        <a href="{{ url_for('leads.leads_list') }}" style="color: var(--accent-gold); font-weight: 600; font-size: 0.9rem; text-decoration: none;">View All Leads →</a>
                     </div>
                 </div>
             </div>
@@ -262,7 +278,7 @@
                     <div class="activity-item">
                         <div class="activity-bullet" style="background: #10b981;"></div>
                         <div class="activity-content">
-                            <p><strong>Amit K.</strong> closed a deal</p>
+                            <p><strong>Amit K.</strong> closed a project</p>
                             <span>1 hour ago • Lux Interiors ($45,000)</span>
                         </div>
                     </div>
@@ -276,7 +292,7 @@
                     <div class="activity-item">
                         <div class="activity-bullet"></div>
                         <div class="activity-content">
-                            <p><strong>Rajat</strong> created a new deal</p>
+                            <p><strong>Rajat</strong> created a new project</p>
                             <span>Yesterday • Rahul Verma ($12,500)</span>
                         </div>
                     </div>

@@ -20,26 +20,38 @@
             <a href="/home" class="logo-link">
                 <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
             </a>
-            <span class="crm-badge">Staff Dashboard</span>
+            <span class="crm-badge">{{ current_user.organization.name }}</span>
         </div>
         
         <nav class="dash-menu">
             <a href="{{ url_for('home_page') }}">Dashboard</a>
-            <a href="{{ url_for('customers') }}">Customers</a>
-            <a href="{{ url_for('leads') }}">Leads</a>
-            <a href="#">Deals</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+            <a href="#">Projects</a>
             <a href="#">Tasks</a>
             <div class="dropdown">
                 <a href="#" class="active">Settings ▾</a>
                 <div class="dropdown-content">
-                    <a href="{{ url_for('employee') }}">Employee Portal</a>
+                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
                 </div>
             </div>
         </nav>
         
-        <div class="user-profile" style="display:flex; align-items:center; gap: 15px;">
-            <span style="font-weight: 600; font-size: 0.95rem; color: var(--primary-color);">Welcome, {{ current_user.username }}</span>
-            <a href="{{ url_for('logout') }}" class="btn-action outline" style="padding: 0.5rem 1rem;">Logout</a>
+                <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -47,7 +59,7 @@
         <!-- Top Section -->
         <div class="top-bar" style="border-bottom: 2px solid rgba(212, 175, 55, 0.2); padding-bottom: 1.5rem; margin-bottom: 2rem;">
             <h1 style="color: var(--primary-color); font-size: 2rem; font-family: var(--font-heading);">Edit Employee Profile</h1>
-            <a href="{{ url_for('employee') }}" class="btn-action outline" style="text-decoration:none;">← Back to Portal</a>
+            <a href="{{ url_for('employees.employee_list') }}" class="btn-action outline" style="text-decoration:none;">← Back to Portal</a>
         </div>
 
         <!-- Flash Messages -->
@@ -64,7 +76,7 @@
         <!-- Form Container -->
         <div class="form-container" style="animation: none;">
             <div class="panel" style="border-top: 4px solid var(--accent-gold);">
-                <form action="{{ url_for('edit_employee', employee_id=employee.id) }}" method="POST" class="customer-form">
+                <form action="{{ url_for('employees.edit_employee', employee_id=employee.id) }}" method="POST" class="customer-form">
                     <div class="form-grid">
                         <div class="form-group">
                             <label>Full Name <span style="color: red; opacity: 0.7;">*</span></label>
@@ -92,7 +104,7 @@
                     </div>
                     
                     <div style="display:flex; justify-content: flex-end; gap: 1rem; margin-top: 3rem;">
-                        <a href="{{ url_for('employee') }}" class="btn-action outline" style="text-decoration:none;">Cancel</a>
+                        <a href="{{ url_for('employees.employee_list') }}" class="btn-action outline" style="text-decoration:none;">Cancel</a>
                         <button type="submit" class="btn-action gold">Update Profile</button>
                     </div>
                 </form>

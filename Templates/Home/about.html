@@ -23,8 +23,8 @@
             <a href="#">Dashboard</a>
             <a href="#">Directory</a>
             <a href="#">Resources</a>
-            <a href="{{ url_for('login') }}">Login</a>
-            <a href="{{ url_for('register') }}" class="btn-outline">Create Account</a>
+            <a href="{{ url_for('auth.login') }}">Login</a>
+            <a href="{{ url_for('auth.register') }}" class="btn-outline">Create Account</a>
         </nav>
     </header>
 
@@ -59,7 +59,7 @@
                 <h2>Powered By Precision <br><em>and Data</em></h2>
                 <p>Delivering high-quality products and timely execution requires more than just glass; it requires a state-of-the-art internal nerve center. Our proprietary CRM empowers our staff to build long-term relationships based on trust, superior workmanship, and lightning-fast logistics mapping.</p>
                 <div style="margin-top: 2rem;">
-                    <a href="{{ url_for('register') }}" class="btn-primary">Join the Network</a>
+                    <a href="{{ url_for('auth.register') }}" class="btn-primary">Join the Network</a>
                 </div>
             </div>
             <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" alt="Data Dashboard" class="crm-fusion-img slide-left">
