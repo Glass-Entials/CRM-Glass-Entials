@@ -27,7 +27,7 @@
             <a href="{{ url_for('home_page') }}">Dashboard</a>
             <a href="{{ url_for('customers.customers_list') }}">Customers</a>
             <a href="{{ url_for('leads.leads_list') }}" class="active">Leads</a>
-            <a href="#">Projects</a>
+            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
             <a href="#">Tasks</a>
             <div class="dropdown">
                 <a href="#">Settings ▾</a>
@@ -77,6 +77,24 @@
             <div class="panel" style="border-top: 4px solid var(--accent-gold);">
                 <form method="POST" action="{{ url_for('leads.edit_lead', lead_id=lead_id) }}" class="customer-form">
                     <div class="form-grid">
+                        <!-- GST Auto-Fetch Section -->
+                        <div class="form-group full-width" style="background: rgba(212, 175, 55, 0.05); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(212, 175, 55, 0.2); margin-bottom: 1rem;">
+                            <label style="color: var(--accent-gold); font-weight: 700; margin-bottom: 1rem; display: block;">⚡ GST Auto-Fetch</label>
+                            <div style="display: flex; gap: 1rem; align-items: flex-end;">
+                                <div style="flex: 1;">
+                                    <label>GST Number (GSTIN)</label>
+                                    <input type="text" id="gst_number_input" name="gst_number" class="form-control" value="{{ lead.gst_number or '' }}" placeholder="22AAAAA0000A1Z5" maxlength="15" style="text-transform: uppercase;">
+                                </div>
+                                <button type="button" id="fetchGstBtn" class="btn-action gold" style="height: 48px; min-width: 150px;">Fetch/Update</button>
+                            </div>
+                            <div id="gstLoader" style="display: none; margin-top: 10px; font-size: 0.85rem; color: var(--accent-gold);">
+                                <span class="spinner">⏳</span> Fetching latest data from GST portal...
+                            </div>
+                            <div id="gstDuplicateWarning" style="display: none; margin-top: 10px; padding: 10px; background: #fffbeb; border-left: 4px solid #f59e0b; font-size: 0.9rem; border-radius: 4px;">
+                                <span id="gstWarningText" style="color: #92400e;"></span>
+                                <a id="gstExistingLink" href="#" style="color: var(--accent-gold); font-weight: 600; margin-left: 10px;">View Record →</a>
+                            </div>
+                        </div>
                         <div class="form-group">
                             <label for="name">Name</label>
                             <input type="text" id="name" class="form-control" name="name" value="{{ lead.name }}" required>
@@ -90,8 +108,28 @@
                             <input type="text" id="phone" class="form-control" name="phone" value="{{ lead.phone_number }}" required>
                         </div>
                         <div class="form-group">
-                            <label for="company">Company</label>
-                            <input type="text" id="company" class="form-control" name="company" value="{{ lead.company or '' }}">
+                            <label for="company">Company / Legal Name</label>
+                            <input type="text" id="company" name="company" class="form-control" value="{{ lead.company or '' }}" placeholder="e.g. Vision Architect Studios">
+                        </div>
+                        <div class="form-group">
+                            <label>Trade Name</label>
+                            <input type="text" id="trade_name" name="trade_name" class="form-control" value="{{ lead.trade_name or '' }}" placeholder="Business Trade Name">
+                        </div>
+                        <div class="form-group">
+                            <label>State</label>
+                            <input type="text" id="state" name="state" class="form-control" value="{{ lead.state or '' }}" placeholder="e.g. Maharashtra">
+                        </div>
+                        <div class="form-group">
+                            <label>Pincode</label>
+                            <input type="text" id="pincode" name="pincode" class="form-control" value="{{ lead.pincode or '' }}" placeholder="6 Digit Pincode">
+                        </div>
+                        <div class="form-group">
+                            <label>Business Type</label>
+                            <input type="text" id="business_type" name="business_type" class="form-control" value="{{ lead.business_type or '' }}" placeholder="e.g. Pvt Ltd, Proprietorship">
+                        </div>
+                        <div class="form-group">
+                            <label>GST Status</label>
+                            <input type="text" id="gst_status" name="gst_status" class="form-control" value="{{ lead.gst_status or '' }}" readonly style="background: rgba(13, 27, 42, 0.03);" placeholder="Status will appear here">
                         </div>
                         <div class="form-group">
                             <label for="source">Lead Source</label>
@@ -116,11 +154,11 @@
                         </div>
                         <div class="form-group">
                             <label for="city">City</label>
-                            <input type="text" id="city" class="form-control" name="city" value="{{ lead.city or '' }}">
+                            <input type="text" id="city_input" class="form-control" name="city" value="{{ lead.city or '' }}">
                         </div>
                         <div class="form-group">
                             <label for="address">Address</label>
-                            <input type="text" id="address" class="form-control" name="address" value="{{ lead.address or '' }}">
+                            <input type="text" id="address_input" class="form-control" name="address" value="{{ lead.address or '' }}">
                         </div>
                         <div class="form-group full-width">
                             <label for="assigned_to">Assigned To</label>
@@ -144,5 +182,72 @@
             </div>
          </div>
     </main>
+    <script>
+        document.getElementById('fetchGstBtn').addEventListener('click', async function() {
+            const gstin = document.getElementById('gst_number_input').value.trim().toUpperCase();
+            if (gstin.length !== 15) {
+                alert('Please enter a valid 15-character GST number.');
+                return;
+            }
+
+            const btn = this;
+            const loader = document.getElementById('gstLoader');
+            const warningBox = document.getElementById('gstDuplicateWarning');
+            const warningText = document.getElementById('gstWarningText');
+            const existingLink = document.getElementById('gstExistingLink');
+
+            // Reset UI
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btn.innerText = '⌛ Fetching...';
+            loader.style.display = 'block';
+            warningBox.style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/gst/${gstin}`);
+                const data = await response.json();
+                console.log("GST API Response:", data);
+
+                if (!response.ok) {
+                    alert(data.error || 'Failed to fetch GST details');
+                } else {
+                    // Success - Auto-fill
+                    document.getElementById('company').value = data.company || '';
+                    if (!document.getElementById('name').value) {
+                         document.getElementById('name').value = data.company || '';
+                    }
+                    
+                    document.getElementById('trade_name').value = data.trade_name || '';
+                    document.getElementById('address_input').value = data.address || '';
+                    document.getElementById('state').value = data.state || '';
+                    document.getElementById('pincode').value = data.pincode || '';
+                    document.getElementById('business_type').value = data.business_type || '';
+                    document.getElementById('gst_status').value = data.gst_status || '';
+                    document.getElementById('city_input').value = data.city || '';
+
+                    // Duplicate Warning (Only show if it's NOT this lead)
+                    const currentId = "{{ lead.id }}";
+                    if (data.duplicate_warning && (data.duplicate_warning.type !== 'lead' || String(data.duplicate_warning.id) !== currentId)) {
+                        warningBox.style.display = 'block';
+                        warningText.innerText = data.duplicate_warning.message;
+                        existingLink.href = data.duplicate_warning.type === 'customer' 
+                            ? `/view-customer/${data.duplicate_warning.id}` 
+                            : `/view-lead/${data.duplicate_warning.id}`;
+                    }
+                    
+                    btn.innerText = '✅ Updated';
+                    setTimeout(() => btn.innerText = 'Fetch/Update', 3000);
+                }
+            } catch (error) {
+                console.error('GST Fetch Error:', error);
+                alert('An error occurred while fetching GST details.');
+            } finally {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                if (btn.innerText === '⌛ Fetching...') btn.innerText = 'Fetch/Update';
+                loader.style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>

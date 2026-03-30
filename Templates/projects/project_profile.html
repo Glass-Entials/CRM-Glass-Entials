@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project.name }} - Overview</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/customer.css') }}">
+</head>
+<body class="dashboard-page">
+
+    <!-- Top Navbar -->
+    <header class="dash-nav">
+        <div class="logo">
+            <a href="/home" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+            <span class="crm-badge">{{ current_user.organization.name }}</span>
+        </div>
+        
+        <nav class="dash-menu">
+            <a href="{{ url_for('home_page') }}">Dashboard</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+            <a href="{{ url_for('projects.projects_list') }}" class="active">Projects</a>
+            <a href="#">Tasks</a>
+            <div class="dropdown">
+                <a href="#">Settings ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container" style="max-width: 1000px; padding-top: 3rem;">
+        
+        <!-- Top Section -->
+        <div class="top-bar" style="border-bottom: 2px solid rgba(212, 175, 55, 0.2); padding-bottom: 1.5rem; margin-bottom: 2rem;">
+            <div>
+                <a href="{{ url_for('projects.projects_list') }}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem; margin-bottom: 0.5rem; display: inline-block;">← Back to Projects</a>
+                <h1 style="color: var(--primary-color); font-size: 2.2rem; font-family: var(--font-heading); margin-top: 0.2rem;">{{ project.name }}</h1>
+                <p style="color: var(--text-muted); font-size: 1rem; margin-top: 0.3rem;">Created on {{ project.created_at.strftime('%B %d, %Y') if project.created_at else '—' }}</p>
+            </div>
+            
+            <div class="btn-group">
+                <a href="/edit-project/{{ project.id }}" class="btn-action gold" style="text-decoration: none;">✏ Edit Detalis</a>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+            <!-- Main Content -->
+            <div class="panel" style="padding: 2.5rem; border-top: 4px solid var(--primary-color);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+                    <h2 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.5rem; margin: 0;">Project Overview</h2>
+                    <span class="status-badge" style="padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; 
+                        {% if project.status_display == 'In Progress' %}background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3);
+                        {% elif project.status_display == 'Cancelled' %}background: rgba(220, 53, 69, 0.08); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2);
+                        {% elif project.status_display == 'Completed' %}background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2);
+                        {% else %}background: rgba(212, 175, 55, 0.15); color: #d4af37; border: 1px solid rgba(212, 175, 55, 0.4);{% endif %}">
+                        {{ project.status_display }}
+                    </span>
+                </div>
+
+                <div style="background: rgba(13, 27, 42, 0.02); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.05); margin-bottom: 2rem;">
+                    <h3 style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.5rem;">Description</h3>
+                    <p style="font-size: 1.05rem; line-height: 1.6; color: var(--text-color); margin: 0;">{{ project.description or 'No description provided.' }}</p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div>
+                        <h3 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.3rem;">Associated Customer</h3>
+                        {% if project.customer %}
+                            <p style="font-size: 1.1rem; font-weight: 500; color: var(--primary-color); margin: 0;"><a href="{{ url_for('customers.view_customer', customer_id=project.customer.id) }}" style="color: var(--accent-gold); text-decoration: none;">{{ project.customer.name }}</a></p>
+                        {% else %}
+                            <p style="font-size: 1.1rem; font-weight: 500; color: var(--text-muted); margin: 0;">None</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h3 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.3rem;">Work Type</h3>
+                        <p style="font-size: 1.1rem; font-weight: 500; margin: 0;">
+                            {% if project.work_type %}
+                                {% if project.work_type.value == 'Glass' %}🪟
+                                {% elif project.work_type.value == 'Hardware' %}🔩
+                                {% elif project.work_type.value == 'Mirror' %}🪞
+                                {% endif %} {{ project.work_type.value }}
+                            {% else %}—{% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.3rem;">Category</h3>
+                        <p style="font-size: 1.1rem; font-weight: 500; margin: 0;">
+                            {{ ('🏢 ' if project.category and project.category.value == 'Commercial' else '🏠 ') if project.category else '' }}{{ project.category.value if project.category else '—' }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                
+                <!-- Assignment Info -->
+                <div class="panel" style="padding: 2rem;">
+                    <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0 0 1.5rem 0; border-bottom: 1px solid rgba(13, 27, 42, 0.1); padding-bottom: 0.8rem;">Responsibility</h3>
+                    
+                    <div style="margin-bottom: 1.2rem;">
+                        <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Assigned To</span>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1rem;">
+                                {{ project.assignee.name[:1] if project.assignee else '?' }}
+                            </div>
+                            <span style="font-weight: 500; font-size: 1rem;">{{ project.assignee.name if project.assignee else 'Unassigned' }}</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 1.2rem;">
+                        <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Created By</span>
+                        <span style="font-weight: 500; font-size: 0.95rem;">{{ project.creator.name if project.creator else 'System' }}</span>
+                    </div>
+
+                    <div>
+                        <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Last Updated</span>
+                        <span style="font-weight: 500; font-size: 0.95rem;">{{ project.updated_at.strftime('%B %d, %Y') if project.updated_at else '—' }}</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

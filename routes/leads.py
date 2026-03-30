@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from model import db, Lead, Employee, LeadSource, LeadStatus, LeadActivity, ActivityType, Customer, CustomerStatus
 from utils.exports import export_to_csv, export_to_excel, export_to_pdf
+from utils.activity import log_activity
 import pandas as pd
 
 leads_bp = Blueprint('leads', __name__)
@@ -57,10 +58,19 @@ def add_lead():
             source=source_map.get(request.form.get('source'), LeadSource.OTHER),
             status=status_map.get(request.form.get('status'), LeadStatus.NEW),
             created_by=current_user.employee.id, assigned_to=assigned_to_id,
-            organization_id=current_user.organization_id
+            organization_id=current_user.organization_id,
+            # GST Fields
+            gst_number=request.form.get('gst_number', '').strip(),
+            trade_name=request.form.get('trade_name', '').strip(),
+            state=request.form.get('state', '').strip(),
+            pincode=request.form.get('pincode', '').strip(),
+            business_type=request.form.get('business_type', '').strip(),
+            gst_status=request.form.get('gst_status', '').strip()
         )
         try:
             db.session.add(new_lead)
+            db.session.flush()
+            log_activity('lead_added', 'lead', new_lead.name, current_user.organization_id, current_user.employee.id, new_lead.id)
             db.session.commit()
             flash('Lead added!', 'leadssuccess')
             return redirect(url_for('leads.leads_list'))
@@ -92,9 +102,19 @@ def edit_lead(lead_id):
         lead.address = request.form.get('address', '').strip()
         lead.city = request.form.get('city', '').strip()
         lead.notes = request.form.get('notes', '').strip()
+        
+        # GST Fields
+        lead.gst_number = request.form.get('gst_number', '').strip()
+        lead.trade_name = request.form.get('trade_name', '').strip()
+        lead.state = request.form.get('state', '').strip()
+        lead.pincode = request.form.get('pincode', '').strip()
+        lead.business_type = request.form.get('business_type', '').strip()
+        lead.gst_status = request.form.get('gst_status', '').strip()
+        
         lead.updated_by = current_user.employee.id
 
         try:
+            log_activity('lead_updated', 'lead', lead.name, current_user.organization_id, current_user.employee.id, lead.id)
             db.session.commit()
             flash('Lead updated!', 'leadssuccess')
             return redirect(url_for('leads.leads_list'))
@@ -111,6 +131,7 @@ def edit_lead(lead_id):
 def delete_lead(lead_id):
     lead = Lead.query.filter_by(id=lead_id, organization_id=current_user.organization_id).first_or_404()
     lead.is_deleted = True
+    log_activity('lead_deleted', 'lead', lead.name, current_user.organization_id, current_user.employee.id, lead.id)
     db.session.commit()
     flash('Lead deleted.', 'leadssuccess')
     return redirect(url_for('leads.leads_list'))
@@ -156,10 +177,15 @@ def convert_lead(lead_id):
             lead_id=lead.id, name=lead.name, email=lead.email, phone_number=lead.phone_number,
             address=lead.address, city=lead.city, company=lead.company, source=lead.source,
             status=CustomerStatus.NEW, notes=lead.notes, assigned_to=lead.assigned_to,
-            created_by=current_user.employee.id, organization_id=current_user.organization_id
+            created_by=current_user.employee.id, organization_id=current_user.organization_id,
+            gst_number=lead.gst_number, trade_name=lead.trade_name,
+            state=lead.state, pincode=lead.pincode,
+            business_type=lead.business_type, gst_status=lead.gst_status
         )
         lead.status = LeadStatus.ACTIVE
         db.session.add(new_c)
+        db.session.flush()
+        log_activity('customer_added', 'customer', new_c.name, current_user.organization_id, current_user.employee.id, new_c.id, description=f"Converted Lead to Customer: {new_c.name}")
         db.session.commit()
         flash(f'Lead "{lead.name}" converted to customer!', 'leadssuccess')
         return redirect(url_for('customers.customers_list'))

@@ -1,11 +1,14 @@
 import os
 import re
-import csv
-from flask import Blueprint, render_template, request, flash, redirect, url_for, Response, send_file
+from flask import Blueprint, render_template, request, flash, redirect, url_for, Response, send_file, current_app
 from flask_login import login_required, current_user
-from model import db, Customer, Employee, LeadSource, CustomerStatus
+from model import db, Customer, Employee, LeadSource, CustomerStatus, CustomerDocument
 from utils.exports import export_to_csv, export_to_excel, export_to_pdf
 import pandas as pd
+from werkzeug.utils import secure_filename
+import uuid
+from datetime import datetime
+from utils.activity import log_activity
 
 customers_bp = Blueprint('customers', __name__)
 
@@ -96,10 +99,19 @@ def add_customer():
             source=source_map.get(source, LeadSource.OTHER),
             status=status_map.get(status, CustomerStatus.REQUIREMENT_UNDERSTOOD),
             notes=notes, created_by=current_user.employee.id,
-            assigned_to=assigned_to_id, organization_id=current_user.organization_id
+            assigned_to=assigned_to_id, organization_id=current_user.organization_id,
+            # GST Fields
+            gst_number=request.form.get('gst_number', '').strip(),
+            trade_name=request.form.get('trade_name', '').strip(),
+            state=request.form.get('state', '').strip(),
+            pincode=request.form.get('pincode', '').strip(),
+            business_type=request.form.get('business_type', '').strip(),
+            gst_status=request.form.get('gst_status', '').strip()
         )
         try:
             db.session.add(new_customer)
+            db.session.flush()
+            log_activity('customer_added', 'customer', new_customer.name, current_user.organization_id, current_user.employee.id, new_customer.id)
             db.session.commit()
             flash('Customer added successfully!', 'customersuccess')
             return redirect(url_for('customers.customers_list'))
@@ -131,9 +143,19 @@ def edit_customer(customer_id):
         customer.source = source_map.get(request.form.get('source'), LeadSource.OTHER)
         customer.status = status_map.get(request.form.get('status'), CustomerStatus.NEW)
         customer.notes = request.form.get('notes', '').strip()
+        
+        # GST Fields
+        customer.gst_number = request.form.get('gst_number', '').strip()
+        customer.trade_name = request.form.get('trade_name', '').strip()
+        customer.state = request.form.get('state', '').strip()
+        customer.pincode = request.form.get('pincode', '').strip()
+        customer.business_type = request.form.get('business_type', '').strip()
+        customer.gst_status = request.form.get('gst_status', '').strip()
+        
         customer.updated_by = current_user.employee.id
 
         try:
+            log_activity('customer_updated', 'customer', customer.name, current_user.organization_id, current_user.employee.id, customer.id)
             db.session.commit()
             flash('Customer updated successfully!', 'customersuccess')
             return redirect(url_for('customers.customers_list'))
@@ -150,6 +172,7 @@ def edit_customer(customer_id):
 def delete_customer(customer_id):
     customer = Customer.query.filter_by(id=customer_id, organization_id=current_user.organization_id).first_or_404()
     customer.is_deleted = True
+    log_activity('customer_deleted', 'customer', customer.name, current_user.organization_id, current_user.employee.id, customer.id)
     db.session.commit()
     flash('Customer deleted.', 'customersuccess')
     return redirect(url_for('customers.customers_list'))
@@ -222,3 +245,82 @@ def bulk_upload():
         except Exception as e:
             flash(f'Upload error: {str(e)}', 'customererror')
     return render_template('customer/bulkuploadcustomer.html')
+
+@customers_bp.route('/upload-document/<int:customer_id>', methods=['POST'])
+@login_required
+def upload_document(customer_id):
+    customer = Customer.query.filter_by(id=customer_id, organization_id=current_user.organization_id).first_or_404()
+    
+    if 'document' not in request.files:
+        flash('No file part', 'customererror')
+        return redirect(url_for('customers.view_customer', customer_id=customer_id))
+    
+    file = request.files['document']
+    if file.filename == '':
+        flash('No selected file', 'customererror')
+        return redirect(url_for('customers.view_customer', customer_id=customer_id))
+    
+    if file:
+        original_filename = secure_filename(file.filename)
+        extension = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
+        
+        # Unique filename to avoid collisions
+        unique_filename = f"{uuid.uuid4().hex}.{extension}"
+        
+        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'customer_docs')
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder, exist_ok=True)
+            
+        file_path = os.path.join(upload_folder, unique_filename)
+        file.save(file_path)
+        
+        new_doc = CustomerDocument(
+            customer_id=customer.id,
+            filename=unique_filename,
+            original_name=original_filename,
+            file_type=extension,
+            organization_id=current_user.organization_id
+        )
+        
+        db.session.add(new_doc)
+        db.session.flush()
+        log_activity('document_uploaded', 'document', f"{original_filename} (Customer: {customer.name})", current_user.organization_id, current_user.employee.id, new_doc.id)
+        db.session.commit()
+        
+        flash(f'Document "{original_filename}" uploaded successfully!', 'customersuccess')
+        return redirect(url_for('customers.view_customer', customer_id=customer_id))
+
+@customers_bp.route('/download-document/<int:doc_id>')
+@login_required
+def download_document(doc_id):
+    doc = CustomerDocument.query.filter_by(id=doc_id, organization_id=current_user.organization_id).first_or_404()
+    file_path = os.path.join(current_app.root_path, 'static', 'uploads', 'customer_docs', doc.filename)
+    
+    if not os.path.exists(file_path):
+        flash('File not found on server.', 'customererror')
+        return redirect(url_for('customers.view_customer', customer_id=doc.customer_id))
+        
+    return send_file(file_path, as_attachment=True, download_name=doc.original_name)
+
+@customers_bp.route('/delete-document/<int:doc_id>', methods=['POST'])
+@login_required
+def delete_document(doc_id):
+    doc = CustomerDocument.query.filter_by(id=doc_id, organization_id=current_user.organization_id).first_or_404()
+    customer_id = doc.customer_id
+    
+    file_path = os.path.join(current_app.root_path, 'static', 'uploads', 'customer_docs', doc.filename)
+    
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        log_activity('document_deleted', 'document', doc.original_name, current_user.organization_id, current_user.employee.id, doc.id)
+        db.session.delete(doc)
+        db.session.commit()
+        flash('Document deleted successfully.', 'customersuccess')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting document: {str(e)}', 'customererror')
+        
+    return redirect(url_for('customers.view_customer', customer_id=customer_id))
+

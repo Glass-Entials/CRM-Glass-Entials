@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customers | GlassEntials Staff Portal</title>
+    <title>Projects | GlassEntials Staff Portal</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,9 +29,9 @@
 
         <nav class="dash-menu">
             <a href="{{ url_for('home_page') }}">Dashboard</a>
-            <a href="{{ url_for('customers.customers_list') }}" class="active">Customers</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
             <a href="{{ url_for('leads.leads_list') }}">Leads</a>
-            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+            <a href="{{ url_for('projects.projects_list') }}" class="active">Projects</a>
             <a href="#">Tasks</a>
             <div class="dropdown">
                 <a href="#">Settings ▾</a>
@@ -41,7 +41,7 @@
             </div>
         </nav>
 
-                <div class="user-profile">
+        <div class="user-profile">
             <span class="welcome-text">Welcome, {{ current_user.username }}</span>
             <div class="profile-dropdown">
                 <div class="profile-trigger">
@@ -57,21 +57,11 @@
                 </div>
             </div>
         </div>
-                <div class="profile-dropdown-content">
-                    <a href="{{ url_for('auth.user_profile') }}">
-                        <span class="icon">👤</span> Manage Profile
-                    </a>
-                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
-                        <span class="icon">🚪</span> Logout
-                    </a>
-                </div>
-            </div>
-        </div>
     </header>
 
     <main class="container">
 
-        {% with messages = get_flashed_messages(category_filter=["customersuccess"]) %}
+        {% with messages = get_flashed_messages(category_filter=["projectsuccess"]) %}
         {% if messages %}
         {% for message in messages %}
         <div class="flash-message"
@@ -82,7 +72,7 @@
         {% endif %}
         {% endwith %}
 
-        {% with messages = get_flashed_messages(category_filter=["customererror"]) %}
+        {% with messages = get_flashed_messages(category_filter=["projecterror"]) %}
         {% if messages %}
         {% for message in messages %}
         <div class="flash-message"
@@ -97,27 +87,12 @@
         <div class="top-bar">
             <div class="search-bar">
                 <span class="search-icon">🔍</span>
-                <input type="text" placeholder="Search customers..." id="customerSearch">
+                <input type="text" placeholder="Search projects..." id="projectSearch">
             </div>
             
             <div class="btn-group">
-                <div class="export-dropdown">
-                    <button class="btn-action outline export-trigger">
-                        📤 Export ▾
-                    </button>
-                    <div class="export-menu">
-                        <div class="export-menu-inner">
-                            <a href="/export-customers/csv">📄 Export CSV</a>
-                            <a href="/export-customers/excel">📊 Export Excel</a>
-                            <a href="/export-customers/pdf">🖨 Export PDF</a>
-                        </div>
-                    </div>
-                </div>
-                <a href="{{ url_for('customers.bulk_upload') }}" class="btn-action outline" style="text-decoration: none;">
-                    📁 Bulk Upload
-                </a>
-                <a href="{{ url_for('customers.add_customer') }}" class="btn-action gold" style="text-decoration: none;">
-                    ➕ Add Customer
+                <a href="{{ url_for('projects.add_project') }}" class="btn-action gold" style="text-decoration: none;">
+                    ➕ Add Project
                 </a>
             </div>
         </div>
@@ -129,15 +104,6 @@
             </div>
             
             <div class="filter-group" style="display: flex; gap: 12px; align-items: center; flex: 1;">
-                <div style="position: relative; flex: 1; max-width: 200px;">
-                    <select id="cityFilter" class="form-control" style="padding: 0.7rem 1rem; height: auto; font-size: 0.9rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.15); background-color: #f8fafc; cursor: pointer; width: 100%;">
-                        <option value="">All Cities</option>
-                        {% for city in cities %}
-                            <option value="{{ city }}">{{ city }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
                 <div style="position: relative; flex: 1; max-width: 220px;">
                     <select id="assigneeFilter" class="form-control" style="padding: 0.7rem 1rem; height: auto; font-size: 0.9rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.15); background-color: #f8fafc; cursor: pointer; width: 100%;">
                         <option value="">All Staff</option>
@@ -150,19 +116,29 @@
 
                 <div style="position: relative; flex: 1; max-width: 200px;">
                     <select id="statusFilter" class="form-control" style="padding: 0.7rem 1rem; height: auto; font-size: 0.9rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.15); background-color: #f8fafc; cursor: pointer; width: 100%;">
-                        <option value="">All Project Stages</option>
-                        <option value="New">New</option>
-                        <option value="Requirement Understood">Requirement Understood</option>
-                        <option value="Measurement Scheduled">Measurement Scheduled</option>
-                        <option value="Quotation Sent">Quotation Sent</option>
-                        <option value="Follow Up">Follow Up</option>
-                        <option value="Order Confirmed">Order Confirmed</option>
-                        <option value="In Production">In Production</option>
-                        <option value="Ready for Dispatch">Ready for Dispatch</option>
-                        <option value="Installation Scheduled">Installation Scheduled</option>
-                        <option value="Installation Done">Installation Done</option>
+                        <option value="">All Statuses</option>
+                        <option value="Planning">Planning</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="On Hold">On Hold</option>
                         <option value="Completed">Completed</option>
                         <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+
+                <div style="position: relative; flex: 1; max-width: 180px;">
+                    <select id="workTypeFilter" class="form-control" style="padding: 0.7rem 1rem; height: auto; font-size: 0.9rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.15); background-color: #f8fafc; cursor: pointer; width: 100%;">
+                        <option value="">All Work Types</option>
+                        <option value="Glass">Glass</option>
+                        <option value="Hardware">Hardware</option>
+                        <option value="Mirror">Mirror</option>
+                    </select>
+                </div>
+
+                <div style="position: relative; flex: 1; max-width: 180px;">
+                    <select id="categoryFilter" class="form-control" style="padding: 0.7rem 1rem; height: auto; font-size: 0.9rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.15); background-color: #f8fafc; cursor: pointer; width: 100%;">
+                        <option value="">All Categories</option>
+                        <option value="Commercial">Commercial</option>
+                        <option value="Residential">Residential</option>
                     </select>
                 </div>
             </div>
@@ -171,95 +147,116 @@
                 <span>🔄</span> Reset
             </button>
         </div>
-        </div>
 
         <!-- Table Section -->
         <div class="panel">
             <div class="table-responsive">
-                <table class="customer-table" id="customersTable">
+                <table class="customer-table" id="projectsTable">
                     <thead>
                         <tr>
                             <th>#</th>
                             <th>Name</th>
-                            <th>Email</th>
-                            <th>Phone Number</th>
-                            <th>City</th>
-                            <th>Company</th>
+                            <th>Work Type</th>
+                            <th>Category</th>
+                            <th>Customer</th>
                             <th>Status</th>
                             <th>Assigned To</th>
+                            <th>Created Date</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for customer in customers %}
+                        {% for project in projects %}
                         <tr>
                             <td>#{{ loop.index }}</td>
-                            <td class="customer-name">
-                                <a href="{{ url_for('customers.view_customer', customer_id=customer.id) }}" style="text-decoration: none; color: inherit; font-weight: 600; border-bottom: 1px solid transparent; transition: border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent-gold)'" onmouseout="this.style.borderColor='transparent'">
-                                    {{ customer.name }}
+                            <td class="project-name">
+                                <a href="{{ url_for('projects.view_project', project_id=project.id) }}" style="text-decoration: none; color: inherit; font-weight: 600; border-bottom: 1px solid transparent; transition: border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent-gold)'" onmouseout="this.style.borderColor='transparent'">
+                                    {{ project.name }}
                                 </a>
                             </td>
-                            <td>{{ customer.email }}</td>
-                            <td>{{ customer.phone_number }}</td>
-                            <td class="customer-city">{{ customer.city or '—' }}</td>
-                            <td>{{ customer.company or '—' }}</td>
                             <td>
-                                {% set active_stages = ['Completed', 'Installation Done', 'Installation Scheduled', 'Ready for Dispatch', 'In Production', 'Order Confirmed'] %}
-                                {% set warning_stages = ['Requirement Understood', 'Measurement Scheduled', 'Quotation Sent', 'Follow Up'] %}
+                                {% if project.work_type %}
+                                <span class="status-badge project-work-type" style="background: rgba(13,27,42,0.06); color: var(--primary-color); border: 1px solid rgba(13,27,42,0.15);">
+                                    {% if project.work_type.value == 'Glass' %}🪟
+                                    {% elif project.work_type.value == 'Hardware' %}🔩
+                                    {% elif project.work_type.value == 'Mirror' %}🪞
+                                    {% endif %} {{ project.work_type.value }}
+                                </span>
+                                <span class="raw-work-type" style="display:none;">{{ project.work_type.value }}</span>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>
+                                {% if project.category %}
+                                <span class="status-badge project-category" style="background: rgba(212,175,55,0.1); color: #8a6a00; border: 1px solid rgba(212,175,55,0.25);">{{ '🏢' if project.category.value == 'Commercial' else '🏠' }} {{ project.category.value }}</span>
+                                <span class="raw-category" style="display:none;">{{ project.category.value }}</span>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>{{ project.customer.name if project.customer else '—' }}</td>
+                            <td>
+                                {% set active_stages = ['In Progress'] %}
+                                {% set warning_stages = ['On Hold'] %}
                                 
-                                {% if customer.status_display in active_stages %}
-                                <span class="status-badge status-active">{{ customer.status_display }}</span>
-                                {% elif customer.status_display == 'Cancelled' %}
-                                <span class="status-badge" style="background: rgba(220, 53, 69, 0.08); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2);">{{ customer.status_display }}</span>
-                                {% elif customer.status_display in warning_stages %}
-                                <span class="status-badge" style="color: #b45309; background: #fffbeb; border: 1px solid #fde68a;">{{ customer.status_display }}</span>
+                                {% if project.status_display in active_stages %}
+                                <span class="status-badge status-active">{{ project.status_display }}</span>
+                                {% elif project.status_display == 'Cancelled' %}
+                                <span class="status-badge" style="background: rgba(220, 53, 69, 0.08); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2);">{{ project.status_display }}</span>
+                                {% elif project.status_display in warning_stages %}
+                                <span class="status-badge" style="color: #b45309; background: #fffbeb; border: 1px solid #fde68a;">{{ project.status_display }}</span>
+                                {% elif project.status_display == 'Completed' %}
+                                <span class="status-badge" style="background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2);">{{ project.status_display }}</span>
                                 {% else %}
-                                <span class="status-badge status-pending">{{ customer.status_display }}</span>
+                                <span class="status-badge status-pending">{{ project.status_display }}</span>
                                 {% endif %}
-                                <span class="raw-status" style="display:none;">{{ customer.status_display }}</span>
+                                <span class="raw-status" style="display:none;">{{ project.status_display }}</span>
                             </td>
-                            <td class="customer-assignee">
-                                {% if customer.assignee %}
-                                    {{ customer.assignee.name }}
+                            <td class="project-assignee">
+                                {% if project.assignee %}
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; border: 1px solid rgba(212, 175, 55, 0.2); background: #eee; flex-shrink: 0;">
+                                            <img src="{{ get_profile_pic(project.assignee) }}" alt="User" style="width: 100%; height: 100%; object-fit: cover;">
+                                        </div>
+                                        <span style="font-weight: 600; color: var(--primary-color); font-size: 0.9rem;">{{ project.assignee.name }}</span>
+                                    </div>
                                 {% else %}
-                                    <span style="opacity: 0.6; font-style: italic;">Unassigned</span>
+                                    <span style="opacity: 0.6; font-style: italic; font-size: 0.9rem;">Unassigned</span>
                                 {% endif %}
                             </td>
+                            <td>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '—' }}</td>
                             <td>
                                 <div class="table-actions-dropdown">
                                     <button class="action-trigger" title="Actions">⋮</button>
                                     <div class="action-menu">
-                                        <a href="/view-customer/{{ customer.id }}">
-                                            <span class="icon">👁</span> View Profile
+                                        <a href="/view-project/{{ project.id }}">
+                                            <span class="icon">👁</span> View Project
                                         </a>
-                                        <a href="/edit-customer/{{ customer.id }}">
+                                        <a href="/edit-project/{{ project.id }}">
                                             <span class="icon">✏️</span> Edit Details
                                         </a>
-                                        <form action="/delete-customer/{{ customer.id }}" method="POST"
-                                            onsubmit="return confirm('Are you sure you want to delete this customer?');">
+                                        <form action="/delete-project/{{ project.id }}" method="POST"
+                                            onsubmit="return confirm('Are you sure you want to delete this project?');">
                                             <button type="submit" class="delete-action">
                                                 <span class="icon">🗑</span> Delete
                                             </button>
                                         </form>
                                     </div>
-                                </div>
+                </div>
                             </td>
                         </tr>
                         {% else %}
                         <tr id="noDataRow">
-                            <td colspan="8" style="text-align: center; padding: 5rem 2.5rem; color: var(--text-muted);">
+                            <td colspan="9" style="text-align: center; padding: 5rem 2.5rem; color: var(--text-muted);">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
-                                    <div style="font-size: 3.5rem; opacity: 0.15; filter: grayscale(1);">👥</div>
-                                    <h3 style="font-weight: 700; font-size: 1.25rem; color: var(--primary-color); margin: 0;">No Customers Found</h3>
-                                    <p style="margin: 0; opacity: 0.7; max-width: 300px;">Start building your client base by adding your very first customer details.</p>
-                                    <a href="{{ url_for('customers.add_customer') }}" class="btn-action gold" style="text-decoration: none; margin-top: 10px; padding: 0.8rem 2rem;">Add Your First Customer →</a>
+                                    <div style="font-size: 3.5rem; opacity: 0.15; filter: grayscale(1);">📁</div>
+                                    <h3 style="font-weight: 700; font-size: 1.25rem; color: var(--primary-color); margin: 0;">No Projects Found</h3>
+                                    <p style="margin: 0; opacity: 0.7; max-width: 300px;">Start your journey by creating your first glass installation or hardware project.</p>
+                                    <a href="{{ url_for('projects.add_project') }}" class="btn-action gold" style="text-decoration: none; margin-top: 10px; padding: 0.8rem 2rem;">Create Your First Project →</a>
                                 </div>
                             </td>
                         </tr>{% endfor %}
 
                         <!-- JS-controlled no-results row for search -->
                         <tr class="no-data-row" id="noResultsRow" style="display: none;">
-                            <td colspan="8" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                            <td colspan="9" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
                                 <p style="font-size: 1rem; font-weight: 500;">No results match your search.</p>
                             </td>
                         </tr>
@@ -271,35 +268,43 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const searchInput = document.getElementById('customerSearch');
-            const cityFilter = document.getElementById('cityFilter');
+            const searchInput = document.getElementById('projectSearch');
             const assigneeFilter = document.getElementById('assigneeFilter');
             const statusFilter = document.getElementById('statusFilter');
+            const workTypeFilter = document.getElementById('workTypeFilter');
+            const categoryFilter = document.getElementById('categoryFilter');
             const tableBody = document.querySelector('.customer-table tbody');
             const noResultsRow = document.getElementById('noResultsRow');
-            const noDataRow = document.getElementById('noDataRow');
 
             function applyFilters() {
                 const query = searchInput.value.toLowerCase();
-                const city = cityFilter.value.toLowerCase();
                 const assignee = assigneeFilter.value.toLowerCase();
                 const status = statusFilter.value.toLowerCase();
+                const workType = workTypeFilter.value.toLowerCase();
+                const category = categoryFilter.value.toLowerCase();
                 
                 const rows = tableBody.querySelectorAll('tr:not(.no-data-row)');
                 let visibleCount = 0;
 
                 rows.forEach(row => {
+                    if (row.id === 'noDataRow') return;
                     const rowText = row.textContent.toLowerCase();
-                    const rowCity = row.querySelector('.customer-city').textContent.toLowerCase();
-                    const rowAssignee = row.querySelector('.customer-assignee').textContent.toLowerCase();
+                    const rowAssignee = row.querySelector('.project-assignee').textContent.toLowerCase();
                     const rowStatus = row.querySelector('.raw-status').textContent.toLowerCase();
+                    
+                    const wtElem = row.querySelector('.raw-work-type');
+                    const rowWorkType = wtElem ? wtElem.textContent.toLowerCase() : '';
+                    
+                    const catElem = row.querySelector('.raw-category');
+                    const rowCategory = catElem ? catElem.textContent.toLowerCase() : '';
 
                     const matchesSearch = rowText.includes(query);
-                    const matchesCity = !city || rowCity === city;
                     const matchesAssignee = !assignee || rowAssignee.includes(assignee);
                     const matchesStatus = !status || rowStatus === status;
+                    const matchesWorkType = !workType || rowWorkType === workType;
+                    const matchesCategory = !category || rowCategory === category;
 
-                    if (matchesSearch && matchesCity && matchesAssignee && matchesStatus) {
+                    if (matchesSearch && matchesAssignee && matchesStatus && matchesWorkType && matchesCategory) {
                         row.style.display = '';
                         visibleCount++;
                     } else {
@@ -308,18 +313,15 @@
                 });
 
                 if (noResultsRow) {
-                    noResultsRow.style.display = (visibleCount === 0 && (query || city || assignee || status)) ? 'table-row' : 'none';
-                }
-                if (noDataRow && !(query || city || assignee || status)) {
-                    // Only show "No customers yet" if no filters are active and table is empty
-                    // But if it's the noDataRow from the loop, it only exists if customers list is empty
+                    noResultsRow.style.display = (visibleCount === 0 && (query || assignee || status || workType || category)) ? 'table-row' : 'none';
                 }
             }
 
             searchInput.addEventListener('input', applyFilters);
-            cityFilter.addEventListener('change', applyFilters);
             assigneeFilter.addEventListener('change', applyFilters);
             statusFilter.addEventListener('change', applyFilters);
+            workTypeFilter.addEventListener('change', applyFilters);
+            categoryFilter.addEventListener('change', applyFilters);
         });
     </script>
 </body>

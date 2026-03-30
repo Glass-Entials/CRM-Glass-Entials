@@ -195,7 +195,7 @@
             <a href="{{ url_for('home_page') }}">Dashboard</a>
             <a href="{{ url_for('customers.customers_list') }}" class="active">Customers</a>
             <a href="{{ url_for('leads.leads_list') }}">Leads</a>
-            <a href="#">Projects</a>
+            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
             <a href="#">Tasks</a>
             <div class="dropdown">
                 <a href="#">Settings ▾</a>
@@ -255,6 +255,9 @@
                     <span class="status-badge status-pending badge-large">{{ customer.status_display }}</span>
                     {% endif %}
                 </div>
+                <a href="{{ url_for('projects.add_project', customer_id=customer.id) }}" class="btn-action gold" style="text-decoration: none;">
+                    ➕ Create Project
+                </a>
                 <a href="{{ url_for('customers.edit_customer', customer_id=customer.id) }}" class="btn-action outline" style="text-decoration: none;">
                     ✏ Edit Profile
                 </a>
@@ -346,15 +349,124 @@
         <!-- Lower Tabs Section -->
         <div class="tabs-container">
             <div class="tab-nav">
-                <button class="tab-btn active" onclick="openTab(event, 'overview')">Project Timeline</button>
+                <button class="tab-btn active" onclick="openTab(event, 'projects_tab')">Active Projects</button>
+                <button class="tab-btn" onclick="openTab(event, 'documents')">Documents & Quotations</button>
                 <button class="tab-btn" onclick="openTab(event, 'tasks')">Tasks related to customer</button>
             </div>
 
-            <div id="overview" class="tab-content active">
-                <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
-                    <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.2;">📜</div>
-                    <h3>Project History</h3>
-                    <p>Track measurement status, production updates, and installation history. (Timeline coming soon)</p>
+            <div id="projects_tab" class="tab-content active" style="display: block;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h3 style="margin: 0; color: var(--primary-color);">Associated Projects</h3>
+                    <a href="{{ url_for('projects.add_project', customer_id=customer.id) }}" class="btn-action gold" style="text-decoration: none; padding: 0.6rem 1rem;">
+                        ➕ New Project
+                    </a>
+                </div>
+
+                <div class="projects-list">
+                    {% for proj in customer.projects if not proj.is_deleted %}
+                    <div class="project-item" style="background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; border: 1px solid rgba(13, 27, 42, 0.05); box-shadow: 0 2px 8px rgba(0,0,0,0.02); display: grid; grid-template-columns: 1fr auto auto auto auto; align-items: center; gap: 20px;">
+                        <div>
+                            <h4 style="margin: 0; font-size: 1.1rem; color: var(--primary-color);">{{ proj.name }}</h4>
+                            <p style="margin: 0.3rem 0 0; font-size: 0.85rem; color: var(--text-muted);">Created on {{ proj.created_at.strftime('%d %b, %Y') }}</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <span class="status-badge" style="background: rgba(13,27,42,0.06); color: var(--primary-color); border: 1px solid rgba(13,27,42,0.15);">
+                                {% if proj.work_type and proj.work_type.value == 'Glass' %}🪟 
+                                {% elif proj.work_type and proj.work_type.value == 'Hardware' %}🔩 
+                                {% elif proj.work_type and proj.work_type.value == 'Mirror' %}🪞 
+                                {% endif %}{{ proj.work_type.value if proj.work_type else '—' }}
+                            </span>
+                        </div>
+                        <div style="text-align: center;">
+                            <span class="status-badge" style="background: rgba(212,175,55,0.1); color: #8a6a00; border: 1px solid rgba(212,175,55,0.25);">
+                                {{ '🏢 ' if proj.category and proj.category.value == 'Commercial' else '🏠 ' }}{{ proj.category.value if proj.category else '—' }}
+                            </span>
+                        </div>
+                        <div>
+                            {% if proj.status_display == 'In Progress' %}
+                                <span class="status-badge status-active">{{ proj.status_display }}</span>
+                            {% elif proj.status_display == 'Completed' %}
+                                <span class="status-badge" style="background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2);">{{ proj.status_display }}</span>
+                            {% elif proj.status_display == 'On Hold' or proj.status_display == 'Planning' %}
+                                <span class="status-badge" style="color: #b45309; background: #fffbeb; border: 1px solid #fde68a;">{{ proj.status_display }}</span>
+                            {% else %}
+                                <span class="status-badge status-pending">{{ proj.status_display }}</span>
+                            {% endif %}
+                        </div>
+                        <a href="{{ url_for('projects.view_project', project_id=proj.id) }}" class="action-pill" style="background: var(--bg-tertiary); color: var(--primary-color); text-decoration: none;">
+                            👁 View Details
+                        </a>
+                    </div>
+                    {% else %}
+                    <div style="text-align: center; padding: 4rem; background: #f8fafc; border-radius: 12px; border: 2px dashed rgba(13, 27, 42, 0.05);">
+                        <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.2;">🏗️</div>
+                        <h3 style="color: var(--text-muted);">No active projects for this customer</h3>
+                        <p style="margin-bottom: 1.5rem; opacity: 0.7;">Get started by creating a new installation project.</p>
+                        <a href="{{ url_for('projects.add_project', customer_id=customer.id) }}" class="btn-action gold" style="text-decoration: none;">
+                            ➕ Create First Project
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div id="documents" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <div>
+                        <h3 style="margin: 0; color: var(--primary-color);">Customer Documents</h3>
+                        <p style="margin: 0.3rem 0 0; font-size: 0.9rem; color: var(--text-muted);">Upload quotations, site photos, or work orders.</p>
+                    </div>
+                    <form action="{{ url_for('customers.upload_document', customer_id=customer.id) }}" method="POST" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center; margin: 0; position: relative; z-index: 5;">
+                        <input type="file" name="document" id="docUpload" style="display: none;" onchange="this.form.submit()" required>
+                        <label for="docUpload" class="btn-action gold" style="padding: 0.73rem 1.4rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; text-decoration: none; transition: transform 0.2s, background 0.2s; box-shadow: 0 4px 12px rgba(212, 175, 55, 0.15);">
+                            <span style="font-size: 1.1rem;">➕</span> Upload File
+                        </label>
+                    </form>
+                </div>
+
+                {% with messages = get_flashed_messages(category_filter=["customersuccess"]) %}
+                {% if messages %}
+                  {% for message in messages %}
+                  <div class="flash-message" style="padding: 12px; background: rgba(16, 185, 129, 0.08); border-radius: 8px; color: #065f46; font-size: 0.9rem; margin-bottom: 1.5rem; border-left: 4px solid #10b981;">
+                    ✓ {{ message }}
+                  </div>
+                  {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                <div class="documents-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
+                    {% for doc in customer.documents | sort(attribute='uploaded_at', reverse=True) %}
+                    <div class="doc-card" style="background: #f8fafc; border-radius: 10px; padding: 1.25rem; border: 1px solid rgba(13, 27, 42, 0.05); display: flex; align-items: center; gap: 15px; transition: transform 0.2s ease;">
+                        <div class="doc-icon" style="width: 50px; height: 50px; background: #fff; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                            {% if doc.file_type in ['pdf'] %}
+                                📕
+                            {% elif doc.file_type in ['doc', 'docx', 'txt'] %}
+                                📄
+                            {% elif doc.file_type in ['jpg', 'jpeg', 'png', 'svg', 'webp'] %}
+                                🖼️
+                            {% elif doc.file_type in ['xls', 'xlsx', 'csv'] %}
+                                📊
+                            {% else %}
+                                📁
+                            {% endif %}
+                        </div>
+                        <div style="flex: 1; overflow: hidden;">
+                            <h4 style="margin: 0; font-size: 0.95rem; color: var(--primary-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ doc.original_name }}">{{ doc.original_name }}</h4>
+                            <p style="margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--text-muted);">{{ doc.uploaded_at.strftime('%d %b, %Y') }}</p>
+                        </div>
+                        <div class="doc-actions" style="display: flex; gap: 8px;">
+                            <a href="{{ url_for('customers.download_document', doc_id=doc.id) }}" class="action-pill" style="background: #fff; color: var(--accent-gold); border: 1px solid rgba(212, 175, 55, 0.2); padding: 5px 8px;" title="Download">⬇</a>
+                            <form action="{{ url_for('customers.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');" style="display: inline;">
+                                <button type="submit" class="action-pill" style="background: #fff; color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2); padding: 5px 8px; cursor: pointer;" title="Delete">🗑</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; background: #f8fafc; border-radius: 12px; border: 2px dashed rgba(13, 27, 42, 0.05);">
+                        <p style="margin: 0; color: var(--text-muted); font-size: 1rem;">No documents uploaded yet.</p>
+                        <p style="margin: 0.5rem 0 0; font-size: 0.85rem; opacity: 0.6;">Upload quotations or site photos to keep them organized.</p>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
 

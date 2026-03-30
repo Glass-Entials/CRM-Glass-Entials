@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,9 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='Css/home.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='Css/dashboard.css') }}">
     <style>
@@ -17,6 +20,7 @@
             margin-bottom: 0;
             border-bottom: 2px solid rgba(13, 27, 42, 0.05);
         }
+
         .tab-btn {
             padding: 10px 0;
             background: none;
@@ -29,9 +33,11 @@
             position: relative;
             transition: all 0.3s ease;
         }
+
         .tab-btn.active {
             color: var(--primary-color);
         }
+
         .tab-btn.active::after {
             content: '';
             position: absolute;
@@ -41,16 +47,19 @@
             height: 2px;
             background: var(--accent-gold);
         }
+
         .tab-content {
             display: none;
         }
+
         .tab-content.active {
             display: block;
         }
     </style>
 </head>
+
 <body class="dashboard-page">
-    
+
     <!-- Top Navbar -->
     <header class="dash-nav">
         <div class="logo">
@@ -59,12 +68,12 @@
             </a>
             <span class="crm-badge">{{ current_user.organization.name }}</span>
         </div>
-        
+
         <nav class="dash-menu">
             <a href="#" class="active">Dashboard</a>
             <a href="{{ url_for('customers.customers_list') }}">Customers</a>
             <a href="{{ url_for('leads.leads_list') }}">Leads</a>
-            <a href="#">Projects</a>
+            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
             <a href="#">Tasks</a>
             <div class="dropdown">
                 <a href="#">Settings ▾</a>
@@ -73,8 +82,8 @@
                 </div>
             </div>
         </nav>
-        
-                <div class="user-profile">
+
+        <div class="user-profile">
             <span class="welcome-text">Welcome, {{ current_user.username }}</span>
             <div class="profile-dropdown">
                 <div class="profile-trigger">
@@ -93,13 +102,15 @@
     </header>
 
     {% with messages = get_flashed_messages(category_filter=["loginsuccess"]) %}
-      {% if messages %}
-        {% for message in messages %}
-        <div class="flash-message" style="padding: 15px; background-color: rgba(212, 175, 55, 0.1); border-left: 4px solid #d4af37; font-family: var(--font-body); color: var(--primary-color); display: flex; align-items: center; gap: 10px; margin: 20px 5%; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-          <span style="color: #d4af37; font-size: 1.4rem; line-height: 1;">✧</span> <strong>Success:</strong> {{ message }}
-        </div>
-        {% endfor %}
-      {% endif %}
+    {% if messages %}
+    {% for message in messages %}
+    <div class="flash-message"
+        style="padding: 15px; background-color: rgba(212, 175, 55, 0.1); border-left: 4px solid #d4af37; font-family: var(--font-body); color: var(--primary-color); display: flex; align-items: center; gap: 10px; margin: 20px 5%; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+        <span style="color: #d4af37; font-size: 1.4rem; line-height: 1;">✧</span> <strong>Success:</strong> {{ message
+        }}
+    </div>
+    {% endfor %}
+    {% endif %}
     {% endwith %}
 
     <!-- Dashboard Container -->
@@ -111,17 +122,20 @@
                 <p>Track your business metrics and ongoing projects.</p>
                 <div style="margin-top: 5px; display: flex; align-items: center; gap: 8px;">
                     <span style="color: var(--text-muted); font-size: 0.9rem;">Organization Code:</span>
-                    <strong style="color: var(--primary-color); font-size: 0.95rem;">{{ current_user.organization.unique_code }}</strong>
+                    <strong style="color: var(--primary-color); font-size: 0.95rem;">{{
+                        current_user.organization.unique_code }}</strong>
                 </div>
             </div>
             <div class="quick-actions">
-                <a href="{{ url_for('customers.add_customer') }}" class="btn-action dark" style="text-decoration: none;">
+                <a href="{{ url_for('customers.add_customer') }}" class="btn-action dark"
+                    style="text-decoration: none;">
                     Add Customer
                 </a>
-                <button class="btn-action gold">
+                <a href="{{ url_for('projects.add_project') }}" class="btn-action gold" style="text-decoration: none;">
                     Create Project
-                </button>
-                <button class="btn-action outline" style="border: 1px solid var(--primary-color); color: var(--primary-color);">
+                </a>
+                <button class="btn-action outline"
+                    style="border: 1px solid var(--primary-color); color: var(--primary-color);">
                     Add Follow-up
                 </button>
             </div>
@@ -138,7 +152,7 @@
             </div>
             <div class="stat-card">
                 <div class="stat-info">
-                    <h3>42</h3>
+                    <h3>{{ active_projects_count }}</h3>
                     <p>Active Projects</p>
                 </div>
                 <div class="stat-icon">💼</div>
@@ -167,6 +181,7 @@
                     <div class="tab-header">
                         <button class="tab-btn active" onclick="switchTab('customers')">Recent Customers</button>
                         <button class="tab-btn" onclick="switchTab('leads')">Recent Leads</button>
+                        <button class="tab-btn" onclick="switchTab('projects')">Recent Projects</button>
                     </div>
                 </div>
 
@@ -189,19 +204,57 @@
                                 {% for customer in all_customers[:5] %}
                                 <tr>
                                     <td>#{{ loop.index }}</td>
-                                    <td class="customer-name">{{ customer.name }}</td>
+                                    <td class="customer-name">
+                                        <a href="{{ url_for('customers.view_customer', customer_id=customer.id) }}"
+                                            style="text-decoration: none; color: inherit; font-weight: 600; border-bottom: 1px solid transparent; transition: border-color 0.2s;"
+                                            onmouseover="this.style.borderColor='var(--accent-gold)'"
+                                            onmouseout="this.style.borderColor='transparent'">
+                                            {{ customer.name }}
+                                        </a>
+                                    </td>
                                     <td>{{ customer.phone_number }}</td>
                                     <td>{{ customer.email }}</td>
                                     <td>{{ customer.city or '—' }}</td>
-                                    <td>{{ customer.assignee.name if customer.assignee else 'Unassigned' }}</td>
                                     <td>
-                                        <a href="/view-customer/{{ customer.id }}" class="status-badge" style="text-decoration: none; background: rgba(212, 175, 55, 0.1); color: var(--accent-gold); border: 1px solid rgba(212, 175, 55, 0.2);">👁 View</a>
+                                        {% if customer.assignee %}
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div
+                                                style="width: 24px; height: 24px; border-radius: 50%; overflow: hidden; border: 1px solid rgba(212, 175, 55, 0.2); background: #eee; flex-shrink: 0;">
+                                                <img src="{{ get_profile_pic(customer.assignee) }}" alt="User"
+                                                    style="width: 100%; height: 100%; object-fit: cover;">
+                                            </div>
+                                            <span style="font-weight: 500; font-size: 0.85rem;">{{
+                                                customer.assignee.name }}</span>
+                                        </div>
+                                        {% else %}
+                                        <span
+                                            style="opacity: 0.6; font-style: italic; font-size: 0.85rem;">Unassigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="table-actions-dropdown">
+                                            <button class="action-trigger" title="Actions">⋮</button>
+                                            <div class="action-menu">
+                                                <a href="/view-customer/{{ customer.id }}">
+                                                    <span class="icon">👁</span> View Profile
+                                                </a>
+                                                <a href="/edit-customer/{{ customer.id }}">
+                                                    <span class="icon">✏️</span> Edit Details
+                                                </a>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
-                                        No customers yet. <a href="{{ url_for('customers.add_customer') }}" style="color: var(--accent-gold); font-weight: 600;">Add one →</a>
+                                    <td colspan="7"
+                                        style="text-align: center; padding: 4rem 2.5rem; color: var(--text-muted);">
+                                        <div style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
+                                            <div style="font-size: 3rem; opacity: 0.2;">👥</div>
+                                            <div style="font-weight: 600; font-size: 1.1rem; color: var(--primary-color);">No customers yet.</div>
+                                            <a href="{{ url_for('customers.add_customer') }}"
+                                                style="color: var(--accent-gold); font-weight: 700; text-decoration: none; border-bottom: 1px solid var(--accent-gold); padding-bottom: 2px;">Add your first customer →</a>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -209,7 +262,9 @@
                         </table>
                     </div>
                     <div style="padding: 1rem; text-align: right;">
-                        <a href="{{ url_for('customers.customers_list') }}" style="color: var(--accent-gold); font-weight: 600; font-size: 0.9rem; text-decoration: none;">View All Customers →</a>
+                        <a href="{{ url_for('customers.customers_list') }}"
+                            style="color: var(--accent-gold); font-weight: 600; font-size: 0.9rem; text-decoration: none;">View
+                            All Customers →</a>
                     </div>
                 </div>
 
@@ -233,23 +288,75 @@
                                 {% for lead in recent_leads %}
                                 <tr>
                                     <td>#{{ loop.index }}</td>
-                                    <td class="customer-name">{{ lead.name }}</td>
+                                    <td class="customer-name">
+                                        <a href="{{ url_for('leads.view_lead', lead_id=lead.id) }}"
+                                            style="text-decoration: none; color: inherit; font-weight: 600; border-bottom: 1px solid transparent; transition: border-color 0.2s;"
+                                            onmouseover="this.style.borderColor='var(--accent-gold)'"
+                                            onmouseout="this.style.borderColor='transparent'">
+                                            {{ lead.name }}
+                                        </a>
+                                    </td>
                                     <td>{{ lead.phone_number }}</td>
                                     <td>{{ lead.email }}</td>
                                     <td>
-                                        <span style="background: rgba(13, 27, 42, 0.05); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">
+                                        <span
+                                            style="background: rgba(13, 27, 42, 0.05); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">
                                             {{ lead.source.value if lead.source else 'Other' }}
                                         </span>
                                     </td>
-                                    <td>{{ lead.assignee.name if lead.assignee else 'Unassigned' }}</td>
                                     <td>
-                                        <a href="/view-lead/{{ lead.id }}" class="status-badge" style="text-decoration: none; background: rgba(212, 175, 55, 0.1); color: var(--accent-gold); border: 1px solid rgba(212, 175, 55, 0.2);">👁 View</a>
+                                        {% if lead.assignee %}
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div
+                                                style="width: 24px; height: 24px; border-radius: 50%; overflow: hidden; border: 1px solid rgba(212, 175, 55, 0.2); background: #eee; flex-shrink: 0;">
+                                                <img src="{{ get_profile_pic(lead.assignee) }}" alt="User"
+                                                    style="width: 100%; height: 100%; object-fit: cover;">
+                                            </div>
+                                            <span style="font-weight: 500; font-size: 0.85rem;">{{ lead.assignee.name
+                                                }}</span>
+                                        </div>
+                                        {% else %}
+                                        <span
+                                            style="opacity: 0.6; font-style: italic; font-size: 0.85rem;">Unassigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="customer-status">
+                                        <span
+                                            class="status-badge {{ 'status-active' if lead.status_display == 'Active' else ('status-pending' if lead.status_display == 'Prospect' else '') }}"
+                                            style="{% if lead.status_display == 'New' %}background: rgba(14, 165, 233, 0.08); color: #0ea5e9; border: 1px solid rgba(14, 165, 233, 0.2);{% elif lead.status_display == 'Inactive' %}background: rgba(100, 116, 139, 0.08); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2);{% endif %}">
+                                            {{ lead.status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="table-actions-dropdown">
+                                            <button class="action-trigger" title="Actions">⋮</button>
+                                            <div class="action-menu">
+                                                <a href="/view-lead/{{ lead.id }}">
+                                                    <span class="icon">👁</span> View Lead
+                                                </a>
+                                                <a href="/edit-lead/{{ lead.id }}">
+                                                    <span class="icon">✏️</span> Edit Lead
+                                                </a>
+                                                <form action="/delete-lead/{{ lead.id }}" method="POST"
+                                                    onsubmit="return confirm('Are you sure you want to delete this lead?');">
+                                                    <button type="submit" class="delete-action">
+                                                        <span class="icon">🗑</span> Delete
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
-                                        No leads yet. <a href="{{ url_for('leads.leads_list') }}" style="color: var(--accent-gold); font-weight: 600;">Check leads page →</a>
+                                    <td colspan="8"
+                                        style="text-align: center; padding: 4rem 2.5rem; color: var(--text-muted);">
+                                        <div style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
+                                            <div style="font-size: 3rem; opacity: 0.2;">🎯</div>
+                                            <div style="font-weight: 600; font-size: 1.1rem; color: var(--primary-color);">No leads yet.</div>
+                                            <a href="{{ url_for('leads.leads_list') }}"
+                                                style="color: var(--accent-gold); font-weight: 700; text-decoration: none; border-bottom: 1px solid var(--accent-gold); padding-bottom: 2px;">Check leads page →</a>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -257,7 +364,102 @@
                         </table>
                     </div>
                     <div style="padding: 1rem; text-align: right;">
-                        <a href="{{ url_for('leads.leads_list') }}" style="color: var(--accent-gold); font-weight: 600; font-size: 0.9rem; text-decoration: none;">View All Leads →</a>
+                        <a href="{{ url_for('leads.leads_list') }}"
+                            style="color: var(--accent-gold); font-weight: 600; font-size: 0.9rem; text-decoration: none;">View
+                            All Leads →</a>
+                    </div>
+                </div>
+
+                <!-- Recent Projects Tab -->
+                <div id="projectsTab" class="tab-content" style="margin-top: 20px;">
+                    <div class="table-responsive">
+                        <table class="customer-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Work Type</th>
+                                    <th>Category</th>
+                                    <th>Customer</th>
+                                    <th>Status</th>
+                                    <th>Assigned To</th>
+                                    <th>Created Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for project in recent_projects %}
+                                <tr>
+                                    <td>#{{ loop.index }}</td>
+                                    <td class="project-name">
+                                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}"
+                                            style="text-decoration: none; color: inherit; font-weight: 600; border-bottom: 1px solid transparent; transition: border-color 0.2s;"
+                                            onmouseover="this.style.borderColor='var(--accent-gold)'"
+                                            onmouseout="this.style.borderColor='transparent'">
+                                            {{ project.name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ project.work_type or '—' }}</td>
+                                    <td>{{ project.category.value if project.category else '—' }}</td>
+                                    <td>{{ project.customer.name if project.customer else '—' }}</td>
+                                    <td>
+                                        <span
+                                            class="status-badge {{ 'status-active' if project.status_display == 'In Progress' else ('status-pending' if project.status_display == 'Planning' else '') }}"
+                                            style="{% if project.status_display == 'Completed' %}background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2);{% elif project.status_display == 'On Hold' %}color: #b45309; background: #fffbeb; border: 1px solid #fde68a;{% endif %}">
+                                            {{ project.status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if project.assignee %}
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div
+                                                style="width: 24px; height: 24px; border-radius: 50%; overflow: hidden; border: 1px solid rgba(212, 175, 55, 0.2); background: #eee; flex-shrink: 0;">
+                                                <img src="{{ get_profile_pic(project.assignee) }}" alt="User"
+                                                    style="width: 100%; height: 100%; object-fit: cover;">
+                                            </div>
+                                            <span style="font-weight: 500; font-size: 0.85rem;">{{ project.assignee.name
+                                                }}</span>
+                                        </div>
+                                        {% else %}
+                                        <span
+                                            style="opacity: 0.6; font-style: italic; font-size: 0.85rem;">Unassigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ project.created_at.strftime('%d %b %Y') if project.created_at else '—' }}</td>
+                                    <td>
+                                        <div class="table-actions-dropdown">
+                                            <button class="action-trigger" title="Actions">⋮</button>
+                                            <div class="action-menu">
+                                                <a href="/view-project/{{ project.id }}">
+                                                    <span class="icon">👁</span> View Project
+                                                </a>
+                                                <a href="/edit-project/{{ project.id }}">
+                                                    <span class="icon">✏️</span> Edit Details
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="9"
+                                        style="text-align: center; padding: 4rem 2.5rem; color: var(--text-muted);">
+                                        <div style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
+                                            <div style="font-size: 3rem; opacity: 0.2;">📁</div>
+                                            <div style="font-weight: 600; font-size: 1.1rem; color: var(--primary-color);">No projects yet.</div>
+                                            <a href="{{ url_for('projects.add_project') }}"
+                                                style="color: var(--accent-gold); font-weight: 700; text-decoration: none; border-bottom: 1px solid var(--accent-gold); padding-bottom: 2px;">Create your first project →</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="padding: 1rem; text-align: right;">
+                        <a href="{{ url_for('projects.projects_list') }}"
+                            style="color: var(--accent-gold); font-weight: 600; font-size: 0.9rem; text-decoration: none;">View
+                            All Projects →</a>
                     </div>
                 </div>
             </div>
@@ -268,34 +470,26 @@
                     <h2>Recent Activity</h2>
                 </div>
                 <div class="activity-list">
+                    {% for log in recent_activity %}
                     <div class="activity-item">
-                        <div class="activity-bullet"></div>
+                        <div class="activity-bullet" style="background: 
+                            {% if log.entity_type == 'customer' %}#d4af37
+                            {% elif log.entity_type == 'project' %}#0d1b2a
+                            {% elif log.entity_type == 'lead' %}#10b981
+                            {% elif log.entity_type == 'document' %}#3b82f6
+                            {% else %}var(--text-muted){% endif %};">
+                        </div>
                         <div class="activity-content">
-                            <p><strong>Rajat</strong> added new customer</p>
-                            <span>10 mins ago • Arjun Mehta</span>
+                            <p><strong>{{ log.actor.name if log.actor else 'System' }}</strong> {{ log.description }}
+                            </p>
+                            <span>{{ time_ago(log.created_at) }} • {{ log.entity_type | capitalize }}</span>
                         </div>
                     </div>
-                    <div class="activity-item">
-                        <div class="activity-bullet" style="background: #10b981;"></div>
-                        <div class="activity-content">
-                            <p><strong>Amit K.</strong> closed a project</p>
-                            <span>1 hour ago • Lux Interiors ($45,000)</span>
-                        </div>
+                    {% else %}
+                    <div style="padding: 2rem; text-align: center; color: var(--text-muted); opacity: 0.6;">
+                        <p>No recent activity recorded.</p>
                     </div>
-                    <div class="activity-item">
-                        <div class="activity-bullet" style="background: var(--primary-color);"></div>
-                        <div class="activity-content">
-                            <p><strong>Neha R.</strong> scheduled a follow-up</p>
-                            <span>3 hours ago • Tech Glass Solutions</span>
-                        </div>
-                    </div>
-                    <div class="activity-item">
-                        <div class="activity-bullet"></div>
-                        <div class="activity-content">
-                            <p><strong>Rajat</strong> created a new project</p>
-                            <span>Yesterday • Rahul Verma ($12,500)</span>
-                        </div>
-                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -307,7 +501,7 @@
             // Update buttons
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             event.currentTarget.classList.add('active');
-            
+
             // Update content
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.getElementById(tab + 'Tab').classList.add('active');
@@ -322,4 +516,5 @@
         }, 3000);
     </script>
 </body>
+
 </html>

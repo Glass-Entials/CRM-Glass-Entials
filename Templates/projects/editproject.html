@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Project | GlassEntials Staff Portal</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/customer.css') }}">
+</head>
+<body class="dashboard-page">
+    
+    <!-- Top Navbar -->
+    <header class="dash-nav">
+        <div class="logo">
+            <a href="/home" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+            <span class="crm-badge">{{ current_user.organization.name }}</span>
+        </div>
+        
+        <nav class="dash-menu">
+            <a href="{{ url_for('home_page') }}">Dashboard</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+            <a href="{{ url_for('projects.projects_list') }}" class="active">Projects</a>
+            <a href="#">Tasks</a>
+            <div class="dropdown">
+                <a href="#">Settings ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container" style="max-width: 1000px; padding-top: 3rem;">
+        <!-- Top Section -->
+        <div class="top-bar" style="border-bottom: 2px solid rgba(212, 175, 55, 0.2); padding-bottom: 1.5rem; margin-bottom: 2rem;">
+            <h1 style="color: var(--primary-color); font-size: 2rem; font-family: var(--font-heading);">Edit Project</h1>
+            <a href="{{ url_for('projects.projects_list') }}" class="btn-action outline" style="text-decoration:none;">← Back to Projects</a>
+        </div>
+
+        {% with messages = get_flashed_messages(category_filter=["projecterror"]) %}
+          {% if messages %}
+            {% for message in messages %}
+            <div class="flash-message" style="padding: 15px; background-color: rgba(139, 0, 0, 0.04); border-left: 4px solid rgba(139, 0, 0, 0.5); font-family: var(--font-body); color: #8b0000; display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; border-radius: 4px;">
+              <span style="font-size: 1.2rem; line-height: 1;">⚠</span> {{ message }}
+            </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- Edit Form Container -->
+        <div class="form-container" style="animation: none;">
+            <div class="panel" style="border-top: 4px solid var(--accent-gold);">
+                <form action="{{ url_for('projects.edit_project', project_id=project.id) }}" method="POST" class="customer-form">
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label>Project Name <span style="color: red; opacity: 0.7;">*</span></label>
+                            <input type="text" name="name" class="form-control" value="{{ project.name }}" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Customer</label>
+                            <select name="customer_id" class="form-control">
+                                <option value="none">None</option>
+                                {% for cus in customers %}
+                                    <option value="{{ cus.id }}" {% if project.customer_id == cus.id %}selected{% endif %}>{{ cus.name }} ({{ cus.company if cus.company else 'N/A' }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select name="status" class="form-control" required>
+                                <option value="Planning" {% if project.status_display == 'Planning' %}selected{% endif %}>Planning</option>
+                                <option value="In Progress" {% if project.status_display == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                <option value="On Hold" {% if project.status_display == 'On Hold' %}selected{% endif %}>On Hold</option>
+                                <option value="Completed" {% if project.status_display == 'Completed' %}selected{% endif %}>Completed</option>
+                                <option value="Cancelled" {% if project.status_display == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Work Type</label>
+                            <select name="work_type" class="form-control" required>
+                                <option value="Glass" {% if project.work_type and project.work_type.value == 'Glass' %}selected{% endif %}>🪟 Glass</option>
+                                <option value="Hardware" {% if project.work_type and project.work_type.value == 'Hardware' %}selected{% endif %}>🔩 Hardware</option>
+                                <option value="Mirror" {% if project.work_type and project.work_type.value == 'Mirror' %}selected{% endif %}>🪞 Mirror</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select name="category" class="form-control" required>
+                                <option value="Commercial" {% if project.category and project.category.value == 'Commercial' %}selected{% endif %}>🏢 Commercial</option>
+                                <option value="Residential" {% if project.category and project.category.value == 'Residential' %}selected{% endif %}>🏠 Residential</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Assigned To</label>
+                            <select name="assigned_to" class="form-control">
+                                <option value="unassigned">Unassigned</option>
+                                {% for emp in employees %}
+                                    <option value="{{ emp.id }}" {% if project.assigned_to == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label>Description</label>
+                            <textarea name="description" class="form-control" rows="4">{{ project.description or '' }}</textarea>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                        <a href="{{ url_for('projects.projects_list') }}" class="btn-action outline" style="text-decoration:none;">Cancel</a>
+                        <button type="submit" class="btn-action dark">Update Project</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

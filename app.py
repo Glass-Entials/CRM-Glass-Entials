@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from flask import Flask, render_template, request, flash, redirect, url_for, send_file
 from model import db, User, Customer, Employee, Lead
 from config import Config
@@ -10,6 +11,8 @@ from routes.auth import auth_bp
 from routes.customers import customers_bp
 from routes.leads import leads_bp
 from routes.employees import employees_bp
+from routes.projects import projects_bp
+from routes.api import api_bp
 
 app = Flask(__name__, template_folder='Templates')
 app.config.from_object(Config)
@@ -28,7 +31,20 @@ def utility_processor():
             if os.path.exists(file_path):
                 return url_for('static', filename='uploads/profile_pics/' + employee.profile_pic)
         return url_for('static', filename='img/default_avatar.jpg')
-    return dict(get_profile_pic=get_profile_pic)
+
+    def time_ago(dt):
+        if not dt: return ""
+        now = datetime.utcnow()
+        diff = now - dt
+        
+        seconds = diff.total_seconds()
+        if seconds < 60: return "Just now"
+        if seconds < 3600: return f"{int(seconds // 60)} mins ago"
+        if seconds < 86400: return f"{int(seconds // 3600)} hours ago"
+        if seconds < 172800: return "Yesterday"
+        return dt.strftime('%d %b')
+
+    return dict(get_profile_pic=get_profile_pic, time_ago=time_ago)
 
 # Initialize Plugins
 login_manager = LoginManager()
@@ -42,6 +58,8 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(customers_bp)
 app.register_blueprint(leads_bp)
 app.register_blueprint(employees_bp)
+app.register_blueprint(projects_bp)
+app.register_blueprint(api_bp)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -68,11 +86,26 @@ def about():
 @app.route('/home')
 @login_required
 def home_page():
+    from model import ActivityLog, Project
     org_id = current_user.organization_id
+    
+    # Stats
     all_customers = Customer.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Customer.created_at.desc()).all()
     recent_leads = Lead.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Lead.created_at.desc()).limit(5).all()
+    recent_projects = Project.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Project.created_at.desc()).limit(5).all()
     total_leads = Lead.query.filter_by(organization_id=org_id, is_deleted=False).count()
-    return render_template('Home/home.html', all_customers=all_customers, recent_leads=recent_leads, total_leads=total_leads)
+    active_projects_count = Project.query.filter_by(organization_id=org_id, is_deleted=False).filter(Project.status != 'Completed').count()
+    
+    # Activity logs
+    recent_activity = ActivityLog.query.filter_by(organization_id=org_id).order_by(ActivityLog.created_at.desc()).limit(10).all()
+    
+    return render_template('Home/home.html', 
+                         all_customers=all_customers, 
+                         recent_leads=recent_leads, 
+                         recent_projects=recent_projects,
+                         total_leads=total_leads,
+                         active_projects_count=active_projects_count,
+                         recent_activity=recent_activity)
 
 # Bulk Upload Templates (Shared Utilities)
 @app.route('/download-template')

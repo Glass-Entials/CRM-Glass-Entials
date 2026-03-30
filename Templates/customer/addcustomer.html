@@ -27,7 +27,7 @@
             <a href="{{ url_for('home_page') }}">Dashboard</a>
             <a href="{{ url_for('customers.customers_list') }}" class="active">Customers</a>
             <a href="{{ url_for('leads.leads_list') }}">Leads</a>
-            <a href="#">Projects</a>
+            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
             <a href="#">Tasks</a>
             <div class="dropdown">
                 <a href="#">Settings ▾</a>
@@ -78,9 +78,28 @@
             <div class="panel" style="border-top: 4px solid var(--accent-gold);">
                 <form action="{{ url_for('customers.add_customer') }}" method="POST" class="customer-form">
                     <div class="form-grid">
+                        <!-- GST Auto-Fetch Section -->
+                        <div class="form-group full-width" style="background: rgba(212, 175, 55, 0.05); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(212, 175, 55, 0.2); margin-bottom: 1rem;">
+                            <label style="color: var(--accent-gold); font-weight: 700; margin-bottom: 1rem; display: block;">⚡ GST Auto-Fetch</label>
+                            <div style="display: flex; gap: 1rem; align-items: flex-end;">
+                                <div style="flex: 1;">
+                                    <label>GST Number (GSTIN)</label>
+                                    <input type="text" id="gst_number_input" name="gst_number" class="form-control" placeholder="22AAAAA0000A1Z5" maxlength="15" style="text-transform: uppercase;">
+                                </div>
+                                <button type="button" id="fetchGstBtn" class="btn-action gold" style="height: 48px; min-width: 150px;">Fetch Details</button>
+                            </div>
+                            <div id="gstLoader" style="display: none; margin-top: 10px; font-size: 0.85rem; color: var(--accent-gold);">
+                                <span class="spinner">⏳</span> Fetching latest data from GST portal...
+                            </div>
+                            <div id="gstDuplicateWarning" style="display: none; margin-top: 10px; padding: 10px; background: #fffbeb; border-left: 4px solid #f59e0b; font-size: 0.9rem; border-radius: 4px;">
+                                <span id="gstWarningText" style="color: #92400e;"></span>
+                                <a id="gstExistingLink" href="#" style="color: var(--accent-gold); font-weight: 600; margin-left: 10px;">View Record →</a>
+                            </div>
+                        </div>
+
                         <div class="form-group">
                             <label>Name <span style="color: red; opacity: 0.7;">*</span></label>
-                            <input type="text" name="name" class="form-control" placeholder="e.g. Jane Doe" required>
+                            <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Jane Doe" required>
                         </div>
                         <div class="form-group">
                             <label>Email <span style="color: red; opacity: 0.7;">*</span></label>
@@ -92,15 +111,35 @@
                         </div>
                         <div class="form-group">
                             <label>Address</label>
-                            <input type="text" name="address" class="form-control" placeholder="123 Main St, Apt 4B">
+                            <input type="text" id="address_input" name="address" class="form-control" placeholder="123 Main St, Apt 4B">
                         </div>
                         <div class="form-group">
                             <label>City</label>
-                            <input type="text" name="city" class="form-control" placeholder="Mumbai">
+                            <input type="text" id="city_input" name="city" class="form-control" placeholder="Mumbai">
                         </div>
                         <div class="form-group">
-                            <label>Company</label>
-                            <input type="text" name="company" class="form-control" placeholder="Glass Corp">
+                            <label>Company / Legal Name</label>
+                            <input type="text" id="company" name="company" class="form-control" placeholder="Glass Corp">
+                        </div>
+                        <div class="form-group">
+                            <label>Trade Name</label>
+                            <input type="text" id="trade_name" name="trade_name" class="form-control" placeholder="Business Trade Name">
+                        </div>
+                        <div class="form-group">
+                            <label>State</label>
+                            <input type="text" id="state" name="state" class="form-control" placeholder="e.g. Maharashtra">
+                        </div>
+                        <div class="form-group">
+                            <label>Pincode</label>
+                            <input type="text" id="pincode" name="pincode" class="form-control" placeholder="6 Digit Pincode">
+                        </div>
+                        <div class="form-group">
+                            <label>Business Type</label>
+                            <input type="text" id="business_type" name="business_type" class="form-control" placeholder="e.g. Pvt Ltd, Proprietorship">
+                        </div>
+                        <div class="form-group">
+                            <label>GST Status</label>
+                            <input type="text" id="gst_status" name="gst_status" class="form-control" readonly style="background: rgba(13, 27, 42, 0.03);" placeholder="Status will appear here">
                         </div>
                         <div class="form-group">
                             <label>Source</label>
@@ -145,5 +184,72 @@
             </div>
         </div>
     </main>
+
+    <script>
+        document.getElementById('fetchGstBtn').addEventListener('click', async function() {
+            const gstin = document.getElementById('gst_number_input').value.trim().toUpperCase();
+            if (gstin.length !== 15) {
+                alert('Please enter a valid 15-character GST number.');
+                return;
+            }
+
+            const btn = this;
+            const loader = document.getElementById('gstLoader');
+            const warningBox = document.getElementById('gstDuplicateWarning');
+            const warningText = document.getElementById('gstWarningText');
+            const existingLink = document.getElementById('gstExistingLink');
+
+            // Reset UI
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            loader.style.display = 'block';
+            warningBox.style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/gst/${gstin}`);
+                const data = await response.json();
+                console.log("GST API Response:", data);
+
+                if (!response.ok) {
+                    alert(data.error || 'Failed to fetch GST details');
+                } else {
+                    // Success - Auto-fill
+                    document.getElementById('company').value = data.company || '';
+                    // If name is empty, suggest company name
+                    if (!document.getElementById('name').value) {
+                        document.getElementById('name').value = data.company || '';
+                    }
+                    
+                    document.getElementById('trade_name').value = data.trade_name || '';
+                    document.getElementById('address_input').value = data.address || '';
+                    document.getElementById('state').value = data.state || '';
+                    document.getElementById('pincode').value = data.pincode || '';
+                    document.getElementById('business_type').value = data.business_type || '';
+                    document.getElementById('gst_status').value = data.gst_status || '';
+                    document.getElementById('city_input').value = data.city || '';
+
+                    // Duplicate Warning
+                    if (data.duplicate_warning) {
+                        warningBox.style.display = 'block';
+                        warningText.innerText = data.duplicate_warning.message;
+                        existingLink.href = data.duplicate_warning.type === 'customer' 
+                            ? `/view-customer/${data.duplicate_warning.id}` 
+                            : `/view-lead/${data.duplicate_warning.id}`;
+                    }
+                    
+                    // Visual feedback
+                    btn.innerText = '✅ Fetched';
+                    setTimeout(() => btn.innerText = 'Fetch Details', 3000);
+                }
+            } catch (error) {
+                console.error('GST Fetch Error:', error);
+                alert('An error occurred while fetching GST details.');
+            } finally {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                loader.style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>

@@ -33,6 +33,22 @@ class CustomerStatus(Enum):
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
 
+class ProjectStatus(Enum):
+    PLANNING = "Planning"
+    IN_PROGRESS = "In Progress"
+    ON_HOLD = "On Hold"
+    COMPLETED = "Completed"
+    CANCELLED = "Cancelled"
+
+class ProjectWorkType(Enum):
+    GLASS = "Glass"
+    HARDWARE = "Hardware"
+    MIRROR = "Mirror"
+
+class ProjectCategory(Enum):
+    COMMERCIAL = "Commercial"
+    RESIDENTIAL = "Residential"
+
 class LeadSource(Enum):
     WEBSITE = "Website"
     GOOGLE = "Google"
@@ -123,6 +139,14 @@ class Lead(db.Model):
     address = db.Column(db.String(255), nullable=True)
     city = db.Column(db.String(100), nullable=True)
     
+    # GST Details
+    gst_number = db.Column(db.String(15), nullable=True, index=True)
+    trade_name = db.Column(db.String(200), nullable=True)
+    state = db.Column(db.String(100), nullable=True)
+    pincode = db.Column(db.String(10), nullable=True)
+    business_type = db.Column(db.String(100), nullable=True)
+    gst_status = db.Column(db.String(50), nullable=True)
+    
     # Multi-tenant field
     organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True, index=True)
     
@@ -162,6 +186,14 @@ class Customer(db.Model):
     status = db.Column(db.Enum(CustomerStatus, values_callable=lambda x: [e.value for e in x]), default=CustomerStatus.NEW, index=True)
     notes = db.Column(db.Text, nullable=True)
     
+    # GST Details
+    gst_number = db.Column(db.String(15), nullable=True, index=True)
+    trade_name = db.Column(db.String(200), nullable=True)
+    state = db.Column(db.String(100), nullable=True)
+    pincode = db.Column(db.String(10), nullable=True)
+    business_type = db.Column(db.String(100), nullable=True)
+    gst_status = db.Column(db.String(50), nullable=True)
+    
     # Multi-tenant field
     organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True, index=True)
     
@@ -187,6 +219,21 @@ class Customer(db.Model):
 
     def __repr__(self):
         return f'<Customer {self.name}>'
+
+class CustomerDocument(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False, index=True)
+    filename = db.Column(db.String(255), nullable=False) # Stored filename
+    original_name = db.Column(db.String(255), nullable=False) # Original user filename
+    file_type = db.Column(db.String(50), nullable=True) # e.g. 'pdf', 'docx', 'png'
+    uploaded_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True, index=True)
+    
+    # Relationships
+    customer = db.relationship('Customer', backref=db.backref('documents', cascade='all, delete-orphan'))
+    
+    def __repr__(self):
+        return f'<CustomerDocument {self.original_name}>'
 
 class LeadActivity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -228,8 +275,67 @@ class Task(db.Model):
 
     def __repr__(self):
         return f'<Task {self.description}>'
-class Project(db.model):
-    id=db.Column(db.Integer, primary_key=True)
-    Project_name=db.Column(db.String(100), nullable=False)
-    description=db.Column(db.String(255), nullable=True)
+class Project(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    status = db.Column(db.Enum(ProjectStatus, values_callable=lambda x: [e.value for e in x]), default=ProjectStatus.PLANNING, index=True)
+    work_type = db.Column(db.Enum(ProjectWorkType, values_callable=lambda x: [e.value for e in x]), default=ProjectWorkType.GLASS, nullable=True)
+    category = db.Column(db.Enum(ProjectCategory, values_callable=lambda x: [e.value for e in x]), default=ProjectCategory.COMMERCIAL, nullable=True)
     
+    # Multi-tenant field
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True, index=True)
+    
+    # Optional link to customer
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True, index=True)
+    
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    is_deleted = db.Column(db.Boolean, default=False)
+    
+    # Foreign Keys
+    assigned_to = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=True, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False, index=True)
+    updated_by = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=True, index=True)
+
+    # Relationships
+    customer = db.relationship('Customer', backref=db.backref('projects', lazy='dynamic'))
+    assignee = db.relationship('Employee', foreign_keys=[assigned_to], backref='assigned_projects')
+    creator = db.relationship('Employee', foreign_keys=[created_by], backref='projects_created')
+    updater = db.relationship('Employee', foreign_keys=[updated_by], backref='projects_updated')
+    organization = db.relationship('Organization', backref='projects')
+
+    @property
+    def status_display(self):
+        return self.status.value if self.status else ""
+
+    def __repr__(self):
+        return f'<Project {self.name}>'
+
+class ActivityLog(db.Model):
+    """Universal activity log for all CRM actions."""
+    __tablename__ = 'activity_log'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # What happened
+    action = db.Column(db.String(50), nullable=False)          # e.g. 'customer_added', 'project_updated'
+    entity_type = db.Column(db.String(30), nullable=False)     # 'customer', 'lead', 'project', 'document'
+    entity_id = db.Column(db.Integer, nullable=True)           # ID of the affected record
+    entity_name = db.Column(db.String(200), nullable=True)     # Name snapshot for display
+    description = db.Column(db.Text, nullable=True)            # Full human-readable description
+    
+    # Who did it
+    actor_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=True, index=True)
+    
+    # Multi-tenancy
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False, index=True)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    actor = db.relationship('Employee', foreign_keys=[actor_id], backref='activity_logs')
+    organization = db.relationship('Organization', backref='activity_logs')
+    
+    def __repr__(self):
+        return f'<ActivityLog {self.action} on {self.entity_type} {self.entity_id}>'
