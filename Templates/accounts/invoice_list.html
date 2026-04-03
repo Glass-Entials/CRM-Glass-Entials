@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoices | GlassEntials Accounts</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/dashboard.css') }}">
+    <style>
+        :root {
+            --invoice-primary: #1e293b;
+            --invoice-accent: #0ea5e9;
+            --invoice-success: #10b981;
+            --invoice-warning: #f59e0b;
+            --invoice-error: #ef4444;
+        }
+
+        .status-pill {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-paid { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .status-unpaid { background: rgba(239, 44, 44, 0.1); color: #ef4444; border: 1px solid rgba(239, 44, 44, 0.2); }
+        .status-partial { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+
+        .invoice-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .invoice-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .invoice-info h4 { margin: 0; font-size: 1.1rem; color: var(--invoice-primary); }
+        .invoice-info p { margin: 5px 0 0; color: #64748b; font-size: 0.9rem; }
+
+        .invoice-amount { text-align: right; }
+        .invoice-amount .total { font-weight: 700; font-size: 1.2rem; color: var(--invoice-primary); }
+        .invoice-amount .date { font-size: 0.85rem; color: #94a3b8; }
+    </style>
+</head>
+
+<body class="dashboard-page">
+
+    <!-- Top Navbar -->
+    <header class="dash-nav">
+        <div class="logo">
+            <a href="/home" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+        </div>
+
+        <nav class="dash-menu">
+            <a href="{{ url_for('home_page') }}">Dashboard</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+            <a href="{{ url_for('tasks.tasks_list') }}">Tasks</a>
+            <div class="dropdown">
+                <a href="#" class="active">Accounts ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                    <a href="{{ url_for('accounts.quotation_list') }}">Quotations</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <a href="#">Settings ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="dash-container">
+        <div class="dash-header">
+            <div>
+                <h1>Invoices</h1>
+                <p>Manage and track all customer billing and payments.</p>
+            </div>
+            <div class="quick-actions">
+                <a href="{{ url_for('accounts.add_invoice') }}" class="btn-action gold" style="text-decoration: none;">
+                    Generate New Invoice
+                </a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash-message {{ category }}" style="padding: 15px; margin-bottom: 20px; border-radius: 8px; {% if category == 'error' %}background: rgba(239, 44, 44, 0.1); color: #ef4444; border-left: 4px solid #ef4444;{% else %}background: rgba(16, 185, 129, 0.1); color: #10b981; border-left: 4px solid #10b981;{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="panel">
+            <div class="table-responsive">
+                <table class="customer-table">
+                    <thead>
+                        <tr>
+                            <th>Inv #</th>
+                            <th>Customer</th>
+                            <th>Project</th>
+                            <th>Issue Date</th>
+                            <th>Status</th>
+                            <th style="text-align: right;">Total Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for invoice in invoices %}
+                        <tr>
+                            <td><strong>{{ invoice.invoice_number }}</strong></td>
+                            <td>{{ invoice.customer.name }}</td>
+                            <td>{{ invoice.project.name if invoice.project else '—' }}</td>
+                            <td>{{ invoice.issue_date.strftime('%d %b %Y') }}</td>
+                            <td>
+                                <span class="status-pill {% if invoice.status_display == 'Paid' %}status-paid{% elif invoice.status_display == 'Unpaid' %}status-unpaid{% else %}status-partial{% endif %}">
+                                    {{ invoice.status_display }}
+                                </span>
+                            </td>
+                            <td style="text-align: right; font-weight: 700;">₹{{ "{:,.2f}".format(invoice.total_amount) }}</td>
+                            <td>
+                                <div class="table-actions-dropdown">
+                                    <button class="action-trigger">⋮</button>
+                                    <div class="action-menu">
+                                        <a href="{{ url_for('accounts.view_invoice', invoice_id=invoice.id) }}">
+                                            <span class="icon">👁</span> View & Print
+                                        </a>
+                                        <a href="#">
+                                            <span class="icon">📧</span> Send Email
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 4rem;">
+                                <div style="opacity: 0.5;">
+                                    <span style="font-size: 3rem;">📄</span>
+                                    <p>No invoices found. Create your first invoice to get started.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Table actions dropdown
+        document.querySelectorAll('.action-trigger').forEach(trigger => {
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const menu = trigger.nextElementSibling;
+                document.querySelectorAll('.action-menu').forEach(m => {
+                    if (m !== menu) m.classList.remove('active');
+                });
+                menu.classList.toggle('active');
+            });
+        });
+
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.action-menu').forEach(m => m.classList.remove('active'));
+        });
+    </script>
+</body>
+
+</html>
+
+
+

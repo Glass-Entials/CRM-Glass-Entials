@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Quotation | GlassEntials</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/customer.css') }}">
+    <style>
+        .invoice-form-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            padding: 35px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+            margin-top: 20px;
+        }
+
+        .form-section-title {
+            font-family: var(--font-heading);
+            font-weight: 700;
+            color: var(--primary-color);
+            border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+            padding-bottom: 12px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.4rem;
+        }
+
+        .input-group { margin-bottom: 25px; }
+        .input-group label { 
+            display: block; 
+            margin-bottom: 10px; 
+            font-weight: 700; 
+            color: #334155; 
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        
+        .input-group input, .input-group select, .input-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(13, 27, 42, 0.15);
+            background: white;
+            font-family: var(--font-body);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus, .input-group select:focus, .input-group textarea:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.1);
+        }
+
+        .grid-layout { display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px; }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+        .items-container { margin-top: 30px; }
+        
+        .item-list-header {
+            display: grid;
+            grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr 1.2fr 1.5fr auto;
+            gap: 15px;
+            padding: 0 15px 12px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .item-row {
+            display: grid;
+            grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr 1.2fr 1.5fr auto;
+            gap: 15px;
+            align-items: start;
+            margin-bottom: 15px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid rgba(13, 27, 42, 0.06);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            transition: all 0.3s ease;
+        }
+
+        .item-row:hover {
+            border-color: var(--accent-gold);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .item-row textarea, .item-row input, .item-row select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(13, 27, 42, 0.12);
+            background: #fafafa;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .remove-row {
+            background: #fff1f2;
+            color: #e11d48;
+            border: 1px solid #ffe4e6;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 800;
+            transition: all 0.2s;
+        }
+
+        .remove-row:hover { background: #e11d48; color: #fff; }
+
+        .btn-add-item {
+            background: rgba(212, 175, 55, 0.05);
+            color: var(--accent-gold);
+            border: 1px dashed var(--accent-gold);
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+
+        .btn-add-item:hover { background: var(--accent-gold); color: #fff; }
+
+        .totals-panel {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 40px;
+            border: 1px solid rgba(13, 27, 42, 0.05);
+            max-width: 400px;
+            margin-left: auto;
+        }
+
+        .total-row { display: flex; justify-content: space-between; margin-bottom: 12px; color: #64748b; font-weight: 600; }
+        .total-row.grand { border-top: 2px solid #e2e8f0; padding-top: 15px; margin-top: 15px; color: var(--primary-color); font-size: 1.3rem; font-weight: 800; }
+    </style>
+</head>
+<body class="dashboard-page">
+    <header class="dash-nav">
+        <div class="logo">
+            <a href="/home" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+        </div>
+        <nav class="dash-menu">
+            <a href="{{ url_for('home_page') }}">Dashboard</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+            <a href="{{ url_for('tasks.tasks_list') }}">Tasks</a>
+            <div class="dropdown">
+                <a href="#" class="active">Accounts ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                    <a href="{{ url_for('accounts.quotation_list') }}">Quotations</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <a href="#">Settings ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="dash-container">
+        <div class="dash-header">
+            <div>
+                <h1>New Quotation / Proforma</h1>
+                <p>Prepare detailed estimates for prospects and clients.</p>
+            </div>
+            <a href="{{ url_for('accounts.quotation_list') }}" class="btn-action outline" style="text-decoration:none;">Cancel</a>
+        </div>
+
+        <form action="{{ url_for('accounts.add_quotation') }}" method="POST">
+            <div class="invoice-form-panel">
+                
+                <!-- Client Details -->
+                <h3 class="form-section-title"><span>👤</span> Quotation Target</h3>
+                <div class="grid-layout">
+                    <div class="input-group">
+                        <label>Verified Customer</label>
+                        <select name="customer_id" id="customer_id">
+                            <option value="">-- Choose Customer --</option>
+                            {% for c in customers %}
+                                <option value="{{ c.id }}">{{ c.name }} {{ '('+c.company+')' if c.company else '' }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>OR Active Lead</label>
+                        <select name="lead_id" id="lead_id">
+                            <option value="">-- Choose Lead --</option>
+                            {% for l in leads %}
+                                <option value="{{ l.id }}">{{ l.name }} {{ '('+l.company+')' if l.company else '' }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Quotation Setup -->
+                <h3 class="form-section-title"><span>📝</span> Quotation Basics</h3>
+                <div class="grid-layout grid-3">
+                    <div class="input-group">
+                        <label>Quotation Date</label>
+                        <input type="date" name="issue_date" value="{{ today.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Valid Until</label>
+                        <input type="date" name="due_date">
+                    </div>
+                    <div class="input-group">
+                        <label>Link Project</label>
+                        <select name="project_id">
+                            <option value="">-- No Project --</option>
+                            {% for p in projects %}
+                                <option value="{{ p.id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="grid-layout grid-4">
+                    <div class="input-group">
+                        <label>Source</label>
+                        <input type="text" name="source" placeholder="e.g., Email inquiry">
+                    </div>
+                    <div class="input-group">
+                        <label>Revision / Amendment</label>
+                        <input type="text" name="amendment_no" placeholder="e.g. Rev 1">
+                    </div>
+                    <div class="input-group">
+                        <label>Measurements</label>
+                        <input type="text" name="measurements" placeholder="e.g., As per site">
+                    </div>
+                    <div class="input-group">
+                        <label>Level</label>
+                        <input type="text" name="quote_level" placeholder="e.g. Standard">
+                    </div>
+                </div>
+
+                <!-- Items -->
+                <h3 class="form-section-title"><span>📦</span> Line Items</h3>
+                <div class="items-container">
+                    <div class="item-list-header">
+                        <div>Description</div>
+                        <div>W</div>
+                        <div>H</div>
+                        <div>Qty</div>
+                        <div>Unit</div>
+                        <div>GST%</div>
+                        <div style="text-align:right;">Rate (₹)</div>
+                        <div></div>
+                    </div>
+                    
+                    <div id="itemsBody">
+                        <div class="item-row">
+                            <div><textarea name="description[]" rows="2" placeholder="Item description..." required></textarea></div>
+                            <div><input type="number" step="0.01" name="width[]" class="calc-input"></div>
+                            <div><input type="number" step="0.01" name="height[]" class="calc-input"></div>
+                            <div><input type="number" step="0.01" name="quantity[]" value="1" class="calc-input" required></div>
+                            <div>
+                                <select name="unit[]">
+                                    <option value="Sq.Ft">Sq.Ft</option>
+                                    <option value="Nos">Nos</option>
+                                    <option value="Rft">Rft</option>
+                                    <option value="Sq.M">Sq.M</option>
+                                    <option value="Lumpsum">Lumpsum</option>
+                                </select>
+                            </div>
+                            <div><select name="gst_rate[]" class="calc-input">
+                                <option value="0">0%</option>
+                                <option value="18" selected>18%</option>
+                            </select></div>
+                            <div><input type="number" step="0.01" name="rate[]" class="calc-input" required></div>
+                            <div><button type="button" class="remove-row" onclick="this.closest('.item-row').remove(); calculateTotals();">✕</button></div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn-add-item" onclick="addItemRow()">+ Add New Row</button>
+                </div>
+
+                <!-- Totals -->
+                <div class="totals-panel">
+                    <div class="total-row">
+                        <span>Net Amount:</span>
+                        <span id="subtotalDisplay">₹0.00</span>
+                    </div>
+                    <div class="total-row">
+                        <span>Total GST:</span>
+                        <span id="taxDisplay">₹0.00</span>
+                    </div>
+                    <div class="total-row grand">
+                        <span>Grand Total:</span>
+                        <span id="grandTotalDisplay">₹0.00</span>
+                    </div>
+                </div>
+                
+                <h3 class="form-section-title" style="margin-top: 40px;"><span>📋</span> Additional Information</h3>
+                <div class="grid-layout">
+                    <div class="input-group">
+                        <label>Internal Notes (Not on print)</label>
+                        <textarea name="notes" rows="4" placeholder="Follow up notes..."></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label>Terms & Conditions (Annexure 1)</label>
+                        <textarea name="terms_conditions" rows="4" placeholder="Detailed terms..."></textarea>
+                    </div>
+                </div>
+
+                <div style="margin-top: 3rem; display: flex; justify-content: flex-end; gap: 1rem;">
+                    <a href="{{ url_for('accounts.quotation_list') }}" class="btn-action outline">Discard</a>
+                    <button type="submit" class="btn-action gold">Create & Generate Quotation</button>
+                </div>
+            </div>
+        </form>
+    </main>
+
+    <script>
+        function addItemRow() {
+            const tbody = document.getElementById('itemsBody');
+            const newRow = document.createElement('div');
+            newRow.className = 'item-row';
+            newRow.innerHTML = `
+                <div><textarea name="description[]" rows="2" placeholder="Item description..." required></textarea></div>
+                <div><input type="number" step="0.01" name="width[]" class="calc-input"></div>
+                <div><input type="number" step="0.01" name="height[]" class="calc-input"></div>
+                <div><input type="number" step="0.01" name="quantity[]" value="1" class="calc-input" required></div>
+                <div>
+                    <select name="unit[]">
+                        <option value="Sq.Ft">Sq.Ft</option>
+                        <option value="Nos">Nos</option>
+                        <option value="Rft">Rft</option>
+                        <option value="Sq.M">Sq.M</option>
+                        <option value="Lumpsum">Lumpsum</option>
+                    </select>
+                </div>
+                <div><select name="gst_rate[]" class="calc-input">
+                    <option value="0">0%</option>
+                    <option value="18" selected>18%</option>
+                </select></div>
+                <div><input type="number" step="0.01" name="rate[]" class="calc-input" required></div>
+                <div><button type="button" class="remove-row" onclick="this.closest('.item-row').remove(); calculateTotals();">✕</button></div>
+            `;
+            tbody.appendChild(newRow);
+            attachListeners();
+        }
+
+        function attachListeners() {
+            document.querySelectorAll('.calc-input').forEach(input => {
+                input.removeEventListener('input', calculateTotals);
+                input.addEventListener('input', calculateTotals);
+            });
+        }
+
+        function calculateTotals() {
+            let overallSubtotal = 0;
+            let overallTax = 0;
+
+            document.querySelectorAll('.item-row').forEach(row => {
+                const w = parseFloat(row.querySelector('input[name="width[]"]').value) || 0;
+                const h = parseFloat(row.querySelector('input[name="height[]"]').value) || 0;
+                const qty = parseFloat(row.querySelector('input[name="quantity[]"]').value) || 0;
+                const rate = parseFloat(row.querySelector('input[name="rate[]"]').value) || 0;
+                const gstRate = parseFloat(row.querySelector('select[name="gst_rate[]"]').value) || 0;
+
+                let amount = 0;
+                if (w > 0 && h > 0) {
+                    amount = (w * h) * qty * rate;
+                } else {
+                    amount = qty * rate;
+                }
+
+                overallSubtotal += amount;
+                overallTax += (amount * (gstRate / 100));
+            });
+
+            document.getElementById('subtotalDisplay').textContent = '₹' + overallSubtotal.toLocaleString('en-IN', {minimumFractionDigits: 2});
+            document.getElementById('taxDisplay').textContent = '₹' + overallTax.toLocaleString('en-IN', {minimumFractionDigits: 2});
+            document.getElementById('grandTotalDisplay').textContent = '₹' + (overallSubtotal + overallTax).toLocaleString('en-IN', {minimumFractionDigits: 2});
+        }
+
+        const custSelect = document.getElementById('customer_id');
+        const leadSelect = document.getElementById('lead_id');
+        custSelect.addEventListener('change', () => { if(custSelect.value) leadSelect.value = ""; });
+        leadSelect.addEventListener('change', () => { if(leadSelect.value) custSelect.value = ""; });
+
+        attachListeners();
+    </script>
+</body>
+</html>

@@ -186,11 +186,18 @@
         </div>
         
         <nav class="dash-menu">
-            <a href="{{ url_for('home_page') }}" >Dashboard</a>
-            <a href="{{ url_for('customers.customers_list') }}" >Customers</a>
-            <a href="{{ url_for('leads.leads_list') }}" >Leads</a>
+            <a href="{{ url_for('home_page') }}">Dashboard</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
             <a href="{{ url_for('projects.projects_list') }}">Projects</a>
             <a href="{{ url_for('tasks.tasks_list') }}">Tasks</a>
+            <div class="dropdown">
+                <a href="#">Accounts ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                    <a href="{{ url_for('accounts.quotation_list') }}">Quotations</a>
+                </div>
+            </div>
             <div class="dropdown">
                 <a href="#">Settings ▾</a>
                 <div class="dropdown-content">
@@ -472,3 +479,6 @@
     </script>
 </body>
 </html>
+
+
+

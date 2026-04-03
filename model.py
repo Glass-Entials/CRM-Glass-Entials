@@ -40,6 +40,12 @@ class ProjectStatus(Enum):
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
 
+class QuotationStatus(Enum):
+    DRAFT = "Draft"
+    SENT = "Sent"
+    ACCEPTED = "Accepted"
+    REJECTED = "Rejected"
+
 class ProjectWorkType(Enum):
     GLASS = "Glass"
     HARDWARE = "Hardware"
@@ -69,6 +75,13 @@ class TaskStatus(Enum):
     IN_PROGRESS = "In Progress"
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
+
+class InvoiceStatus(Enum):
+    UNPAID = "Unpaid"
+    PAID = "Paid"
+    PARTIALLY_PAID = "Partially Paid"
+    CANCELLED = "Cancelled"
+    OVERDUE = "Overdue"
 
 class Organization(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -355,3 +368,114 @@ class ActivityLog(db.Model):
     
     def __repr__(self):
         return f'<ActivityLog {self.action} on {self.entity_type} {self.entity_id}>'
+
+class Invoice(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_number = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=True, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False, index=True)
+    
+    amount = db.Column(db.Float, default=0.0)
+    gst_amount = db.Column(db.Float, default=0.0)
+    total_amount = db.Column(db.Float, default=0.0)
+    
+    status = db.Column(db.Enum(InvoiceStatus, values_callable=lambda x: [e.value for e in x]), default=InvoiceStatus.UNPAID, index=True)
+    
+    issue_date = db.Column(db.DateTime, default=db.func.current_timestamp())
+    due_date = db.Column(db.DateTime, nullable=True)
+    
+    notes = db.Column(db.Text, nullable=True)
+    
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    created_by = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
+    
+    # Relationships
+    customer = db.relationship('Customer', backref=db.backref('invoices', lazy='dynamic'))
+    project = db.relationship('Project', backref=db.backref('invoices', lazy='dynamic'))
+    organization = db.relationship('Organization', backref='invoices')
+    creator = db.relationship('Employee', foreign_keys=[created_by], backref='invoices_created')
+    items = db.relationship('InvoiceItem', backref='invoice', cascade='all, delete-orphan')
+
+    @property
+    def status_display(self):
+        return self.status.value if self.status else ""
+
+    def __repr__(self):
+        return f'<Invoice {self.invoice_number}>'
+
+class InvoiceItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False, index=True)
+    description = db.Column(db.String(255), nullable=False)
+    quantity = db.Column(db.Float, default=1.0)
+    rate = db.Column(db.Float, default=0.0)
+    amount = db.Column(db.Float, default=0.0)
+    
+    def __repr__(self):
+        return f'<InvoiceItem {self.description} for Invoice {self.invoice_id}>'
+
+class Quotation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    quotation_number = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True, index=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey('lead.id'), nullable=True, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=True, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False, index=True)
+    
+    # Custom quotation fields modeled after Refrens
+    source = db.Column(db.String(255), nullable=True)
+    amendment_no = db.Column(db.String(50), nullable=True)
+    measurements = db.Column(db.String(255), nullable=True)
+    quote_level = db.Column(db.String(255), nullable=True)
+    
+    subtotal = db.Column(db.Float, default=0.0)
+    gst_amount = db.Column(db.Float, default=0.0)
+    total_amount = db.Column(db.Float, default=0.0)
+    
+    status = db.Column(db.Enum(QuotationStatus, values_callable=lambda x: [e.value for e in x]), default=QuotationStatus.DRAFT, index=True)
+    
+    issue_date = db.Column(db.DateTime, default=db.func.current_timestamp())
+    due_date = db.Column(db.DateTime, nullable=True)
+    
+    notes = db.Column(db.Text, nullable=True)
+    terms_conditions = db.Column(db.Text, nullable=True) 
+    
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    created_by = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
+    
+    # Relationships
+    customer = db.relationship('Customer', backref=db.backref('quotations', lazy='dynamic'))
+    lead = db.relationship('Lead', backref=db.backref('quotations', lazy='dynamic'))
+    project = db.relationship('Project', backref=db.backref('quotations', lazy='dynamic'))
+    organization = db.relationship('Organization', backref='quotations')
+    creator = db.relationship('Employee', foreign_keys=[created_by], backref='quotations_created')
+    items = db.relationship('QuotationItem', backref='quotation', cascade='all, delete-orphan')
+
+    @property
+    def status_display(self):
+        return self.status.value if self.status else ""
+
+    def __repr__(self):
+        return f'<Quotation {self.quotation_number}>'
+
+class QuotationItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    quotation_id = db.Column(db.Integer, db.ForeignKey('quotation.id'), nullable=False, index=True)
+    
+    description = db.Column(db.String(255), nullable=False)
+    width = db.Column(db.Float, default=0.0)
+    height = db.Column(db.Float, default=0.0)
+    quantity = db.Column(db.Float, default=1.0)
+    
+    gst_percentage = db.Column(db.Float, default=18.0)
+    unit = db.Column(db.String(50), nullable=True)
+    rate = db.Column(db.Float, default=0.0)
+    
+    amount = db.Column(db.Float, default=0.0) # subtotal for item
+    total = db.Column(db.Float, default=0.0) # total including tax
+    
+    def __repr__(self):
+        return f'<QuotationItem {self.description} for Quotation {self.quotation_id}>'

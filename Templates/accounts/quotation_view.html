@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proforma Invoice - {{ quotation.quotation_number }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #111827;
+            --accent: #d4af37;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text: #334155;
+            --text-muted: #64748b;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #f1f5f9;
+            color: var(--text);
+            padding: 40px;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .quotation-wrapper {
+            background: var(--surface);
+            max-width: 900px;
+            width: 100%;
+            padding: 60px;
+            border-radius: 8px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+            position: relative;
+            box-sizing: border-box;
+            border-top: 10px solid var(--primary);
+        }
+
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 10rem;
+            color: rgba(0, 0, 0, 0.02);
+            font-weight: 800;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 0;
+            text-transform: uppercase;
+        }
+
+        .doc-label {
+            text-align: center;
+            border-bottom: 2px dashed #cbd5e1;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .doc-label h2 { 
+            margin: 0; 
+            font-size: 1.8rem; 
+            letter-spacing: 0.1em; 
+            color: var(--primary); 
+            text-transform: uppercase;
+        }
+
+        .header-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .company-info img { max-width: 250px; height: auto; max-height: 120px; }
+        .company-info p { margin-top: 15px; font-size: 0.95rem; line-height: 1.5; color: var(--text-muted); }
+        
+        .meta-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .meta-table td { padding: 8px 0; border-bottom: 1px dashed var(--border); }
+        .meta-table td:first-child { font-weight: 600; color: var(--text-muted); width: 40%; }
+        .meta-table td:last-child { color: var(--primary); font-weight: 500; text-align: right; }
+
+        .client-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+            background: #f8fafc;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .client-box h4 { margin: 0 0 10px 0; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .client-box p { margin: 0 0 5px 0; font-weight: 700; font-size: 1.1rem; color: var(--primary); }
+        .client-box span { display: block; font-size: 0.9rem; color: var(--text); line-height: 1.5; }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .items-table th {
+            background: var(--primary);
+            color: white;
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        .items-table td { padding: 12px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        .items-table tr:last-child td { border-bottom: 2px solid var(--primary); }
+        
+        .totals-section { float: right; width: 350px; }
+        .total-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--border); font-size: 0.95rem; }
+        .total-row.grand-total { border-top: 2px solid var(--accent); border-bottom: none; margin-top: 10px; padding-top: 15px; font-weight: 800; font-size: 1.3rem; color: var(--primary); }
+
+        .terms-section { margin-top: 80px; clear: both; font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+        .terms-section h4 { color: var(--primary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+
+        .signature-block { margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+        .sig-box { text-align: center; }
+        .sig-box div { border-top: 1px solid var(--text-muted); padding-top: 10px; margin-top: 80px; display: inline-block; width: 200px; }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .quotation-wrapper { box-shadow: none; border: none; max-width: 100%; width: 100%; padding: 0; }
+            .print-btn { display: none; }
+        }
+
+        .print-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .print-btn:hover { background: var(--accent); color: var(--primary); transform: translateY(-3px); }
+    </style>
+</head>
+<body>
+
+    <button class="print-btn" onclick="window.print()">Print Proforma 🖨️</button>
+
+    <div class="quotation-wrapper">
+        <div class="watermark">Quotation</div>
+        
+        <div class="doc-label">
+            <h2>Proforma Invoice</h2>
+            <span style="color:var(--text-muted); font-size:0.85rem;">Prepared by GlassEntials CRM</span>
+        </div>
+
+        <div class="header-grid">
+            <div class="company-info">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo">
+                <p>
+                    <strong style="color: var(--primary);">GlassEntials - Premium Architectural Solutions</strong><br>
+                    GSTIN: 27AABCG1234F1Z1<br>
+                    +91 98765 43210 | info@glassentials.com<br>
+                    Mumbai, Maharashtra, India
+                </p>
+            </div>
+            <div>
+                <table class="meta-table">
+                    <tr><td>Quotation No.</td><td>{{ quotation.quotation_number }}</td></tr>
+                    <tr><td>Quotation Date</td><td>{{ quotation.issue_date.strftime('%d %b, %Y') }}</td></tr>
+                    {% if quotation.due_date %}
+                    <tr><td>Valid Until</td><td>{{ quotation.due_date.strftime('%d %b, %Y') }}</td></tr>
+                    {% endif %}
+                    {% if quotation.project %}
+                    <tr><td>Project</td><td>{{ quotation.project.name }}</td></tr>
+                    {% endif %}
+                    {% if quotation.amendment_no %}
+                    <tr><td>Amendment No.</td><td>{{ quotation.amendment_no }}</td></tr>
+                    {% endif %}
+                    {% if quotation.source %}
+                    <tr><td>Source</td><td>{{ quotation.source }}</td></tr>
+                    {% endif %}
+                    {% if quotation.measurements %}
+                    <tr><td>Measurements</td><td>{{ quotation.measurements }}</td></tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <div class="client-grid">
+            <div class="client-box">
+                <h4>Quotation From</h4>
+                <p>GlassEntials</p>
+                <span>Premium Architectural Glass Solutions</span>
+            </div>
+            <div class="client-box">
+                <h4>Quotation For</h4>
+                {% if quotation.customer %}
+                    <p>{{ quotation.customer.name }}</p>
+                    {% if quotation.customer.company %}<span>{{ quotation.customer.company }}</span>{% endif %}
+                    <span>{{ quotation.customer.address or '' }}</span>
+                    <span>City: {{ quotation.customer.city or 'N/A' }}</span>
+                    <span>Email: {{ quotation.customer.email or 'N/A' }} | Ph: {{ quotation.customer.phone_number }}</span>
+                    {% if quotation.customer.gst_number %}<span>GSTIN: {{ quotation.customer.gst_number }}</span>{% endif %}
+                {% elif quotation.lead %}
+                    <p>{{ quotation.lead.name }}</p>
+                    {% if quotation.lead.company %}<span>{{ quotation.lead.company }}</span>{% endif %}
+                    <span>{{ quotation.lead.address or '' }}</span>
+                    <span>City: {{ quotation.lead.city or 'N/A' }}</span>
+                    <span>Email: {{ quotation.lead.email or 'N/A' }} | Ph: {{ quotation.lead.phone_number }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width:5%;">#</th>
+                    <th style="width:35%;">Description of Goods</th>
+                    <th style="width:7%; text-align:center;">W</th>
+                    <th style="width:7%; text-align:center;">H</th>
+                    <th style="width:7%; text-align:center;">Qty</th>
+                    <th style="width:7%; text-align:center;">Unit</th>
+                    <th style="width:10%; text-align:right;">Rate</th>
+                    <th style="width:8%; text-align:right;">GST %</th>
+                    <th style="width:14%; text-align:right;">Total (Inc. Tax)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in quotation.items %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td style="font-weight:500; color:var(--primary);">{{ item.description }}</td>
+                    <td style="text-align:center;">{{ item.width if item.width > 0 else '-' }}</td>
+                    <td style="text-align:center;">{{ item.height if item.height > 0 else '-' }}</td>
+                    <td style="text-align:center;">{{ item.quantity }}</td>
+                    <td style="text-align:center; font-size:0.8rem; color:var(--text-muted);">{{ item.unit or 'Sq.Ft' }}</td>
+                    <td style="text-align:right;">₹{{ "{:,.2f}".format(item.rate) }}</td>
+                    <td style="text-align:right; font-size:0.8rem; color:var(--text-muted);">{{ item.gst_percentage }}%</td>
+                    <td style="text-align:right; font-weight:600;">₹{{ "{:,.2f}".format(item.total) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div style="display:flex; justify-content:space-between;">
+            <div style="width: 50%;">
+                {% if quotation.notes %}
+                <div class="terms-section" style="margin-top: 0;">
+                    <h4>Notes</h4>
+                    <p style="white-space: pre-wrap;">{{ quotation.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="totals-section">
+                <div class="total-row"><span>Subtotal</span> <span>₹{{ "{:,.2f}".format(quotation.subtotal) }}</span></div>
+                <div class="total-row"><span>Tax (GST)</span> <span>₹{{ "{:,.2f}".format(quotation.gst_amount) }}</span></div>
+                <div class="total-row grand-total"><span>Total (INR)</span> <span>₹{{ "{:,.2f}".format(quotation.total_amount) }}</span></div>
+            </div>
+        </div>
+
+        {% if quotation.terms_conditions %}
+        <div class="terms-section">
+            <h4>Terms and Conditions - Annexure 1</h4>
+            <div style="white-space: pre-wrap; margin-left: 10px;">{{ quotation.terms_conditions }}</div>
+        </div>
+        {% endif %}
+
+        <div class="signature-block">
+            <div class="sig-box">
+                <div>Client Acceptance Signature</div>
+            </div>
+            <div class="sig-box">
+                <div>Authorised Signatory<br><span style="font-size:0.8rem; color:var(--text-muted);">For GlassEntials</span></div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

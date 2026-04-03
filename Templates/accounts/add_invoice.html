@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Invoice | GlassEntials Accounts</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Css/dashboard.css') }}">
+    <style>
+        .invoice-form-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-section-title {
+            font-family: var(--font-heading);
+            font-weight: 700;
+            color: var(--primary-color);
+            border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .item-row {
+            display: grid;
+            grid-template-columns: 3fr 1fr 1fr 1fr auto;
+            gap: 15px;
+            align-items: end;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 10px;
+            border: 1px solid rgba(13, 27, 42, 0.05);
+        }
+
+        .item-list-header {
+            display: grid;
+            grid-template-columns: 3fr 1fr 1fr 1fr auto;
+            gap: 15px;
+            padding: 0 15px 10px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #334155; }
+        .input-group input, .input-group select, .input-group textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(13, 27, 42, 0.15);
+            background: white;
+            font-family: var(--font-body);
+        }
+
+        .item-row input {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(13, 27, 42, 0.12);
+            background: white;
+            font-family: var(--font-body);
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+
+        .item-row input:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+            background: #fff;
+        }
+
+        .item-row input::placeholder {
+            color: #cbd5e1;
+            font-size: 0.85rem;
+        }
+
+        .remove-row {
+            background: #fff1f2;
+            color: #e11d48;
+            border: 1px solid #ffe4e6;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.1rem;
+        }
+
+        .remove-row:hover { 
+            background: #e11d48; 
+            color: white;
+            border-color: #e11d48;
+            transform: scale(1.05);
+        }
+
+        .btn-add {
+            background: white;
+            color: var(--primary-color);
+            border: 2px dashed rgba(212, 175, 55, 0.4);
+            padding: 14px;
+            width: 100%;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 700;
+            margin-top: 15px;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            font-family: var(--font-heading);
+            color: #856404;
+        }
+
+        .btn-add:hover { 
+            background: rgba(212, 175, 55, 0.05);
+            border-color: var(--accent-gold);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.1);
+        }
+
+        .summary-box {
+            background: var(--primary-color);
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(13, 27, 42, 0.2);
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .summary-total {
+            font-size: 1.5rem;
+            font-weight: 700;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 10px;
+            margin-top: 10px;
+            color: var(--accent-gold);
+        }
+
+        .btn-add {
+            background: rgba(212, 175, 55, 0.1);
+            color: #856404;
+            border: 1px dashed #d4af37;
+            padding: 12px;
+            width: 100%;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .btn-add:hover { background: rgba(212, 175, 55, 0.2); }
+    </style>
+</head>
+
+<body class="dashboard-page">
+
+    <!-- Navbar (Simplified inclusion for this turn) -->
+    <header class="dash-nav">
+        <div class="logo">
+            <a href="/home" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+        </div>
+
+        <nav class="dash-menu">
+            <a href="{{ url_for('home_page') }}">Dashboard</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+            <a href="{{ url_for('tasks.tasks_list') }}">Tasks</a>
+            <div class="dropdown">
+                <a href="#" class="active">Accounts ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                    <a href="{{ url_for('accounts.quotation_list') }}">Quotations</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <a href="#">Settings ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="dash-container">
+        <div class="dash-header">
+            <div>
+                <h1>Generate New Invoice</h1>
+                <p>Create a professional billing statement for your clients.</p>
+            </div>
+            <div class="quick-actions">
+                <a href="{{ url_for('accounts.invoice_list') }}" class="btn-action outline" style="text-decoration: none;">
+                    ← Cancel
+                </a>
+            </div>
+        </div>
+
+        <div class="invoice-form-panel">
+            <form id="invoiceForm" method="POST" action="{{ url_for('accounts.add_invoice') }}">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+                    <section>
+                        <h3 class="form-section-title"><span>👤</span> Billing Details</h3>
+                        <div class="input-group">
+                            <label>Customer <span style="color: red;">*</span></label>
+                            <select name="customer_id" required>
+                                <option value="">Select Customer</option>
+                                {% for customer in customers %}
+                                <option value="{{ customer.id }}">{{ customer.name }} ({{ customer.company or 'Individual' }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Associate Project</label>
+                            <select name="project_id">
+                                <option value="">No Project Reference</option>
+                                {% for project in projects %}
+                                <option value="{{ project.id }}">{{ project.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </section>
+                    
+                    <section>
+                        <h3 class="form-section-title"><span>📅</span> Invoice Info</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="input-group">
+                                <label>Issue Date <span style="color: red;">*</span></label>
+                                <input type="date" name="issue_date" value="{{ today.strftime('%Y-%m-%d') }}" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Due Date</label>
+                                <input type="date" name="due_date">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Status</label>
+                            <select name="status" disabled>
+                                <option value="Unpaid">Unpaid (Default)</option>
+                            </select>
+                        </div>
+                    </section>
+                </div>
+
+                <section style="margin-top: 30px;">
+                    <h3 class="form-section-title"><span>🛍️</span> Invoice Items</h3>
+                    <div class="item-list-header">
+                        <div>Description</div>
+                        <div>Quantity</div>
+                        <div>Rate (₹)</div>
+                        <div>Amount (₹)</div>
+                        <div></div>
+                    </div>
+                    <div id="itemsContainer">
+                        <div class="item-row">
+                            <input type="text" name="description[]" placeholder="Product or Service name" required>
+                            <input type="number" name="quantity[]" value="1" min="0.01" step="0.01" class="qty-field" required>
+                            <input type="number" name="rate[]" value="0" min="0" step="0.01" class="rate-field" required>
+                            <input type="number" class="amount-field" value="0.00" readonly style="background: transparent; border: none; font-weight: 700; color: var(--primary-color);">
+                            <button type="button" class="remove-row" style="visibility: hidden;">🗑</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-add" id="addItemBtn">+ Add Item</button>
+
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-top: 30px;">
+                        <div>
+                            <div class="input-group">
+                                <label>Special Notes / Payment Terms</label>
+                                <textarea name="notes" rows="4" placeholder="Mention payment details, terms & conditions..."></textarea>
+                            </div>
+                        </div>
+                        <div class="summary-box">
+                            <div class="summary-row">
+                                <span>Sub-Total:</span>
+                                <span id="subTotal">₹ 0.00</span>
+                            </div>
+                            <div class="summary-row">
+                                <span>GST (18%):</span>
+                                <span id="gstAmount">₹ 0.00</span>
+                            </div>
+                            <div class="summary-row summary-total">
+                                <span>Grand Total:</span>
+                                <span id="grandTotal">₹ 0.00</span>
+                            </div>
+                            <button type="submit" class="btn-action gold" style="width: 100%; border: none; padding: 15px; font-weight: 700; font-size: 1.1rem; margin-top: 15px;">
+                                Generate Invoice
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        const itemsContainer = document.getElementById('itemsContainer');
+        const addItemBtn = document.getElementById('addItemBtn');
+
+        function calculateTotals() {
+            let subTotal = 0;
+            document.querySelectorAll('.item-row').forEach(row => {
+                const qty = parseFloat(row.querySelector('.qty-field').value) || 0;
+                const rate = parseFloat(row.querySelector('.rate-field').value) || 0;
+                const amount = qty * rate;
+                row.querySelector('.amount-field').value = amount.toFixed(2);
+                subTotal += amount;
+            });
+
+            const gst = subTotal * 0.18;
+            const grand = subTotal + gst;
+
+            document.getElementById('subTotal').innerText = `₹ ${subTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+            document.getElementById('gstAmount').innerText = `₹ ${gst.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+            document.getElementById('grandTotal').innerText = `₹ ${grand.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        }
+
+        addItemBtn.addEventListener('click', () => {
+            const newRow = document.createElement('div');
+            newRow.className = 'item-row';
+            newRow.innerHTML = `
+                <input type="text" name="description[]" placeholder="Item name" required>
+                <input type="number" name="quantity[]" value="1" min="0.01" step="0.01" class="qty-field" required>
+                <input type="number" name="rate[]" value="0" min="0" step="0.01" class="rate-field" required>
+                <input type="number" class="amount-field" value="0.00" readonly style="background: transparent; border: none; font-weight: 700; color: var(--primary-color);">
+                <button type="button" class="remove-row">🗑</button>
+            `;
+            itemsContainer.appendChild(newRow);
+            
+            newRow.querySelector('.remove-row').addEventListener('click', () => {
+                newRow.remove();
+                calculateTotals();
+            });
+
+            newRow.querySelectorAll('input').forEach(input => {
+                input.addEventListener('input', calculateTotals);
+            });
+        });
+
+        // Initialize first row events
+        document.querySelectorAll('.item-row input').forEach(input => {
+            input.addEventListener('input', calculateTotals);
+        });
+
+        calculateTotals();
+    </script>
+</body>
+
+</html>
+
+
+

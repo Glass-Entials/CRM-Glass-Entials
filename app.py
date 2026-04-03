@@ -14,6 +14,7 @@ from routes.employees import employees_bp
 from routes.projects import projects_bp
 from routes.api import api_bp
 from routes.tasks import tasks_bp
+from routes.accounts import accounts
 
 app = Flask(__name__, template_folder='Templates')
 app.config.from_object(Config)
@@ -62,6 +63,7 @@ app.register_blueprint(employees_bp)
 app.register_blueprint(projects_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(tasks_bp)
+app.register_blueprint(accounts)
 
 @login_manager.user_loader
 def load_user(user_id):

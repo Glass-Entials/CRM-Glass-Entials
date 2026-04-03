@@ -20,7 +20,6 @@
             <a href="/home" class="logo-link">
                 <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
             </a>
-            <span class="crm-badge">{{ current_user.organization.name }}</span>
         </div>
         
         <nav class="dash-menu">
@@ -29,6 +28,13 @@
             <a href="{{ url_for('leads.leads_list') }}">Leads</a>
             <a href="{{ url_for('projects.projects_list') }}" class="active">Projects</a>
             <a href="{{ url_for('tasks.tasks_list') }}">Tasks</a>
+            <div class="dropdown">
+                <a href="#">Accounts ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                    <a href="{{ url_for('accounts.quotation_list') }}">Quotations</a>
+                </div>
+            </div>
             <div class="dropdown">
                 <a href="#">Settings ▾</a>
                 <div class="dropdown-content">
@@ -146,3 +152,6 @@
     </main>
 </body>
 </html>
+
+
+
