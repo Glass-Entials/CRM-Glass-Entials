@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='Css/home.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='Css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
     <style>
         .flash-message { padding: 1rem; border-radius: 8px; margin-bottom: 2rem; border-width: 1px; border-style: solid; }
         .flash-message.success { background: #ecfdf5; color: #059669; border-color: #10b981; }
@@ -300,23 +300,42 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Description</th>
+                        <th style="width: 40%">Task</th>
                         <th>Due Date</th>
                         <th>Status</th>
-                        <th>Related Lead</th>
+                        <th>Related</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for task in my_tasks %}
                     <tr>
-                        <td style="font-weight: 600;">{{ task.description }}</td>
+                        <td>
+                            <div style="font-weight: 700; color: var(--primary-color);">
+                                <a href="{{ url_for('tasks.view_task', task_id=task.id) }}" style="text-decoration: none; color: inherit;">{{ task.title }}</a>
+                            </div>
+                            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">{{ task.description or 'No description' }}</div>
+                        </td>
                         <td>{{ task.due_date.strftime('%d %b, %Y') if task.due_date else 'No Date' }}</td>
                         <td>
-                            <span class="status-badge {% if task.is_completed %}status-active{% else %}status-pending{% endif %}">
-                                {{ 'Completed' if task.is_completed else 'Pending' }}
+                            <span class="status-badge 
+                                {% if task.status_display == 'Completed' %}status-active
+                                {% elif task.status_display == 'In Progress' %}status-active
+                                {% elif task.status_display == 'Cancelled' %}status-pending
+                                {% else %}status-pending{% endif %}">
+                                {{ task.status_display }}
                             </span>
                         </td>
-                        <td>{{ task.lead_record.name if task.lead_record else '—' }}</td>
+                        <td>
+                            {% if task.lead_record %}
+                                <span style="font-size: 0.85rem; color: var(--text-muted);">Lead:</span> 
+                                <a href="/view-lead/{{ task.lead_record.id }}" style="color: var(--accent-gold); font-weight: 600; text-decoration: none;">{{ task.lead_record.name }}</a>
+                            {% elif task.project %}
+                                <span style="font-size: 0.85rem; color: var(--text-muted);">Project:</span> 
+                                <a href="/view-project/{{ task.project.id }}" style="color: var(--primary-color); font-weight: 600; text-decoration: none;">{{ task.project.name }}</a>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

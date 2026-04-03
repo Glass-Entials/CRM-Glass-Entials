@@ -16,7 +16,7 @@ from routes.api import api_bp
 from routes.tasks import tasks_bp
 from routes.accounts import accounts
 
-app = Flask(__name__, template_folder='Templates')
+app = Flask(__name__, template_folder='templates')
 app.config.from_object(Config)
 
 # Ensure upload directory exists
@@ -81,11 +81,11 @@ def internal_server_error(e):
 # --- Core Routes ---
 @app.route('/')
 def home():
-    return render_template('Home/index.html')
+    return render_template('home/index.html')
 
 @app.route('/about')
 def about():
-    return render_template('Home/about.html')
+    return render_template('home/about.html')
 
 @app.route('/home')
 @login_required
@@ -104,7 +104,7 @@ def home_page():
     # Activity logs
     recent_activity = ActivityLog.query.filter_by(organization_id=org_id).order_by(ActivityLog.created_at.desc()).limit(10).all()
     
-    return render_template('Home/home.html', 
+    return render_template('home/home.html', 
                          all_customers=all_customers, 
                          recent_leads=recent_leads, 
                          recent_projects=recent_projects,

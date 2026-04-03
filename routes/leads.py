@@ -15,13 +15,13 @@ def leads_list():
     org_id = current_user.organization_id
     all_leads = Lead.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Lead.created_at.desc()).all()
     all_employees = Employee.query.filter_by(organization_id=org_id, is_deleted=False).all()
-    return render_template('Leads/Lead.html', leads=all_leads, employees=all_employees)
+    return render_template('leads/Lead.html', leads=all_leads, employees=all_employees)
 
 @leads_bp.route('/view-lead/<int:lead_id>')
 @login_required
 def view_lead(lead_id):
     lead = Lead.query.filter_by(id=lead_id, organization_id=current_user.organization_id).first_or_404()
-    return render_template('Leads/lead_profile.html', lead=lead)
+    return render_template('leads/lead_profile.html', lead=lead)
 
 @leads_bp.route('/add-lead', methods=['GET', 'POST'])
 @login_required
@@ -80,7 +80,7 @@ def add_lead():
             return redirect(url_for('leads.add_lead'))
 
     employees = Employee.query.filter_by(organization_id=current_user.organization_id, is_deleted=False).all()
-    return render_template('Leads/addLead.html', employees=employees)
+    return render_template('leads/addLead.html', employees=employees)
 
 @leads_bp.route('/edit-lead/<int:lead_id>', methods=['GET', 'POST'])
 @login_required
@@ -124,7 +124,7 @@ def edit_lead(lead_id):
             return redirect(url_for('leads.edit_lead', lead_id=lead_id))
 
     employees = Employee.query.filter_by(organization_id=current_user.organization_id, is_deleted=False).all()
-    return render_template('Leads/editLead.html', lead=lead, lead_id=lead_id, employees=employees)
+    return render_template('leads/editLead.html', lead=lead, lead_id=lead_id, employees=employees)
 
 @leads_bp.route('/delete-lead/<int:lead_id>', methods=['POST'])
 @login_required
@@ -284,4 +284,4 @@ def bulk_upload_leads():
             return redirect(url_for('leads.leads_list'))
         except Exception as e:
             flash(f'Error: {str(e)}', 'leadserror')
-    return render_template('Leads/bulkuploadleads.html')
+    return render_template('leads/bulkuploadleads.html')
