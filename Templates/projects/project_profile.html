@@ -124,6 +124,79 @@
                 </div>
             </div>
 
+            <!-- Tasks Section -->
+            <div class="panel" style="padding: 2.5rem; margin-top: 2rem; border-top: 4px solid var(--accent-gold);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h2 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.5rem; margin: 0;">Project Tasks</h2>
+                    <a href="{{ url_for('tasks.add_task', project_id=project.id) }}" class="btn-action gold" style="text-decoration: none; padding: 0.6rem 1.2rem; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.2rem; font-weight: bold;">+</span> New Task
+                    </a>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="customer-table" style="width: 100%; border-collapse: separate; border-spacing: 0;">
+                        <thead>
+                            <tr style="background: rgba(13, 27, 42, 0.03);">
+                                <th style="padding: 1.2rem; text-align: left; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Task</th>
+                                <th style="padding: 1.2rem; text-align: left; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Due Date</th>
+                                <th style="padding: 1.2rem; text-align: left; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Assigned To</th>
+                                <th style="padding: 1.2rem; text-align: left; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Status</th>
+                                <th style="padding: 1.2rem; text-align: right; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set tasks = project.tasks_related.all() %}
+                            {% for task in tasks %}
+                            <tr style="transition: all 0.2s ease;">
+                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05);">
+                                    <div style="font-weight: 600; color: var(--primary-color);">{{ task.title }}</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ task.description or 'No description' }}</div>
+                                </td>
+                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05); font-size: 0.95rem;">
+                                    {{ task.due_date.strftime('%d %b, %Y') if task.due_date else 'No due date' }}
+                                </td>
+                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05);">
+                                    {% if task.assignee %}
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.7rem;">
+                                            {{ task.assignee.name[:1] }}
+                                        </div>
+                                        <span style="font-size: 0.9rem;">{{ task.assignee.name }}</span>
+                                    </div>
+                                    {% else %}
+                                    <span style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05);">
+                                    <span class="status-badge" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 600;
+                                        {% if task.status_display == 'Completed' %}background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2);
+                                        {% elif task.status_display == 'In Progress' %}background: rgba(0, 123, 255, 0.08); color: #007bff; border: 1px solid rgba(0, 123, 255, 0.2);
+                                        {% elif task.status_display == 'Cancelled' %}background: rgba(220, 53, 69, 0.08); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2);
+                                        {% else %}background: rgba(255, 193, 7, 0.08); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.2);{% endif %}">
+                                        {{ task.status_display }}
+                                    </span>
+                                </td>
+                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05); text-align: right;">
+                                    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                        <a href="{{ url_for('tasks.view_task', task_id=task.id) }}" style="padding: 5px; color: var(--text-muted); transition: color 0.2s;" onmouseover="this.style.color='var(--accent-gold)'" onmouseout="this.style.color='var(--text-muted)'">👁</a>
+                                        <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" style="padding: 5px; color: var(--text-muted); transition: color 0.2s;" onmouseover="this.style.color='var(--primary-color)'" onmouseout="this.style.color='var(--text-muted)'">✏️</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" style="padding: 3rem; text-align: center; color: var(--text-muted); border-bottom: 1px solid rgba(13, 27, 42, 0.05);">
+                                    <div style="font-size: 2.5rem; opacity: 0.2; margin-bottom: 1rem;">📋</div>
+                                    <div style="font-weight: 500;">No tasks found for this project yet.</div>
+                                    <div style="font-size: 0.9rem; margin-top: 0.5rem;">Click 'New Task' to get started.</div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Sidebar -->
             <div style="display: flex; flex-direction: column; gap: 1.5rem;">
                 
