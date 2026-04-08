@@ -169,12 +169,19 @@
             <a href="{{ url_for('customers.customers_list') }}">Customers</a>
             <a href="{{ url_for('leads.leads_list') }}">Leads</a>
             <a href="{{ url_for('projects.projects_list') }}">Projects</a>
-            <a href="{{ url_for('tasks.tasks_list') }}">Tasks</a>
+            <div class="dropdown">
+                <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                    <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+                </div>
+            </div>
             <div class="dropdown">
                 <a href="#" class="active">Accounts ▾</a>
                 <div class="dropdown-content">
                     <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
-                    <a href="{{ url_for('accounts.quotation_list') }}">Quotations</a>
+                    <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                    <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
                 </div>
             </div>
             <div class="dropdown">
@@ -209,10 +216,10 @@
                 <h1>New Quotation / Proforma</h1>
                 <p>Prepare detailed estimates for prospects and clients.</p>
             </div>
-            <a href="{{ url_for('accounts.quotation_list') }}" class="btn-action outline" style="text-decoration:none;">Cancel</a>
+            <a href="{{ url_for('quotations.quotation_list') }}" class="btn-action outline" style="text-decoration:none;">Cancel</a>
         </div>
 
-        <form action="{{ url_for('accounts.add_quotation') }}" method="POST">
+        <form action="{{ url_for('quotations.add_quotation') }}" method="POST">
             <div class="invoice-form-panel">
                 
                 <!-- Client Details -->
@@ -349,7 +356,7 @@
                 </div>
 
                 <div style="margin-top: 3rem; display: flex; justify-content: flex-end; gap: 1rem;">
-                    <a href="{{ url_for('accounts.quotation_list') }}" class="btn-action outline">Discard</a>
+                    <a href="{{ url_for('quotations.quotation_list') }}" class="btn-action outline">Discard</a>
                     <button type="submit" class="btn-action gold">Create & Generate Quotation</button>
                 </div>
             </div>

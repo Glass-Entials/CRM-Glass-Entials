@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quotations | GlassEntials Accounts</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}">
+
+
+
+
+
+</head>
+<body class="dashboard-page">
+    <!-- Top Navbar -->
+    <header class="dash-nav">
+        <div class="nav-left">
+            <div class="logo">
+                <a href="/home" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+                </a>
+            </div>
+
+            <nav class="dash-menu">
+                <a href="{{ url_for('home_page') }}">Dashboard</a>
+                <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+                <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+                <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+                <div class="dropdown">
+                    <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                        <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <a href="#" class="active">Accounts ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                        <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                        <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <a href="#">Settings ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="dash-container">
+
+<div class="qt-wrapper">
+  <div class="qt-header">
+    <div class="qt-header-left">
+      <a href="{{ url_for('quotation_settings.settings_home') }}" class="btn-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
+        Back to Settings
+      </a>
+      <h1 class="qt-title">Terms & Conditions Repository</h1>
+    </div>
+    <div class="qt-header-right">
+      <button onclick="document.getElementById('modal-new-group').style.display='flex'" class="btn-secondary">
+        + New Term Group
+      </button>
+    </div>
+  </div>
+
+  <div class="qt-layout">
+    <div class="qt-sidebar">
+      <div class="qt-group-list">
+        {% for tg in term_groups %}
+        <div class="qt-group-item {{ 'active' if loop.first else '' }}" data-target="group-panel-{{ tg.id }}">
+          <div class="qt-group-info">
+            <h4>{{ tg.name }} {% if tg.is_default %}<span class="badge-sm badge-sys">Default</span>{% endif %}</h4>
+            <span class="text-xs text-muted">{{ tg.terms|length }} terms</span>
+          </div>
+          <form method="POST" action="{{ url_for('quotation_settings.delete_term_group', group_id=tg.id) }}" onsubmit="return confirm('Delete this group entirely?');">
+            <button type="submit" class="btn-icon-sm text-danger" title="Delete Group">🗑</button>
+          </form>
+        </div>
+        {% else %}
+        <div class="p-md text-center text-muted">No term groups found.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="qt-main">
+      {% for tg in term_groups %}
+      <div class="qt-panel {{ 'active' if loop.first else '' }}" id="group-panel-{{ tg.id }}">
+        
+        <div class="qt-panel-header">
+          <div>
+            <h2>{{ tg.name }}</h2>
+            {% if tg.description %}<p class="text-muted">{{ tg.description }}</p>{% endif %}
+          </div>
+          <button class="btn-primary btn-sm" onclick="openNewTermModal({{ tg.id }})">+ Add Term</button>
+        </div>
+
+        <div class="qt-terms-list" id="sortable-{{ tg.id }}">
+          {% for t in tg.terms %}
+          <div class="qt-term-card" data-id="{{ t.id }}">
+            <div class="qt-term-header">
+              <div class="qt-drag-handle">⠿</div>
+              <h4 class="qt-term-title">{{ t.term_title }}</h4>
+              <div class="qt-term-actions">
+                <button class="btn-icon-sm" title="Edit" onclick="editTerm({{ t.id }}, '{{ t.term_title|escape }}', `{{ t.term_body|escape }}`)">✏</button>
+                <form method="POST" action="{{ url_for('quotation_settings.delete_term', term_id=t.id) }}" style="display:inline" onsubmit="return confirm('Delete this term?')">
+                  <button type="submit" class="btn-icon-sm text-danger" title="Delete">✕</button>
+                </form>
+              </div>
+            </div>
+            <div class="qt-term-body">{{ t.term_body }}</div>
+          </div>
+          {% else %}
+          <div class="qt-empty">No terms in this group yet.</div>
+          {% endfor %}
+        </div>
+        
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal: New Group -->
+<div id="modal-new-group" class="qt-modal">
+  <div class="qt-modal-content">
+    <div class="qt-modal-header">
+      <h3>Create Term Group (Annexure)</h3>
+      <button class="btn-close" onclick="document.getElementById('modal-new-group').style.display='none'">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('quotation_settings.add_term_group') }}">
+      <div class="qt-modal-body">
+        <div class="qf-field mb-md">
+          <label>Group Name</label>
+          <input type="text" name="name" class="qf-input" placeholder="e.g. Annexure-1" required>
+        </div>
+        <div class="qf-field mb-md">
+          <label>Description</label>
+          <input type="text" name="description" class="qf-input" placeholder="e.g. Standard Delivery Terms">
+        </div>
+        <label class="qf-toggle-label">
+          <input type="checkbox" name="is_default" value="1">
+          <span>Include by default on new quotations</span>
+        </label>
+      </div>
+      <div class="qt-modal-footer">
+        <button type="submit" class="btn-primary">Create Group</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Add/Edit Term -->
+<div id="modal-term" class="qt-modal">
+  <div class="qt-modal-content">
+    <div class="qt-modal-header">
+      <h3 id="mt-title">Add Term</h3>
+      <button class="btn-close" onclick="closeTermModal()">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('quotation_settings.add_term') }}" id="form-term">
+      <input type="hidden" name="group_id" id="mt-group-id">
+      <div class="qt-modal-body">
+        <div class="qf-field mb-md">
+          <label>Term Title</label>
+          <input type="text" name="term_title" id="mt-term-title" class="qf-input" required>
+        </div>
+        <div class="qf-field">
+          <label>Term Body</label>
+          <textarea name="term_body" id="mt-term-body" class="qf-input" rows="5" required></textarea>
+        </div>
+      </div>
+      <div class="qt-modal-footer">
+        <button type="submit" class="btn-primary">Save Term</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script>
+// Sidebar switching
+document.querySelectorAll('.qt-group-item').forEach(item => {
+  item.style.cursor = 'pointer';
+  item.addEventListener('click', (e) => {
+    if(e.target.closest('form')) return; // ignore delete clicks
+    
+    document.querySelectorAll('.qt-group-item').forEach(i => i.classList.remove('active'));
+    document.querySelectorAll('.qt-panel').forEach(p => p.classList.remove('active'));
+    
+    item.classList.add('active');
+    document.getElementById(item.dataset.target).classList.add('active');
+  });
+});
+
+// Modals
+function openNewTermModal(groupId) {
+  document.getElementById('mt-title').textContent = 'Add Term';
+  document.getElementById('form-term').action = "{{ url_for('quotation_settings.add_term') }}";
+  document.getElementById('mt-group-id').value = groupId;
+  document.getElementById('mt-term-title').value = '';
+  document.getElementById('mt-term-body').value = '';
+  document.getElementById('modal-term').style.display = 'flex';
+}
+
+function editTerm(termId, title, body) {
+  document.getElementById('mt-title').textContent = 'Edit Term';
+  document.getElementById('form-term').action = "/quotation-settings/terms/" + termId + "/edit";
+  document.getElementById('mt-term-title').value = title;
+  document.getElementById('mt-term-body').value = body;
+  document.getElementById('modal-term').style.display = 'flex';
+  
+  // Hijack submit to do AJAX for edit so we don't need a full form POST if we want
+  const form = document.getElementById('form-term');
+  form.onsubmit = async (e) => {
+    if(form.action.includes('/edit')) {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const res = await fetch(form.action, {method: 'POST', body: fd});
+      if(res.ok) window.location.reload();
+    }
+  };
+}
+
+function closeTermModal() {
+  document.getElementById('modal-term').style.display = 'none';
+  document.getElementById('form-term').onsubmit = null;
+}
+
+// Drag and drop sorting
+document.querySelectorAll('.qt-terms-list').forEach(list => {
+  if (list.children.length === 0 || list.querySelector('.qt-empty')) return;
+  
+  new Sortable(list, {
+    handle: '.qt-drag-handle',
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    onEnd: async function () {
+      const items = Array.from(list.querySelectorAll('.qt-term-card')).map((card, idx) => ({
+        id: parseInt(card.dataset.id),
+        sort_order: idx
+      }));
+      
+      await fetch("{{ url_for('quotation_settings.reorder_terms') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(items)
+      });
+    }
+  });
+});
+</script>
+
+
+</body>
+</html>

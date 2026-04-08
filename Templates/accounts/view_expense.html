@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Details | GlassEntials</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <style>
+        .profile-container { max-width: 1100px; margin: 3rem auto; padding: 0 2rem; }
+        
+        .expense-header {
+            background: #fff;
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(13,27,42,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(212,175,55,0.1);
+        }
+
+        .expense-title-group h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2rem;
+            color: var(--primary-color);
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .expense-meta {
+            margin-top: 0.5rem;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .amount-badge {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 2rem;
+        }
+
+        .info-card {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(13,27,42,0.06);
+            border: 1px solid rgba(13,27,42,0.04);
+        }
+
+        .detail-item {
+            margin-bottom: 1.8rem;
+            padding-bottom: 1.2rem;
+            border-bottom: 1px solid rgba(13,27,42,0.05);
+        }
+        .detail-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+        .detail-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+            display: block;
+        }
+
+        .detail-value {
+            font-size: 1.05rem;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Proof Viewer */
+        .proof-viewer {
+            background: #fff;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(13,27,42,0.06);
+            border: 1px solid rgba(13,27,42,0.04);
+            display: flex;
+            flex-direction: column;
+            min-height: 500px;
+        }
+
+        .proof-header {
+            background: #f8fafc;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(13,27,42,0.04);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .proof-content {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            padding: 1rem;
+        }
+
+        .proof-img {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .pdf-frame {
+            width: 100%;
+            height: 600px;
+            border: none;
+        }
+
+        .status-pill {
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .action-bar {
+            margin-top: 2rem;
+            display: flex;
+            gap: 1rem;
+            border-top: 1px solid rgba(13,27,42,0.05);
+            padding-top: 2rem;
+        }
+
+        .btn-modern {
+            padding: 0.8rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            text-decoration: none;
+        }
+        .btn-modern.approve { background: #059669; color: white; }
+        .btn-modern.reject { background: #dc2626; color: white; }
+        .btn-modern.pay { background: var(--primary-color); color: white; }
+        .btn-modern.back { background: #f1f5f9; color: var(--primary-color); }
+
+        .btn-modern:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); filter: brightness(1.1); }
+    </style>
+</head>
+<body style="background: #f8fafc; min-height: 100vh;">
+
+    <div class="profile-container">
+        
+        <!-- Navbar style Link -->
+        <a href="{{ url_for('expenses.expenses_list') }}" class="btn-modern back" style="width: fit-content; margin-bottom: 2rem;">
+            ← Back to Expenses
+        </a>
+
+        <div class="expense-header">
+            <div class="expense-title-group">
+                <span class="status-pill" style="
+                    {% if expense.status_display == 'Approved' %}background: #ecfdf5; color:#059669;
+                    {% elif expense.status_display == 'Rejected' %}background: #fef2f2; color:#dc2626;
+                    {% elif expense.status_display == 'Paid' %}background: #eff6ff; color:#2563eb;
+                    {% else %}background: #fffbeb; color:#d97706;{% endif %}
+                ">
+                    {{ expense.status_display }}
+                </span>
+                <h1 style="margin-top: 1rem;">{{ expense.title }}</h1>
+                <div class="expense-meta">
+                    <span>📅 {{ expense.date.strftime('%d %B %Y') }}</span>
+                    <span>🏷️ {{ expense.category_display }}</span>
+                    <span>👤 {{ expense.employee.name if expense.employee else 'Admin' }}</span>
+                </div>
+            </div>
+            <div class="amount-badge">
+                ₹{{ "{:,.2f}".format(expense.amount) }}
+            </div>
+        </div>
+
+        <div class="details-grid">
+            <!-- Left Info Panel -->
+            <div class="info-card">
+                <div class="detail-item">
+                    <span class="detail-label">Project Association</span>
+                    <span class="detail-value">{{ expense.project.name if expense.project else 'General Office / Personal' }}</span>
+                </div>
+                
+                <div class="detail-item">
+                    <span class="detail-label">Reference Description</span>
+                    <p style="margin: 0; font-size: 0.95rem; color: #4b5563; line-height: 1.6;">
+                        {{ expense.description or 'No additional notes provided.' }}
+                    </p>
+                </div>
+
+                <div class="detail-item">
+                    <span class="detail-label">Payment Information</span>
+                    <span class="detail-value" style="color: {{ '#059669' if expense.status_display == 'Paid' else '#d97706' }}">
+                        {{ 'Processed via Bank Transfer' if expense.status_display == 'Paid' else 'Pending Payment' }}
+                    </span>
+                </div>
+
+                {% if current_user.role in [UserRole.ADMIN, UserRole.MANAGER] %}
+                <div class="action-bar">
+                    <form action="{{ url_for('expenses.update_status', expense_id=expense.id) }}" method="POST" style="display:flex; gap: 10px; width: 100%; flex-wrap: wrap;">
+                        {% if expense.status_display == 'Pending' %}
+                            <button type="submit" name="status" value="Approved" class="btn-modern approve" style="flex:1;">✔️ Approve</button>
+                            <button type="submit" name="status" value="Rejected" class="btn-modern reject" style="flex:1;">✖️ Reject</button>
+                        {% elif expense.status_display == 'Approved' %}
+                            <button type="submit" name="status" value="Paid" class="btn-modern pay" style="flex:2;">💰 Mark as Paid</button>
+                            <button type="submit" name="status" value="Rejected" class="btn-modern reject" style="flex:1;">Reject</button>
+                        {% elif expense.status_display == 'Rejected' %}
+                            <button type="submit" name="status" value="Pending" class="btn-modern approve" style="flex:1;">Move to Pending</button>
+                        {% endif %}
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right Proof Viewer -->
+            <div class="proof-viewer">
+                <div class="proof-header">
+                    <span style="font-weight: 700; color: var(--primary-color);">Verification Document</span>
+                    {% if expense.receipt_path %}
+                        <a href="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}" target="_blank" style="font-size: 0.8rem; color: var(--accent-gold); font-weight: 600;">Open Original ↗</a>
+                    {% endif %}
+                </div>
+                <div class="proof-content">
+                    {% if expense.receipt_path %}
+                        {% if expense.receipt_path.endswith('.pdf') %}
+                            <iframe src="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}" class="pdf-frame"></iframe>
+                        {% else %}
+                            <img src="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}" class="proof-img" alt="Proof Image">
+                        {% endif %}
+                    {% else %}
+                        <div style="text-align: center; color: #94a3b8;">
+                            <span style="font-size: 3rem; display: block; margin-bottom: 1rem;">📁</span>
+                            <p style="font-weight: 600;">No Proof Uploaded</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

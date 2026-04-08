@@ -34,12 +34,19 @@
             <a href="{{ url_for('customers.customers_list') }}" class="active">Customers</a>
             <a href="{{ url_for('leads.leads_list') }}">Leads</a>
             <a href="{{ url_for('projects.projects_list') }}">Projects</a>
-            <a href="{{ url_for('tasks.tasks_list') }}">Tasks</a>
+            <div class="dropdown">
+                <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                    <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+                </div>
+            </div>
             <div class="dropdown">
                 <a href="#">Accounts ▾</a>
                 <div class="dropdown-content">
                     <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
-                    <a href="{{ url_for('accounts.quotation_list') }}">Quotations</a>
+                    <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                    <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
                 </div>
             </div>
             <div class="dropdown">

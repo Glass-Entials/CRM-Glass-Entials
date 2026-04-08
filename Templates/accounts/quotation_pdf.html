@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{ quotation.quotation_number }} - {{ quotation.doc_type_display }}</title>
+  <style>
+    @page {
+      size: a4;
+      margin: 10mm 15mm 20mm 15mm;
+      @frame footer_frame {
+        -pdf-frame-content: footer_content;
+        left: 50pt; width: 495pt; top: 792pt; height: 30pt;
+      }
+    }
+    
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 10pt;
+      color: #333;
+    }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+    th, td { padding: 6px; text-align: left; }
+    
+    .doc-header { width: 100%; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px; }
+    .company-col { width: 60%; vertical-align: top; }
+    .meta-col { width: 40%; vertical-align: top; text-align: right; }
+    
+    .company-name { font-size: 16pt; font-weight: bold; color: #1e3a8a; margin: 0 0 5px 0;}
+    .company-details p { margin: 2px 0; font-size: 9pt; color: #4b5563; }
+    
+    .doc-title { font-size: 18pt; font-weight: bold; color: #2563eb; margin: 0 0 10px 0; letter-spacing: 1px; text-transform: uppercase;}
+    .meta-table { width: 100%; font-size: 9pt; }
+    .meta-table td { padding: 3px; border: none; }
+    .meta-label { font-weight: bold; color: #6b7280; width: 40%; }
+    
+    .parties-row { width: 100%; margin-bottom: 20px; }
+    .party-box { width: 48%; display: inline-block; vertical-align: top; }
+    .party-label { font-size: 8pt; font-weight: bold; color: #6b7280; border-bottom: 1px solid #e5e7eb; padding-bottom: 3px; margin-bottom: 8px; text-transform: uppercase;}
+    .party-name { font-size: 11pt; font-weight: bold; margin: 0 0 4px 0; color: #111827;}
+    .party-details p { margin: 2px 0; font-size: 9pt; color: #374151;}
+
+    .info-grid { border: 1px solid #e5e7eb; border-radius: 4px; padding: 10px; margin-bottom: 20px; }
+    .info-table { border: none; margin: 0; }
+    .info-table td { padding: 4px; border: none; font-size: 9pt; }
+    .info-lbl { font-weight: bold; color: #4b5563; width: 25%; }
+    
+    .items-table { border: 1px solid #d1d5db; }
+    .items-table th { background-color: #f3f4f6; color: #374151; font-weight: bold; font-size: 9pt; border: 1px solid #d1d5db; }
+    .items-table td { border: 1px solid #e5e7eb; font-size: 9pt; vertical-align: top; }
+    
+    .item-name { font-weight: bold; color: #111827; }
+    .item-desc { font-size: 8pt; color: #6b7280; font-style: italic; }
+    .item-flag { font-size: 7px; background-color: #e5e7eb; padding: 2px 4px; border-radius: 2px; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    
+    .totals-area { width: 100%; margin-top: 15px; }
+    .spacer { width: 60%; display: inline-block; vertical-align: top; }
+    .totals-box { width: 40%; display: inline-block; vertical-align: top; }
+    
+    .tot-table { width: 100%; }
+    .tot-table td { border-bottom: 1px solid #e5e7eb; padding: 5px; font-size: 9pt; }
+    .tot-table tr:last-child td { border-bottom: none; }
+    .tot-label { font-weight: bold; color: #4b5563; }
+    .tot-val { text-align: right; }
+    .grand-total { background-color: #f3f4f6; font-size: 11pt; font-weight: bold; color: #1f2937; }
+    
+    .amount-words { margin-top: 10px; font-size: 9pt; background-color: #f9fafb; padding: 8px; border-left: 3px solid #2563eb; }
+    
+    .bottom-grids { width: 100%; margin-top: 25px; }
+    .half-box { width: 48%; display: inline-block; vertical-align: top; }
+    
+    .section-title { font-size: 10pt; font-weight: bold; color: #374151; border-bottom: 1px solid #d1d5db; padding-bottom: 3px; margin-bottom: 8px; text-transform: uppercase;}
+    .detail-table { font-size: 9pt; }
+    .detail-table td { padding: 3px 0; border: none; }
+    
+    .notes-box { margin-top: 20px; font-size: 9pt; color: #374151; line-height: 1.4; }
+    
+    .signature-area { margin-top: 40px; text-align: right; }
+    .sig-img { max-height: 50px; max-width: 150px; margin-bottom: 5px; }
+    .sig-line { border-bottom: 1px solid #111; width: 180px; display: inline-block; margin-bottom: 5px; }
+    .sig-label { font-weight: bold; font-size: 9pt; color: #374151; }
+    
+    .annexure-page { padding-top: 0; }
+    .annex-group-title { font-size: 14pt; font-weight: bold; color: #1e3a8a; border-bottom: 2px solid #2563eb; padding-bottom: 5px; margin-bottom: 15px;}
+    .doc-term-list { padding-left: 20px; margin-top: 0; }
+    .doc-term-item { margin-bottom: 12px; font-size: 9pt; line-height: 1.4; }
+    .doc-term-item strong { display: block; margin-bottom: 3px; color: #111827;}
+    
+    #footer_content { font-size: 8pt; color: #6b7280; text-align: center; border-top: 1px solid #e5e7eb; padding-top: 5px; }
+  </style>
+</head>
+<body>
+
+  <div id="footer_content">
+    Page <pdf:pagenumber> of <pdf:pagecount> | 
+    {{ settings.pdf_footer_text if settings.pdf_footer_text else 'Generated by CRM GlassEntials' }}
+  </div>
+
+  <table class="doc-header">
+    <tr>
+      <td class="company-col">
+        {% if settings.company_logo %}
+        <!-- Note: xhtml2pdf needs absolute paths or appropriate base_dir config. 
+             If doing direct path: request.url_root + 'static/...' -->
+        <!-- Fallback to name if image fails in PDF renderer -->
+        <h1 class="company-name">{{ settings.company_name or 'GlassEntials' }}</h1>
+        {% else %}
+        <h1 class="company-name">{{ settings.company_name or 'GlassEntials' }}</h1>
+        {% endif %}
+        
+        <div class="company-details">
+          {% if settings.company_address %}<p>{{ settings.company_address }}</p>{% endif %}
+          <p>
+            {% if settings.company_gstin %}GSTIN: {{ settings.company_gstin }} | {% endif %}
+            {% if settings.company_pan %}PAN: {{ settings.company_pan }}{% endif %}
+          </p>
+          <p>
+            {% if settings.company_phone %}Tel: {{ settings.company_phone }} | {% endif %}
+            {% if settings.company_email %}Email: {{ settings.company_email }}{% endif %}
+          </p>
+        </div>
+      </td>
+      <td class="meta-col">
+        <h2 class="doc-title">{{ quotation.quotation_title or quotation.doc_type_display }}</h2>
+        <table class="meta-table">
+          <tr><td class="meta-label">Number:</td><td><strong>{{ quotation.quotation_number }}</strong></td></tr>
+          <tr><td class="meta-label">Date:</td><td>{{ quotation.issue_date.strftime('%d %B %Y') if quotation.issue_date else '' }}</td></tr>
+          {% if quotation.due_date %}
+          <tr><td class="meta-label">Valid Till:</td><td>{{ quotation.due_date.strftime('%d %B %Y') }}</td></tr>
+          {% endif %}
+          {% if quotation.timeline %}
+          <tr><td class="meta-label">Timeline:</td><td>{{ quotation.timeline }}</td></tr>
+          {% endif %}
+          {% if quotation.amendment_no %}
+          <tr><td class="meta-label">Amendment:</td><td>{{ quotation.amendment_no }}</td></tr>
+          {% endif %}
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <div class="parties-row">
+    <div class="party-box" style="margin-right: 4%;">
+      <div class="party-label">Bill To / Quotation For</div>
+      {% if quotation.customer %}
+      <div class="party-name">{{ quotation.customer.company or quotation.customer.name }}</div>
+      <div class="party-details">
+        {% if quotation.customer.company %}<p>{{ quotation.customer.name }}</p>{% endif %}
+        {% if quotation.customer.address %}<p>{{ quotation.customer.address }}, {{ quotation.customer.city or '' }}</p>{% endif %}
+        {% if quotation.customer.state %}<p>{{ quotation.customer.state }} {{ quotation.customer.pincode or '' }}</p>{% endif %}
+        {% if quotation.customer.gst_number %}<p>GSTIN: {{ quotation.customer.gst_number }}</p>{% endif %}
+        {% if quotation.customer.phone_number %}<p>Phone: {{ quotation.customer.phone_number }}</p>{% endif %}
+      </div>
+      {% elif quotation.lead %}
+      <div class="party-name">{{ quotation.lead.name }}</div>
+      <div class="party-details">
+        {% if quotation.lead.company %}<p>{{ quotation.lead.company }}</p>{% endif %}
+        {% if quotation.lead.phone_number %}<p>Phone: {{ quotation.lead.phone_number }}</p>{% endif %}
+      </div>
+      {% else %}
+      <div class="party-name">Customer Not Provided</div>
+      {% endif %}
+    </div>
+    
+    <div class="party-box">
+      <!-- Reserved for Shipping Address if needed in future, or leave blank -->
+      <div class="party-label">Project / Delivery Details</div>
+      <div class="party-details">
+        {% if quotation.project %}<p><strong>Project:</strong> {{ quotation.project.name }}</p>{% endif %}
+        {% if quotation.project_lead_name %}<p><strong>Project Lead:</strong> {{ quotation.project_lead_name }}</p>{% endif %}
+        {% if quotation.delivery_terms %}<p><strong>Delivery:</strong> {{ quotation.delivery_terms }}</p>{% endif %}
+        {% if quotation.freight_unloading %}<p><strong>Freight:</strong> {{ quotation.freight_unloading }}</p>{% endif %}
+      </div>
+    </div>
+  </div>
+
+
+  {% set std_fields = [
+    ('Source', quotation.source), ('Quote Level', quotation.quote_level), 
+    ('Sales Source', quotation.sales_source), ('Shop Drawings', quotation.shop_drawings), 
+    ('Manager in Charge', quotation.manager_in_charge), ('References', quotation.references), 
+    ('Delivery TAT', quotation.delivery_tat), ('Mode of Delivery', quotation.mode_of_delivery)
+  ] %}
+  {% set visible_fields = std_fields | selectattr('1') | list %}
+  {% if visible_fields or quotation.custom_field_values %}
+  <div class="info-grid">
+    <table class="info-table">
+      {% for i in range(0, visible_fields|length, 2) %}
+      <tr>
+        <td class="info-lbl">{{ visible_fields[i][0] }}:</td>
+        <td>{{ visible_fields[i][1] }}</td>
+        {% if i+1 < visible_fields|length %}
+        <td class="info-lbl">{{ visible_fields[i+1][0] }}:</td>
+        <td>{{ visible_fields[i+1][1] }}</td>
+        {% else %}
+        <td></td><td></td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+      
+      <!-- Custom fields -->
+      {% if quotation.custom_field_values %}
+      {% set cf_list = quotation.custom_field_values|list %}
+      {% for i in range(0, cf_list|length, 2) %}
+      <tr>
+        <td class="info-lbl">{{ cf_list[i].field.label }}:</td>
+        <td>{{ cf_list[i].value }}</td>
+        {% if i+1 < cf_list|length %}
+        <td class="info-lbl">{{ cf_list[i+1].field.label }}:</td>
+        <td>{{ cf_list[i+1].value }}</td>
+        {% else %}
+        <td></td><td></td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+      {% endif %}
+    </table>
+  </div>
+  {% endif %}
+
+
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th width="5%" class="text-center">#</th>
+        <th width="28%">Description</th>
+        <th width="12%" class="text-center">W x H</th>
+        <th width="8%" class="text-center">Qty</th>
+        <th width="10%" class="text-center">Ch. Qty</th>
+        <th width="7%" class="text-center">Unit</th>
+        <th width="10%" class="text-right">Rate</th>
+        <th width="8%" class="text-center">GST%</th>
+        <th width="12%" class="text-right">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in quotation.items %}
+      
+      {% if loop.first or item.group_name != loop.previtem.group_name %}
+        {% if item.group_name %}
+        <tr>
+           <td colspan="9" style="background-color: #e2e8f0; border-bottom: 2px solid #cbd5e1; font-weight: bold; padding: 6px 10px; color: #1e293b;">
+              {{ item.group_name }}
+           </td>
+        </tr>
+        {% endif %}
+      {% endif %}
+
+      <tr>
+        <td class="text-center">{{ loop.index }}</td>
+        <td>
+          <div class="item-name">{{ item.item_name or item.description or 'Item' }}</div>
+          {% if item.item_name and item.description %}<div class="item-desc">{{ item.description }}</div>{% endif %}
+        </td>
+        <td class="text-center">
+          {% if item.width and item.height %}
+            {{ item.width }} x {{ item.height }}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td class="text-center">{{ item.quantity }}</td>
+        <td class="text-center">{{ item.chargeable_quantity or '-' }}</td>
+        <td class="text-center">{{ item.unit }}</td>
+        <td class="text-right">{{ '%.2f'|format(item.rate) }}</td>
+        <td class="text-center">{{ item.gst_percentage|int }}%</td>
+        <td class="text-right">{{ '%.2f'|format(item.total) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="totals-area">
+    <div class="spacer">
+      <div class="amount-words">
+        <strong>Amount in words:</strong><br>
+        {{ quotation.total_in_words }}
+      </div>
+      
+      {% if quotation.notes %}
+      <div class="notes-box">
+        <strong>Important Notes:</strong><br>
+        {{ quotation.notes }}
+      </div>
+      {% endif %}
+      
+      {% if quotation.terms_conditions %}
+      <div class="notes-box">
+        <strong>Terms & Conditions:</strong><br>
+        {{ quotation.terms_conditions }}
+      </div>
+      {% endif %}
+    </div>
+    
+    <div class="totals-box">
+      <table class="tot-table">
+        <tr>
+          <td class="tot-label">Subtotal</td>
+          <td class="tot-val">{{ '%.2f'|format(quotation.subtotal) }}</td>
+        </tr>
+        
+        {% if quotation.total_discount %}
+        <tr>
+          <td class="tot-label">Discount ({{ quotation.total_discount_type }})</td>
+          <td class="tot-val text-danger">- {{ '%.2f'|format(quotation.total_discount) }}</td>
+        </tr>
+        {% endif %}
+        
+        {% if quotation.tax_summary %}
+          {% for ts in quotation.tax_summary %}
+            {% if quotation.is_igst %}
+            <tr>
+              <td class="tot-label">IGST ({{ ts.gst_rate|int }}%)</td>
+              <td class="tot-val">{{ '%.2f'|format(ts.igst_amount) }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td class="tot-label">SGST ({{ (ts.gst_rate/2)|int }}%)</td>
+              <td class="tot-val">{{ '%.2f'|format(ts.sgst_amount) }}</td>
+            </tr>
+            <tr>
+              <td class="tot-label">CGST ({{ (ts.gst_rate/2)|int }}%)</td>
+              <td class="tot-val">{{ '%.2f'|format(ts.cgst_amount) }}</td>
+            </tr>
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          {% if quotation.sgst %}<tr><td class="tot-label">SGST</td><td class="tot-val">{{ '%.2f'|format(quotation.sgst) }}</td></tr>{% endif %}
+          {% if quotation.cgst %}<tr><td class="tot-label">CGST</td><td class="tot-val">{{ '%.2f'|format(quotation.cgst) }}</td></tr>{% endif %}
+          {% if quotation.igst %}<tr><td class="tot-label">IGST</td><td class="tot-val">{{ '%.2f'|format(quotation.igst) }}</td></tr>{% endif %}
+        {% endif %}
+        
+        {% if quotation.additional_charges %}
+        <tr>
+          <td class="tot-label">{{ quotation.additional_charges_label or 'Additional Charges' }}</td>
+          <td class="tot-val">{{ '%.2f'|format(quotation.additional_charges) }}</td>
+        </tr>
+        {% endif %}
+        
+        <tr class="grand-total">
+          <td class="tot-label">Grand Total (₹)</td>
+          <td class="tot-val">{{ '%.2f'|format(quotation.total_amount) }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+
+  <div class="bottom-grids">
+    <div class="half-box" style="margin-right:4%;">
+      {% if settings.show_bank_details_on_pdf and settings.bank_name %}
+      <div class="section-title">Bank Details</div>
+      <table class="detail-table">
+        <tr><td width="30%"><strong>Bank Name</strong></td><td>: {{ settings.bank_name }}</td></tr>
+        <tr><td><strong>Account No.</strong></td><td>: {{ settings.bank_account_no }}</td></tr>
+        <tr><td><strong>IFSC Code</strong></td><td>: {{ settings.bank_ifsc }}</td></tr>
+        {% if settings.bank_branch %}<tr><td><strong>Branch</strong></td><td>: {{ settings.bank_branch }}</td></tr>{% endif %}
+        {% if settings.beneficiary_name %}<tr><td><strong>Beneficiary</strong></td><td>: {{ settings.beneficiary_name }}</td></tr>{% endif %}
+      </table>
+      {% endif %}
+      
+      {% if quotation.advance_payment or quotation.mode_of_payment %}
+      <div class="section-title" style="margin-top:15px;">Payment Details</div>
+      <table class="detail-table">
+        {% if quotation.advance_payment %}<tr><td width="30%"><strong>Advance</strong></td><td>: ₹{{ '%.2f'|format(quotation.advance_payment) }}</td></tr>{% endif %}
+        {% if quotation.balance_payment %}<tr><td><strong>Balance</strong></td><td>: ₹{{ '%.2f'|format(quotation.balance_payment) }}</td></tr>{% endif %}
+        {% if quotation.mode_of_payment %}<tr><td><strong>Mode</strong></td><td>: {{ quotation.mode_of_payment }}</td></tr>{% endif %}
+      </table>
+      {% endif %}
+    </div>
+    
+    <div class="half-box">
+      {% if settings.show_signature_on_pdf %}
+      <div class="signature-area">
+        <br>
+        <p>For <strong>{{ settings.company_name or 'GlassEntials' }}</strong></p>
+        <br><br>
+        
+        <!-- Avoid src linking from db directly if complex, just space is standard for manual sign -->
+        <!-- xhtml2pdf has strict SRC requirements. Easiest is to provide blank space for PDF, or if known absolute path -->
+        
+        <div class="sig-line"></div>
+        <p class="sig-label">{{ quotation.signature_label or settings.default_signature_label or 'Authorised Signatory' }}</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Annexure pages break -->
+  {% if term_sections %}
+    {% for section in term_sections %}
+      <pdf:nextpage />
+      <div class="annexure-page">
+        <h2 class="annex-group-title">{{ section.group.name }}</h2>
+        {% if section.group.description %}<p style="font-style:italic; color:#6b7280; font-size:10pt; margin-bottom:15px;">{{ section.group.description }}</p>{% endif %}
+
+        <ol class="doc-term-list">
+          {% for term in section.terms %}
+          <li class="doc-term-item">
+            <strong>{{ term.title }}</strong>
+            {{ term.body }}
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+</body>
+</html>

@@ -25,27 +25,37 @@ def add_employee():
             flash('All required fields filled.', 'employeeerror')
             return redirect(url_for('employees.add_employee'))
 
-        if User.query.filter_by(email=email).first():
-            flash('Email already registered.', 'employeeerror')
+        # DUPLICATE CHECKS
+        existing_user = User.query.filter((User.email == email) | (User.phone_number == phone_number)).first()
+        if existing_user:
+            if existing_user.email == email:
+                flash('Email already registered.', 'employeeerror')
+            else:
+                flash('Phone number already registered.', 'employeeerror')
             return redirect(url_for('employees.add_employee'))
 
-        new_user = User(
-            username=name, email=email, phone_number=phone_number,
-            password=generate_password_hash('Glass@123'),
-            role=UserRole.STAFF, organization_id=current_user.organization_id
-        )
-        db.session.add(new_user)
-        db.session.flush()
+        try:
+            new_user = User(
+                username=name, email=email, phone_number=phone_number,
+                password=generate_password_hash('Glass@123'),
+                role=UserRole.EMPLOYEE, organization_id=current_user.organization_id
+            )
+            db.session.add(new_user)
+            db.session.flush()
 
-        new_emp = Employee(
-            user_id=new_user.id, name=name, email=email,
-            phone_number=phone_number, position=position,
-            organization_id=current_user.organization_id
-        )
-        db.session.add(new_emp)
-        db.session.commit()
-        flash('Employee added! Pass: Glass@123', 'employeesuccess')
-        return redirect(url_for('employees.employee_list'))
+            new_emp = Employee(
+                user_id=new_user.id, name=name, email=email,
+                phone_number=phone_number, position=position,
+                organization_id=current_user.organization_id
+            )
+            db.session.add(new_emp)
+            db.session.commit()
+            flash('Employee added! Pass: Glass@123', 'employeesuccess')
+            return redirect(url_for('employees.employee_list'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error: {str(e)}', 'employeeerror')
+            return redirect(url_for('employees.add_employee'))
 
     return render_template('employee/add_employee.html')
 

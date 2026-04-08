@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quotations | GlassEntials Accounts</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}">
+
+
+
+
+
+</head>
+<body class="dashboard-page">
+    <!-- Top Navbar -->
+    <header class="dash-nav">
+        <div class="nav-left">
+            <div class="logo">
+                <a href="/home" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+                </a>
+            </div>
+
+            <nav class="dash-menu">
+                <a href="{{ url_for('home_page') }}">Dashboard</a>
+                <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+                <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+                <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+                <div class="dropdown">
+                    <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                        <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <a href="#" class="active">Accounts ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                        <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                        <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <a href="#">Settings ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="dash-container">
+
+<div class="qs-wrapper">
+  <div class="qs-header">
+    <a href="{{ url_for('quotations.quotation_list') }}" class="btn-back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
+      Back to Quotations
+    </a>
+    <h1>Quotation Engine Settings</h1>
+  </div>
+
+  <div class="qs-layout">
+    
+    <!-- Sidebar nav -->
+    <div class="qs-sidebar">
+      <ul class="qs-nav">
+        <li><a href="#company" class="active">Company Profile</a></li>
+        <li><a href="#numbering">Numbering Schema</a></li>
+        <li><a href="#defaults">Default Values</a></li>
+        <li><a href="#bank">Bank Details</a></li>
+        <li><a href="#pdf">PDF & Signature</a></li>
+        <li><a href="#custom-fields">Custom Fields</a></li>
+        <li><a href="#terms">Terms & Annexure</a></li>
+      </ul>
+      <form method="POST" action="{{ url_for('quotation_settings.seed_defaults') }}" class="mt-xl text-center" onsubmit="return confirm('Seed defaults? This will add standard fields and terms if they don\'t exist.')">
+        <button type="submit" class="btn-ghost btn-sm">🌱 Seed Defaults</button>
+      </form>
+    </div>
+    
+    <!-- Main content panels -->
+    <div class="qs-main">
+
+      <!-- COMPANY PROFILE -->
+      <div id="company" class="qs-panel active">
+        <h2 class="qs-panel-title">Company Profile <span class="text-muted font-normal text-sm ml-sm">(Appears on document header)</span></h2>
+        <form method="POST" action="{{ url_for('quotation_settings.settings_home') }}" enctype="multipart/form-data">
+          <input type="hidden" name="section" value="company">
+          
+          <div class="qf-row">
+            <div class="qf-field">
+              <label>Company Name</label>
+              <input type="text" name="company_name" class="qf-input" value="{{ settings.company_name or '' }}">
+            </div>
+            <div class="qf-field">
+              <label>Logo Upload</label>
+              <input type="file" name="company_logo" class="qf-input" accept="image/png, image/jpeg">
+              {% if settings.company_logo %}
+              <div class="mt-xs text-sm"><a href="{{ url_for('static', filename='uploads/logos/' + settings.company_logo) }}" target="_blank">Current Logo</a></div>
+              {% endif %}
+            </div>
+          </div>
+          
+          <div class="qf-field mb-md">
+            <label>Registered Address</label>
+            <textarea name="company_address" class="qf-input" rows="2">{{ settings.company_address or '' }}</textarea>
+          </div>
+          
+          <div class="qf-row">
+            <div class="qf-field"><label>GSTIN</label><input type="text" name="company_gstin" class="qf-input" value="{{ settings.company_gstin or '' }}"></div>
+            <div class="qf-field"><label>PAN</label><input type="text" name="company_pan" class="qf-input" value="{{ settings.company_pan or '' }}"></div>
+          </div>
+          
+          <div class="qf-row mb-md">
+            <div class="qf-field"><label>Email</label><input type="email" name="company_email" class="qf-input" value="{{ settings.company_email or '' }}"></div>
+            <div class="qf-field"><label>Phone</label><input type="text" name="company_phone" class="qf-input" value="{{ settings.company_phone or '' }}"></div>
+            <div class="qf-field"><label>State (Place of Supply)</label><input type="text" name="company_state" class="qf-input" value="{{ settings.company_state or '' }}" placeholder="Maharashtra"></div>
+          </div>
+          
+          <button type="submit" class="btn-primary">Save Company Profile</button>
+        </form>
+      </div>
+
+      <!-- NUMBERING SCHEMA -->
+      <div id="numbering" class="qs-panel">
+        <h2 class="qs-panel-title">Numbering Schema</h2>
+        <form method="POST" action="{{ url_for('quotation_settings.settings_home') }}">
+          <input type="hidden" name="section" value="numbering">
+          <div class="qf-row mb-md">
+            <div class="qf-field">
+              <label>Prefix</label>
+              <input type="text" name="number_prefix" class="qf-input" value="{{ settings.number_prefix or 'GL' }}">
+            </div>
+            <div class="qf-field">
+              <label>Current Counter</label>
+              <input type="text" class="qf-input" value="{{ settings.number_counter }}" disabled>
+            </div>
+          </div>
+          <div class="qf-field mb-md">
+            <label class="qf-toggle-label"><input type="checkbox" name="reset_counter" value="1"> <span>Reset counter to 0001 (e.g. for new financial year)</span></label>
+          </div>
+          <p class="text-sm text-muted mb-md">Example format: <strong>{{ settings.number_prefix or 'GL' }}/26/{{ '%04d'|format(settings.number_counter) }}</strong></p>
+          <button type="submit" class="btn-primary">Save Numbering</button>
+        </form>
+      </div>
+
+      <!-- DEFAULTS -->
+      <div id="defaults" class="qs-panel">
+        <h2 class="qs-panel-title">Default Values</h2>
+        <form method="POST" action="{{ url_for('quotation_settings.settings_home') }}">
+          <input type="hidden" name="section" value="defaults">
+          <div class="qf-row mb-md">
+            <div class="qf-field">
+              <label>Valid For (Days)</label>
+              <input type="number" name="validity_days" class="qf-input" value="{{ settings.validity_days }}">
+            </div>
+            <div class="qf-field">
+              <label>Default GST %</label>
+              <input type="number" name="default_gst_rate" class="qf-input" value="{{ settings.default_gst_rate }}" step="0.1">
+            </div>
+          </div>
+          <div class="qf-field mb-md">
+            <label>Default Payment Terms (Visible on UI)</label>
+            <textarea name="default_payment_terms" class="qf-input" rows="2">{{ settings.default_payment_terms or '' }}</textarea>
+          </div>
+          <div class="qf-field mb-md">
+            <label>Default Delivery Terms (Visible on UI)</label>
+            <textarea name="default_delivery_terms" class="qf-input" rows="2">{{ settings.default_delivery_terms or '' }}</textarea>
+          </div>
+          <button type="submit" class="btn-primary">Save Defaults</button>
+        </form>
+      </div>
+
+      <!-- BANK STATS -->
+      <div id="bank" class="qs-panel">
+        <h2 class="qs-panel-title">Bank Details</h2>
+        <form method="POST" action="{{ url_for('quotation_settings.settings_home') }}">
+          <input type="hidden" name="section" value="bank">
+          <div class="qf-row mb-md">
+            <div class="qf-field"><label>Bank Name</label><input type="text" name="bank_name" class="qf-input" value="{{ settings.bank_name or '' }}"></div>
+            <div class="qf-field"><label>Account Number</label><input type="text" name="bank_account_no" class="qf-input" value="{{ settings.bank_account_no or '' }}"></div>
+          </div>
+          <div class="qf-row mb-md">
+            <div class="qf-field"><label>IFSC Code</label><input type="text" name="bank_ifsc" class="qf-input" value="{{ settings.bank_ifsc or '' }}"></div>
+            <div class="qf-field"><label>Branch</label><input type="text" name="bank_branch" class="qf-input" value="{{ settings.bank_branch or '' }}"></div>
+          </div>
+          <div class="qf-field mb-md">
+            <label>Beneficiary Name</label>
+            <input type="text" name="beneficiary_name" class="qf-input" value="{{ settings.beneficiary_name or '' }}">
+          </div>
+          <button type="submit" class="btn-primary">Save Bank Details</button>
+        </form>
+      </div>
+
+      <!-- PDF / SIGNATURE -->
+      <div id="pdf" class="qs-panel">
+        <h2 class="qs-panel-title">PDF & Signature Configuration</h2>
+        <form method="POST" action="{{ url_for('quotation_settings.settings_home') }}" enctype="multipart/form-data">
+          <input type="hidden" name="section" value="pdf">
+          <div class="qf-row mb-md">
+            <div class="qf-field">
+              <label class="qf-toggle-label"><input type="checkbox" name="show_bank_details_on_pdf" value="1" {{ 'checked' if settings.show_bank_details_on_pdf }}> <span>Show Bank Details on PDF</span></label>
+            </div>
+            <div class="qf-field">
+              <label class="qf-toggle-label"><input type="checkbox" name="show_signature_on_pdf" value="1" {{ 'checked' if settings.show_signature_on_pdf }}> <span>Show Signature Block</span></label>
+            </div>
+          </div>
+          <div class="qf-row mb-md align-end">
+            <div class="qf-field">
+              <label>Default Signature Label</label>
+              <input type="text" name="default_signature_label" class="qf-input" value="{{ settings.default_signature_label or 'Authorised Signatory' }}">
+            </div>
+            <div class="qf-field">
+              <label>Default Signature Img</label>
+              <input type="file" name="default_signature" class="qf-input" accept="image/png, image/jpeg">
+            </div>
+          </div>
+          {% if settings.default_signature_path %}
+          <div class="mb-md">
+            <p class="text-sm">Current Signature:</p>
+            <img src="{{ url_for('static', filename='uploads/signatures/' + settings.default_signature_path) }}" alt="Sig" height="50">
+          </div>
+          {% endif %}
+          <div class="qf-field mb-md">
+            <label>PDF Footer Text</label>
+            <textarea name="pdf_footer_text" class="qf-input" rows="2">{{ settings.pdf_footer_text or '' }}</textarea>
+          </div>
+          <button type="submit" class="btn-primary">Save PDF Settings</button>
+        </form>
+      </div>
+
+      <!-- CUSTOM FIELDS -->
+      <div id="custom-fields" class="qs-panel">
+        <h2 class="qs-panel-title">Custom Fields</h2>
+        <p class="text-muted text-sm mb-md">Define reusable fields that will appear on the quotation form. Drag to reorder.</p>
+        
+        <div class="qs-cf-list mb-lg">
+          <table class="qf-table w-full text-left" id="cf-table">
+            <thead>
+              <tr>
+                <th width="5%">Order</th>
+                <th width="30%">Label</th>
+                <th width="15%">Type</th>
+                <th width="20%">Key</th>
+                <th width="15%">Visible Default</th>
+                <th width="15%">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cf in custom_fields %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ cf.label }} {% if cf.is_system %}<span class="badge-sm badge-sys">System</span>{% endif %}</td>
+                <td><span class="badge-sm">{{ cf.field_type }}</span></td>
+                <td class="text-muted font-mono text-xs">{{ cf.field_key }}</td>
+                <td>
+                  <button type="button" class="btn-toggle cf-toggle-vis {{ 'on' if cf.is_default_visible }}" data-id="{{ cf.id }}">
+                    {{ 'Yes' if cf.is_default_visible else 'No' }}
+                  </button>
+                </td>
+                <td>
+                  {% if not cf.is_system %}
+                  <button type="button" class="btn-icon-sm text-danger cf-del" data-id="{{ cf.id }}">🗑</button>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <form class="qs-add-cf-form" id="form-add-cf">
+          <h4>Add New Field</h4>
+          <div class="qf-row">
+            <div class="qf-field"><input type="text" id="cf_label" class="qf-input" placeholder="Field Label (e.g. Sales Rep)" required></div>
+            <div class="qf-field w-1/3">
+              <select id="cf_type" class="qf-select">
+                <option value="text">Text / String</option>
+                <option value="number">Number</option>
+                <option value="date">Date</option>
+                <option value="textarea">Long Text</option>
+              </select>
+            </div>
+            <div class="qf-field w-auto pt-1"><button type="submit" class="btn-secondary">Add Field</button></div>
+          </div>
+        </form>
+      </div>
+
+      <!-- TERMS -->
+      <div id="terms" class="qs-panel">
+        <h2 class="qs-panel-title">Terms & Annexure Libraries</h2>
+        <p class="text-muted text-sm mb-md">Manage full dictionaries of terms here. <a href="{{ url_for('quotation_settings.terms_list') }}" class="link-label">Go to Terms Manager ➔</a></p>
+        <div class="qf-row">
+          {% for tg in term_groups %}
+          <div class="qf-card w-1/2" style="background:#f9fafb; margin-bottom:10px;">
+            <div class="qf-card-body p-sm">
+              <h4 style="margin:0 0 5px 0;">{{ tg.name }}</h4>
+              <p class="text-xs text-muted" style="margin:0;">{{ tg.terms|length }} Terms inside</p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <a href="{{ url_for('quotation_settings.terms_list') }}" class="btn-primary mt-sm">Manage Terms</a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+</main>
+<script>
+// Simple tab switching
+const navLinks = document.querySelectorAll('.qs-nav a');
+const panels = document.querySelectorAll('.qs-panel');
+
+navLinks.forEach(link => {
+  link.addEventListener('click', e => {
+    if (link.getAttribute('href').startsWith('#')) {
+      e.preventDefault();
+      navLinks.forEach(l => l.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      
+      link.classList.add('active');
+      const target = document.querySelector(link.getAttribute('href'));
+      if(target) target.classList.add('active');
+    }
+  });
+});
+
+// Setup JS handlers for AJAX forms (custom fields)
+document.getElementById('form-add-cf').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const label = document.getElementById('cf_label').value;
+  const ftype = document.getElementById('cf_type').value;
+  
+  const fd = new FormData();
+  fd.append('label', label);
+  fd.append('field_type', ftype);
+  
+  const res = await fetch("{{ url_for('quotation_settings.add_custom_field') }}", {
+    method: 'POST', body: fd
+  });
+  if (res.ok) window.location.reload();
+});
+
+document.querySelectorAll('.cf-toggle-vis').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const id = btn.dataset.id;
+    const res = await fetch(`/quotation-settings/custom-fields/${id}`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action: 'toggle_visible'})
+    });
+    if (res.ok) window.location.reload();
+  });
+});
+
+document.querySelectorAll('.cf-del').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if(!confirm('Delete this custom field entirely?')) return;
+    const id = btn.dataset.id;
+    const res = await fetch(`/quotation-settings/custom-fields/${id}`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action: 'delete'})
+    });
+    if (res.ok) window.location.reload();
+  });
+});
+</script>
+
+
+</body>
+</html>

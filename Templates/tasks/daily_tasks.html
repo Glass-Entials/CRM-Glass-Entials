@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Tasks | GlassEntials Staff Portal</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}">
+    <style>
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            background: #fff;
+            padding: 2rem 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(13, 27, 42, 0.04);
+            border: 1px solid rgba(13, 27, 42, 0.05);
+            border-top: 5px solid var(--accent-gold);
+        }
+        .page-title h1 {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin: 0;
+            font-family: var(--font-heading);
+            font-weight: 800;
+        }
+        .page-title p {
+            color: var(--text-muted);
+            margin: 5px 0 0;
+            font-size: 1rem;
+        }
+
+        /* Premium Table Styles */
+        .log-table-card {
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.03);
+            border: 1px solid rgba(13, 27, 42, 0.05);
+        }
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .log-table th {
+            text-align: left;
+            padding: 1.25rem 1.5rem;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+            border-bottom: 2px solid #f1f5f9;
+        }
+        .log-table td {
+            padding: 1.5rem;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+            color: var(--primary-color);
+        }
+        .log-table tr:last-child td {
+            border-bottom: none;
+        }
+        .log-table tr:hover {
+            background: #fdfdfd;
+        }
+
+        .date-badge {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(212, 175, 55, 0.08);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 10px;
+            padding: 8px 12px;
+            min-width: 60px;
+        }
+        .date-day {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--accent-gold);
+            line-height: 1;
+        }
+        .date-month {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--primary-color);
+            margin-top: 2px;
+        }
+
+        .emp-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .emp-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .emp-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .type-pill {
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: #f1f5f9;
+            color: #475569;
+            white-space: nowrap;
+        }
+        .type-pill.accent {
+            background: rgba(212, 175, 55, 0.1);
+            color: #8a6a00;
+        }
+
+        .project-link {
+            color: var(--primary-color);
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.2s;
+        }
+        .project-link:hover {
+            color: var(--accent-gold);
+        }
+
+        .desc-text {
+            line-height: 1.6;
+            font-size: 0.95rem;
+            color: #334155;
+            max-width: 400px;
+        }
+
+        .hours-tag {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--primary-color);
+        }
+        .hours-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        /* Filter Section Styling */
+        .filter-card {
+            background: #fff;
+            padding: 1.5rem 2rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(13, 27, 42, 0.04);
+            border: 1px solid rgba(13, 27, 42, 0.05);
+        }
+        .filter-form {
+            display: flex;
+            align-items: flex-end;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .filter-group label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .form-control-filter {
+            padding: 0.8rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: var(--font-body);
+            min-width: 220px;
+            font-size: 0.9rem;
+            color: var(--primary-color);
+            background: #f8fafc;
+        }
+        .form-control-filter:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+        }
+        .filter-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .btn-filter {
+            background: var(--primary-color);
+            color: #fff;
+            padding: 0.8rem 1.8rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: var(--font-body);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-filter:hover {
+            background: #1a2c42;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(13, 27, 42, 0.2);
+        }
+        .btn-reset {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-bottom: 1px solid transparent;
+            transition: all 0.2s;
+        }
+        .btn-reset:hover {
+            color: var(--accent-gold);
+            border-bottom-color: var(--accent-gold);
+        }
+    </style>
+</head>
+
+<body class="dashboard-page">
+
+    <!-- Top Navbar -->
+    <header class="dash-nav">
+        <div class="nav-left">
+            <div class="logo">
+                <a href="/home" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+                </a>
+            </div>
+
+            <nav class="dash-menu">
+                <a href="{{ url_for('home_page') }}">Dashboard</a>
+                <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+                <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+                <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+                <div class="dropdown">
+                    <a href="#" class="active">Tasks ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                        <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <a href="#">Accounts ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                        <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                        <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <a href="#">Settings ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+
+        {% with messages = get_flashed_messages(category_filter=["tasksuccess"]) %}
+        {% if messages %}
+        {% for message in messages %}
+        <div class="flash-message" style="padding: 1.25rem; background: #ecfdf5; border-left: 5px solid #10b981; color: #065f46; margin-bottom: 2rem; border-radius: 8px; display: flex; align-items: center; gap: 12px; font-weight: 500;">
+            <span style="font-size: 1.3rem;">✅</span> {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <!-- Optimized Header -->
+        <div class="page-header">
+            <div class="page-title">
+                <h1>Work Log History</h1>
+                <p>Track daily progress and time investment across projects.</p>
+            </div>
+            
+            <div class="header-actions">
+                <a href="{{ url_for('tasks.add_daily_task') }}" class="btn-action gold" style="text-decoration: none; padding: 1rem 2rem; font-size: 1rem;">
+                    🚀 Log Today's Work
+                </a>
+            </div>
+        </div>
+
+        <!-- Role-based Filter Section -->
+        <div class="filter-card">
+            <form action="{{ url_for('tasks.daily_tasks_list') }}" method="GET" class="filter-form">
+                <div class="filter-group">
+                    <label for="date">📅 Log Date</label>
+                    <input type="date" id="date" name="date" class="form-control-filter" value="{{ selected_date or '' }}">
+                </div>
+                
+                {% if current_user.role.value in ['admin', 'manager'] %}
+                <div class="filter-group">
+                    <label for="employee_id">👥 Select Employee</label>
+                    <select id="employee_id" name="employee_id" class="form-control-filter">
+                        <option value="">All Staff Members</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.id }}" {% if selected_emp|int == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                
+                <div class="filter-actions">
+                    <button type="submit" class="btn-filter">🔍 Apply Filters</button>
+                    <a href="{{ url_for('tasks.daily_tasks_list') }}" class="btn-reset">↺ Reset Clear</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Optimized Table View -->
+        <div class="log-table-card">
+            <div class="table-responsive">
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th>Work Date</th>
+                            {% if current_user.role.value in ['admin', 'manager'] %}
+                            <th>Team Member</th>
+                            {% endif %}
+                            <th>Work Category</th>
+                            <th>Related Project</th>
+                            <th>Activities & Descriptions</th>
+                            <th>Time Spent</th>
+                            <th>Logged At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in daily_tasks %}
+                        <tr>
+                            <td>
+                                <div class="date-badge">
+                                    <span class="date-day">{{ task.date.strftime('%d') }}</span>
+                                    <span class="date-month">{{ task.date.strftime('%b %Y') }}</span>
+                                </div>
+                            </td>
+                            {% if current_user.role.value in ['admin', 'manager'] %}
+                            <td>
+                                <div class="emp-info">
+                                    <img src="{{ get_profile_pic(task.employee) }}" alt="User" class="emp-avatar">
+                                    <span class="emp-name">{{ task.employee.name }}</span>
+                                </div>
+                            </td>
+                            {% endif %}
+                            <td>
+                                <span class="type-pill accent">⚡ {{ task.work_category }}</span>
+                            </td>
+                            <td>
+                                {% if task.project %}
+                                    <a href="{{ url_for('projects.view_project', project_id=task.project.id) }}" class="project-link">
+                                        📦 {{ task.project.name }}
+                                    </a>
+                                {% else %}
+                                    <span style="opacity: 0.4; font-style: italic; font-size: 0.85rem;">Independent</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="desc-text">{{ task.task_description }}</div>
+                            </td>
+                            <td>
+                                <div class="hours-tag">{{ task.hours_spent if task.hours_spent else '0' }} <span class="hours-label">HRS</span></div>
+                            </td>
+                            <td style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">
+                                {{ task.created_at.strftime('%H:%M • %d %b') }}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 6rem 3rem;">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+                                    <div style="font-size: 4rem; opacity: 0.2;">📝</div>
+                                    <h3 style="color: var(--primary-color); margin: 0; font-weight: 700;">No work logs found yet</h3>
+                                    <p style="color: var(--text-muted); max-width: 350px; margin: 0;">Start tracking your productivity by logging your first task today.</p>
+                                    <a href="{{ url_for('tasks.add_daily_task') }}" class="btn-action gold" style="text-decoration: none; margin-top: 10px;">Create First Log →</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

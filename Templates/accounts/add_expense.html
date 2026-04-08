@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Expense | GlassEntials</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .form-panel { border-top: 4px solid var(--accent-gold); max-width: 800px; margin: 0 auto; padding: 2.5rem; background: #fff; box-shadow: 0 10px 40px rgba(13,27,42,0.08); border-radius: 16px; border: 1px solid rgba(212,175,55,0.1); }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 0.6rem; color: var(--primary-color); font-size: 0.95rem; }
+        .form-input { width: 100%; padding: 1rem; border-radius: 8px; border: 1px solid rgba(13,27,42,0.12); font-size: 1rem; color: var(--text-color); transition: all 0.3s ease; }
+        .form-input:focus { border-color: var(--accent-gold); outline: none; box-shadow: 0 0 0 4px rgba(212,175,55,0.1); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .file-upload-preview { background: rgba(13,27,42,0.02); height: 120px; border: 2px dashed rgba(13,27,42,0.08); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-direction: column; cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden; }
+        .file-upload-preview:hover { border-color: var(--accent-gold); background: rgba(212,175,55,0.03); }
+        .file-upload-preview input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    </style>
+</head>
+<body class="dashboard-page">
+
+    <!-- Top Navbar -->
+    <header class="dash-nav">
+        <div class="logo"><a href="/home"><img src="{{ url_for('static', filename='img/logo.png') }}" class="site-logo"></a></div>
+        <nav class="dash-menu">
+            <a href="{{ url_for('home_page') }}">Dashboard</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+            <div class="dropdown">
+                <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                    <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <a href="#" class="active">Accounts ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('accounts.invoice_list') }}">Invoices</a>
+                    <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                    <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <a href="#">Settings ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                </div>
+            </div>
+        </nav>
+        <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="dash-container" style="padding: 4rem 5% 6rem 5%;">
+        
+        <div style="max-width: 800px; margin: 0 auto 2.5rem auto; display: flex; align-items: center; gap: 10px;">
+            <a href="{{ url_for('expenses.expenses_list') }}" style="text-decoration: none; font-size: 1.5rem; color: var(--primary-color);">←</a>
+            <h1 style="color: var(--primary-color); font-family: var(--font-heading); font-size: 2rem; margin: 0;">Submit Expense</h1>
+        </div>
+
+        {% with messages = get_flashed_messages(category_filter=["expenseerror"]) %}
+        {% if messages %}{% for message in messages %}
+        <div class="flash-message error" style="background:#fef2f2; color:#dc2626; border:1px solid #f87171; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; max-width: 800px; margin-left: auto; margin-right: auto;">{{ message }}</div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        <div style="max-width: 800px; margin: 0 auto 1.5rem auto; background: #fffbeb; border: 1px solid #fde68a; padding: 1rem 1.5rem; border-radius: 12px; display: flex; align-items: flex-start; gap: 15px;">
+            <span style="font-size: 1.25rem;">⚠️</span>
+            <div>
+                <strong style="color: #92400e; display: block; margin-bottom: 2px;">Submission Requirement</strong>
+                <p style="color: #b45309; margin: 0; font-size: 0.9rem; font-weight: 500;">Please attach a receipt or invoice as proof. Your expense <strong>will not be approved</strong> without valid documentation.</p>
+            </div>
+        </div>
+
+        <div class="form-panel">
+            <form action="{{ url_for('expenses.add_expense') }}" method="POST" enctype="multipart/form-data">
+                
+                <div class="form-group">
+                    <label>Title / Purpose of Expense <span style="color:#ef4444;">*</span></label>
+                    <input type="text" name="title" class="form-input" placeholder="e.g. Site Visit Travel Reimbursement" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Amount (₹) <span style="color:#ef4444;">*</span></label>
+                        <input type="number" step="0.01" name="amount" class="form-input" placeholder="0.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Date <span style="color:#ef4444;">*</span></label>
+                        <input type="date" name="date" class="form-input" value="{{ today_date }}" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Category <span style="color:#ef4444;">*</span></label>
+                        <select name="category" class="form-input">
+                            {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Related Project (Optional)</label>
+                        <select name="project_id" class="form-input">
+                            <option value="none">-- General Expense --</option>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Description / Notes</label>
+                    <textarea name="description" class="form-input" style="height: 100px; padding: 0.75rem;" placeholder="Add detail about why this expense was made..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Proof of Expense (Receipt/Invoice Proof) <span style="font-size: 0.8rem; font-weight: 400; color: var(--text-muted);">PDF, JPG, PNG allowed</span></label>
+                    <div class="file-upload-preview" id="file_preview">
+                        <span style="font-size: 1.5rem; color: var(--text-muted);">📷</span>
+                        <span id="file_label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-top: 5px;">Select file proof</span>
+                        <input type="file" name="receipt" id="receipt_input" accept="image/*,application/pdf" onchange="updateFileName(this)">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 3rem; justify-content: flex-end;">
+                    <a href="{{ url_for('expenses.expenses_list') }}" class="btn-action outline" style="padding: 0.9rem 2rem; background: #fff; color: var(--primary-color); border: 1px solid rgba(13,27,42,0.15);">Cancel</a>
+                    <button type="submit" class="btn-action dark" style="padding: 0.9rem 2rem; background: var(--primary-color); color: #fff;">Submit for Approval</button>
+                </div>
+
+            </form>
+        </div>
+
+    </main>
+
+    <script>
+        function updateFileName(input) {
+            const fileName = input.files[0] ? input.files[0].name : "Select file proof";
+            const label = document.getElementById('file_label');
+            const preview = document.getElementById('file_preview');
+            
+            label.innerText = fileName;
+            preview.style.borderColor = 'var(--accent-gold)';
+            preview.style.background = 'rgba(212,175,55,0.05)';
+        }
+    </script>
+
+</body>
+</html>

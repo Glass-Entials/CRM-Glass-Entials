@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
-from model import db, Task, Employee, Project, Lead, TaskStatus
+from model import db, Task, Employee, Project, Lead, TaskStatus, DailyTask
 from utils.activity import log_activity
 from datetime import datetime
 
@@ -163,3 +163,84 @@ def view_task(task_id):
     org_id = current_user.organization_id
     task = Task.query.filter_by(id=task_id, organization_id=org_id).first_or_404()
     return render_template('tasks/task_profile.html', task=task)
+
+@tasks_bp.route('/daily-tasks')
+@login_required
+def daily_tasks_list():
+    org_id = current_user.organization_id
+    date_filter = request.args.get('date')
+    emp_filter = request.args.get('employee_id')
+    
+    query = DailyTask.query.filter_by(organization_id=org_id)
+    
+    # Role-based restriction
+    if current_user.role.value not in ['admin', 'manager']:
+        employee = Employee.query.filter_by(user_id=current_user.id).first()
+        if employee:
+            query = query.filter_by(employee_id=employee.id)
+        else:
+            return render_template('tasks/daily_tasks.html', daily_tasks=[], employees=[])
+    elif emp_filter:
+        query = query.filter_by(employee_id=emp_filter)
+        
+    # Date Filtering
+    if date_filter:
+        try:
+            filter_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
+            query = query.filter_by(date=filter_date)
+        except:
+            pass
+            
+    all_daily_tasks = query.order_by(DailyTask.date.desc()).all()
+    employees = Employee.query.filter_by(organization_id=org_id).all() if current_user.role.value in ['admin', 'manager'] else []
+    
+    return render_template('tasks/daily_tasks.html', 
+                          daily_tasks=all_daily_tasks, 
+                          employees=employees,
+                          selected_date=date_filter,
+                          selected_emp=emp_filter)
+
+@tasks_bp.route('/add-daily-task', methods=['GET', 'POST'])
+@login_required
+def add_daily_task():
+    org_id = current_user.organization_id
+    employee = Employee.query.filter_by(user_id=current_user.id).first()
+    
+    if not employee:
+        flash('Employee profile not found.', 'taskerror')
+        return redirect(url_for('tasks.daily_tasks_list'))
+
+    if request.method == 'POST':
+        date_str = request.form.get('date')
+        description = request.form.get('description', '').strip()
+        hours = request.form.get('hours_spent')
+        project_id = request.form.get('project_id')
+        work_category = request.form.get('work_category', 'General')
+        
+        if not description:
+            flash('Task description is required.', 'taskerror')
+            return redirect(url_for('tasks.add_daily_task'))
+            
+        try:
+            task_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else datetime.utcnow().date()
+            new_daily_task = DailyTask(
+                employee_id=employee.id,
+                date=task_date,
+                task_description=description,
+                hours_spent=float(hours) if hours else None,
+                work_category=work_category,
+                project_id=int(project_id) if project_id and project_id != 'none' else None,
+                organization_id=org_id
+            )
+            db.session.add(new_daily_task)
+            db.session.commit()
+            flash('Daily task added successfully!', 'tasksuccess')
+            return redirect(url_for('tasks.daily_tasks_list'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error adding daily task: {str(e)}', 'taskerror')
+            return redirect(url_for('tasks.add_daily_task'))
+
+    from datetime import date
+    projects = Project.query.filter_by(organization_id=org_id, is_deleted=False).all()
+    return render_template('tasks/add_daily_task.html', today_date=date.today().strftime('%Y-%m-%d'), projects=projects)

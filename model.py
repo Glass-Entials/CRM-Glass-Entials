@@ -83,6 +83,21 @@ class InvoiceStatus(Enum):
     CANCELLED = "Cancelled"
     OVERDUE = "Overdue"
 
+class ExpenseCategory(Enum):
+    TRAVEL = "Travel"
+    MATERIALS = "Materials"
+    HARDWARE = "Hardware"
+    SALARY = "Salary"
+    SITE_EXPENSE = "Site Expense"
+    OFFICE_SUPPLIES = "Office Supplies"
+    OTHER = "Other"
+
+class ExpenseStatus(Enum):
+    PENDING = "Pending"
+    APPROVED = "Approved"
+    REJECTED = "Rejected"
+    PAID = "Paid"
+
 class Organization(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -97,6 +112,7 @@ class Organization(db.Model):
     leads = db.relationship('Lead', back_populates='organization')
     customers = db.relationship('Customer', back_populates='organization')
     activities = db.relationship('LeadActivity', back_populates='organization')
+    expenses = db.relationship('Expense', back_populates='organization')
 
     def __repr__(self):
         return f'<Organization {self.name}>'
@@ -304,6 +320,29 @@ class Task(db.Model):
 
     def __repr__(self):
         return f'<Task {self.title}>'
+
+class DailyTask(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False, index=True)
+    date = db.Column(db.Date, default=datetime.utcnow().date, nullable=False)
+    task_description = db.Column(db.Text, nullable=False)
+    hours_spent = db.Column(db.Float, nullable=True)
+    work_category = db.Column(db.String(50), nullable=True, default="General") # Site visit, fabrication, office, etc.
+    
+    # Tenancy
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=True, index=True)
+    
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+    # Relationships
+    employee = db.relationship('Employee', backref=db.backref('daily_tasks', lazy='dynamic'))
+    organization = db.relationship('Organization', backref=db.backref('daily_tasks', lazy='dynamic'))
+    project = db.relationship('Project', backref=db.backref('daily_tasks', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<DailyTask {self.id} for Employee {self.employee_id}>'
 class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -414,68 +453,401 @@ class InvoiceItem(db.Model):
     amount = db.Column(db.Float, default=0.0)
     
     def __repr__(self):
-        return f'<InvoiceItem {self.description} for Invoice {self.invoice_id}>'
+        return f'<InvoiceItem {self.description}>'
+
+class Expense(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(150), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    date = db.Column(db.DateTime, default=db.func.current_timestamp())
+    category = db.Column(db.Enum(ExpenseCategory, values_callable=lambda x: [e.value for e in x]), default=ExpenseCategory.OTHER)
+    status = db.Column(db.Enum(ExpenseStatus, values_callable=lambda x: [e.value for e in x]), default=ExpenseStatus.PENDING)
+    description = db.Column(db.Text, nullable=True)
+    receipt_path = db.Column(db.String(255), nullable=True) # Filename of the proof
+    is_deleted = db.Column(db.Boolean, default=False)
+    
+    # Foreign Keys
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False, index=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=True, index=True)
+    
+    # Relationships
+    organization = db.relationship('Organization', back_populates='expenses')
+    employee = db.relationship('Employee', backref=db.backref('expenses', lazy='dynamic'))
+    project = db.relationship('Project', backref=db.backref('expenses', lazy='dynamic'))
+
+    @property
+    def category_display(self):
+        return self.category.value if self.category else "Other"
+    
+    @property
+    def status_display(self):
+        return self.status.value if self.status else "Pending"
+
+    def __repr__(self):
+        return f'<Expense {self.title} - {self.amount}>'
+
+class QuotationDocType(Enum):
+    QUOTATION = "Quotation"
+    PROFORMA_INVOICE = "Proforma Invoice"
+    SALES_ORDER = "Sales Order"
+
+class ValidTillType(Enum):
+    DATE = "date"
+    DAYS = "days"
+    NONE = "none"
+
 
 class Quotation(db.Model):
+    __tablename__ = 'quotation'
     id = db.Column(db.Integer, primary_key=True)
+
+    # Header
+    quotation_title = db.Column(db.String(100), default="Quotation")
+    doc_type = db.Column(db.Enum(QuotationDocType, values_callable=lambda x: [e.value for e in x]), default=QuotationDocType.QUOTATION)
     quotation_number = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    issue_date = db.Column(db.DateTime, default=db.func.current_timestamp())
+    due_date = db.Column(db.DateTime, nullable=True)
+    valid_till_type = db.Column(db.String(10), default='date')   # 'date' | 'days' | 'none'
+    valid_till_days = db.Column(db.Integer, nullable=True)
+
+    # Links
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True, index=True)
     lead_id = db.Column(db.Integer, db.ForeignKey('lead.id'), nullable=True, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=True, index=True)
     organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False, index=True)
-    
-    # Custom quotation fields modeled after Refrens
+
+    # Standard custom fields
     source = db.Column(db.String(255), nullable=True)
+    timeline = db.Column(db.String(255), nullable=True)
     amendment_no = db.Column(db.String(50), nullable=True)
     measurements = db.Column(db.String(255), nullable=True)
     quote_level = db.Column(db.String(255), nullable=True)
-    
+    sales_source = db.Column(db.String(255), nullable=True)
+    delivery_terms = db.Column(db.String(500), nullable=True)
+    payment_terms = db.Column(db.String(500), nullable=True)
+    shop_drawings = db.Column(db.String(255), nullable=True)
+    project_lead_name = db.Column(db.String(255), nullable=True)
+    application = db.Column(db.String(255), nullable=True)
+    manager_in_charge = db.Column(db.String(255), nullable=True)
+    references = db.Column(db.String(255), nullable=True)
+    delivery_tat = db.Column(db.String(255), nullable=True)
+    mode_of_delivery = db.Column(db.String(255), nullable=True)
+    unloading = db.Column(db.String(255), nullable=True)
+    freight_unloading = db.Column(db.String(255), nullable=True)
+
+    # Financials
     subtotal = db.Column(db.Float, default=0.0)
+    total_discount = db.Column(db.Float, default=0.0)
+    total_discount_type = db.Column(db.String(10), default='flat')   # 'flat' | 'percent'
+    additional_charges = db.Column(db.Float, default=0.0)
+    additional_charges_taxable = db.Column(db.Boolean, default=False)
+    additional_charges_label = db.Column(db.String(100), nullable=True)
+    sgst = db.Column(db.Float, default=0.0)
+    cgst = db.Column(db.Float, default=0.0)
+    igst = db.Column(db.Float, default=0.0)
     gst_amount = db.Column(db.Float, default=0.0)
     total_amount = db.Column(db.Float, default=0.0)
-    
-    status = db.Column(db.Enum(QuotationStatus, values_callable=lambda x: [e.value for e in x]), default=QuotationStatus.DRAFT, index=True)
-    
-    issue_date = db.Column(db.DateTime, default=db.func.current_timestamp())
-    due_date = db.Column(db.DateTime, nullable=True)
-    
+    total_in_words = db.Column(db.String(255), nullable=True)
+    total_quantity = db.Column(db.Float, default=0.0)
+
+    # Payment
+    advance_payment = db.Column(db.Float, default=0.0)
+    mode_of_payment = db.Column(db.String(100), nullable=True)
+    balance_payment = db.Column(db.Float, default=0.0)
+
+    # GST type for auto split
+    is_igst = db.Column(db.Boolean, default=False)  # If True → IGST, else SGST+CGST
+
+    # Notes / Terms / Annexure
     notes = db.Column(db.Text, nullable=True)
-    terms_conditions = db.Column(db.Text, nullable=True) 
-    
+    additional_info = db.Column(db.Text, nullable=True)
+    terms_conditions = db.Column(db.Text, nullable=True)
+
+    # Signature
+    signature_label = db.Column(db.String(100), default="Authorised Signatory")
+
+    # Status
+    status = db.Column(db.Enum(QuotationStatus, values_callable=lambda x: [e.value for e in x]), default=QuotationStatus.DRAFT, index=True)
+
+    # Audit
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     created_by = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
-    
+    is_deleted = db.Column(db.Boolean, default=False)
+
     # Relationships
     customer = db.relationship('Customer', backref=db.backref('quotations', lazy='dynamic'))
     lead = db.relationship('Lead', backref=db.backref('quotations', lazy='dynamic'))
     project = db.relationship('Project', backref=db.backref('quotations', lazy='dynamic'))
     organization = db.relationship('Organization', backref='quotations')
     creator = db.relationship('Employee', foreign_keys=[created_by], backref='quotations_created')
-    items = db.relationship('QuotationItem', backref='quotation', cascade='all, delete-orphan')
+    items = db.relationship('QuotationItem', backref='quotation', cascade='all, delete-orphan', order_by='QuotationItem.sort_order')
+    custom_field_values = db.relationship('QuotationCustomFieldValue', backref='quotation', cascade='all, delete-orphan')
+    attachments = db.relationship('QuotationAttachment', backref='quotation', cascade='all, delete-orphan')
+    signatures = db.relationship('QuotationSignature', backref='quotation', cascade='all, delete-orphan')
+    tax_summary = db.relationship('QuotationTaxSummary', backref='quotation', cascade='all, delete-orphan')
+    term_links = db.relationship('QuotationTermLink', backref='quotation', cascade='all, delete-orphan')
 
     @property
     def status_display(self):
         return self.status.value if self.status else ""
 
+    @property
+    def doc_type_display(self):
+        return self.doc_type.value if self.doc_type else "Quotation"
+
     def __repr__(self):
         return f'<Quotation {self.quotation_number}>'
 
+
 class QuotationItem(db.Model):
+    __tablename__ = 'quotation_item'
     id = db.Column(db.Integer, primary_key=True)
     quotation_id = db.Column(db.Integer, db.ForeignKey('quotation.id'), nullable=False, index=True)
     
-    description = db.Column(db.String(255), nullable=False)
-    width = db.Column(db.Float, default=0.0)
-    height = db.Column(db.Float, default=0.0)
-    quantity = db.Column(db.Float, default=1.0)
+    sort_order = db.Column(db.Integer, default=0)
+    group_name = db.Column(db.String(100), nullable=True) # E.g., 'Glass', 'Hardware'
+    item_name = db.Column(db.String(255), nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    image = db.Column(db.String(255), nullable=True) # Path to uploaded picture
     
+    width = db.Column(db.Float, nullable=True)
+    height = db.Column(db.Float, nullable=True)
+    dimensions = db.Column(db.String(100), nullable=True)
+    
+    formula_type = db.Column(db.String(50), nullable=True, default='standard') # 'sqft', 'pcs', 'custom'
+    quantity = db.Column(db.Float, nullable=False, default=1.0)
+    chargeable_quantity = db.Column(db.Float, nullable=True) # E.g., Area if sqft formula
+    
+    unit = db.Column(db.String(20), nullable=True, default='Sq.Ft')
+    rate = db.Column(db.Float, nullable=False, default=0.0)
+    discount = db.Column(db.Float, default=0.0)
+    discount_type = db.Column(db.String(10), default='flat')   # 'flat' | 'percent'
+
+    # Tax
     gst_percentage = db.Column(db.Float, default=18.0)
-    unit = db.Column(db.String(50), nullable=True)
-    rate = db.Column(db.Float, default=0.0)
-    
-    amount = db.Column(db.Float, default=0.0) # subtotal for item
-    total = db.Column(db.Float, default=0.0) # total including tax
-    
+    sgst_rate = db.Column(db.Float, default=9.0)
+    cgst_rate = db.Column(db.Float, default=9.0)
+    igst_rate = db.Column(db.Float, default=0.0)
+
+    # Amounts
+    amount = db.Column(db.Float, default=0.0)     # pre-tax subtotal
+    gst_amount = db.Column(db.Float, default=0.0)
+    total = db.Column(db.Float, default=0.0)      # amount + gst
+
+    # Flags
+    is_undefined_size = db.Column(db.Boolean, default=False)
+    is_all_selection = db.Column(db.Boolean, default=False)
+
     def __repr__(self):
-        return f'<QuotationItem {self.description} for Quotation {self.quotation_id}>'
+        return f'<QuotationItem {self.item_name} for Quotation {self.quotation_id}>'
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# QUOTATION SETTINGS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class QuotationSettings(db.Model):
+    __tablename__ = 'quotation_settings'
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False, unique=True, index=True)
+
+    # Numbering
+    number_prefix = db.Column(db.String(10), default='GL')
+    number_counter = db.Column(db.Integer, default=1)
+    number_format = db.Column(db.String(30), default='{prefix}/{year}/{seq:04d}')  # e.g. GL/26/0001
+
+    # Defaults
+    validity_days = db.Column(db.Integer, default=30)
+    default_gst_rate = db.Column(db.Float, default=18.0)
+    default_sgst_rate = db.Column(db.Float, default=9.0)
+    default_cgst_rate = db.Column(db.Float, default=9.0)
+    default_igst_rate = db.Column(db.Float, default=18.0)
+    default_payment_terms = db.Column(db.Text, nullable=True)
+    default_delivery_terms = db.Column(db.Text, nullable=True)
+    default_notes = db.Column(db.Text, nullable=True)
+
+    # Company profile for quotation header
+    company_name = db.Column(db.String(200), nullable=True)
+    company_address = db.Column(db.Text, nullable=True)
+    company_gstin = db.Column(db.String(15), nullable=True)
+    company_pan = db.Column(db.String(10), nullable=True)
+    company_email = db.Column(db.String(120), nullable=True)
+    company_phone = db.Column(db.String(20), nullable=True)
+    company_logo = db.Column(db.String(255), nullable=True)
+    company_state = db.Column(db.String(100), nullable=True)
+
+    # Bank details
+    bank_name = db.Column(db.String(100), nullable=True)
+    bank_account_no = db.Column(db.String(50), nullable=True)
+    bank_ifsc = db.Column(db.String(20), nullable=True)
+    bank_branch = db.Column(db.String(100), nullable=True)
+    beneficiary_name = db.Column(db.String(100), nullable=True)
+
+    # PDF footer
+    pdf_footer_text = db.Column(db.Text, nullable=True)
+    show_bank_details_on_pdf = db.Column(db.Boolean, default=True)
+    show_signature_on_pdf = db.Column(db.Boolean, default=True)
+
+    # Default signature
+    default_signature_path = db.Column(db.String(255), nullable=True)
+    default_signature_label = db.Column(db.String(100), default="Authorised Signatory")
+
+    organization = db.relationship('Organization', backref=db.backref('quotation_settings', uselist=False))
+
+    def __repr__(self):
+        return f'<QuotationSettings org={self.organization_id}>'
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CUSTOM FIELDS SYSTEM
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class QuotationCustomField(db.Model):
+    """Field definitions — reusable blueprint (like a field schema)"""
+    __tablename__ = 'quotation_custom_field'
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False, index=True)
+
+    label = db.Column(db.String(100), nullable=False)
+    field_key = db.Column(db.String(50), nullable=False)   # snake_case key used in forms
+    field_type = db.Column(db.String(20), default='text')  # text | number | date | select | textarea
+    options = db.Column(db.Text, nullable=True)            # JSON array for select type
+    sort_order = db.Column(db.Integer, default=0)
+    is_active = db.Column(db.Boolean, default=True)
+    is_default_visible = db.Column(db.Boolean, default=False)
+    is_system = db.Column(db.Boolean, default=False)       # System fields can't be deleted
+
+    organization = db.relationship('Organization', backref=db.backref('quotation_custom_fields', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<QuotationCustomField {self.label}>'
+
+
+class QuotationCustomFieldValue(db.Model):
+    """Per-quotation values of custom fields"""
+    __tablename__ = 'quotation_custom_field_value'
+    id = db.Column(db.Integer, primary_key=True)
+    quotation_id = db.Column(db.Integer, db.ForeignKey('quotation.id'), nullable=False, index=True)
+    field_id = db.Column(db.Integer, db.ForeignKey('quotation_custom_field.id'), nullable=False, index=True)
+    value = db.Column(db.Text, nullable=True)
+
+    field = db.relationship('QuotationCustomField', backref='field_values')
+
+    def __repr__(self):
+        return f'<QuotationCustomFieldValue quotation={self.quotation_id} field={self.field_id}>'
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TERMS & CONDITIONS SYSTEM
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class QuotationTermGroup(db.Model):
+    __tablename__ = 'quotation_term_group'
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False, index=True)
+    name = db.Column(db.String(100), nullable=False)           # e.g. "Annexure-1"
+    description = db.Column(db.String(255), nullable=True)
+    sort_order = db.Column(db.Integer, default=0)
+    is_active = db.Column(db.Boolean, default=True)
+    is_default = db.Column(db.Boolean, default=False)          # auto-attach to new quotations
+
+    organization = db.relationship('Organization', backref=db.backref('quotation_term_groups', lazy='dynamic'))
+    terms = db.relationship('QuotationTerm', backref='group', cascade='all, delete-orphan',
+                            order_by='QuotationTerm.sort_order')
+
+    def __repr__(self):
+        return f'<QuotationTermGroup {self.name}>'
+
+
+class QuotationTerm(db.Model):
+    __tablename__ = 'quotation_term'
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('quotation_term_group.id'), nullable=False, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False, index=True)
+    term_title = db.Column(db.String(255), nullable=False)
+    term_body = db.Column(db.Text, nullable=False)
+    sort_order = db.Column(db.Integer, default=0)
+    is_active = db.Column(db.Boolean, default=True)
+    version = db.Column(db.Integer, default=1)
+
+    organization = db.relationship('Organization', backref=db.backref('quotation_terms', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<QuotationTerm {self.term_title}>'
+
+
+class QuotationTermLink(db.Model):
+    """Links a specific term (or override) to a quotation"""
+    __tablename__ = 'quotation_term_link'
+    id = db.Column(db.Integer, primary_key=True)
+    quotation_id = db.Column(db.Integer, db.ForeignKey('quotation.id'), nullable=False, index=True)
+    term_id = db.Column(db.Integer, db.ForeignKey('quotation_term.id'), nullable=True, index=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('quotation_term_group.id'), nullable=True, index=True)
+    # Override / quotation-specific text
+    custom_title = db.Column(db.String(255), nullable=True)
+    custom_body = db.Column(db.Text, nullable=True)
+    sort_order = db.Column(db.Integer, default=0)
+
+    term = db.relationship('QuotationTerm', backref='term_links')
+    group = db.relationship('QuotationTermGroup', backref='term_links')
+
+    def __repr__(self):
+        return f'<QuotationTermLink quotation={self.quotation_id} term={self.term_id}>'
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ATTACHMENTS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class QuotationAttachment(db.Model):
+    __tablename__ = 'quotation_attachment'
+    id = db.Column(db.Integer, primary_key=True)
+    quotation_id = db.Column(db.Integer, db.ForeignKey('quotation.id'), nullable=False, index=True)
+    filename = db.Column(db.String(255), nullable=False)
+    original_name = db.Column(db.String(255), nullable=False)
+    file_type = db.Column(db.String(50), nullable=True)
+    file_size = db.Column(db.Integer, nullable=True)        # bytes
+    uploaded_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True)
+
+    def __repr__(self):
+        return f'<QuotationAttachment {self.original_name}>'
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SIGNATURE
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class QuotationSignature(db.Model):
+    __tablename__ = 'quotation_signature'
+    id = db.Column(db.Integer, primary_key=True)
+    quotation_id = db.Column(db.Integer, db.ForeignKey('quotation.id'), nullable=False, index=True)
+    sig_type = db.Column(db.String(10), default='upload')   # 'upload' | 'pad'
+    image_path = db.Column(db.String(255), nullable=True)   # for uploaded image
+    pad_data = db.Column(db.Text, nullable=True)            # base64 data URL from pad
+    label = db.Column(db.String(100), default="Authorised Signatory")
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    def __repr__(self):
+        return f'<QuotationSignature quotation={self.quotation_id}>'
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TAX SUMMARY
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class QuotationTaxSummary(db.Model):
+    __tablename__ = 'quotation_tax_summary'
+    id = db.Column(db.Integer, primary_key=True)
+    quotation_id = db.Column(db.Integer, db.ForeignKey('quotation.id'), nullable=False, index=True)
+    gst_rate = db.Column(db.Float, nullable=False)          # e.g. 18.0
+    taxable_amount = db.Column(db.Float, default=0.0)
+    sgst_amount = db.Column(db.Float, default=0.0)
+    cgst_amount = db.Column(db.Float, default=0.0)
+    igst_amount = db.Column(db.Float, default=0.0)
+    total_tax = db.Column(db.Float, default=0.0)
+
+    def __repr__(self):
+        return f'<QuotationTaxSummary quotation={self.quotation_id} rate={self.gst_rate}%>'

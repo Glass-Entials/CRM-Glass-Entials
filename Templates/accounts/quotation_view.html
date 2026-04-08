@@ -3,293 +3,449 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proforma Invoice - {{ quotation.quotation_number }}</title>
+    <title>Quotations | GlassEntials Accounts</title>
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #111827;
-            --accent: #d4af37;
-            --surface: #ffffff;
-            --border: #e2e8f0;
-            --text: #334155;
-            --text-muted: #64748b;
-        }
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}">
 
-        body {
-            font-family: 'Montserrat', sans-serif;
-            background-color: #f1f5f9;
-            color: var(--text);
-            padding: 40px;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-        }
 
-        .quotation-wrapper {
-            background: var(--surface);
-            max-width: 900px;
-            width: 100%;
-            padding: 60px;
-            border-radius: 8px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
-            position: relative;
-            box-sizing: border-box;
-            border-top: 10px solid var(--primary);
-        }
 
-        .watermark {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-30deg);
-            font-size: 10rem;
-            color: rgba(0, 0, 0, 0.02);
-            font-weight: 800;
-            white-space: nowrap;
-            pointer-events: none;
-            z-index: 0;
-            text-transform: uppercase;
-        }
 
-        .doc-label {
-            text-align: center;
-            border-bottom: 2px dashed #cbd5e1;
-            padding-bottom: 15px;
-            margin-bottom: 30px;
-        }
-        
-        .doc-label h2 { 
-            margin: 0; 
-            font-size: 1.8rem; 
-            letter-spacing: 0.1em; 
-            color: var(--primary); 
-            text-transform: uppercase;
-        }
 
-        .header-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 40px;
-            margin-bottom: 40px;
-        }
 
-        .company-info img { max-width: 250px; height: auto; max-height: 120px; }
-        .company-info p { margin-top: 15px; font-size: 0.95rem; line-height: 1.5; color: var(--text-muted); }
-        
-        .meta-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        .meta-table td { padding: 8px 0; border-bottom: 1px dashed var(--border); }
-        .meta-table td:first-child { font-weight: 600; color: var(--text-muted); width: 40%; }
-        .meta-table td:last-child { color: var(--primary); font-weight: 500; text-align: right; }
-
-        .client-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 40px;
-            background: #f8fafc;
-            padding: 25px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-        }
-
-        .client-box h4 { margin: 0 0 10px 0; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
-        .client-box p { margin: 0 0 5px 0; font-weight: 700; font-size: 1.1rem; color: var(--primary); }
-        .client-box span { display: block; font-size: 0.9rem; color: var(--text); line-height: 1.5; }
-
-        .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 30px;
-            font-size: 0.9rem;
-            position: relative;
-            z-index: 1;
-        }
-
-        .items-table th {
-            background: var(--primary);
-            color: white;
-            padding: 12px 10px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-        }
-
-        .items-table td { padding: 12px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-        .items-table tr:last-child td { border-bottom: 2px solid var(--primary); }
-        
-        .totals-section { float: right; width: 350px; }
-        .total-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--border); font-size: 0.95rem; }
-        .total-row.grand-total { border-top: 2px solid var(--accent); border-bottom: none; margin-top: 10px; padding-top: 15px; font-weight: 800; font-size: 1.3rem; color: var(--primary); }
-
-        .terms-section { margin-top: 80px; clear: both; font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
-        .terms-section h4 { color: var(--primary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
-
-        .signature-block { margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-        .sig-box { text-align: center; }
-        .sig-box div { border-top: 1px solid var(--text-muted); padding-top: 10px; margin-top: 80px; display: inline-block; width: 200px; }
-
-        @media print {
-            body { background: white; padding: 0; }
-            .quotation-wrapper { box-shadow: none; border: none; max-width: 100%; width: 100%; padding: 0; }
-            .print-btn { display: none; }
-        }
-
-        .print-btn {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 50px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-            transition: all 0.3s;
-            z-index: 1000;
-        }
-
-        .print-btn:hover { background: var(--accent); color: var(--primary); transform: translateY(-3px); }
-    </style>
 </head>
-<body>
-
-    <button class="print-btn" onclick="window.print()">Print Proforma 🖨️</button>
-
-    <div class="quotation-wrapper">
-        <div class="watermark">Quotation</div>
-        
-        <div class="doc-label">
-            <h2>Proforma Invoice</h2>
-            <span style="color:var(--text-muted); font-size:0.85rem;">Prepared by GlassEntials CRM</span>
-        </div>
-
-        <div class="header-grid">
-            <div class="company-info">
-                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo">
-                <p>
-                    <strong style="color: var(--primary);">GlassEntials - Premium Architectural Solutions</strong><br>
-                    GSTIN: 27AABCG1234F1Z1<br>
-                    +91 98765 43210 | info@glassentials.com<br>
-                    Mumbai, Maharashtra, India
-                </p>
+<body class="dashboard-page">
+    <!-- Top Navbar -->
+    <header class="dash-nav">
+        <div class="nav-left">
+            <div class="logo">
+                <a href="/home" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+                </a>
             </div>
-            <div>
-                <table class="meta-table">
-                    <tr><td>Quotation No.</td><td>{{ quotation.quotation_number }}</td></tr>
-                    <tr><td>Quotation Date</td><td>{{ quotation.issue_date.strftime('%d %b, %Y') }}</td></tr>
-                    {% if quotation.due_date %}
-                    <tr><td>Valid Until</td><td>{{ quotation.due_date.strftime('%d %b, %Y') }}</td></tr>
-                    {% endif %}
-                    {% if quotation.project %}
-                    <tr><td>Project</td><td>{{ quotation.project.name }}</td></tr>
-                    {% endif %}
-                    {% if quotation.amendment_no %}
-                    <tr><td>Amendment No.</td><td>{{ quotation.amendment_no }}</td></tr>
-                    {% endif %}
-                    {% if quotation.source %}
-                    <tr><td>Source</td><td>{{ quotation.source }}</td></tr>
-                    {% endif %}
-                    {% if quotation.measurements %}
-                    <tr><td>Measurements</td><td>{{ quotation.measurements }}</td></tr>
-                    {% endif %}
-                </table>
-            </div>
-        </div>
 
-        <div class="client-grid">
-            <div class="client-box">
-                <h4>Quotation From</h4>
-                <p>GlassEntials</p>
-                <span>Premium Architectural Glass Solutions</span>
-            </div>
-            <div class="client-box">
-                <h4>Quotation For</h4>
-                {% if quotation.customer %}
-                    <p>{{ quotation.customer.name }}</p>
-                    {% if quotation.customer.company %}<span>{{ quotation.customer.company }}</span>{% endif %}
-                    <span>{{ quotation.customer.address or '' }}</span>
-                    <span>City: {{ quotation.customer.city or 'N/A' }}</span>
-                    <span>Email: {{ quotation.customer.email or 'N/A' }} | Ph: {{ quotation.customer.phone_number }}</span>
-                    {% if quotation.customer.gst_number %}<span>GSTIN: {{ quotation.customer.gst_number }}</span>{% endif %}
-                {% elif quotation.lead %}
-                    <p>{{ quotation.lead.name }}</p>
-                    {% if quotation.lead.company %}<span>{{ quotation.lead.company }}</span>{% endif %}
-                    <span>{{ quotation.lead.address or '' }}</span>
-                    <span>City: {{ quotation.lead.city or 'N/A' }}</span>
-                    <span>Email: {{ quotation.lead.email or 'N/A' }} | Ph: {{ quotation.lead.phone_number }}</span>
-                {% endif %}
-            </div>
-        </div>
-
-        <table class="items-table">
-            <thead>
-                <tr>
-                    <th style="width:5%;">#</th>
-                    <th style="width:35%;">Description of Goods</th>
-                    <th style="width:7%; text-align:center;">W</th>
-                    <th style="width:7%; text-align:center;">H</th>
-                    <th style="width:7%; text-align:center;">Qty</th>
-                    <th style="width:7%; text-align:center;">Unit</th>
-                    <th style="width:10%; text-align:right;">Rate</th>
-                    <th style="width:8%; text-align:right;">GST %</th>
-                    <th style="width:14%; text-align:right;">Total (Inc. Tax)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in quotation.items %}
-                <tr>
-                    <td>{{ loop.index }}</td>
-                    <td style="font-weight:500; color:var(--primary);">{{ item.description }}</td>
-                    <td style="text-align:center;">{{ item.width if item.width > 0 else '-' }}</td>
-                    <td style="text-align:center;">{{ item.height if item.height > 0 else '-' }}</td>
-                    <td style="text-align:center;">{{ item.quantity }}</td>
-                    <td style="text-align:center; font-size:0.8rem; color:var(--text-muted);">{{ item.unit or 'Sq.Ft' }}</td>
-                    <td style="text-align:right;">₹{{ "{:,.2f}".format(item.rate) }}</td>
-                    <td style="text-align:right; font-size:0.8rem; color:var(--text-muted);">{{ item.gst_percentage }}%</td>
-                    <td style="text-align:right; font-weight:600;">₹{{ "{:,.2f}".format(item.total) }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <div style="display:flex; justify-content:space-between;">
-            <div style="width: 50%;">
-                {% if quotation.notes %}
-                <div class="terms-section" style="margin-top: 0;">
-                    <h4>Notes</h4>
-                    <p style="white-space: pre-wrap;">{{ quotation.notes }}</p>
+            <nav class="dash-menu">
+                <a href="{{ url_for('home_page') }}">Dashboard</a>
+                <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+                <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+                <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+                <div class="dropdown">
+                    <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                        <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+                    </div>
                 </div>
-                {% endif %}
-            </div>
-            
-            <div class="totals-section">
-                <div class="total-row"><span>Subtotal</span> <span>₹{{ "{:,.2f}".format(quotation.subtotal) }}</span></div>
-                <div class="total-row"><span>Tax (GST)</span> <span>₹{{ "{:,.2f}".format(quotation.gst_amount) }}</span></div>
-                <div class="total-row grand-total"><span>Total (INR)</span> <span>₹{{ "{:,.2f}".format(quotation.total_amount) }}</span></div>
-            </div>
+                <div class="dropdown">
+                    <a href="#" class="active">Accounts ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                        <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                        <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <a href="#">Settings ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                    </div>
+                </div>
+            </nav>
         </div>
 
-        {% if quotation.terms_conditions %}
-        <div class="terms-section">
-            <h4>Terms and Conditions - Annexure 1</h4>
-            <div style="white-space: pre-wrap; margin-left: 10px;">{{ quotation.terms_conditions }}</div>
+        <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="dash-container">
+
+<div class="qv-wrapper">
+
+  <!-- ── TOP BAR ──────────────────────────────────── -->
+  <div class="qv-topbar">
+    <div class="qv-topbar-left">
+      <a href="{{ url_for('quotations.quotation_list') }}" class="btn-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
+        Quotations
+      </a>
+      <div class="qv-breadcrumb">
+        <span>{{ quotation.doc_type_display }}</span>
+        <span class="sep">›</span>
+        <span class="active">{{ quotation.quotation_number }}</span>
+      </div>
+    </div>
+    <div class="qv-topbar-right">
+      <!-- Status badge -->
+      <span class="status-pill status-{{ quotation.status.value.lower() }}">{{ quotation.status.value }}</span>
+
+      <a href="{{ url_for('quotations.edit_quotation', quotation_id=quotation.id) }}" class="btn-secondary">
+        ✏ Edit
+      </a>
+
+      <a href="{{ url_for('quotations.generate_pdf', quotation_id=quotation.id) }}"
+         target="_blank" class="btn-secondary">
+        📄 PDF
+      </a>
+
+      <div class="qv-more-menu">
+        <button class="btn-icon-sm" id="more-menu-btn">⋮ More</button>
+        <div class="qv-more-dropdown" id="more-menu-dropdown">
+          <form method="POST" action="{{ url_for('quotations.duplicate_quotation', quotation_id=quotation.id) }}">
+            <button class="dropdown-item">📋 Duplicate</button>
+          </form>
+          {% if quotation.doc_type.value == 'Quotation' %}
+          <form method="POST" action="{{ url_for('quotations.convert_to_proforma', quotation_id=quotation.id) }}"
+                onsubmit="return confirm('Convert to Proforma Invoice?')">
+            <button class="dropdown-item">🔄 Convert to Proforma Invoice</button>
+          </form>
+          {% endif %}
+          <hr class="dropdown-divider">
+          <form method="POST" action="{{ url_for('quotations.delete_quotation', quotation_id=quotation.id) }}"
+                onsubmit="return confirm('Delete {{ quotation.quotation_number }}? This cannot be undone.')">
+            <button class="dropdown-item text-danger">🗑 Delete</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Quick status change -->
+      <div class="qv-status-form">
+        <form id="status-form" method="POST" action="{{ url_for('quotations.update_status', quotation_id=quotation.id) }}">
+          <select name="status" class="qf-select qf-select--sm" onchange="this.form.submit()">
+            {% for s in ['Draft', 'Sent', 'Accepted', 'Rejected'] %}
+            <option value="{{ s }}" {{ 'selected' if quotation.status.value == s }}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PRINT PREVIEW AREA ───────────────────────── -->
+  <div class="qv-document" id="print-area">
+
+    <!-- Document Header -->
+    <div class="doc-header">
+      <div class="doc-company">
+        {% if settings.company_logo %}
+        <img src="{{ url_for('static', filename='uploads/logos/' + settings.company_logo) }}"
+             alt="Logo" class="doc-logo">
+        {% else %}
+        <div class="doc-logo-placeholder">GL</div>
+        {% endif %}
+        <div class="doc-company-info">
+          <h2>{{ settings.company_name or 'GlassEntials' }}</h2>
+          {% if settings.company_address %}<p>{{ settings.company_address }}</p>{% endif %}
+          {% if settings.company_gstin %}<p><strong>GSTIN:</strong> {{ settings.company_gstin }}</p>{% endif %}
+          {% if settings.company_pan %}<p><strong>PAN:</strong> {{ settings.company_pan }}</p>{% endif %}
+          {% if settings.company_phone %}<p>📞 {{ settings.company_phone }}</p>{% endif %}
+          {% if settings.company_email %}<p>✉ {{ settings.company_email }}</p>{% endif %}
+        </div>
+      </div>
+      <div class="doc-meta">
+        <h1 class="doc-title">{{ quotation.quotation_title or quotation.doc_type_display }}</h1>
+        <table class="doc-meta-table">
+          <tr><td>Number</td><td><strong>{{ quotation.quotation_number }}</strong></td></tr>
+          <tr><td>Date</td><td>{{ quotation.issue_date.strftime('%d %B %Y') if quotation.issue_date else '—' }}</td></tr>
+          {% if quotation.due_date %}
+          <tr><td>Valid Till</td><td>{{ quotation.due_date.strftime('%d %B %Y') }}</td></tr>
+          {% endif %}
+          {% if quotation.timeline %}<tr><td>Timeline</td><td>{{ quotation.timeline }}</td></tr>{% endif %}
+          {% if quotation.project %}<tr><td>Project</td><td>{{ quotation.project.name }}</td></tr>{% endif %}
+        </table>
+      </div>
+    </div>
+
+    <!-- Parties Grid -->
+    <div class="doc-parties">
+      <div class="doc-party doc-from">
+        <p class="doc-party-label">QUOTATION FOR</p>
+        {% if quotation.customer %}
+        <p class="doc-party-name">{{ quotation.customer.company or quotation.customer.name }}</p>
+        {% if quotation.customer.company %}<p>{{ quotation.customer.name }}</p>{% endif %}
+        {% if quotation.customer.address %}<p>{{ quotation.customer.address }}{% if quotation.customer.city %}, {{ quotation.customer.city }}{% endif %}</p>{% endif %}
+        {% if quotation.customer.state %}<p>{{ quotation.customer.state }}{% if quotation.customer.pincode %} — {{ quotation.customer.pincode }}{% endif %}</p>{% endif %}
+        {% if quotation.customer.gst_number %}<p><strong>GSTIN:</strong> {{ quotation.customer.gst_number }}</p>{% endif %}
+        {% if quotation.customer.phone_number %}<p>📞 {{ quotation.customer.phone_number }}</p>{% endif %}
+        {% if quotation.customer.email %}<p>✉ {{ quotation.customer.email }}</p>{% endif %}
+        {% elif quotation.lead %}
+        <p class="doc-party-name">{{ quotation.lead.name }}</p>
+        {% if quotation.lead.company %}<p>{{ quotation.lead.company }}</p>{% endif %}
+        {% if quotation.lead.phone_number %}<p>📞 {{ quotation.lead.phone_number }}</p>{% endif %}
+        {% else %}
+        <p class="text-muted">No customer assigned</p>
+        {% endif %}
+      </div>
+      <div class="doc-party doc-to">
+        <p class="doc-party-label">QUOTATION FROM</p>
+        <p class="doc-party-name">{{ settings.company_name or 'GlassEntials' }}</p>
+        {% if settings.company_address %}<p>{{ settings.company_address }}</p>{% endif %}
+        {% if settings.company_gstin %}<p><strong>GSTIN:</strong> {{ settings.company_gstin }}</p>{% endif %}
+        {% if settings.company_pan %}<p><strong>PAN:</strong> {{ settings.company_pan }}</p>{% endif %}
+        {% if settings.company_phone %}<p>📞 {{ settings.company_phone }}</p>{% endif %}
+        {% if settings.company_email %}<p>✉ {{ settings.company_email }}</p>{% endif %}
+      </div>
+    </div>
+
+    <!-- Custom Fields Summary (populated ones only) -->
+    {% set fields_with_value = [] %}
+    {% set std_fields = [
+      ('Source', quotation.source), ('Timeline', quotation.timeline),
+      ('Amendment No', quotation.amendment_no), ('Measurements', quotation.measurements),
+      ('Quote Level', quotation.quote_level), ('Sales Source', quotation.sales_source),
+      ('Delivery Terms', quotation.delivery_terms), ('Payment Terms', quotation.payment_terms),
+      ('Shop Drawings', quotation.shop_drawings), ('Project Lead', quotation.project_lead_name),
+      ('Application', quotation.application), ('Manager in Charge', quotation.manager_in_charge),
+      ('References', quotation.references), ('Delivery TAT', quotation.delivery_tat),
+      ('Mode of Delivery', quotation.mode_of_delivery), ('Unloading', quotation.unloading),
+      ('Freight & Unloading', quotation.freight_unloading),
+    ] %}
+    {% set visible_fields = std_fields | selectattr('1') | list %}
+    {% if visible_fields %}
+    <div class="doc-fields-grid">
+      {% for label, value in visible_fields %}
+      <div class="doc-field-item">
+        <span class="doc-field-label">{{ label }}</span>
+        <span class="doc-field-value">{{ value }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Line Items -->
+    <div class="doc-items-section">
+      <table class="doc-items-table">
+        <thead>
+          <tr>
+            <th class="th-no">#</th>
+            <th class="th-item">Item / Description</th>
+            <th class="th-dim">Dimensions</th>
+            <th class="th-qty">Qty</th>
+            <th class="th-unit">Unit</th>
+            <th class="th-rate">Rate ₹</th>
+            <th class="th-gst">GST</th>
+            <th class="th-amt text-right">Amount ₹</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in quotation.items %}
+          <tr>
+            <td class="th-no">{{ loop.index }}</td>
+            <td class="th-item">
+              <strong>{{ item.item_name or item.description or '—' }}</strong>
+              {% if item.item_name and item.description %}<p class="item-desc-small">{{ item.description }}</p>{% endif %}
+              {% if item.is_undefined_size %}<span class="item-flag">Undefined Size</span>{% endif %}
+              {% if item.is_all_selection %}<span class="item-flag">ALL</span>{% endif %}
+            </td>
+            <td class="th-dim">
+              {% if item.width and item.height %}
+                {{ item.width }} × {{ item.height }}
+                <span class="item-area">({{ '%.3f'|format(item.width * item.height) }} sq)</span>
+              {% elif item.dimensions %}
+                {{ item.dimensions }}
+              {% else %}—{% endif %}
+            </td>
+            <td class="th-qty">{{ item.quantity }}</td>
+            <td class="th-unit">{{ item.unit or '—' }}</td>
+            <td class="th-rate">{{ '₹{:,.2f}'.format(item.rate) }}</td>
+            <td class="th-gst">{{ item.gst_percentage|int }}%</td>
+            <td class="th-amt text-right">{{ '₹{:,.2f}'.format(item.amount) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Totals -->
+    <div class="doc-totals-wrap">
+      <div class="doc-totals-spacer"></div>
+      <div class="doc-totals">
+        <div class="doc-totals-row">
+          <span>Subtotal</span>
+          <span>{{ '₹{:,.2f}'.format(quotation.subtotal) }}</span>
+        </div>
+        {% if quotation.total_discount %}
+        <div class="doc-totals-row text-danger">
+          <span>Discount ({{ quotation.total_discount_type }})</span>
+          <span>— {{ '₹{:,.2f}'.format(quotation.total_discount) }}</span>
         </div>
         {% endif %}
 
-        <div class="signature-block">
-            <div class="sig-box">
-                <div>Client Acceptance Signature</div>
-            </div>
-            <div class="sig-box">
-                <div>Authorised Signatory<br><span style="font-size:0.8rem; color:var(--text-muted);">For GlassEntials</span></div>
-            </div>
+        <!-- GST Summary -->
+        {% if quotation.tax_summary %}
+          {% for ts in quotation.tax_summary %}
+          <div class="doc-totals-row doc-tax-row">
+            {% if quotation.is_igst %}
+            <span>IGST @ {{ ts.gst_rate|int }}% (on {{ '₹{:,.2f}'.format(ts.taxable_amount) }})</span>
+            <span>{{ '₹{:,.2f}'.format(ts.igst_amount) }}</span>
+            {% else %}
+            <span>SGST @ {{ (ts.gst_rate/2)|int }}% + CGST @ {{ (ts.gst_rate/2)|int }}%</span>
+            <span>{{ '₹{:,.2f}'.format(ts.sgst_amount + ts.cgst_amount) }}</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+        {% else %}
+          {% if quotation.sgst %}<div class="doc-totals-row doc-tax-row"><span>SGST</span><span>{{ '₹{:,.2f}'.format(quotation.sgst) }}</span></div>{% endif %}
+          {% if quotation.cgst %}<div class="doc-totals-row doc-tax-row"><span>CGST</span><span>{{ '₹{:,.2f}'.format(quotation.cgst) }}</span></div>{% endif %}
+          {% if quotation.igst %}<div class="doc-totals-row doc-tax-row"><span>IGST</span><span>{{ '₹{:,.2f}'.format(quotation.igst) }}</span></div>{% endif %}
+        {% endif %}
+
+        {% if quotation.additional_charges %}
+        <div class="doc-totals-row">
+          <span>{{ quotation.additional_charges_label or 'Additional Charges' }}</span>
+          <span>{{ '₹{:,.2f}'.format(quotation.additional_charges) }}</span>
         </div>
+        {% endif %}
+
+        <div class="doc-totals-row doc-totals-grand">
+          <span>Total</span>
+          <span>{{ '₹{:,.2f}'.format(quotation.total_amount) }}</span>
+        </div>
+        <div class="doc-totals-row doc-qty-row">
+          <span>Total Qty</span>
+          <span>{{ quotation.total_quantity }}</span>
+        </div>
+      </div>
     </div>
+
+    <!-- Total in Words -->
+    <div class="doc-words">
+      <strong>Amount in Words:</strong> {{ quotation.total_in_words or '—' }}
+    </div>
+
+    <!-- Payment Details -->
+    {% if quotation.advance_payment or quotation.mode_of_payment %}
+    <div class="doc-payment">
+      <h4>Payment Details</h4>
+      <div class="doc-payment-grid">
+        {% if quotation.advance_payment %}<div><span>Advance</span><span>{{ '₹{:,.2f}'.format(quotation.advance_payment) }}</span></div>{% endif %}
+        {% if quotation.mode_of_payment %}<div><span>Mode</span><span>{{ quotation.mode_of_payment }}</span></div>{% endif %}
+        {% if quotation.balance_payment %}<div><span>Balance</span><span>{{ '₹{:,.2f}'.format(quotation.balance_payment) }}</span></div>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Bank Details -->
+    {% if settings.show_bank_details_on_pdf and settings.bank_name %}
+    <div class="doc-bank">
+      <h4>Bank Details</h4>
+      <div class="doc-bank-grid">
+        <div><span>Bank</span><span>{{ settings.bank_name }}</span></div>
+        <div><span>Account No</span><span>{{ settings.bank_account_no }}</span></div>
+        <div><span>IFSC</span><span>{{ settings.bank_ifsc }}</span></div>
+        {% if settings.bank_branch %}<div><span>Branch</span><span>{{ settings.bank_branch }}</span></div>{% endif %}
+        {% if settings.beneficiary_name %}<div><span>Beneficiary</span><span>{{ settings.beneficiary_name }}</span></div>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Notes -->
+    {% if quotation.notes %}
+    <div class="doc-notes">
+      <h4>Notes</h4>
+      <p>{{ quotation.notes }}</p>
+    </div>
+    {% endif %}
+
+    {% if quotation.terms_conditions %}
+    <div class="doc-notes">
+      <h4>Terms & Conditions</h4>
+      <p>{{ quotation.terms_conditions }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Signature -->
+    {% if settings.show_signature_on_pdf %}
+    <div class="doc-signature-wrap">
+      {% if signature %}
+        {% if signature.image_path %}
+        <img src="{{ url_for('static', filename='uploads/signatures/' + signature.image_path) }}"
+             alt="Signature" class="doc-signature-img">
+        {% elif signature.pad_data %}
+        <img src="{{ signature.pad_data }}" alt="Signature" class="doc-signature-img">
+        {% endif %}
+      {% elif settings.default_signature_path %}
+        <img src="{{ url_for('static', filename='uploads/signatures/' + settings.default_signature_path) }}"
+             alt="Signature" class="doc-signature-img">
+      {% else %}
+        <div class="doc-signature-blank"></div>
+      {% endif %}
+      <div class="doc-signature-line"></div>
+      <p class="doc-signature-label">{{ quotation.signature_label or settings.default_signature_label or 'Authorised Signatory' }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Annexure Terms -->
+    {% if term_sections %}
+    {% for section in term_sections %}
+    <div class="doc-annexure">
+      <h3 class="doc-annexure-title">{{ section.group.name }}</h3>
+      {% if section.group.description %}<p class="doc-annexure-desc">{{ section.group.description }}</p>{% endif %}
+      <ol class="doc-term-list">
+        {% for term in section.terms %}
+        <li class="doc-term-item">
+          <strong>{{ term.title }}</strong>
+          <p>{{ term.body }}</p>
+        </li>
+        {% endfor %}
+      </ol>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Attachments reference -->
+    {% if quotation.attachments %}
+    <div class="doc-attachments">
+      <h4>Attachments</h4>
+      <ul>
+        {% for att in quotation.attachments %}
+        <li><a href="{{ url_for('quotations.download_attachment', att_id=att.id) }}">📎 {{ att.original_name }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- PDF Footer -->
+    {% if settings.pdf_footer_text %}
+    <div class="doc-footer">{{ settings.pdf_footer_text }}</div>
+    {% endif %}
+
+  </div><!-- /.qv-document -->
+
+</div>
+
+
+</main>
+<script>
+// More menu toggle
+const moreBtn = document.getElementById('more-menu-btn');
+const moreDrop = document.getElementById('more-menu-dropdown');
+if (moreBtn && moreDrop) {
+  moreBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    moreDrop.classList.toggle('open');
+  });
+  document.addEventListener('click', () => moreDrop.classList.remove('open'));
+}
+</script>
+
 
 </body>
 </html>

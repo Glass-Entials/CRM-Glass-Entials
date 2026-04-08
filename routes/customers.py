@@ -16,10 +16,26 @@ customers_bp = Blueprint('customers', __name__)
 @login_required
 def customers_list():
     org_id = current_user.organization_id
-    all_customers = Customer.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Customer.created_at.desc()).all()
+    status_filter = request.args.get('status')
+    
+    query = Customer.query.filter_by(organization_id=org_id, is_deleted=False)
+    
+    if status_filter:
+        # Match enum value
+        status_map = {e.value: e for e in CustomerStatus}
+        if status_filter in status_map:
+            query = query.filter(Customer.status == status_map[status_filter])
+            
+    all_customers = query.order_by(Customer.created_at.desc()).all()
     all_employees = Employee.query.filter_by(organization_id=org_id, is_deleted=False).all()
     unique_cities = sorted(list(set(c.city for c in all_customers if c.city)))
-    return render_template('customer/customer.html', customers=all_customers, employees=all_employees, cities=unique_cities)
+    
+    return render_template('customer/customer.html', 
+                         customers=all_customers, 
+                         employees=all_employees, 
+                         cities=unique_cities, 
+                         current_status=status_filter,
+                         CustomerStatus=CustomerStatus)
 
 @customers_bp.route('/export-customers/<string:format>')
 @login_required

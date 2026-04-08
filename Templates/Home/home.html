@@ -13,7 +13,57 @@
         rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    
     <style>
+        /* Reusable Dashboard Filter Styling */
+        .stat-filter-select {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            border: 1px solid rgba(13, 27, 42, 0.1);
+            background-color: #f8fafc;
+            cursor: pointer;
+            width: 100%;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .stat-filter-select:focus {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px rgba(212,175,55,0.1);
+        }
+
+        .expense-filter-pill {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: all 0.2s;
+            background: rgba(13,27,42,0.05);
+            color: var(--text-muted);
+        }
+        .expense-filter-pill.active {
+            background: var(--accent-gold);
+            color: white;
+        }
+
+        /* Activity Log Bullets */
+        .activity-bullet { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.05); }
+        .bullet-customer { background: #d4af37; }
+        .bullet-project { background: #0d1b2a; }
+        .bullet-lead { background: #10b981; }
+        .bullet-document { background: #3b82f6; }
+        .bullet-default { background: var(--text-muted); }
+
+        /* Dynamic Status Badges */
+        .status-badge.lead-new { background: rgba(14, 165, 233, 0.08); color: #0ea5e9; border: 1px solid rgba(14, 165, 233, 0.2); }
+        .status-badge.lead-inactive { background: rgba(100, 116, 139, 0.08); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2); }
+        .status-badge.proj-completed { background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2); }
+        .status-badge.proj-hold { color: #b45309; background: #fffbeb; border: 1px solid #fde68a; }
+
         .tab-header {
             display: flex;
             gap: 20px;
@@ -62,32 +112,42 @@
 
     <!-- Top Navbar -->
     <header class="dash-nav">
-        <div class="logo">
-            <a href="/home" class="logo-link">
-                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
-            </a>
-        </div>
+        <div class="nav-left">
+            <div class="logo">
+                <a href="/home" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+                </a>
+            </div>
 
-        <nav class="dash-menu">
-            <a href="{{ url_for('home_page') }}" class="active">Dashboard</a>
-            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
-            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
-            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
-            <a href="{{ url_for('tasks.tasks_list') }}">Tasks</a>
-            <div class="dropdown">
-                <a href="#">Accounts ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
-                    <a href="{{ url_for('accounts.quotation_list') }}">Quotations</a>
+            <nav class="dash-menu">
+                <a href="{{ url_for('home_page') }}" class="active">Dashboard</a>
+                <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+                <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+                <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+                <div class="dropdown">
+                    <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                        <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+                    </div>
                 </div>
-            </div>
-            <div class="dropdown">
-                <a href="#">Settings ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                <div class="dropdown">
+                    <a href="#">Accounts ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                        <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                        <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+                    </div>
                 </div>
-            </div>
-        </nav>
+                <a href="#">Products</a>
+                <div class="dropdown">
+                    <a href="#">Settings ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
 
         <div class="user-profile">
             <span class="welcome-text">Welcome, {{ current_user.username }}</span>
@@ -126,10 +186,10 @@
             <div>
                 <h1>Overview</h1>
                 <p>Track your business metrics and ongoing projects.</p>
-                <div style="margin-top: 5px; display: flex; align-items: center; gap: 8px;">
-                    <span style="color: var(--text-muted); font-size: 0.9rem;">Organization Code:</span>
-                    <strong style="color: var(--primary-color); font-size: 0.95rem;">{{
-                        current_user.organization.unique_code }}</strong>
+                <div style="margin-top: 5px; display: flex; align-items: center; gap: 15px;">
+                    <span style="color: var(--text-muted); font-size: 0.9rem;">Org Code: <strong style="color: var(--primary-color);">{{ current_user.organization.unique_code }}</strong></span>
+                    <span style="width: 1px; height: 12px; background: rgba(0,0,0,0.1);"></span>
+                    <span style="color: var(--text-muted); font-size: 0.9rem;">Logged Today: <strong style="color: var(--accent-gold);">{{ todays_hours }} hrs</strong></span>
                 </div>
             </div>
             <div class="quick-actions">
@@ -137,8 +197,12 @@
                     style="text-decoration: none;">
                     Add Customer
                 </a>
-                <a href="{{ url_for('projects.add_project') }}" class="btn-action gold" style="text-decoration: none;">
+                    <a href="{{ url_for('projects.add_project') }}" class="btn-action gold" style="text-decoration: none;">
                     Create Project
+                </a>
+                <a href="{{ url_for('tasks.add_daily_task') }}" class="btn-action outline"
+                    style="border: 1px solid var(--accent-gold); color: var(--accent-gold);">
+                    🚀 Log Work
                 </a>
                 <button class="btn-action outline"
                     style="border: 1px solid var(--primary-color); color: var(--primary-color);">
@@ -149,33 +213,89 @@
 
         <!-- Stats Cards Grid -->
         <div class="stats-grid">
-            <div class="stat-card">
+            <div class="stat-card" style="position: relative; overflow: visible;">
                 <div class="stat-info">
-                    <h3>{{ all_customers | length }}</h3>
-                    <p>Total Customers</p>
+                    <h3 style="margin-bottom: 2px;">{{ total_customers }}</h3>
+                    <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ customer_filter }} Customers</p>
+                    
+                    <select onchange="dashboardFilter('customer', this.value)" class="stat-filter-select">
+                        <option value="Total" {% if customer_filter == 'Total' %}selected{% endif %}>All Customers</option>
+                        <option value="New" {% if customer_filter == 'New' %}selected{% endif %}>New</option>
+                        <option value="Requirement Understood" {% if customer_filter == 'Requirement Understood' %}selected{% endif %}>Requirement Understood</option>
+                        <option value="Measurement Scheduled" {% if customer_filter == 'Measurement Scheduled' %}selected{% endif %}>Measurement Scheduled</option>
+                        <option value="Quotation Sent" {% if customer_filter == 'Quotation Sent' %}selected{% endif %}>Quotation Sent</option>
+                        <option value="Follow Up" {% if customer_filter == 'Follow Up' %}selected{% endif %}>Follow Up</option>
+                        <option value="Order Confirmed" {% if customer_filter == 'Order Confirmed' %}selected{% endif %}>Order Confirmed</option>
+                        <option value="In Production" {% if customer_filter == 'In Production' %}selected{% endif %}>In Production</option>
+                        <option value="Ready for Dispatch" {% if customer_filter == 'Ready for Dispatch' %}selected{% endif %}>Ready for Dispatch</option>
+                        <option value="Installation Scheduled" {% if customer_filter == 'Installation Scheduled' %}selected{% endif %}>Installation Scheduled</option>
+                        <option value="Installation Done" {% if customer_filter == 'Installation Done' %}selected{% endif %}>Installation Done</option>
+                        <option value="Completed" {% if customer_filter == 'Completed' %}selected{% endif %}>Completed</option>
+                        <option value="Cancelled" {% if customer_filter == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                    </select>
                 </div>
                 <div class="stat-icon">👥</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="position: relative; overflow: visible;">
                 <div class="stat-info">
-                    <h3>{{ active_projects_count }}</h3>
-                    <p>Active Projects</p>
+                    <h3 style="margin-bottom: 2px;">{{ active_projects_count }}</h3>
+                    <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ project_filter }} Projects</p>
+                    
+                    <select onchange="dashboardFilter('project', this.value)" class="stat-filter-select">
+                        <option value="Active" {% if project_filter == 'Active' %}selected{% endif %}>Active Projects</option>
+                        <option value="Total" {% if project_filter == 'Total' %}selected{% endif %}>All Projects</option>
+                        <option value="Planning" {% if project_filter == 'Planning' %}selected{% endif %}>Planning</option>
+                        <option value="In Progress" {% if project_filter == 'In Progress' %}selected{% endif %}>In Progress</option>
+                        <option value="On Hold" {% if project_filter == 'On Hold' %}selected{% endif %}>On Hold</option>
+                        <option value="Completed" {% if project_filter == 'Completed' %}selected{% endif %}>Completed</option>
+                    </select>
                 </div>
                 <div class="stat-icon">💼</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="position: relative; overflow: visible;">
                 <div class="stat-info">
-                    <h3>{{ total_leads }}</h3>
-                    <p>Total Leads</p>
+                    <h3 style="margin-bottom: 2px;">{{ total_leads }}</h3>
+                    <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ lead_filter }} Leads</p>
+                    
+                    <select onchange="dashboardFilter('lead', this.value)" class="stat-filter-select">
+                        <option value="Total" {% if lead_filter == 'Total' %}selected{% endif %}>All Leads</option>
+                        <option value="New" {% if lead_filter == 'New' %}selected{% endif %}>New</option>
+                        <option value="Prospect" {% if lead_filter == 'Prospect' %}selected{% endif %}>Prospect</option>
+                        <option value="Hot" {% if lead_filter == 'Hot' %}selected{% endif %}>Hot</option>
+                        <option value="Cold" {% if lead_filter == 'Cold' %}selected{% endif %}>Cold</option>
+                        <option value="Converted" {% if lead_filter == 'Converted' %}selected{% endif %}>Converted</option>
+                    </select>
                 </div>
                 <div class="stat-icon">🎯</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="position: relative; overflow: visible;">
                 <div class="stat-info">
-                    <h3>{{ pending_tasks_count }}</h3>
-                    <p>Pending Tasks</p>
+                    <h3 style="margin-bottom: 2px;">{{ pending_tasks_count }}</h3>
+                    <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ task_filter }} Tasks</p>
+                    
+                    <select onchange="dashboardFilter('task', this.value)" class="stat-filter-select">
+                        <option value="Pending" {% if task_filter == 'Pending' %}selected{% endif %}>Pending Only</option>
+                        <option value="Total" {% if task_filter == 'Total' %}selected{% endif %}>All Tasks</option>
+                        <option value="Completed" {% if task_filter == 'Completed' %}selected{% endif %}>Completed</option>
+                    </select>
                 </div>
                 <div class="stat-icon">🔔</div>
+            </div>
+            <div class="stat-card" style="position: relative; overflow: visible;">
+                <div class="stat-info">
+                    <h3 style="margin-bottom: 2px;">₹{{ "{:,.0f}".format(total_Expenses) }}</h3>
+                    <p style="margin-bottom: 12px;">{{ expense_filter }} Expenses</p>
+                    
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        {% for f in ['Total', 'Approved', 'Rejected', 'Paid'] %}
+                        <a href="{{ url_for('home_page', expense_status=f) }}" 
+                           class="expense-filter-pill {% if expense_filter == f %}active{% endif %}">
+                            {{ f }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="stat-icon">📄</div>
             </div>
         </div>
 
@@ -188,6 +308,7 @@
                         <button class="tab-btn active" onclick="switchTab('customers')">Recent Customers</button>
                         <button class="tab-btn" onclick="switchTab('leads')">Recent Leads</button>
                         <button class="tab-btn" onclick="switchTab('projects')">Recent Projects</button>
+                        <button class="tab-btn" onclick="switchTab('worklogs')">Recent Work Logs</button>
                     </div>
                 </div>
 
@@ -327,9 +448,9 @@
                                         {% endif %}
                                     </td>
                                     <td class="customer-status">
-                                        <span
-                                            class="status-badge {{ 'status-active' if lead.status_display == 'Active' else ('status-pending' if lead.status_display == 'Prospect' else '') }}"
-                                            style="{% if lead.status_display == 'New' %}background: rgba(14, 165, 233, 0.08); color: #0ea5e9; border: 1px solid rgba(14, 165, 233, 0.2);{% elif lead.status_display == 'Inactive' %}background: rgba(100, 116, 139, 0.08); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2);{% endif %}">
+                                        <span class="status-badge 
+                                            {{ 'status-active' if lead.status_display == 'Active' else ('status-pending' if lead.status_display == 'Prospect' else '') }}
+                                            {{ 'lead-new' if lead.status_display == 'New' else ('lead-inactive' if lead.status_display == 'Inactive' else '') }}">
                                             {{ lead.status_display }}
                                         </span>
                                     </td>
@@ -409,9 +530,9 @@
                                     <td>{{ project.category.value if project.category else '—' }}</td>
                                     <td>{{ project.customer.name if project.customer else '—' }}</td>
                                     <td>
-                                        <span
-                                            class="status-badge {{ 'status-active' if project.status_display == 'In Progress' else ('status-pending' if project.status_display == 'Planning' else '') }}"
-                                            style="{% if project.status_display == 'Completed' %}background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2);{% elif project.status_display == 'On Hold' %}color: #b45309; background: #fffbeb; border: 1px solid #fde68a;{% endif %}">
+                                        <span class="status-badge 
+                                            {{ 'status-active' if project.status_display == 'In Progress' else ('status-pending' if project.status_display == 'Planning' else '') }}
+                                            {{ 'proj-completed' if project.status_display == 'Completed' else ('proj-hold' if project.status_display == 'On Hold' else '') }}">
                                             {{ project.status_display }}
                                         </span>
                                     </td>
@@ -468,6 +589,62 @@
                             All Projects →</a>
                     </div>
                 </div>
+
+                <!-- Recent Work Logs Tab -->
+                <div id="worklogsTab" class="tab-content" style="margin-top: 20px;">
+                    <div class="table-responsive">
+                        <table class="customer-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Work Type</th>
+                                    <th>Employee</th>
+                                    <th>Project</th>
+                                    <th>Hours</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in recent_work_logs %}
+                                <tr>
+                                    <td>{{ log.date.strftime('%d %b') }}</td>
+                                    <td>
+                                        <span class="status-badge status-active" style="background: rgba(212,175,55,0.08); color: #8a6a00;">{{ log.work_category }}</span>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div style="width: 24px; height: 24px; border-radius: 50%; overflow: hidden; border: 1px solid rgba(212, 175, 55, 0.2);">
+                                                <img src="{{ get_profile_pic(log.employee) }}" alt="User" style="width: 100%; height: 100%; object-fit: cover;">
+                                            </div>
+                                            <span>{{ log.employee.name }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if log.project %}
+                                            <span style="font-weight: 600; color: var(--primary-color);">📦 {{ log.project.name }}</span>
+                                        {% else %}
+                                            <span style="opacity: 0.5; font-style: italic;">Independent</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><strong style="color: var(--accent-gold);">{{ log.hours_spent }}</strong></td>
+                                    <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ log.task_description }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 4rem 2.5rem; color: var(--text-muted);">
+                                        <div style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
+                                            <div style="font-size: 3rem; opacity: 0.2;">📒</div>
+                                            <div style="font-weight: 600; font-size: 1.1rem; color: var(--primary-color);">No work logs recorded yet.</div>
+                                            <a href="{{ url_for('tasks.add_daily_task') }}"
+                                                style="color: var(--accent-gold); font-weight: 700; text-decoration: none; border-bottom: 1px solid var(--accent-gold); padding-bottom: 2px;">Log your first task →</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <!-- Recent Activity Panel -->
@@ -478,13 +655,7 @@
                 <div class="activity-list">
                     {% for log in recent_activity %}
                     <div class="activity-item">
-                        <div class="activity-bullet" style="background: 
-                            {% if log.entity_type == 'customer' %}#d4af37
-                            {% elif log.entity_type == 'project' %}#0d1b2a
-                            {% elif log.entity_type == 'lead' %}#10b981
-                            {% elif log.entity_type == 'document' %}#3b82f6
-                            {% else %}var(--text-muted){% endif %};">
-                        </div>
+                        <div class="activity-bullet bullet-{{ log.entity_type if log.entity_type in ['customer', 'project', 'lead', 'document'] else 'default' }}"></div>
                         <div class="activity-content">
                             <p><strong>{{ log.actor.name if log.actor else 'System' }}</strong> {{ log.description }}
                             </p>
@@ -503,6 +674,13 @@
     </main>
 
     <script>
+        // Centralized Dashboard Filtering
+        function dashboardFilter(type, value) {
+            const url = new URL(window.location.href);
+            url.searchParams.set(type + '_status', value);
+            window.location.href = url.toString();
+        }
+
         function switchTab(tab) {
             // Update buttons
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));

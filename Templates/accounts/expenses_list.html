@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Expenses | GlassEntials</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .expense-panel { border-top: 4px solid var(--accent-gold); overflow: visible !important; border-radius: 12px; }
+        .customer-table td { vertical-align: middle !important; padding: 1.25rem 1.5rem !important; }
+        .customer-table th { padding: 1.25rem 1.5rem !important; }
+        .receipt-link { 
+            display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; 
+            background: rgba(212, 175, 55, 0.08); border-radius: 8px; color: var(--accent-gold); 
+            text-decoration: none; font-size: 0.85rem; font-weight: 700; transition: all 0.2s ease;
+        }
+        .receipt-link:hover { background: rgba(212, 175, 55, 0.15); transform: translateY(-1px); box-shadow: 0 3px 8px rgba(212,175,55,0.15); }
+        .missing-proof { font-size: 0.85rem; color: #94a3b8; font-weight: 500; font-style: italic; }
+        .search-bar-container { display: flex; gap: 1rem; margin-bottom: 2rem; align-items: center; }
+        .search-input { 
+            flex: 1; padding: 1rem 1.4rem; border-radius: 12px; border: 1px solid rgba(13,27,42,0.12); 
+            background: #fff; font-size: 1rem; outline: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        }
+        .search-input:focus { border-color: var(--accent-gold); box-shadow: 0 4px 20px rgba(212,175,55,0.1); }
+        .stat-banner { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2.5rem; }
+        .mini-stat { background: #fff; padding: 1.5rem; border-radius: 16px; border: 1px solid rgba(13,27,42,0.05); display: flex; align-items: center; gap: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.02); }
+        .mini-stat .mini-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; background: rgba(212, 175, 55, 0.1); color: var(--accent-gold); }
+        .expense-row:hover { background: #fafafa !important; }
+
+        /* Action Menu Styles */
+        .actions-cell { position: relative; width: 60px; text-align: center; }
+        .dots-btn {
+            background: none; border: none; font-size: 1.5rem; color: #94a3b8;
+            cursor: pointer; padding: 8px; border-radius: 50%; transition: all 0.2s ease;
+            line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+        }
+        .dots-btn:hover { background: rgba(13,27,42,0.05); color: var(--primary-color); }
+        
+        .action-dropdown {
+            position: absolute; right: 100%; top: 0; background: #ffffff;
+            min-width: 180px; border-radius: 12px; box-shadow: 0 10px 30px rgba(13,27,42,0.15);
+            border: 1px solid rgba(13,27,42,0.08); z-index: 1000; padding: 0.6rem 0;
+            display: none; transform: translateX(-10px);
+        }
+        .action-dropdown.active { display: block; animation: slideIn 0.2s ease; }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(0); }
+            to { opacity: 1; transform: translateX(-10px); }
+        }
+
+        .action-dropdown a, .action-dropdown button {
+            display: flex; align-items: center; gap: 10px; width: 100%; padding: 0.7rem 1.2rem;
+            color: var(--primary-color); font-size: 0.85rem; font-weight: 600; text-decoration: none;
+            border: none; background: none; cursor: pointer; transition: all 0.2s; text-align: left;
+        }
+        .action-dropdown a:hover, .action-dropdown button:hover { background: #f8fafc; color: var(--accent-gold); }
+        .action-dropdown .delete-item { color: #dc2626; border-top: 1px solid rgba(0,0,0,0.04); margin-top: 5px; padding-top: 10px; }
+        .action-dropdown .delete-item:hover { background: #fef2f2; color: #dc2626; }
+    </style>
+</head>
+<body class="dashboard-page">
+
+    <header class="dash-nav">
+        <div class="logo"><a href="/home"><img src="{{ url_for('static', filename='img/logo.png') }}" class="site-logo"></a></div>
+        <nav class="dash-menu">
+            <a href="{{ url_for('home_page') }}">Dashboard</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+            <div class="dropdown">
+                <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                    <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <a href="#" class="active">Accounts ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('accounts.invoice_list') }}">Invoices</a>
+                    <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                    <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <a href="#">Settings ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                </div>
+            </div>
+        </nav>
+        <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="dash-container" style="max-width: 1250px; padding: 2.5rem 5% 5rem 5%;">
+        
+        <div class="dash-header" style="margin-bottom: 2rem;">
+            <div>
+                <h1 style="color: var(--primary-color); font-family: var(--font-heading); font-size: 2.2rem; margin: 0;">Financial Expenses</h1>
+                <p style="color: var(--text-muted); margin-top: 0.5rem;">Monitor business spending and review receipt proofs.</p>
+            </div>
+            <div>
+                <a href="{{ url_for('expenses.add_expense') }}" class="btn-action gold" style="text-decoration: none; padding: 0.8rem 1.8rem; font-weight: 700;">
+                    <span style="font-size: 1.1rem;">+</span> Post Submission
+                </a>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="stat-banner">
+            <div class="mini-stat">
+                <div class="mini-icon">💰</div>
+                <div>
+                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Weekly Total</span>
+                    <strong style="font-size: 1.25rem; color: var(--primary-color);">₹{{ "{:,.0f}".format(expenses|sum(attribute='amount')) }}</strong>
+                </div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-icon">🧾</div>
+                <div>
+                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Submissions</span>
+                    <strong style="font-size: 1.25rem; color: var(--primary-color);">{{ expenses|length }} Records</strong>
+                </div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-icon" style="background: rgba(16,185,129,0.1); color:#10b981;">✔️</div>
+                <div>
+                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Approved Status</span>
+                    <strong style="font-size: 1.25rem; color: var(--primary-color);">{{ expenses|selectattr('status_display', 'equalto', 'Approved')|list|length }} Expenses</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="search-bar-container">
+            <input type="text" id="expenseSearch" class="search-input" placeholder="Search by title, employee, or category..." onkeyup="filterExpenses()">
+            <select id="categoryFilter" onchange="filterExpenses()" style="padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(13,27,42,0.1); outline: none;">
+                <option value="">All Categories</option>
+                <option value="Travel">Travel</option>
+                <option value="Materials">Materials</option>
+                <option value="Hardware">Hardware</option>
+                <option value="Salary">Salary</option>
+                <option value="Site Expense">Site Expense</option>
+            </select>
+        </div>
+
+        <div class="panel expense-panel" style="padding: 0; background: #fff; box-shadow: 0 10px 40px rgba(0,0,0,0.03);">
+            <div class="table-responsive">
+                <table class="customer-table" id="expenseTable" style="width: 100%;">
+                    <thead>
+                        <tr style="background: #fafafb;">
+                            <th style="padding: 1.25rem 1.5rem; text-align: left; font-size: 0.8rem; letter-spacing: 0.05rem;">EXPENSE DETAILS</th>
+                            <th style="padding: 1.25rem 1.5rem; text-align: left; font-size: 0.8rem;">TEAM MEMBER</th>
+                            <th style="padding: 1.25rem 1.5rem; text-align: left; font-size: 0.8rem;">PROJECT</th>
+                            <th style="padding: 1.25rem 1.5rem; text-align: left; font-size: 0.8rem;">AMOUNT</th>
+                            <th style="padding: 1.25rem 1.5rem; text-align: center; font-size: 0.8rem;">PROOF</th>
+                            <th style="padding: 1.25rem 1.5rem; text-align: center; font-size: 0.8rem;">STATUS</th>
+                            <th style="padding: 1.25rem 1.5rem; text-align: center; font-size: 0.8rem;">ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for exp in expenses %}
+                        <tr class="expense-row" data-category="{{ exp.category_display }}" style="border-bottom: 1px solid rgba(13,27,42,0.04);">
+                            <td style="padding: 1.5rem; min-width: 200px;">
+                                <div style="font-weight: 700; color: var(--primary-color); font-size: 1rem;">{{ exp.title }}</div>
+                                <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; white-space: nowrap;">
+                                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">{{ exp.date.strftime('%d %b %Y') }}</span>
+                                    <span style="height: 12px; width: 1px; background: rgba(13,27,42,0.1);"></span>
+                                    <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 700; text-transform: uppercase;">{{ exp.category_display }}</span>
+                                </div>
+                            </td>
+                            <td style="padding: 1.5rem;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; border: 1px solid rgba(212, 175, 55, 0.2);">
+                                        <img src="{{ get_profile_pic(exp.employee) }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </div>
+                                    <span style="font-weight: 600; font-size: 0.9rem; color: var(--primary-color);">{{ exp.employee.name if exp.employee else 'Admin' }}</span>
+                                </div>
+                            </td>
+                            <td style="padding: 1.5rem;">
+                                <div style="font-size: 0.9rem; color: var(--text-muted);">{{ exp.project.name if exp.project else '--' }}</div>
+                            </td>
+                            <td style="padding: 1.5rem;">
+                                <div style="font-weight: 700; color: var(--primary-color); font-size: 1.1rem;">₹{{ "{:,.2f}".format(exp.amount) }}</div>
+                            </td>
+                            <td style="padding: 1.5rem; text-align: center;">
+                                {% if exp.receipt_path %}
+                                    {% if exp.receipt_path.endswith('.pdf') %}
+                                    <a href="{{ url_for('static', filename='uploads/receipts/' + exp.receipt_path) }}" target="_blank" class="receipt-link" title="View PDF Proof">
+                                        📄 View PDF
+                                    </a>
+                                    {% else %}
+                                    <a href="{{ url_for('static', filename='uploads/receipts/' + exp.receipt_path) }}" target="_blank" class="receipt-link" title="View Receipt Image">
+                                        🖼️ View Image
+                                    </a>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="missing-proof">Missing</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 1.5rem; text-align: center;">
+                                <span class="status-badge" style="
+                                    {% if exp.status_display == 'Approved' %}background: #ecfdf5; color:#059669; border-color:#10b981;
+                                    {% elif exp.status_display == 'Rejected' %}background: #fef2f2; color:#dc2626; border-color:#f87171;
+                                    {% elif exp.status_display == 'Paid' %}background: #eff6ff; color:#2563eb; border-color:#3b82f6;
+                                    {% else %}background: #fffbeb; color:#d97706; border-color:#f59e0b;{% endif %} 
+                                    padding: 5px 12px; border-radius: 20px; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; border-width: 1px; border-style: solid;">
+                                    {{ exp.status_display }}
+                                </span>
+                            </td>
+                            {% if current_user.role.value in ['admin', 'manager'] %}
+                            <td class="actions-cell" style="padding: 1.5rem;">
+                                <button class="dots-btn" onclick="toggleMenu(event, 'menu-{{ exp.id }}')">⋮</button>
+                                <div id="menu-{{ exp.id }}" class="action-dropdown">
+                                    <a href="{{ url_for('expenses.view_expense', expense_id=exp.id) }}">
+                                        <span style="font-size: 1rem;">👁️</span> View Details
+                                    </a>
+                                    
+                                    {% if current_user.role.value in ['admin', 'manager'] or (current_user.employee and exp.employee_id == current_user.employee.id and exp.status_display == 'Pending') %}
+                                    <a href="{{ url_for('expenses.edit_expense', expense_id=exp.id) }}">
+                                        <span style="font-size: 1rem;">✏️</span> Edit Record
+                                    </a>
+                                    {% endif %}
+
+                                    {% if current_user.role.value in ['admin', 'manager'] %}
+                                    <div style="padding: 8px 1.2rem; border-top: 1px solid #f1f5f9; margin-top: 8px; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; font-weight: 800;">Set Status</div>
+                                    <form action="{{ url_for('expenses.update_status', expense_id=exp.id) }}" method="POST">
+                                        <button type="submit" name="status" value="Approved">✔️ Approve</button>
+                                        <button type="submit" name="status" value="Rejected">✖️ Reject</button>
+                                        <button type="submit" name="status" value="Paid">💰 Mark as Paid</button>
+                                    </form>
+                                    {% endif %}
+
+                                    {% if current_user.role.value in ['admin', 'manager'] or (current_user.employee and exp.employee_id == current_user.employee.id and exp.status_display == 'Pending') %}
+                                    <form action="{{ url_for('expenses.delete_expense', expense_id=exp.id) }}" method="POST" onsubmit="return confirm('Delete this expense?')">
+                                        <button type="submit" class="delete-item">🗑️ Delete Permanently</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        function filterExpenses() {
+            const query = document.getElementById('expenseSearch').value.toLowerCase();
+            const categorySelect = document.getElementById('categoryFilter').value;
+            const rows = document.querySelectorAll('.expense-row');
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                const category = row.dataset.category;
+                const matchesSearch = text.includes(query);
+                const matchesCategory = categorySelect === "" || category === categorySelect;
+
+                if (matchesSearch && matchesCategory) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        function toggleMenu(event, menuId) {
+            event.stopPropagation();
+            // Close all other menus
+            document.querySelectorAll('.action-dropdown').forEach(m => {
+                if(m.id !== menuId) m.classList.remove('active');
+            });
+            // Toggle current
+            const menu = document.getElementById(menuId);
+            menu.classList.toggle('active');
+        }
+
+        // Close menu on outside click
+        window.onclick = function() {
+            document.querySelectorAll('.action-dropdown').forEach(m => m.classList.remove('active'));
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quotations | GlassEntials Accounts</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}">
+
+
+
+
+
+
+</head>
+<body class="dashboard-page">
+    <!-- Top Navbar -->
+    <header class="dash-nav">
+        <div class="nav-left">
+            <div class="logo">
+                <a href="/home" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+                </a>
+            </div>
+
+            <nav class="dash-menu">
+                <a href="{{ url_for('home_page') }}">Dashboard</a>
+                <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+                <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+                <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+                <div class="dropdown">
+                    <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                        <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <a href="#" class="active">Accounts ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                        <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                        <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <a href="#">Settings ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="dash-container qf-full-width">
+
+<div class="qf-wrapper" id="quotation-form-root">
+
+  <!-- ── TOP ACTION BAR ──────────────────────────────────── -->
+  <div class="qf-topbar">
+    <div class="qf-topbar-left">
+      <a href="{{ url_for('quotations.quotation_list') }}" class="btn-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
+        Back
+      </a>
+      <div class="qf-breadcrumb">
+        <span>Accounts</span>
+        <span class="sep">›</span>
+        <span>Quotations</span>
+        <span class="sep">›</span>
+        <span class="active">{{ 'Edit' if mode == 'edit' else 'New' }}</span>
+      </div>
+    </div>
+    <div class="qf-topbar-right">
+      <button type="button" class="btn-secondary" id="btn-save-draft">💾 Save Draft</button>
+      <button type="submit" form="quotation-main-form" class="btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+        {{ 'Update' if mode == 'edit' else 'Create' }} Quotation
+      </button>
+    </div>
+  </div>
+
+  <form id="quotation-main-form"
+        method="POST"
+        enctype="multipart/form-data"
+        action="{{ url_for('quotations.edit_quotation', quotation_id=quotation.id) if mode == 'edit' else url_for('quotations.add_quotation') }}">
+
+    <div class="qf-layout">
+
+      <!-- ═══════════════════════════════════════════════════
+           LEFT COLUMN — Main form
+      ════════════════════════════════════════════════════ -->
+      <div class="qf-main">
+
+        <!-- ── SECTION 1: HEADER ───────────────────────────── -->
+        <div class="qf-card" id="section-header">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">01</span>
+            <h2>Document Header</h2>
+          </div>
+          <div class="qf-card-body">
+
+            <div class="qf-row">
+              <div class="qf-field qf-field--sm">
+                <label>Document Type</label>
+                <select name="doc_type" class="qf-select" id="doc-type-select">
+                  {% set dtypes = ['Quotation', 'Proforma Invoice', 'Sales Order'] %}
+                  {% set cur_dt = quotation.doc_type.value if quotation and quotation.doc_type else 'Quotation' %}
+                  {% for dt in dtypes %}
+                  <option value="{{ dt }}" {{ 'selected' if cur_dt == dt }}>{{ dt }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="qf-field qf-field--grow">
+                <label>Document Title</label>
+                <input type="text" name="quotation_title" class="qf-input"
+                       value="{{ quotation.quotation_title if quotation else 'Quotation' }}"
+                       placeholder="e.g. Quotation for Glass Works">
+              </div>
+            </div>
+
+            <div class="qf-row">
+              <div class="qf-field">
+                <label>Quotation Number <span class="badge-auto">Auto</span></label>
+                <div class="qf-number-preview" id="qn-preview">
+                  {{ quotation.quotation_number if quotation else next_number }}
+                </div>
+              </div>
+              <div class="qf-field">
+                <label>Quotation Date <span class="req">*</span></label>
+                <input type="date" name="issue_date" class="qf-input" id="issue-date"
+                       value="{{ (quotation.issue_date.strftime('%Y-%m-%d') if quotation and quotation.issue_date else today.strftime('%Y-%m-%d')) }}"
+                       required>
+              </div>
+              <div class="qf-field">
+                <label>Valid Till / Due Date</label>
+                <div class="qf-due-row">
+                  <select name="valid_till_type" id="valid-till-type" class="qf-select qf-select--sm">
+                    <option value="date" {{ 'selected' if not quotation or quotation.valid_till_type == 'date' }}>Specific Date</option>
+                    <option value="days" {{ 'selected' if quotation and quotation.valid_till_type == 'days' }}>Days After</option>
+                    <option value="none" {{ 'selected' if quotation and quotation.valid_till_type == 'none' }}>No Expiry</option>
+                  </select>
+                  <div id="due-date-picker" class="{{ 'hidden' if quotation and quotation.valid_till_type != 'date' else '' }}">
+                    <input type="date" name="due_date" class="qf-input"
+                           value="{{ quotation.due_date.strftime('%Y-%m-%d') if quotation and quotation.due_date else '' }}">
+                  </div>
+                  <div id="due-days-picker" class="{{ '' if quotation and quotation.valid_till_type == 'days' else 'hidden' }}">
+                    <input type="number" name="valid_till_days" class="qf-input" min="1" max="365"
+                           placeholder="e.g. 30"
+                           value="{{ quotation.valid_till_days if quotation and quotation.valid_till_days else settings.validity_days }}">
+                    <span class="qf-suffix">days</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="qf-row">
+              <div class="qf-field">
+                <label>Project</label>
+                <select name="project_id" class="qf-select">
+                  <option value="">— Select Project —</option>
+                  {% for p in projects %}
+                  <option value="{{ p.id }}" {{ 'selected' if quotation and quotation.project_id == p.id }}>{{ p.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="qf-field">
+                <label>Source</label>
+                <input type="text" name="source" class="qf-input"
+                       value="{{ quotation.source if quotation and quotation.source else '' }}"
+                       placeholder="e.g. Referral, Website">
+              </div>
+              <div class="qf-field">
+                <label>Timeline</label>
+                <input type="text" name="timeline" class="qf-input"
+                       value="{{ quotation.timeline if quotation and quotation.timeline else '' }}"
+                       placeholder="e.g. 4 Weeks">
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── SECTION 2: CUSTOMER ────────────────────────── -->
+        <div class="qf-card" id="section-customer">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">02</span>
+            <h2>Quotation For <span class="text-muted">(Customer / Lead)</span></h2>
+            <a href="{{ url_for('customers.add_customer') }}" class="btn-icon-sm ml-auto" id="btn-new-customer" title="Create New Customer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              New Customer
+            </a>
+          </div>
+          <div class="qf-card-body">
+            <div class="qf-row">
+              <div class="qf-field qf-field--grow">
+                <label>Select Customer</label>
+                <select name="customer_id" class="qf-select" id="customer-select">
+                  <option value="">— Select Customer —</option>
+                  {% for c in customers %}
+                  <option value="{{ c.id }}"
+                    data-name="{{ c.name }}"
+                    data-email="{{ c.email }}"
+                    data-phone="{{ c.phone_number }}"
+                    data-address="{{ c.address or '' }}"
+                    data-city="{{ c.city or '' }}"
+                    data-state="{{ c.state or '' }}"
+                    data-gstin="{{ c.gst_number or '' }}"
+                    data-company="{{ c.company or '' }}"
+                    {{ 'selected' if quotation and quotation.customer_id == c.id }}>
+                    {{ c.name }}{% if c.company %} — {{ c.company }}{% endif %}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="qf-field">
+                <label>Or Select Lead</label>
+                <select name="lead_id" class="qf-select" id="lead-select">
+                  <option value="">— Select Lead —</option>
+                  {% for l in leads %}
+                  <option value="{{ l.id }}" {{ 'selected' if quotation and quotation.lead_id == l.id }}>{{ l.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <!-- Autofill preview panel -->
+            <div class="qf-customer-autofill" id="customer-autofill" style="{{ '' if (quotation and quotation.customer_id) else 'display:none' }}">
+              <div class="qf-autofill-grid">
+                <div class="qf-autofill-row"><span class="label">Company</span><span class="value" id="af-company"></span></div>
+                <div class="qf-autofill-row"><span class="label">Address</span><span class="value" id="af-address"></span></div>
+                <div class="qf-autofill-row"><span class="label">GSTIN</span><span class="value" id="af-gstin"></span></div>
+                <div class="qf-autofill-row"><span class="label">Phone</span><span class="value" id="af-phone"></span></div>
+                <div class="qf-autofill-row"><span class="label">Email</span><span class="value" id="af-email"></span></div>
+                <div class="qf-autofill-row"><span class="label">State</span><span class="value" id="af-state"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── SECTION 3: CUSTOM FIELDS ───────────────────── -->
+        {% if custom_fields %}
+        <div class="qf-card" id="section-custom-fields">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">03</span>
+            <h2>Additional Details</h2>
+            <div class="ml-auto">
+              <button type="button" class="btn-text" id="toggle-custom-fields">Hide Fields ▴</button>
+            </div>
+          </div>
+          <div class="qf-card-body" id="custom-fields-body" style="padding-bottom: 30px;">
+            <div class="qf-grid-3">
+              {% for cf in custom_fields %}
+              {% if cf.field_key not in ['source', 'timeline'] %}
+              {% set existing_val = '' %}
+              {% if quotation %}
+                {% if cf.is_system %}
+                   {% set existing_val = quotation|attr(cf.field_key) or '' %}
+                {% else %}
+                  {% for cfv in quotation.custom_field_values %}
+                    {% if cfv.field_id == cf.id %}{% set existing_val = cfv.value or '' %}{% endif %}
+                  {% endfor %}
+                {% endif %}
+              {% endif %}
+              
+              <div class="qf-custom-field-wrap {{ '' if cf.is_default_visible or existing_val else 'cf-hidden' }}"
+                   data-field-key="{{ cf.field_key }}">
+                <label class="qf-label-sm">{{ cf.label }}</label>
+                <input type="hidden" name="custom_field_id[]" value="{{ cf.id }}">
+                <input type="hidden" name="custom_field_key[]" value="{{ cf.field_key }}">
+                
+                {% if cf.field_type == 'textarea' %}
+                <textarea name="custom_field_value[]" class="qf-input qf-textarea-sm"
+                          rows="2" placeholder="{{ cf.label }}">{{ existing_val }}</textarea>
+                {% elif cf.field_type == 'date' %}
+                <input type="date" name="custom_field_value[]" class="qf-input" value="{{ existing_val }}">
+                {% elif cf.field_type == 'number' %}
+                <input type="number" name="custom_field_value[]" class="qf-input" value="{{ existing_val }}" placeholder="0">
+                {% else %}
+                <input type="text" name="custom_field_value[]" class="qf-input"
+                       value="{{ existing_val }}" placeholder="{{ cf.label }}">
+                {% endif %}
+              </div>
+              {% endif %}
+              {% endfor %}
+            </div>
+            
+            <div style="margin-top: 20px;">
+              <select id="add-custom-field-dropdown" class="qf-select qf-select--sm" style="width: 250px; background: #f8fafc; border: 1px dashed #9ca3af;">
+                <option value="">+ Add Optional Field...</option>
+                {% for cf in custom_fields %}
+                  {% if cf.field_key not in ['source', 'timeline'] %}
+                  {% set existing_val = '' %}
+                  {% if quotation %}
+                    {% if cf.is_system %}{% set existing_val = quotation|attr(cf.field_key) or '' %}
+                    {% else %}
+                      {% for cfv in quotation.custom_field_values %}
+                        {% if cfv.field_id == cf.id %}{% set existing_val = cfv.value or '' %}{% endif %}
+                      {% endfor %}
+                    {% endif %}
+                  {% endif %}
+                  {% if not existing_val and not cf.is_default_visible %}
+                     <option value="{{ cf.field_key }}">{{ cf.label }}</option>
+                  {% endif %}
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- ── SECTION 4: LINE ITEMS (ERP BILLING) ──────────────────────── -->
+        <div class="qf-card erp-items-card" id="section-items">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">{{ '04' if custom_fields else '03' }}</span>
+            <h2>Line Items</h2>
+            <div class="qf-items-controls ml-auto">
+              <label class="qf-toggle-label mr-md">
+                <input type="checkbox" id="is-igst-cb" name="is_igst" value="1"
+                       {{ 'checked' if quotation and quotation.is_igst }}>
+                <span>Inter-state (IGST)</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- ERP Toolbar -->
+          <div class="erp-toolbar">
+             <button type="button" class="btn-ghost-erp" id="btn-config-gst" title="Configure GST default">⚙ Configure GST</button>
+             <select class="erp-select-toolbar" id="currency-select">
+               <option>₹ INR</option>
+               <option>$ USD</option>
+               <option>€ EUR</option>
+             </select>
+             <button type="button" class="btn-ghost-erp" id="btn-num-format" title="Change format">🔢 Number Format</button>
+             <button type="button" class="btn-ghost-erp" id="btn-edit-cols" title="Edit columns and formulas">🧮 Edit Columns/Formulas</button>
+          </div>
+
+          <div class="qf-card-body p-0">
+            <div class="erp-table-wrap">
+              <table class="erp-items-table" id="items-table">
+                <thead class="erp-table-hdr">
+                  <tr>
+                    <th class="col-drag"></th>
+                    <th class="col-sn">#</th>
+                    <th class="col-item">Description of Goods / SKU</th>
+                    <th class="col-dim">W</th>
+                    <th class="col-dim">H</th>
+                    <th class="col-c-area">Chrg. Sqft/Sqm</th>
+                    <th class="col-qty">Qty</th>
+                    <th class="col-c-qty">Chrg. Qty</th>
+                    <th class="col-unit">Unit</th>
+                    <th class="col-rate">Rate</th>
+                    <th class="col-disc">Disc</th>
+                    <th class="col-gst">GST%</th>
+                    <th class="col-amt">Amount</th>
+                    <th class="col-total">Total</th>
+                    <th class="col-action"></th>
+                  </tr>
+                </thead>
+                <tbody id="items-tbody">
+                  {% if quotation and quotation.items %}
+                    {% for item in quotation.items %}
+                    <!-- Group Header if applicable -->
+                    {% if loop.first or item.group_name != loop.previtem.group_name %}
+                      {% if item.group_name %}
+                      <tr class="erp-group-row">
+                        <td colspan="15">
+                           <input type="text" class="erp-group-input" value="{{ item.group_name }}" name="group_name[]" placeholder="Group Name e.g. Glass">
+                           <button type="button" class="btn-remove-group">✕</button>
+                        </td>
+                      </tr>
+                      {% endif %}
+                    {% endif %}
+                    
+                    <tr class="erp-item-row item-row" data-row="{{ loop.index0 }}">
+                      <input type="hidden" name="group_name[]" class="input-group-name" value="{{ item.group_name or '' }}">
+                      <input type="hidden" name="formula_type[]" class="input-formula" value="{{ item.formula_type or 'standard' }}">
+                      <td class="col-drag"><span class="drag-handle">⠿</span></td>
+                      <td class="col-sn">{{ loop.index }}</td>
+                      <td class="col-item">
+                        <input type="text" name="item_name[]" class="erp-inline-input item-name"
+                               value="{{ item.item_name or '' }}" placeholder="Item name / SKU">
+                        <!-- Advanced expanded area -->
+                        <div class="erp-adv-area">
+                           <textarea name="description[]" class="erp-inline-textarea item-desc"
+                                     rows="1" placeholder="Add description">{{ item.description or '' }}</textarea>
+                           <div class="erp-adv-controls">
+                              <span class="btn-adv">+ Add Image</span>
+                              <span class="btn-adv">+ Add Unit</span>
+                           </div>
+                        </div>
+                      </td>
+                      <td class="col-dim">
+                        <input type="number" name="width[]" class="erp-inline-input dim-w item-calc"
+                               value="{{ item.width or 0 }}" placeholder="0" step="0.01">
+                      </td>
+                      <td class="col-dim">
+                        <input type="number" name="height[]" class="erp-inline-input dim-h item-calc"
+                               value="{{ item.height or 0 }}" placeholder="0" step="0.01">
+                      </td>
+                      <td class="col-c-area">
+                        <span class="erp-readonly-val area-val">0.00</span>
+                      </td>
+                      <td class="col-qty">
+                        <input type="number" name="quantity[]" class="erp-inline-input item-qty item-calc"
+                               value="{{ item.quantity }}" min="0" step="0.01">
+                      </td>
+                      <td class="col-c-qty">
+                        <input type="number" name="chargeable_quantity[]" class="erp-inline-input item-c-qty item-calc"
+                               value="{{ item.chargeable_quantity or '' }}" placeholder="Auto" step="0.01">
+                      </td>
+                      <td class="col-unit">
+                        <select name="unit[]" class="erp-inline-select">
+                          {% for u in ['Sq.Ft', 'Sq.M', 'Nos', 'RFT', 'Kg', 'Set', 'Lot', 'Box', 'Product', 'Pcs', 'Custom'] %}
+                          <option {{ 'selected' if item.unit == u }}>{{ u }}</option>
+                          {% endfor %}
+                        </select>
+                      </td>
+                      <td class="col-rate">
+                        <input type="number" name="rate[]" class="erp-inline-input item-rate item-calc"
+                               value="{{ item.rate or 1 }}" min="0" step="0.01">
+                      </td>
+                      <td class="col-disc">
+                        <div class="disc-wrap">
+                          <input type="number" name="discount[]" class="erp-inline-input item-disc item-calc"
+                                 value="{{ item.discount or 0 }}" min="0" step="0.01" style="width: 50px;">
+                          <select name="discount_type[]" class="erp-inline-select disc-type" style="width: 40px; padding:0;">
+                            <option value="flat" {{ 'selected' if item.discount_type == 'flat' }}>₹</option>
+                            <option value="percent" {{ 'selected' if item.discount_type == 'percent' }}>%</option>
+                          </select>
+                        </div>
+                      </td>
+                      <td class="col-gst">
+                        <select name="gst_rate[]" class="erp-inline-select item-gst item-calc">
+                          {% for g in [0, 5, 12, 18, 28] %}
+                          <option value="{{ g }}" {{ 'selected' if item.gst_percentage == g }}>{{ g }}%</option>
+                          {% endfor %}
+                        </select>
+                      </td>
+                      <td class="col-amt">
+                        <span class="erp-readonly-val item-amount">₹{{ '%.2f'|format(item.amount) }}</span>
+                      </td>
+                      <td class="col-total">
+                        <strong class="item-total-str">₹{{ '%.2f'|format(item.total) }}</strong>
+                      </td>
+                      <td class="col-action">
+                        <button type="button" class="btn-copy-erp" title="Duplicate">📑</button>
+                        <button type="button" class="btn-remove-erp" title="Remove">✕</button>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+            <div class="erp-items-footer">
+              <button type="button" class="btn-add-line" id="btn-add-row">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
+                Add New Line
+              </button>
+              <button type="button" class="btn-add-group" id="btn-add-group">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                Add New Group
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── SECTION 5: DISCOUNT + CHARGES ─────────────── -->
+        <div class="qf-card" id="section-totals-config">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">05</span>
+            <h2>Discount & Additional Charges</h2>
+          </div>
+          <div class="qf-card-body">
+            <div class="qf-row">
+              <div class="qf-field">
+                <label>Total-Level Discount</label>
+                <div class="disc-wrap">
+                  <input type="number" name="total_discount" id="total-discount" class="qf-input item-calc"
+                         value="{{ quotation.total_discount if quotation else 0 }}" min="0" step="0.01">
+                  <select name="total_discount_type" id="total-discount-type" class="qf-select disc-type item-calc">
+                    <option value="flat" {{ 'selected' if not quotation or quotation.total_discount_type == 'flat' }}>₹ Flat</option>
+                    <option value="percent" {{ 'selected' if quotation and quotation.total_discount_type == 'percent' }}>% Percent</option>
+                  </select>
+                </div>
+              </div>
+              <div class="qf-field">
+                <label>Additional Charges Label</label>
+                <input type="text" name="additional_charges_label" class="qf-input"
+                       value="{{ quotation.additional_charges_label if quotation else '' }}"
+                       placeholder="e.g. Freight, Installation">
+              </div>
+              <div class="qf-field">
+                <label>Additional Charges ₹</label>
+                <input type="number" name="additional_charges" id="additional-charges" class="qf-input item-calc"
+                       value="{{ quotation.additional_charges if quotation else 0 }}" min="0" step="0.01">
+              </div>
+              <div class="qf-field qf-field--center">
+                <label class="qf-toggle-label mt-lg">
+                  <input type="checkbox" name="additional_charges_taxable" id="charges-taxable" value="1"
+                         {{ 'checked' if quotation and quotation.additional_charges_taxable }}>
+                  <span>Taxable</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── SECTION 6: PAYMENT DETAILS ────────────────── -->
+        <div class="qf-card" id="section-payment">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">06</span>
+            <h2>Payment Details</h2>
+          </div>
+          <div class="qf-card-body">
+            <div class="qf-row">
+              <div class="qf-field">
+                <label>Advance Payment ₹</label>
+                <input type="number" name="advance_payment" class="qf-input"
+                       value="{{ quotation.advance_payment if quotation else 0 }}" min="0" step="0.01">
+              </div>
+              <div class="qf-field">
+                <label>Mode of Payment</label>
+                <input type="text" name="mode_of_payment" class="qf-input"
+                       value="{{ quotation.mode_of_payment if quotation else '' }}"
+                       placeholder="e.g. NEFT, Cheque, Cash">
+              </div>
+              <div class="qf-field">
+                <label>Balance Payment ₹</label>
+                <input type="number" name="balance_payment" class="qf-input"
+                       value="{{ quotation.balance_payment if quotation else 0 }}" min="0" step="0.01">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── SECTION 7: NOTES & TERMS ───────────────────── -->
+        <div class="qf-card" id="section-notes">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">07</span>
+            <h2>Notes, Terms & Conditions</h2>
+          </div>
+          <div class="qf-card-body">
+            <div class="qf-field mb-md">
+              <label>Notes <span class="text-muted">(visible on document)</span></label>
+              <textarea name="notes" class="qf-input" rows="3"
+                        placeholder="Any notes to the customer...">{{ quotation.notes if quotation and quotation.notes else '' }}</textarea>
+            </div>
+            <div class="qf-field mb-md">
+              <label>Additional Info</label>
+              <textarea name="additional_info" class="qf-input" rows="2"
+                        placeholder="Internal info, references...">{{ quotation.additional_info if quotation and quotation.additional_info else '' }}</textarea>
+            </div>
+            <div class="qf-field mb-md">
+              <label>Inline Terms & Conditions</label>
+              <textarea name="terms_conditions" class="qf-input" rows="3"
+                        placeholder="Quick terms (or use Annexure terms below)">{{ quotation.terms_conditions if quotation and quotation.terms_conditions else '' }}</textarea>
+            </div>
+
+            <!-- Annexure Terms -->
+            {% if term_groups %}
+            <div class="qf-annexure-section">
+              <h3 class="qf-subsection-title">📋 Annexure Terms</h3>
+              {% for tg in term_groups %}
+              <div class="qf-term-group">
+                <div class="qf-term-group-header">
+                  <label class="qf-toggle-label">
+                    <input type="checkbox" class="tg-master-cb" data-group="{{ tg.id }}"
+                           {{ 'checked' if tg.is_default or (attached_term_ids is defined and tg.terms|selectattr('id', 'in', attached_term_ids)|list) }}>
+                    <strong>{{ tg.name }}</strong>
+                  </label>
+                  {% if tg.description %}<span class="text-muted text-sm">— {{ tg.description }}</span>{% endif %}
+                </div>
+                <div class="qf-term-list">
+                  {% for term in tg.terms %}
+                  {% set is_attached = attached_term_ids is defined and term.id in attached_term_ids %}
+                  {% set is_attached = is_attached or (tg.is_default and mode == 'create') %}
+                  <div class="qf-term-item {{ 'is-attached' if is_attached }}">
+                    <label>
+                      <input type="checkbox" name="term_ids[]" value="{{ term.id }}"
+                             class="term-cb" data-group="{{ tg.id }}"
+                             {{ 'checked' if is_attached }}>
+                      <span class="term-title">{{ term.term_title }}</span>
+                    </label>
+                    <p class="term-body-preview">{{ term.term_body[:100] }}{% if term.term_body|length > 100 %}…{% endif %}</p>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- ── SECTION 8: ATTACHMENTS ─────────────────────── -->
+        <div class="qf-card" id="section-attachments">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">08</span>
+            <h2>Attachments</h2>
+          </div>
+          <div class="qf-card-body">
+            {% if quotation and quotation.attachments %}
+            <div class="qf-attachment-list mb-md">
+              {% for att in quotation.attachments %}
+              <div class="qf-attachment-item">
+                <span class="att-icon">📎</span>
+                <a href="{{ url_for('quotations.download_attachment', att_id=att.id) }}" target="_blank">{{ att.original_name }}</a>
+                <button type="button" class="btn-remove-att" data-att-id="{{ att.id }}" title="Delete">✕</button>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+            <div class="qf-drop-zone" id="attachment-drop-zone">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M16 8l-4-4-4 4M12 4v12"/></svg>
+              <p>Drop files here or <label for="att-file-input" class="link-label">browse</label></p>
+              <p class="text-muted text-sm">PDF, Images, Word, Excel accepted</p>
+              <input type="file" id="att-file-input" name="attachments[]" multiple
+                     accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" class="hidden">
+            </div>
+            <div class="qf-upload-preview" id="upload-preview"></div>
+          </div>
+        </div>
+
+        <!-- ── SECTION 9: SIGNATURE ───────────────────────── -->
+        <div class="qf-card" id="section-signature">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">09</span>
+            <h2>Signature</h2>
+          </div>
+          <div class="qf-card-body">
+            <div class="qf-row mb-md">
+              <div class="qf-field">
+                <label>Signature Label</label>
+                <input type="text" name="signature_label" class="qf-input"
+                       value="{{ quotation.signature_label if quotation else settings.default_signature_label or 'Authorised Signatory' }}"
+                       placeholder="Authorised Signatory">
+              </div>
+              <div class="qf-field">
+                <label>Signature Type</label>
+                <div class="qf-sig-tabs">
+                  <button type="button" class="sig-tab active" data-tab="upload">Upload Image</button>
+                  <button type="button" class="sig-tab" data-tab="pad">Draw Signature</button>
+                </div>
+              </div>
+            </div>
+            <input type="hidden" name="sig_type" id="sig-type-input" value="upload">
+
+            <!-- Upload tab -->
+            <div class="sig-tab-panel" id="sig-panel-upload">
+              <div class="qf-drop-zone sig-drop">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M16 8l-4-4-4 4M12 4v12"/></svg>
+                <p>Upload signature image (PNG with transparent bg recommended)</p>
+                <input type="file" name="sig_upload" id="sig-upload-input" accept=".png,.jpg,.jpeg">
+              </div>
+              {% set sig = quotation.signatures[0] if quotation and quotation.signatures else None %}
+              {% if sig and sig.image_path %}
+              <div class="sig-preview">
+                <img src="{{ url_for('static', filename='uploads/signatures/' + sig.image_path) }}" alt="Signature">
+                <p class="text-muted text-sm">Current signature</p>
+              </div>
+              {% endif %}
+            </div>
+
+            <!-- Pad tab -->
+            <div class="sig-tab-panel hidden" id="sig-panel-pad">
+              <div class="sig-pad-wrap">
+                <canvas id="signature-pad" width="500" height="150"></canvas>
+                <div class="sig-pad-actions">
+                  <button type="button" id="btn-clear-sig">Clear</button>
+                  <button type="button" id="btn-save-sig">Use This Signature</button>
+                </div>
+              </div>
+              <input type="hidden" name="pad_data" id="pad-data-input">
+              {% if sig and sig.pad_data %}
+              <p class="text-sm text-muted mt-sm">Previous pad signature will be replaced if you draw a new one.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /.qf-main -->
+
+      <!-- ═══════════════════════════════════════════════════
+           RIGHT COLUMN — Sticky Totals Panel
+      ════════════════════════════════════════════════════ -->
+      <div class="qf-sidebar">
+        <div class="qf-totals-panel" id="totals-panel">
+          <div class="qf-totals-header">
+            <h3>Summary</h3>
+            <span class="qf-status-badge status-{{ quotation.status.value.lower() if quotation else 'draft' }}">
+              {{ quotation.status.value if quotation else 'Draft' }}
+            </span>
+          </div>
+
+          <!-- Status selector -->
+          <div class="qf-field mb-md">
+            <label class="qf-label-sm">Status</label>
+            <select name="status" class="qf-select">
+              {% for s in ['Draft', 'Sent', 'Accepted', 'Rejected'] %}
+              <option value="{{ s }}" {{ 'selected' if (quotation and quotation.status.value == s) or (not quotation and s == 'Draft') }}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="qf-totals-body">
+            <div class="totals-row">
+              <span>Subtotal</span>
+              <span id="t-subtotal">₹{{ '%.2f'|format(quotation.subtotal) if quotation else '0.00' }}</span>
+            </div>
+            <div class="totals-row">
+              <span>Discount</span>
+              <span id="t-discount" class="text-danger">— ₹0.00</span>
+            </div>
+            <div class="totals-row">
+              <span>Taxable Amount</span>
+              <span id="t-taxable">₹{{ '%.2f'|format(quotation.subtotal - quotation.total_discount) if quotation else '0.00' }}</span>
+            </div>
+            <div class="totals-row" id="row-sgst">
+              <span>SGST</span>
+              <span id="t-sgst">₹{{ '%.2f'|format(quotation.sgst) if quotation else '0.00' }}</span>
+            </div>
+            <div class="totals-row" id="row-cgst">
+              <span>CGST</span>
+              <span id="t-cgst">₹{{ '%.2f'|format(quotation.cgst) if quotation else '0.00' }}</span>
+            </div>
+            <div class="totals-row hidden" id="row-igst">
+              <span>IGST</span>
+              <span id="t-igst">₹{{ '%.2f'|format(quotation.igst) if quotation else '0.00' }}</span>
+            </div>
+            <div class="totals-row">
+              <span>Additional Charges</span>
+              <span id="t-charges">₹0.00</span>
+            </div>
+            <div class="totals-separator"></div>
+            <div class="totals-row totals-grand">
+              <span>Grand Total</span>
+              <span id="t-total">₹{{ '%.2f'|format(quotation.total_amount) if quotation else '0.00' }}</span>
+            </div>
+            <div class="totals-qty-row">
+              <span>Total Qty</span>
+              <span id="t-qty">{{ quotation.total_quantity if quotation else 0 }}</span>
+            </div>
+          </div>
+
+          <div class="qf-total-words" id="total-words-panel">
+            <p class="label">Amount in Words</p>
+            <p id="t-words" class="words-text">{{ quotation.total_in_words if quotation else '—' }}</p>
+          </div>
+
+          <!-- CTA -->
+          <div class="qf-totals-actions">
+            <button type="submit" form="quotation-main-form" class="btn-primary w-full">
+              {{ 'Update' if mode == 'edit' else 'Create' }} Quotation
+            </button>
+            {% if mode == 'edit' %}
+            <a href="{{ url_for('quotations.generate_pdf', quotation_id=quotation.id) }}"
+               target="_blank" class="btn-secondary w-full mt-sm">
+              📄 Download PDF
+            </a>
+            <a href="{{ url_for('quotations.view_quotation', quotation_id=quotation.id) }}"
+               class="btn-ghost w-full mt-sm">
+              👁 Preview
+            </a>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Company Info Card -->
+        <div class="qf-company-card">
+          <p class="qf-company-label">Quotation From</p>
+          <p class="qf-company-name">{{ settings.company_name or 'GlassEntials' }}</p>
+          {% if settings.company_address %}<p class="qf-company-detail">{{ settings.company_address }}</p>{% endif %}
+          {% if settings.company_gstin %}<p class="qf-company-detail"><strong>GSTIN:</strong> {{ settings.company_gstin }}</p>{% endif %}
+          {% if settings.company_phone %}<p class="qf-company-detail">📞 {{ settings.company_phone }}</p>{% endif %}
+          <a href="{{ url_for('quotation_settings.settings_home') }}" class="btn-text text-sm">⚙ Edit Company Info</a>
+        </div>
+
+      </div><!-- /.qf-sidebar -->
+
+    </div><!-- /.qf-layout -->
+  </form>
+
+</div><!-- /.qf-wrapper -->
+
+<!-- ─── Modals for ERP Extras ─── -->
+<!-- GST Config Modal -->
+<div id="modal-gst-config" class="qt-modal">
+  <div class="qt-modal-content">
+    <div class="qt-modal-header">
+      <h3>GST Configuration</h3>
+      <button type="button" class="btn-close" onclick="closeQtModal('modal-gst-config')">✕</button>
+    </div>
+    <div class="qt-modal-body">
+      <div class="qf-field">
+        <label>Default GST Rate (%)</label>
+        <select id="config-default-gst" class="qf-select">
+          <option value="0">0%</option>
+          <option value="5">5%</option>
+          <option value="12">12%</option>
+          <option value="18">18%</option>
+          <option value="28">28%</option>
+        </select>
+        <p class="text-xs text-muted mt-2">New rows will use this rate by default.</p>
+      </div>
+      <div class="qf-field mt-4">
+        <button type="button" class="btn-secondary w-full" id="btn-apply-gst-all">Apply to All Existing Rows</button>
+      </div>
+    </div>
+    <div class="qt-modal-footer">
+      <button type="button" class="btn-primary" onclick="closeQtModal('modal-gst-config')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Number Format Modal -->
+<div id="modal-num-format" class="qt-modal">
+  <div class="qt-modal-content">
+    <div class="qt-modal-header">
+      <h3>Number Format</h3>
+      <button type="button" class="btn-close" onclick="closeQtModal('modal-num-format')">✕</button>
+    </div>
+    <div class="qt-modal-body">
+      <div class="qf-field">
+        <label>Decimal Places</label>
+        <select id="config-decimals" class="qf-select">
+          <option value="2">2 Decimals (Standard)</option>
+          <option value="3">3 Decimals</option>
+          <option value="4">4 Decimals</option>
+        </select>
+      </div>
+    </div>
+    <div class="qt-modal-footer">
+      <button type="button" class="btn-primary" onclick="closeQtModal('modal-num-format')">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Columns/Formulas Modal -->
+<div id="modal-edit-cols" class="qt-modal">
+  <div class="qt-modal-content" style="width: 600px;">
+    <div class="qt-modal-header">
+      <h3>Edit Columns & Formulas</h3>
+      <button type="button" class="btn-close" onclick="closeQtModal('modal-edit-cols')">✕</button>
+    </div>
+    <div class="qt-modal-body">
+      <div class="qf-field">
+        <label>Global Area Formula</label>
+        <select id="config-global-formula" class="qf-select">
+          <option value="standard">Standard (W x H)</option>
+          <option value="minimal_1">Minimum Area (Min 1.0 Sq.Ft)</option>
+          <option value="round_05">Round Up to nearest 0.5</option>
+          <option value="inches_to_sqft">Inches to Sq.Ft ( (W/12) x (H/12) )</option>
+        </select>
+        <p class="text-xs text-muted mt-2">Applies to all rows calculating area.</p>
+      </div>
+      <div class="qf-field mt-4">
+          <label>Visible Optional Columns</label>
+          <div class="grid grid-cols-2 gap-2 text-sm">
+              <label class="flex items-center gap-2"><input type="checkbox" checked disabled> SN / SKU</label>
+              <label class="flex items-center gap-2"><input type="checkbox" checked disabled> W / H Dimensions</label>
+              <label class="flex items-center gap-2"><input type="checkbox" checked disabled> Quantity</label>
+              <label class="flex items-center gap-2"><input type="checkbox" checked disabled> GST%</label>
+              <label class="flex items-center gap-2"><input type="checkbox" checked disabled> Discount</label>
+          </div>
+      </div>
+    </div>
+    <div class="qt-modal-footer">
+      <button type="button" class="btn-primary" onclick="closeQtModal('modal-edit-cols')">Apply Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── ERP Item Row Template (hidden, cloned by JS) ─────────── -->
+<template id="item-row-template">
+  <tr class="erp-item-row item-row" data-row="">
+    <input type="hidden" name="group_name[]" class="input-group-name" value="">
+    <input type="hidden" name="formula_type[]" class="input-formula" value="standard">
+    <td class="col-drag"><span class="drag-handle">⠿</span></td>
+    <td class="col-sn">1</td>
+    <td class="col-item">
+      <input type="text" name="item_name[]" class="erp-inline-input item-name" placeholder="Item name / SKU">
+      <!-- Advanced expanded area -->
+      <div class="erp-adv-area">
+         <textarea name="description[]" class="erp-inline-textarea item-desc" rows="1" placeholder="Add description"></textarea>
+         <div class="erp-adv-controls">
+            <span class="btn-adv">+ Add Image</span>
+            <span class="btn-adv">+ Add Unit</span>
+         </div>
+      </div>
+    </td>
+    <td class="col-dim">
+      <input type="number" name="width[]" class="erp-inline-input dim-w item-calc" value="0" placeholder="0" step="0.01">
+    </td>
+    <td class="col-dim">
+      <input type="number" name="height[]" class="erp-inline-input dim-h item-calc" value="0" placeholder="0" step="0.01">
+    </td>
+    <td class="col-c-area">
+      <span class="erp-readonly-val area-val">0.00</span>
+    </td>
+    <td class="col-qty">
+      <input type="number" name="quantity[]" class="erp-inline-input item-qty item-calc" value="1" min="0" step="0.01">
+    </td>
+    <td class="col-c-qty">
+      <input type="number" name="chargeable_quantity[]" class="erp-inline-input item-c-qty item-calc" placeholder="Auto" step="0.01">
+    </td>
+    <td class="col-unit">
+      <select name="unit[]" class="erp-inline-select select-unit">
+        <option selected>Sq.Ft</option><option>Sq.M</option><option>Product</option>
+        <option>Pcs</option><option>Box</option><option>Nos</option>
+        <option>RFT</option><option>Kg</option><option>Set</option><option>Lot</option><option>Custom</option>
+      </select>
+    </td>
+    <td class="col-rate">
+      <input type="number" name="rate[]" class="erp-inline-input item-rate item-calc" value="1" min="0" step="0.01">
+    </td>
+    <td class="col-disc">
+      <div class="disc-wrap">
+        <input type="number" name="discount[]" class="erp-inline-input item-disc item-calc" value="0" min="0" step="0.01" style="width: 50px;">
+        <select name="discount_type[]" class="erp-inline-select disc-type" style="width: 40px; padding:0;">
+          <option value="flat">₹</option>
+          <option value="percent">%</option>
+        </select>
+      </div>
+    </td>
+    <td class="col-gst">
+      <select name="gst_rate[]" class="erp-inline-select item-gst item-calc">
+        <option value="0">0%</option>
+        <option value="5">5%</option>
+        <option value="12">12%</option>
+        <option value="18" selected>18%</option>
+        <option value="28">28%</option>
+      </select>
+    </td>
+    <td class="col-amt">
+      <span class="erp-readonly-val item-amount">₹0.00</span>
+    </td>
+    <td class="col-total">
+      <strong class="item-total-str">₹0.00</strong>
+    </td>
+    <td class="col-action">
+      <button type="button" class="btn-copy-erp" title="Duplicate">📑</button>
+      <button type="button" class="btn-remove-erp" title="Remove">✕</button>
+    </td>
+  </tr>
+</template>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/quotation_engine.js') }}"></script>
+<script>
+  // Pass server-side settings to JS
+  window.QE_CONFIG = {
+    calcUrl: "{{ url_for('quotations.api_calculate') }}",
+    defaultGst: {{ settings.default_gst_rate or 18 }},
+    isIgst: {{ 'true' if quotation and quotation.is_igst else 'false' }},
+    mode: "{{ mode }}",
+    {% if mode == 'edit' and quotation %}
+    saveDraftUrl: "{{ url_for('quotations.save_draft', quotation_id=quotation.id) }}",
+    {% endif %}
+  };
+
+// ─────────────────────────────────────────────────────────
+// ERP Toolbar & Modals
+// ─────────────────────────────────────────────────────────
+window.openQtModal = (id) => {
+    document.getElementById(id).style.display = 'flex';
+};
+window.closeQtModal = (id) => {
+    document.getElementById(id).style.display = 'none';
+};
+
+const btnConfigGst = document.getElementById('btn-config-gst');
+const btnNumFormat = document.getElementById('btn-num-format');
+const btnEditCols = document.getElementById('btn-edit-cols');
+
+if(btnConfigGst) btnConfigGst.onclick = () => openQtModal('modal-gst-config');
+if(btnNumFormat) btnNumFormat.onclick = () => openQtModal('modal-num-format');
+if(btnEditCols)  btnEditCols.onclick  = () => openQtModal('modal-edit-cols');
+
+const applyGstAll = document.getElementById('btn-apply-gst-all');
+if(applyGstAll) {
+    applyGstAll.onclick = () => {
+        const val = document.getElementById('config-default-gst').value;
+        document.querySelectorAll('.item-gst').forEach(sel => {
+            sel.value = val;
+        });
+        scheduleRecalculate();
+    };
+}
+
+const igstCb = document.getElementById('is-igst-cb');
+if(igstCb) {
+    igstCb.onchange = function() {
+        CONFIG.isIgst = this.checked;
+        scheduleRecalculate();
+    };
+}
+
+// Global formula applier
+const globalFormulaSelect = document.getElementById('config-global-formula');
+if(globalFormulaSelect) {
+    globalFormulaSelect.onchange = function() {
+        const formula = this.value;
+        document.querySelectorAll('.input-formula').forEach(inp => {
+            inp.value = formula;
+        });
+        document.querySelectorAll('.erp-item-row').forEach(row => calculateRowArea(row));
+        scheduleRecalculate();
+    };
+}
+
+// Updated calculateRowArea to handle formulas
+function calculateRowArea(row) {
+  const w = parseFloat(row.querySelector('.dim-w').value) || 0;
+  const h = parseFloat(row.querySelector('.dim-h').value) || 0;
+  const unit = row.querySelector('.select-unit')?.value;
+  const areaVal = row.querySelector('.area-val');
+  const cQtyInput = row.querySelector('.item-c-qty');
+  let formula = row.querySelector('.input-formula')?.value || 'standard';
+
+  let area = 0;
+  // If Square foot or Square meter logic
+  if (['Sq.Ft', 'Sq.M'].includes(unit)) {
+    if (formula === 'standard') {
+        area = w * h;
+    } else if (formula === 'minimal_1') {
+        area = Math.max(1.0, w * h);
+    } else if (formula === 'round_05') {
+        area = Math.ceil((w * h) * 2) / 2;
+    } else if (formula === 'inches_to_sqft') {
+        area = (w / 12) * (h / 12);
+    } else {
+        area = w * h;
+    }
+
+    if (areaVal) areaVal.textContent = area.toFixed(2);
+    // Auto-fill chargeable quantity
+    if (area > 0 && !cQtyInput.dataset.manual) {
+      cQtyInput.value = area.toFixed(2);
+    } else if (area === 0 && !cQtyInput.value) {
+      cQtyInput.value = ''; // stays as Auto placeholder
+    }
+  } else {
+    if (areaVal) areaVal.textContent = '—';
+  }
+}
+
+// Initial calculation for edit mode
+document.addEventListener('DOMContentLoaded', () => {
+    // wait slightly or do immediate
+    setTimeout(() => {
+        document.querySelectorAll('.erp-item-row').forEach(row => calculateRowArea(row));
+    }, 100);
+});
+</script>
+
+
+</body>
+</html>

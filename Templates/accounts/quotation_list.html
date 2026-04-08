@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,60 +10,52 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-    <style>
-        :root {
-            --invoice-primary: #1e293b;
-            --invoice-accent: #0ea5e9;
-            --invoice-success: #10b981;
-            --invoice-warning: #f59e0b;
-            --invoice-error: #ef4444;
-        }
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}">
 
-        .status-pill {
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
 
-        .status-accepted { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
-        .status-rejected { background: rgba(239, 44, 44, 0.1); color: #ef4444; border: 1px solid rgba(239, 44, 44, 0.2); }
-        .status-sent { background: rgba(14, 165, 233, 0.1); color: #0ea5e9; border: 1px solid rgba(14, 165, 233, 0.2); }
-        .status-draft { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
-    </style>
+
+
+
+
 </head>
-
 <body class="dashboard-page">
-
     <!-- Top Navbar -->
     <header class="dash-nav">
-        <div class="logo">
-            <a href="/home" class="logo-link">
-                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
-            </a>
-        </div>
+        <div class="nav-left">
+            <div class="logo">
+                <a href="/home" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+                </a>
+            </div>
 
-        <nav class="dash-menu">
-            <a href="{{ url_for('home_page') }}">Dashboard</a>
-            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
-            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
-            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
-            <a href="{{ url_for('tasks.tasks_list') }}">Tasks</a>
-            <div class="dropdown">
-                <a href="#" class="active">Accounts ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
-                    <a href="{{ url_for('accounts.quotation_list') }}">Quotations</a>
+            <nav class="dash-menu">
+                <a href="{{ url_for('home_page') }}">Dashboard</a>
+                <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+                <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+                <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+                <div class="dropdown">
+                    <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                        <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+                    </div>
                 </div>
-            </div>
-            <div class="dropdown">
-                <a href="#">Settings ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                <div class="dropdown">
+                    <a href="#" class="active">Accounts ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                        <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                        <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+                    </div>
                 </div>
-            </div>
-        </nav>
+                <div class="dropdown">
+                    <a href="#">Settings ▾</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
 
         <div class="user-profile">
             <span class="welcome-text">Welcome, {{ current_user.username }}</span>
@@ -85,144 +76,190 @@
     </header>
 
     <main class="dash-container">
-        <div class="dash-header">
-            <div>
-                <h1>Quotations (Proforma)</h1>
-                <p>Manage, track and generate new customer quotations.</p>
-            </div>
-            <div class="quick-actions">
-                <a href="{{ url_for('accounts.add_quotation') }}" class="btn-action gold" style="text-decoration: none;">
-                    Generate New Quotation
-                </a>
-            </div>
-        </div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        {% for category, message in messages %}
-        <div class="flash-message {{ category }}" style="padding: 15px; margin-bottom: 20px; border-radius: 8px; {% if category == 'error' %}background: rgba(239, 44, 44, 0.1); color: #ef4444; border-left: 4px solid #ef4444;{% else %}background: rgba(16, 185, 129, 0.1); color: #10b981; border-left: 4px solid #10b981;{% endif %}">
-            {{ message }}
-        </div>
+<div class="ql-wrapper">
+
+  <!-- ── PAGE HEADER ──────────────────────────────── -->
+  <div class="ql-header">
+    <div class="ql-header-left">
+      <h1 class="ql-title">Quotations</h1>
+      <p class="ql-subtitle">Manage all quotations & proforma invoices</p>
+    </div>
+    <div class="ql-header-right">
+      <a href="{{ url_for('quotation_settings.settings_home') }}" class="btn-icon-sm" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </a>
+      <a href="{{ url_for('quotations.add_quotation') }}" class="btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
+        New Quotation
+      </a>
+    </div>
+  </div>
+
+  <!-- ── STATS STRIP ───────────────────────────────── -->
+  <div class="ql-stats">
+    {% set stat_items = [
+      ('total',    'All',      '📋', stats.total),
+      ('Draft',    'Draft',    '✏️',  stats.draft),
+      ('Sent',     'Sent',     '📤', stats.sent),
+      ('Accepted', 'Accepted', '✅', stats.accepted),
+      ('Rejected', 'Rejected', '❌', stats.rejected),
+    ] %}
+    {% for key, label, icon, count in stat_items %}
+    <a href="{{ url_for('quotations.quotation_list', status=key if key != 'total' else 'all') }}"
+       class="ql-stat-card {{ 'active' if status_filter == (key if key != 'total' else 'all') }}">
+      <span class="ql-stat-icon">{{ icon }}</span>
+      <span class="ql-stat-count">{{ count }}</span>
+      <span class="ql-stat-label">{{ label }}</span>
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- ── FILTERS ───────────────────────────────────── -->
+  <div class="ql-filters">
+    <form method="GET" class="ql-search-form">
+      <div class="ql-search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" name="q" value="{{ search }}" placeholder="Search quotation number, title…" class="ql-search-input">
+      </div>
+      <select name="doc_type" class="qf-select ql-filter-select">
+        <option value="all" {{ 'selected' if doc_type_filter == 'all' }}>All Types</option>
+        <option value="Quotation" {{ 'selected' if doc_type_filter == 'Quotation' }}>Quotations</option>
+        <option value="Proforma Invoice" {{ 'selected' if doc_type_filter == 'Proforma Invoice' }}>Proforma Invoices</option>
+        <option value="Sales Order" {{ 'selected' if doc_type_filter == 'Sales Order' }}>Sales Orders</option>
+      </select>
+      <button type="submit" class="btn-secondary">Filter</button>
+      {% if search or status_filter != 'all' or doc_type_filter != 'all' %}
+      <a href="{{ url_for('quotations.quotation_list') }}" class="btn-ghost">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- ── TABLE ─────────────────────────────────────── -->
+  {% if quotations %}
+  <div class="ql-table-wrap">
+    <table class="ql-table">
+      <thead>
+        <tr>
+          <th>Number</th>
+          <th>Type</th>
+          <th>Customer / Lead</th>
+          <th>Date</th>
+          <th>Valid Till</th>
+          <th class="text-right">Amount ₹</th>
+          <th class="text-center">Status</th>
+          <th class="text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for q in quotations %}
+        <tr class="ql-row" data-qid="{{ q.id }}">
+          <td>
+            <a href="{{ url_for('quotations.view_quotation', quotation_id=q.id) }}" class="ql-number-link">
+              {{ q.quotation_number }}
+            </a>
+            {% if q.quotation_title and q.quotation_title != 'Quotation' %}
+            <div class="ql-row-sub">{{ q.quotation_title[:40] }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge-doctype {{ 'badge-proforma' if 'Proforma' in q.doc_type_display else 'badge-quotation' }}">
+              {{ q.doc_type_display }}
+            </span>
+          </td>
+          <td>
+            {% if q.customer %}
+              <a href="{{ url_for('customers.view_customer', customer_id=q.customer.id) }}" class="ql-entity-link">{{ q.customer.name }}</a>
+              {% if q.customer.company %}<div class="ql-row-sub">{{ q.customer.company }}</div>{% endif %}
+            {% elif q.lead %}
+              <span class="text-muted">{{ q.lead.name }} <em>(Lead)</em></span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>{{ q.issue_date.strftime('%d %b %Y') if q.issue_date else '—' }}</td>
+          <td>
+            {% if q.due_date %}
+              {% if q.due_date < now %}
+                <span class="text-danger">{{ q.due_date.strftime('%d %b %Y') }} ⚠</span>
+              {% else %}
+                {{ q.due_date.strftime('%d %b %Y') }}
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-right">
+            <strong>{{ '₹{:,.2f}'.format(q.total_amount) }}</strong>
+          </td>
+          <td class="text-center">
+            <span class="status-pill status-{{ q.status.value.lower() }}" data-qid="{{ q.id }}">
+              {{ q.status.value }}
+            </span>
+          </td>
+          <td class="text-center">
+            <div class="ql-actions">
+              <a href="{{ url_for('quotations.view_quotation', quotation_id=q.id) }}" class="ql-action-btn" title="View">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </a>
+              <a href="{{ url_for('quotations.edit_quotation', quotation_id=q.id) }}" class="ql-action-btn" title="Edit">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </a>
+              <a href="{{ url_for('quotations.generate_pdf', quotation_id=q.id) }}" class="ql-action-btn" title="PDF" target="_blank">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              </a>
+              <form method="POST" action="{{ url_for('quotations.duplicate_quotation', quotation_id=q.id) }}" style="display:inline">
+                <button type="submit" class="ql-action-btn" title="Duplicate">📋</button>
+              </form>
+              <form method="POST" action="{{ url_for('quotations.delete_quotation', quotation_id=q.id) }}"
+                    style="display:inline" onsubmit="return confirm('Delete {{ q.quotation_number }}?')">
+                <button type="submit" class="ql-action-btn ql-action-danger" title="Delete">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
         {% endfor %}
-        {% endif %}
-        {% endwith %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="ql-empty">
+    <div class="ql-empty-icon">📄</div>
+    <h3>No quotations found</h3>
+    <p>{{ 'Try clearing your filters.' if (search or status_filter != 'all') else 'Create your first quotation to get started.' }}</p>
+    <a href="{{ url_for('quotations.add_quotation') }}" class="btn-primary mt-md">+ New Quotation</a>
+  </div>
+  {% endif %}
 
-        <div class="panel">
-            <div class="table-responsive">
-                <table class="customer-table">
-                    <thead>
-                        <tr>
-                            <th>Quote #</th>
-                            <th>Client / Customer</th>
-                            <th>Project</th>
-                            <th>Issue Date</th>
-                            <th>Status</th>
-                            <th style="text-align: right;">Total Amount</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for quote in quotations %}
-                        <tr>
-                            <td><strong>{{ quote.quotation_number }}</strong></td>
-                            <td>
-                                {% if quote.customer %}
-                                    {{ quote.customer.name }}
-                                {% elif quote.lead %}
-                                    {{ quote.lead.name }} <span style="font-size:0.75rem; color: #8a6a00; background: rgba(212,175,55,0.1); padding: 2px 6px; border-radius: 4px;">Lead</span>
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
-                            <td>{{ quote.project.name if quote.project else '—' }}</td>
-                            <td>{{ quote.issue_date.strftime('%d %b %Y') }}</td>
-                            <td>
-                                {% set status_class = 'status-draft' %}
-                                {% if quote.status_display == 'Accepted' %}{% set status_class = 'status-accepted' %}{% endif %}
-                                {% if quote.status_display == 'Rejected' %}{% set status_class = 'status-rejected' %}{% endif %}
-                                {% if quote.status_display == 'Sent' %}{% set status_class = 'status-sent' %}{% endif %}
-                                
-                                <span class="status-pill {{ status_class }}">
-                                    {{ quote.status_display }}
-                                </span>
-                            </td>
-                            <td style="text-align: right; font-weight: 700;">₹{{ "{:,.2f}".format(quote.total_amount) }}</td>
-                            <td>
-                                <div class="table-actions-dropdown">
-                                    <button class="action-trigger">⋮</button>
-                                    <div class="action-menu">
-                                        <a href="{{ url_for('accounts.view_quotation', quotation_id=quote.id) }}">
-                                            <span class="icon">👁</span> View & Print
-                                        </a>
-                                        <a href="#" onclick="updateStatus({{ quote.id }}, 'Accepted')">
-                                            <span class="icon">✅</span> Mark Accepted
-                                        </a>
-                                        <a href="#" onclick="updateStatus({{ quote.id }}, 'Rejected')">
-                                            <span class="icon">❌</span> Mark Rejected
-                                        </a>
-                                        <a href="#" onclick="updateStatus({{ quote.id }}, 'Sent')">
-                                            <span class="icon">📧</span> Mark Sent
-                                        </a>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="7" style="text-align: center; padding: 4rem;">
-                                <div style="opacity: 0.5;">
-                                    <span style="font-size: 3rem;">📄</span>
-                                    <p>No quotations found. Create your first quotation to get started.</p>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </main>
+</div>
 
-    <script>
-        // Table actions dropdown
-        document.querySelectorAll('.action-trigger').forEach(trigger => {
-            trigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const menu = trigger.nextElementSibling;
-                document.querySelectorAll('.action-menu').forEach(m => {
-                    if (m !== menu) m.classList.remove('active');
-                });
-                menu.classList.toggle('active');
-            });
-        });
 
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.action-menu').forEach(m => m.classList.remove('active'));
-        });
+</main>
+<script>
+// Quick status update via dropdown click
+document.querySelectorAll('.status-pill').forEach(pill => {
+  pill.style.cursor = 'pointer';
+  pill.title = 'Click to change status';
+  pill.addEventListener('click', async function() {
+    const qid = this.dataset.qid;
+    const statuses = ['Draft','Sent','Accepted','Rejected'];
+    const cur = this.textContent.trim();
+    const next = statuses[(statuses.indexOf(cur) + 1) % statuses.length];
+    if (!confirm(`Change status to "${next}"?`)) return;
+    const res = await fetch(`/quotations/${qid}/status`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status: next})
+    });
+    const data = await res.json();
+    if (data.success) {
+      this.textContent = data.status;
+      this.className = `status-pill status-${data.status.toLowerCase()}`;
+    }
+  });
+});
+</script>
 
-        function updateStatus(id, newStatus) {
-            if(!confirm(`Mark this quotation as ${newStatus}?`)) return;
-            
-            fetch(`/update-quotation-status/${id}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `status=${encodeURIComponent(newStatus)}`
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data.success) {
-                    window.location.reload();
-                } else {
-                    alert("Error updating status.");
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert("Error updating status.");
-            });
-        }
-    </script>
+
 </body>
 </html>

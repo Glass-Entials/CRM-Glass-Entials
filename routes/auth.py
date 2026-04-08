@@ -73,23 +73,44 @@ def register():
                 flash('Invalid Organization Code.', 'registererror')
                 return redirect(url_for('auth.register'))
 
+        # DUPLICATE CHECKS
+        existing_user = User.query.filter(
+            (User.email == email) | 
+            (User.phone_number == phone_number) | 
+            (User.username == username)
+        ).first()
+
+        if existing_user:
+            if existing_user.email == email:
+                flash('Email already registered.', 'registererror')
+            elif existing_user.phone_number == phone_number:
+                flash('Phone number already registered.', 'registererror')
+            else:
+                flash('Username already taken.', 'registererror')
+            return redirect(url_for('auth.register'))
+
         role_pref_mapped = UserRole.MANAGER if role_pref == 'manager' else UserRole.EMPLOYEE
         
-        hashed_pw = generate_password_hash(password)
-        new_user = User(username=username, email=email, phone_number=phone_number, 
-                        password=hashed_pw, role=UserRole.ADMIN if org_option == 'create' else role_pref_mapped,
-                        organization_id=org.id)
-        
-        db.session.add(new_user)
-        db.session.flush()
+        try:
+            hashed_pw = generate_password_hash(password)
+            new_user = User(username=username, email=email, phone_number=phone_number, 
+                            password=hashed_pw, role=UserRole.ADMIN if org_option == 'create' else role_pref_mapped,
+                            organization_id=org.id)
+            
+            db.session.add(new_user)
+            db.session.flush()
 
-        employee = Employee(name=username, email=email, phone_number=phone_number, 
-                            user_id=new_user.id, organization_id=org.id)
-        db.session.add(employee)
-        db.session.commit()
+            employee = Employee(name=username, email=email, phone_number=phone_number, 
+                                user_id=new_user.id, organization_id=org.id)
+            db.session.add(employee)
+            db.session.commit()
 
-        flash('Registration successful!', 'registersuccess')
-        return redirect(url_for('auth.login'))
+            flash('Registration successful!', 'registersuccess')
+            return redirect(url_for('auth.login'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'An error occurred: {str(e)}', 'registererror')
+            return redirect(url_for('auth.register'))
 
     return render_template('login/register.html')
 
