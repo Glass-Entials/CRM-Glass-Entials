@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Product | GlassEntials</title>
+    <meta name="description" content="Edit product details in GlassEntials CRM product catalogue.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .form-page-wrap { max-width:900px; margin:2.5rem auto; padding:0 1.5rem; }
+        .form-card {
+            background:#fff; border-radius:20px; padding:2.5rem;
+            box-shadow:0 8px 40px rgba(13,27,42,.08);
+            border:1px solid rgba(13,27,42,.06);
+        }
+        .form-card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:2rem; }
+        .form-card-title { font-size:1.6rem; font-weight:800; color:var(--primary-color); margin:0 0 6px; }
+        .form-card-sub   { color:var(--text-muted); font-size:.9rem; margin:0; }
+        .form-divider    { height:1px; background:rgba(13,27,42,.06); margin:2rem 0; }
+        .section-label   { font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted); margin:0 0 1rem; }
+        .form-grid       { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+        .form-grid.triple{ grid-template-columns:1fr 1fr 1fr; }
+        .form-group      { display:flex; flex-direction:column; gap:6px; }
+        .form-group.full { grid-column:1/-1; }
+        label { font-size:.82rem; font-weight:700; color:var(--primary-color); }
+        label span.req { color:var(--accent-gold); }
+        input[type=text], input[type=number], textarea, select {
+            padding:.75rem 1rem; border:1px solid rgba(13,27,42,.12); border-radius:8px;
+            font-family:var(--font-body); font-size:.9rem; color:var(--primary-color);
+            background:#fafbfc; transition:border-color .2s, box-shadow .2s; outline:none;
+        }
+        input:focus, textarea:focus, select:focus {
+            border-color:var(--accent-gold);
+            box-shadow:0 0 0 3px rgba(212,175,55,.12);
+        }
+        textarea { resize:vertical; min-height:90px; }
+        .hint { font-size:.75rem; color:var(--text-muted); }
+
+        /* Current image display */
+        .current-image-wrap {
+            display:flex; align-items:center; gap:1.25rem;
+            background:#fafbfc; border:1px solid rgba(13,27,42,.1);
+            border-radius:12px; padding:1rem 1.25rem; margin-bottom:1rem;
+        }
+        .current-image-thumb {
+            width:72px; height:72px; border-radius:10px; object-fit:cover;
+            border:1px solid rgba(13,27,42,.08); background:#f1f5f9;
+            display:flex; align-items:center; justify-content:center; font-size:2rem;
+            flex-shrink:0;
+        }
+        .current-image-thumb img { width:100%; height:100%; object-fit:cover; border-radius:10px; }
+        .current-image-info { flex:1; }
+        .current-image-info p { font-size:.85rem; color:var(--text-muted); margin:0 0 4px; }
+        .current-image-info span { font-size:.8rem; font-weight:600; color:var(--primary-color); font-family:monospace; }
+
+        /* Image upload area */
+        .image-upload-area {
+            border:2px dashed rgba(13,27,42,.15); border-radius:12px;
+            padding:1.5rem 2rem; text-align:center; cursor:pointer;
+            transition:all .3s ease; background:#fafbfc;
+        }
+        .image-upload-area:hover { border-color:var(--accent-gold); background:rgba(212,175,55,.04); }
+        .image-upload-area .upload-icon { font-size:1.8rem; margin-bottom:.5rem; opacity:.4; }
+        .image-upload-area p { color:var(--text-muted); font-size:.85rem; margin:0; }
+        #imagePreview { max-width:120px; border-radius:10px; display:none; margin:1rem auto 0; }
+
+        /* Status badge in header */
+        .status-pill {
+            padding:.35rem 1rem; border-radius:20px;
+            font-size:.75rem; font-weight:700;
+        }
+        .status-pill.Active { background:rgba(16,185,129,.1); color:#059669; }
+        .status-pill.Inactive { background:rgba(100,116,139,.1); color:#475569; }
+        .status-pill.Discontinued { background:rgba(239,68,68,.1); color:#dc2626; }
+
+        /* Actions */
+        .form-actions { display:flex; gap:1rem; margin-top:2rem; }
+
+        /* Flash */
+        .flash-strip { padding:12px 18px; border-radius:8px; margin-bottom:1.5rem; font-weight:600; font-size:.9rem; display:flex; align-items:center; gap:8px; }
+        .flash-error { background:rgba(239,68,68,.1); border-left:4px solid #ef4444; color:#7f1d1d; }
+    </style>
+</head>
+<body class="dashboard-page">
+
+<!-- ── Navbar ── -->
+<header class="dash-nav">
+    <div class="nav-left">
+        <div class="logo">
+            <a href="/home" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+        </div>
+        <nav class="dash-menu">
+            <a href="{{ url_for('home_page') }}">Dashboard</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+            <div class="dropdown">
+                <a href="#">Tasks ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                    <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <a href="#">Accounts ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                    <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                    <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+                </div>
+            </div>
+            <a href="{{ url_for('products.products_list') }}" class="active">Products</a>
+            <div class="dropdown">
+                <a href="#">Settings ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                </div>
+            </div>
+        </nav>
+    </div>
+    <div class="user-profile">
+        <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+        <div class="profile-dropdown">
+            <div class="profile-trigger">
+                <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+            </div>
+            <div class="profile-dropdown-content">
+                <a href="{{ url_for('auth.user_profile') }}"><span class="icon">👤</span> Manage Profile</a>
+                <a href="{{ url_for('auth.logout') }}" class="logout-link"><span class="icon">🚪</span> Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="dash-container">
+    <div class="form-page-wrap">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        {% if 'product' in category %}
+        <div class="flash-strip flash-error">✕ {{ message }}</div>
+        {% endif %}
+        {% endfor %}
+        {% endwith %}
+
+        <form method="POST" enctype="multipart/form-data" id="editProductForm">
+            <div class="form-card">
+
+                <!-- Header -->
+                <div class="form-card-header">
+                    <div>
+                        <h1 class="form-card-title">Edit Product</h1>
+                        <p class="form-card-sub">
+                            Updating: <strong>{{ product.name }}</strong>
+                            {% if product.sku %} · <span style="font-family:monospace; color:var(--text-muted);">{{ product.sku }}</span>{% endif %}
+                        </p>
+                    </div>
+                    <span class="status-pill {{ product.status_display }}">{{ product.status_display }}</span>
+                </div>
+
+                <!-- Section: Basic Info -->
+                <p class="section-label">📋 Basic Information</p>
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label for="name">Product Name <span class="req">*</span></label>
+                        <input type="text" id="name" name="name" required
+                               value="{{ product.name }}" placeholder="e.g. Clear Float Glass 6mm">
+                    </div>
+                    <div class="form-group">
+                        <label for="sku">SKU / Product Code</label>
+                        <input type="text" id="sku" name="sku"
+                               value="{{ product.sku or '' }}" placeholder="e.g. CFG-6MM">
+                        <span class="hint">Leave blank to skip SKU tracking.</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="hsn_code">HSN / SAC Code</label>
+                        <input type="text" id="hsn_code" name="hsn_code"
+                               value="{{ product.hsn_code or '' }}" placeholder="e.g. 70051090">
+                    </div>
+                    <div class="form-group">
+                        <label for="category">Category</label>
+                        <select id="category" name="category">
+                            {% for cat in categories %}
+                            <option value="{{ cat }}" {% if cat == product.category_display %}selected{% endif %}>{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Status</label>
+                        <select id="status" name="status">
+                            {% for st in statuses %}
+                            <option value="{{ st }}" {% if st == product.status_display %}selected{% endif %}>{{ st }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group full">
+                        <label for="description">Description</label>
+                        <textarea id="description" name="description"
+                                  placeholder="Brief description of the product…">{{ product.description or '' }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="tags">Tags</label>
+                        <input type="text" id="tags" name="tags"
+                               value="{{ product.tags or '' }}" placeholder="e.g. tempered, safety, clear">
+                        <span class="hint">Comma-separated keywords.</span>
+                    </div>
+                </div>
+
+                <div class="form-divider"></div>
+
+                <!-- Section: Pricing -->
+                <p class="section-label">💰 Pricing &amp; Tax</p>
+                <div class="form-grid triple">
+                    <div class="form-group">
+                        <label for="selling_price">Selling Price (₹) <span class="req">*</span></label>
+                        <input type="number" id="selling_price" name="selling_price"
+                               step="0.01" min="0" required value="{{ product.selling_price }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="cost_price">Cost Price (₹)</label>
+                        <input type="number" id="cost_price" name="cost_price"
+                               step="0.01" min="0" value="{{ product.cost_price }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="min_price">Minimum Price (₹)</label>
+                        <input type="number" id="min_price" name="min_price"
+                               step="0.01" min="0"
+                               value="{{ product.min_price if product.min_price is not none else '' }}"
+                               placeholder="Optional floor price">
+                    </div>
+                    <div class="form-group">
+                        <label for="gst_rate">GST Rate (%)</label>
+                        <select id="gst_rate" name="gst_rate">
+                            <option value="0"  {% if product.gst_rate == 0  %}selected{% endif %}>0% (Exempt)</option>
+                            <option value="5"  {% if product.gst_rate == 5  %}selected{% endif %}>5%</option>
+                            <option value="12" {% if product.gst_rate == 12 %}selected{% endif %}>12%</option>
+                            <option value="18" {% if product.gst_rate == 18 %}selected{% endif %}>18%</option>
+                            <option value="28" {% if product.gst_rate == 28 %}selected{% endif %}>28%</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="unit">Unit of Measure</label>
+                        <select id="unit" name="unit">
+                            {% for u in units %}
+                            <option value="{{ u }}" {% if u == product.unit %}selected{% endif %}>{{ u }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- Live margin display -->
+                    <div class="form-group">
+                        <label>Calculated Margin</label>
+                        <div id="marginDisplay"
+                             style="padding:.75rem 1rem; border-radius:8px; background:#f8fafc; border:1px solid rgba(13,27,42,.08); font-weight:700; font-size:1rem; color:var(--primary-color);">
+                            —
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-divider"></div>
+
+                <!-- Section: Stock -->
+                <p class="section-label">📦 Stock / Inventory</p>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="stock_quantity">Current Stock Quantity</label>
+                        <input type="number" id="stock_quantity" name="stock_quantity"
+                               step="0.01" min="0" value="{{ product.stock_quantity }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="min_stock_alert">Low Stock Alert Threshold</label>
+                        <input type="number" id="min_stock_alert" name="min_stock_alert"
+                               step="0.01" min="0"
+                               value="{{ product.min_stock_alert if product.min_stock_alert is not none else '' }}"
+                               placeholder="e.g. 10">
+                        <span class="hint">Warn when stock drops below this value.</span>
+                    </div>
+                </div>
+
+                <div class="form-divider"></div>
+
+                <!-- Section: Image -->
+                <p class="section-label">🖼 Product Image</p>
+
+                {% if product.image %}
+                <div class="current-image-wrap">
+                    <div class="current-image-thumb">
+                        <img src="{{ url_for('static', filename='uploads/products/' + product.image) }}"
+                             alt="{{ product.name }}">
+                    </div>
+                    <div class="current-image-info">
+                        <p>Current image</p>
+                        <span>{{ product.image }}</span>
+                    </div>
+                </div>
+                <p style="font-size:.82rem; color:var(--text-muted); margin:0 0 .75rem;">
+                    Upload a new image below to replace the current one, or leave blank to keep it.
+                </p>
+                {% endif %}
+
+                <div class="image-upload-area" id="uploadArea"
+                     onclick="document.getElementById('imageFile').click()">
+                    <div class="upload-icon">📷</div>
+                    <p>Click to upload a new image (PNG, JPG, WebP)</p>
+                    <img id="imagePreview" src="#" alt="Preview">
+                </div>
+                <input type="file" id="imageFile" name="image" accept="image/*"
+                       style="display:none" onchange="previewImage(this)">
+
+                <div class="form-divider"></div>
+
+                <!-- Notes -->
+                <p class="section-label">📝 Internal Notes</p>
+                <div class="form-group">
+                    <textarea id="notes" name="notes"
+                              placeholder="Any internal remarks about this product…"
+                              style="min-height:80px;">{{ product.notes or '' }}</textarea>
+                </div>
+
+                <!-- Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn-action gold">✓ &nbsp;Save Changes</button>
+                    <a href="{{ url_for('products.view_product', product_id=product.id) }}"
+                       class="btn-action outline"
+                       style="text-decoration:none; border:1px solid var(--primary-color); color:var(--primary-color);">
+                        Cancel
+                    </a>
+                    {% if current_user.role.value in ['admin', 'manager'] %}
+                    <form action="{{ url_for('products.delete_product', product_id=product.id) }}"
+                          method="POST" style="margin:0;"
+                          onsubmit="return confirm('Delete this product permanently?')">
+                        <button type="submit" class="btn-action"
+                                style="background:rgba(239,68,68,.08); color:#dc2626; border:1px solid rgba(239,68,68,.2);">
+                            🗑 Delete
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+
+            </div>
+        </form>
+
+    </div>
+</main>
+
+<script>
+function previewImage(input) {
+    const preview = document.getElementById('imagePreview');
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function updateMargin() {
+    const sell = parseFloat(document.getElementById('selling_price').value) || 0;
+    const cost = parseFloat(document.getElementById('cost_price').value) || 0;
+    const display = document.getElementById('marginDisplay');
+    if (cost > 0) {
+        const margin = ((sell - cost) / cost * 100).toFixed(1);
+        display.textContent = (margin >= 0 ? '+' : '') + margin + '%';
+        display.style.color = margin >= 0 ? '#059669' : '#dc2626';
+    } else {
+        display.textContent = '—';
+        display.style.color = 'var(--primary-color)';
+    }
+}
+
+// Run on load to show initial margin
+updateMargin();
+document.getElementById('selling_price').addEventListener('input', updateMargin);
+document.getElementById('cost_price').addEventListener('input', updateMargin);
+</script>
+</body>
+</html>

@@ -851,3 +851,93 @@ class QuotationTaxSummary(db.Model):
 
     def __repr__(self):
         return f'<QuotationTaxSummary quotation={self.quotation_id} rate={self.gst_rate}%>'
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PRODUCTS / CATALOGUE
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class ProductCategory(Enum):
+    GLASS = "Glass"
+    HARDWARE = "Hardware"
+    MIRROR = "Mirror"
+    ALUMINIUM = "Aluminium"
+    ACCESSORIES = "Accessories"
+    RAW_MATERIAL = "Raw Material"
+    OTHER = "Other"
+
+
+class ProductStatus(Enum):
+    ACTIVE = "Active"
+    INACTIVE = "Inactive"
+    DISCONTINUED = "Discontinued"
+
+
+class Product(db.Model):
+    __tablename__ = 'product'
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Identity
+    name = db.Column(db.String(200), nullable=False)
+    sku = db.Column(db.String(50), nullable=True, index=True)          # Stock Keeping Unit code
+    description = db.Column(db.Text, nullable=True)
+    image = db.Column(db.String(255), nullable=True)                    # Stored image filename
+
+    # Classification
+    category = db.Column(db.Enum(ProductCategory, values_callable=lambda x: [e.value for e in x]),
+                         default=ProductCategory.OTHER)
+    unit = db.Column(db.String(30), nullable=True, default='Sq.Ft')    # Sq.Ft, Pcs, Rft, Kg …
+    status = db.Column(db.Enum(ProductStatus, values_callable=lambda x: [e.value for e in x]),
+                       default=ProductStatus.ACTIVE, index=True)
+
+    # Pricing
+    cost_price = db.Column(db.Float, default=0.0)                      # Purchase/cost price
+    selling_price = db.Column(db.Float, default=0.0)                   # Default selling/rate
+    min_price = db.Column(db.Float, nullable=True)                     # Floor price (optional)
+    gst_rate = db.Column(db.Float, default=18.0)                       # GST %
+    hsn_code = db.Column(db.String(20), nullable=True)                 # HSN/SAC code for GST
+
+    # Stock
+    stock_quantity = db.Column(db.Float, default=0.0)
+    min_stock_alert = db.Column(db.Float, nullable=True)               # Alert when stock < this
+
+    # Additional info
+    notes = db.Column(db.Text, nullable=True)
+    tags = db.Column(db.String(255), nullable=True)                     # Comma-separated tags
+
+    # Multi-tenant
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False, index=True)
+
+    # Audit
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(),
+                           onupdate=db.func.current_timestamp())
+    created_by = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False)
+
+    # Relationships
+    organization = db.relationship('Organization', backref=db.backref('products', lazy='dynamic'))
+    creator = db.relationship('Employee', foreign_keys=[created_by], backref='products_created')
+
+    @property
+    def category_display(self):
+        return self.category.value if self.category else 'Other'
+
+    @property
+    def status_display(self):
+        return self.status.value if self.status else 'Active'
+
+    @property
+    def margin_percent(self):
+        if self.cost_price and self.cost_price > 0:
+            return round(((self.selling_price - self.cost_price) / self.cost_price) * 100, 1)
+        return None
+
+    @property
+    def is_low_stock(self):
+        if self.min_stock_alert is not None:
+            return self.stock_quantity <= self.min_stock_alert
+        return False
+
+    def __repr__(self):
+        return f'<Product {self.name}>'

@@ -18,6 +18,7 @@ from routes.accounts import accounts
 from routes.expenses import expenses_bp
 from routes.quotations import quotations_bp
 from routes.quotation_settings import quotation_settings_bp
+from routes.products import products_bp
 
 app = Flask(__name__, template_folder='templates')
 app.config.from_object(Config)
@@ -74,6 +75,7 @@ app.register_blueprint(accounts)
 app.register_blueprint(expenses_bp)
 app.register_blueprint(quotations_bp)
 app.register_blueprint(quotation_settings_bp)
+app.register_blueprint(products_bp)
 
 @login_manager.user_loader
 def load_user(user_id):

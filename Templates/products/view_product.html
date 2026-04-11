@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Product | GlassEntials</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .view-wrap { max-width:1000px; margin:2.5rem auto; padding:0 1.5rem; }
+
+        /* Hero card */
+        .product-hero {
+            background:#fff; border-radius:20px; overflow:hidden;
+            box-shadow:0 8px 40px rgba(13,27,42,.08); border:1px solid rgba(13,27,42,.06);
+            margin-bottom:1.5rem;
+        }
+        .hero-banner {
+            height:180px; background:linear-gradient(135deg, #0d1b2a 0%, #1a3050 60%, #0d1b2a 100%);
+            display:flex; align-items:flex-end; padding:0 2rem 0;
+            position:relative; overflow:hidden;
+        }
+        .hero-banner::before {
+            content:''; position:absolute; inset:0;
+            background:radial-gradient(circle at 30% 50%, rgba(212,175,55,.15) 0%, transparent 60%);
+        }
+        .hero-image {
+            width:110px; height:110px; border-radius:16px; object-fit:cover;
+            border:3px solid rgba(212,175,55,.4); background:#f1f5f9;
+            position:relative; z-index:1; margin-bottom:-40px;
+            display:flex; align-items:center; justify-content:center; font-size:3rem;
+            box-shadow:0 8px 30px rgba(0,0,0,.3);
+        }
+        .hero-image img { width:100%; height:100%; object-fit:cover; border-radius:14px; }
+        .hero-meta { position:absolute; right:2rem; bottom:1.5rem; text-align:right; z-index:1; }
+        .hero-meta .sku-code { font-size:.8rem; color:rgba(255,255,255,.5); font-family:monospace; letter-spacing:.1em; }
+        .hero-body { padding:3rem 2rem 2rem; }
+        .hero-name { font-size:1.7rem; font-weight:800; color:var(--primary-color); margin:0 0 6px; }
+
+        /* Badges row */
+        .badges-row { display:flex; gap:.75rem; flex-wrap:wrap; margin:1rem 0 0; }
+        .badge-pill { padding:.4rem 1rem; border-radius:20px; font-size:.75rem; font-weight:700; }
+        .badge-cat  { background:rgba(13,27,42,.06); color:var(--primary-color); }
+        .badge-active{ background:rgba(16,185,129,.1); color:#059669; }
+        .badge-inactive { background:rgba(100,116,139,.1); color:#475569; }
+        .badge-discontinued { background:rgba(239,68,68,.1); color:#dc2626; }
+        .badge-lowstock { background:rgba(239,68,68,.08); color:#dc2626; border:1px solid rgba(239,68,68,.2); }
+
+        /* Metrics strip */
+        .metrics-strip {
+            display:grid; grid-template-columns:repeat(4,1fr); gap:1rem;
+            margin-bottom:1.5rem;
+        }
+        .metric-card {
+            background:#fff; border-radius:14px; padding:1.4rem 1.6rem;
+            border:1px solid rgba(13,27,42,.06); box-shadow:0 4px 16px rgba(0,0,0,.04);
+            text-align:center;
+        }
+        .metric-card .mvalue { font-size:1.6rem; font-weight:800; color:var(--primary-color); }
+        .metric-card .mlabel { font-size:.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
+        .metric-card .msub   { font-size:.78rem; color:var(--text-muted); margin-top:2px; }
+
+        /* Detail grid */
+        .detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; }
+        .detail-card {
+            background:#fff; border-radius:16px; padding:1.8rem;
+            border:1px solid rgba(13,27,42,.06); box-shadow:0 4px 16px rgba(0,0,0,.04);
+        }
+        .detail-card h3 { font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted); margin:0 0 1.2rem; }
+        .detail-row { display:flex; justify-content:space-between; align-items:center; padding:.6rem 0; border-bottom:1px solid rgba(13,27,42,.05); }
+        .detail-row:last-child { border-bottom:none; }
+        .detail-row label { font-size:.82rem; color:var(--text-muted); font-weight:600; }
+        .detail-row span  { font-size:.9rem; font-weight:700; color:var(--primary-color); text-align:right; }
+
+        /* Stock adjust */
+        .stock-form {
+            background:#fff; border-radius:16px; padding:1.8rem;
+            border:1px solid rgba(13,27,42,.06); box-shadow:0 4px 16px rgba(0,0,0,.04);
+            margin-bottom:1.5rem;
+        }
+        .stock-form h3 { font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted); margin:0 0 1rem; }
+        .stock-adjust-row { display:flex; gap:.75rem; align-items:center; }
+        .adj-btn { padding:.7rem 1.2rem; border-radius:8px; font-weight:700; font-size:.9rem; cursor:pointer; border:none; transition:all .2s; }
+        .adj-add { background:rgba(16,185,129,.1); color:#059669; }
+        .adj-add:hover { background:#059669; color:#fff; }
+        .adj-rem { background:rgba(239,68,68,.1); color:#dc2626; }
+        .adj-rem:hover { background:#dc2626; color:#fff; }
+
+        /* Actions bar */
+        .actions-bar { display:flex; gap:1rem; margin-bottom:1.5rem; }
+
+        /* Flash */
+        .flash-strip { padding:12px 18px; border-radius:8px; margin-bottom:1.5rem; font-weight:600; font-size:.9rem; }
+        .flash-success { background:rgba(16,185,129,.1); border-left:4px solid #10b981; color:#065f46; }
+        .flash-error   { background:rgba(239,68,68,.1); border-left:4px solid #ef4444; color:#7f1d1d; }
+    </style>
+</head>
+<body class="dashboard-page">
+
+<!-- Navbar -->
+<header class="dash-nav">
+    <div class="nav-left">
+        <div class="logo">
+            <a href="/home" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+        </div>
+        <nav class="dash-menu">
+            <a href="{{ url_for('home_page') }}">Dashboard</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
+            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
+            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+            <div class="dropdown">
+                <a href="#">Tasks ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                    <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <a href="#">Accounts ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+                    <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                    <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+                </div>
+            </div>
+            <a href="{{ url_for('products.products_list') }}" class="active">Products</a>
+            <div class="dropdown">
+                <a href="#">Settings ▾</a>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                </div>
+            </div>
+        </nav>
+    </div>
+    <div class="user-profile">
+        <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+        <div class="profile-dropdown">
+            <div class="profile-trigger">
+                <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+            </div>
+            <div class="profile-dropdown-content">
+                <a href="{{ url_for('auth.user_profile') }}"><span class="icon">👤</span> Manage Profile</a>
+                <a href="{{ url_for('auth.logout') }}" class="logout-link"><span class="icon">🚪</span> Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="dash-container">
+<div class="view-wrap">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    {% if 'product' in category %}
+    <div class="flash-strip {{ 'flash-success' if 'success' in category else 'flash-error' }}">
+        {{ '✓' if 'success' in category else '✕' }}&nbsp;{{ message }}
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endwith %}
+
+    <!-- Action Buttons -->
+    <div class="actions-bar">
+        <a href="{{ url_for('products.products_list') }}" class="btn-action outline"
+           style="text-decoration:none; border:1px solid var(--primary-color); color:var(--primary-color); font-size:.85rem;">
+            ← Back to Catalogue
+        </a>
+        <a href="{{ url_for('products.edit_product', product_id=product.id) }}" class="btn-action dark"
+           style="text-decoration:none; font-size:.85rem;">
+            ✏️ Edit Product
+        </a>
+        {% if current_user.role.value in ['admin', 'manager'] %}
+        <form action="{{ url_for('products.delete_product', product_id=product.id) }}" method="POST"
+              onsubmit="return confirm('Permanently delete this product?')" style="margin:0;">
+            <button type="submit" class="btn-action"
+                    style="background:rgba(239,68,68,.08); color:#dc2626; border:1px solid rgba(239,68,68,.2); font-size:.85rem;">
+                🗑 Delete
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    <!-- Hero Card -->
+    <div class="product-hero">
+        <div class="hero-banner">
+            <div class="hero-meta">
+                {% if product.sku %}
+                <div class="sku-code">SKU: {{ product.sku }}</div>
+                {% endif %}
+                <div style="color:rgba(255,255,255,.3); font-size:.75rem;">{{ product.category_display }}</div>
+            </div>
+        </div>
+        <div class="hero-body">
+            <div style="display:flex; gap:1.5rem; align-items:flex-start;">
+                <div class="hero-image" style="flex-shrink:0; margin-top:-80px;">
+                    {% if product.image %}
+                        <img src="{{ url_for('static', filename='uploads/products/' + product.image) }}" alt="{{ product.name }}">
+                    {% else %}
+                        📦
+                    {% endif %}
+                </div>
+                <div style="flex:1; padding-top:.5rem;">
+                    <h1 class="hero-name">{{ product.name }}</h1>
+                    {% if product.description %}
+                    <p style="color:var(--text-muted); font-size:.9rem; margin:.5rem 0 0; line-height:1.6;">{{ product.description }}</p>
+                    {% endif %}
+                    <div class="badges-row">
+                        <span class="badge-pill badge-cat">{{ product.category_display }}</span>
+                        <span class="badge-pill {{ 'badge-active' if product.status_display == 'Active' else ('badge-inactive' if product.status_display == 'Inactive' else 'badge-discontinued') }}">
+                            {{ product.status_display }}
+                        </span>
+                        {% if product.unit %}<span class="badge-pill" style="background:rgba(59,130,246,.08); color:#1d4ed8;">📐 {{ product.unit }}</span>{% endif %}
+                        {% if product.tags %}
+                        {% for tag in product.tags.split(',') %}
+                        <span class="badge-pill" style="background:rgba(139,92,246,.08); color:#7c3aed;">{{ tag.strip() }}</span>
+                        {% endfor %}
+                        {% endif %}
+                        {% if product.is_low_stock %}<span class="badge-pill badge-lowstock">⚠ Low Stock</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metrics Strip -->
+    <div class="metrics-strip">
+        <div class="metric-card">
+            <div class="mvalue" style="color:var(--accent-gold);">₹{{ "{:,.2f}".format(product.selling_price) }}</div>
+            <div class="mlabel">Selling Price</div>
+        </div>
+        <div class="metric-card">
+            <div class="mvalue">₹{{ "{:,.2f}".format(product.cost_price) }}</div>
+            <div class="mlabel">Cost Price</div>
+        </div>
+        <div class="metric-card">
+            {% if product.margin_percent is not none %}
+            <div class="mvalue {{ 'margin-pos' if product.margin_percent >= 0 else 'margin-neg' }}"
+                 style="color:{{ '#059669' if product.margin_percent >= 0 else '#dc2626' }};">
+                {{ '%+.1f' % product.margin_percent }}%
+            </div>
+            {% else %}
+            <div class="mvalue">—</div>
+            {% endif %}
+            <div class="mlabel">Gross Margin</div>
+        </div>
+        <div class="metric-card">
+            <div class="mvalue {{ '' if not product.is_low_stock else 'low' }}"
+                 style="{{ 'color:#dc2626;' if product.is_low_stock else '' }}">
+                {{ product.stock_quantity }}
+            </div>
+            <div class="mlabel">Stock Qty ({{ product.unit or 'Units' }})</div>
+            {% if product.min_stock_alert %}
+            <div class="msub">Alert at: {{ product.min_stock_alert }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Detail Grid -->
+    <div class="detail-grid">
+        <!-- Pricing Details -->
+        <div class="detail-card">
+            <h3>💰 Pricing & Tax</h3>
+            <div class="detail-row"><label>Selling Price</label><span>₹{{ "{:,.2f}".format(product.selling_price) }} / {{ product.unit }}</span></div>
+            <div class="detail-row"><label>Cost Price</label><span>₹{{ "{:,.2f}".format(product.cost_price) }}</span></div>
+            {% if product.min_price %}<div class="detail-row"><label>Min / Floor Price</label><span>₹{{ "{:,.2f}".format(product.min_price) }}</span></div>{% endif %}
+            <div class="detail-row"><label>GST Rate</label><span>{{ product.gst_rate }}%</span></div>
+            {% if product.hsn_code %}<div class="detail-row"><label>HSN / SAC Code</label><span style="font-family:monospace;">{{ product.hsn_code }}</span></div>{% endif %}
+        </div>
+
+        <!-- Product Details -->
+        <div class="detail-card">
+            <h3>📋 Product Details</h3>
+            <div class="detail-row"><label>Category</label><span>{{ product.category_display }}</span></div>
+            <div class="detail-row"><label>Unit of Measure</label><span>{{ product.unit or '—' }}</span></div>
+            {% if product.sku %}<div class="detail-row"><label>SKU Code</label><span style="font-family:monospace;">{{ product.sku }}</span></div>{% endif %}
+            <div class="detail-row"><label>Status</label><span>{{ product.status_display }}</span></div>
+            <div class="detail-row"><label>Added</label><span>{{ product.created_at.strftime('%d %b %Y') if product.created_at else '—' }}</span></div>
+            {% if product.creator %}<div class="detail-row"><label>Added By</label><span>{{ product.creator.name }}</span></div>{% endif %}
+        </div>
+    </div>
+
+    <!-- Stock Adjustment -->
+    <div class="stock-form">
+        <h3>📦 Adjust Stock</h3>
+        <form action="{{ url_for('products.adjust_stock', product_id=product.id) }}" method="POST">
+            <div class="stock-adjust-row">
+                <input type="number" name="adjustment" id="adjInput" step="0.01" placeholder="Enter qty (+ to add, - to remove)"
+                       style="flex:1; padding:.75rem 1rem; border:1px solid rgba(13,27,42,.12); border-radius:8px; font-family:var(--font-body); font-size:.9rem; outline:none;">
+                <button type="submit" class="adj-btn adj-add" onclick="setAdj(1)">＋ Add Stock</button>
+                <button type="button" class="adj-btn adj-rem" onclick="submitNeg()">− Remove Stock</button>
+            </div>
+            <p style="font-size:.78rem; color:var(--text-muted); margin:.5rem 0 0;">
+                Current stock: <strong>{{ product.stock_quantity }} {{ product.unit or '' }}</strong>
+            </p>
+        </form>
+    </div>
+
+    <!-- Notes -->
+    {% if product.notes %}
+    <div class="detail-card" style="margin-bottom:1.5rem;">
+        <h3>📝 Internal Notes</h3>
+        <p style="color:var(--primary-color); font-size:.9rem; line-height:1.7; margin:0;">{{ product.notes }}</p>
+    </div>
+    {% endif %}
+
+</div>
+</main>
+
+<script>
+function submitNeg() {
+    const val = parseFloat(document.getElementById('adjInput').value) || 0;
+    document.getElementById('adjInput').value = -Math.abs(val || 1);
+    document.getElementById('adjInput').form.submit();
+}
+
+setTimeout(() => {
+    document.querySelectorAll('.flash-strip').forEach(el => {
+        el.style.transition = 'opacity .5s';
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 500);
+    });
+}, 3500);
+</script>
+</body>
+</html>
