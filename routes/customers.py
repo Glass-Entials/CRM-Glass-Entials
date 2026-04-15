@@ -288,7 +288,7 @@ def bulk_upload():
             flash(f'Upload error: {str(e)}', 'customererror')
     return render_template('customer/bulkuploadcustomer.html')
 
-@customers_bp.route('/upload-document/<int:customer_id>', methods=['POST'])
+@customers_bp.route('/customer-document/upload/<int:customer_id>', methods=['POST'])
 @login_required
 def upload_document(customer_id):
     customer = Customer.query.filter_by(id=customer_id, organization_id=current_user.organization_id).first_or_404()
@@ -332,7 +332,7 @@ def upload_document(customer_id):
         flash(f'Document "{original_filename}" uploaded successfully!', 'customersuccess')
         return redirect(url_for('customers.view_customer', customer_id=customer_id))
 
-@customers_bp.route('/download-document/<int:doc_id>')
+@customers_bp.route('/customer-document/download/<int:doc_id>')
 @login_required
 def download_document(doc_id):
     doc = CustomerDocument.query.filter_by(id=doc_id, organization_id=current_user.organization_id).first_or_404()
@@ -344,7 +344,7 @@ def download_document(doc_id):
         
     return send_file(file_path, as_attachment=True, download_name=doc.original_name)
 
-@customers_bp.route('/delete-document/<int:doc_id>', methods=['POST'])
+@customers_bp.route('/customer-document/delete/<int:doc_id>', methods=['POST'])
 @login_required
 def delete_document(doc_id):
     doc = CustomerDocument.query.filter_by(id=doc_id, organization_id=current_user.organization_id).first_or_404()
