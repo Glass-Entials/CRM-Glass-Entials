@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 const CONFIG = window.QE_CONFIG || { calcUrl: '', defaultGst: 18, isIgst: false, mode: 'create' };
 
 // Elements
-const form = document.getElementById('quotation-main-form');
+const form = document.getElementById('quotation-main-form') || document.getElementById('invoice-main-form');
 const itemsBody = document.getElementById('items-tbody');
 const templateRow = document.getElementById('item-row-template');
 const btnAddRow = document.getElementById('btn-add-row');
@@ -151,17 +151,58 @@ function calculateRowArea(row) {
   let formula = row.querySelector('.input-formula')?.value || 'standard';
 
   let area = 0;
-  // If Square foot or Square meter logic
+  
   if (['Sq.Ft', 'Sq.M'].includes(unit)) {
-    area = w * h; // Customize division here if inches
+    const dimUnit = document.getElementById('global-dim-unit')?.value || 'Inches';
+    let rawArea = w * h;
+    let areaSqFt = rawArea;
+
+    // First convert raw input area into Sq.Ft
+    if (dimUnit === 'Inches') {
+       areaSqFt = rawArea / 144.0;
+    } else if (dimUnit === 'cm') {
+       areaSqFt = rawArea / 929.0304;
+    } else if (dimUnit === 'mm') {
+       areaSqFt = rawArea / 92903.04;
+    } // if Feet, it's already Sq.Ft equivalent
+
+    // Now convert Sq.Ft to target billing unit, if necessary
+    if (unit === 'Sq.M') {
+        area = areaSqFt / 10.76391;
+    } else {
+        area = areaSqFt;
+    }
+    
+    // Apply special rounding formulas if chosen
+    if (formula === 'round_05') {
+        area = Math.ceil(area * 2) / 2;
+    } else if (formula === 'minimal_1') {
+        area = Math.max(1.0, area);
+    }
+
     if (areaVal) areaVal.textContent = area.toFixed(2);
     // Auto-fill chargeable quantity
     if (area > 0 && !cQtyInput.dataset.manual) {
       cQtyInput.value = area.toFixed(2);
     }
   } else {
+    // Other units like Pcs, Nos, RFT
     if (areaVal) areaVal.textContent = '—';
+    if (!cQtyInput.dataset.manual) {
+      // Typically for Pieces/Nos, Chargeable Qty matches the pure quantity
+      const qty = parseFloat(row.querySelector('.item-qty').value) || 1;
+      cQtyInput.value = qty.toFixed(2);
+    }
   }
+}
+
+// Ensure changing global unit triggers recalculation
+const globalDimUnit = document.getElementById('global-dim-unit');
+if (globalDimUnit) {
+  globalDimUnit.addEventListener('change', () => {
+    document.querySelectorAll('.erp-item-row').forEach(r => calculateRowArea(r));
+    scheduleRecalculate();
+  });
 }
 
 // Attach listeners to existing rows (edit mode)

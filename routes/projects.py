@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from model import db, Project, Employee, Customer, ProjectStatus, ProjectWorkType, ProjectCategory
 from utils.activity import log_activity
+from utils.notifications import create_notification
 
 projects_bp = Blueprint('projects', __name__)
 
@@ -51,7 +52,34 @@ def add_project():
         try:
             db.session.add(new_project)
             db.session.flush()
+            
+            # Notification for assignment
+            if assigned_to_id:
+                create_notification(
+                    recipient_id=assigned_to_id,
+                    title="New Project Assigned",
+                    message=f"You have been assigned a new project: {new_project.name}",
+                    link=url_for('projects.view_project', project_id=new_project.id),
+                    sender_id=current_user.employee.id,
+                    organization_id=org_id
+                )
+
             log_activity('project_added', 'project', new_project.name, org_id, current_user.employee.id, new_project.id)
+            
+            # Handle file upload if present
+            if 'file' in request.files:
+                file = request.files['file']
+                if file and file.filename != '':
+                    from utils.documents import handle_file_upload
+                    handle_file_upload(
+                        file=file,
+                        entity_type='project',
+                        entity_id=new_project.id,
+                        organization_id=org_id,
+                        uploader_id=current_user.employee.id if current_user.employee else None,
+                        description=f"Initial project document: {new_project.name}"
+                    )
+
             db.session.commit()
             flash('Project created successfully!', 'projectsuccess')
             return redirect(url_for('projects.projects_list'))
@@ -77,23 +105,50 @@ def edit_project(project_id):
     if request.method == 'POST':
         project.name = request.form.get('name', '').strip()
         project.description = request.form.get('description', '').strip()
-        
         assigned_to_id = request.form.get('assigned_to')
-        project.assigned_to = int(assigned_to_id) if assigned_to_id and assigned_to_id != 'unassigned' else None
-        
         customer_id = request.form.get('customer_id')
         project.customer_id = int(customer_id) if customer_id and customer_id != 'none' else None
 
         status_map = {e.value: e for e in ProjectStatus}
         work_type_map = {e.value: e for e in ProjectWorkType}
         category_map = {e.value: e for e in ProjectCategory}
-        project.status = status_map.get(request.form.get('status'), ProjectStatus.PLANNING)
-        project.work_type = work_type_map.get(request.form.get('work_type'), ProjectWorkType.GLASS)
-        project.category = category_map.get(request.form.get('category'), ProjectCategory.COMMERCIAL)
-        project.updated_by = current_user.employee.id
-
+        
         try:
+            # Check if assignment changed
+            old_assignee = project.assigned_to
+            project.assigned_to = int(assigned_to_id) if assigned_to_id and assigned_to_id != 'unassigned' else None
+            
+            project.status = status_map.get(request.form.get('status'), ProjectStatus.PLANNING)
+            project.work_type = work_type_map.get(request.form.get('work_type'), ProjectWorkType.GLASS)
+            project.category = category_map.get(request.form.get('category'), ProjectCategory.COMMERCIAL)
+            project.updated_by = current_user.employee.id
+
+            if project.assigned_to and project.assigned_to != old_assignee:
+                create_notification(
+                    recipient_id=project.assigned_to,
+                    title="Project Assigned to You",
+                    message=f"Project '{project.name}' has been assigned to you.",
+                    link=url_for('projects.view_project', project_id=project.id),
+                    sender_id=current_user.employee.id,
+                    organization_id=org_id
+                )
+
             log_activity('project_updated', 'project', project.name, org_id, current_user.employee.id, project.id)
+
+            # Handle file upload if present
+            if 'file' in request.files:
+                file = request.files['file']
+                if file and file.filename != '':
+                    from utils.documents import handle_file_upload
+                    handle_file_upload(
+                        file=file,
+                        entity_type='project',
+                        entity_id=project.id,
+                        organization_id=org_id,
+                        uploader_id=current_user.employee.id if current_user.employee else None,
+                        description=f"Updated project document: {project.name}"
+                    )
+
             db.session.commit()
             flash('Project updated successfully!', 'projectsuccess')
             return redirect(url_for('projects.projects_list'))

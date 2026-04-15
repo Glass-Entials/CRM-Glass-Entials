@@ -1,511 +1,600 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Profile | GlassEntials</title>
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-    <style>
-        .flash-message { padding: 1rem; border-radius: 8px; margin-bottom: 2rem; border-width: 1px; border-style: solid; }
-        .flash-message.success { background: #ecfdf5; color: #059669; border-color: #10b981; }
-        .flash-message.error { background: #fef2f2; color: #dc2626; border-color: #f87171; }
-        
-        .stats-ribbon { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2.5rem; }
-        .stat-card-mini { background: #fff; padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(13, 27, 42, 0.05); text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
-        .stat-card-mini .stat-value { display: block; font-size: 1.8rem; font-weight: 700; color: var(--primary-color); margin-bottom: 0.25rem; }
-        .stat-card-mini .stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
-        
-        .activity-timeline { position: relative; padding-left: 2.5rem; }
-        .activity-timeline::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: rgba(13, 27, 42, 0.08); border-radius: 2px; }
-        .activity-dot { position: absolute; left: -2.9rem; top: 0.2rem; width: 14px; height: 14px; border-radius: 50%; background: var(--accent-gold); border: 3px solid #fff; box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.1); }
-        .activity-bubble { background: #fff; padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(13, 27, 42, 0.05); box-shadow: 0 4px 15px rgba(0,0,0,0.02); margin-bottom: 2rem; }
+{% extends "base.html" %}
 
-        .profile-container {
-            max-width: 1200px;
-            margin: 3rem auto;
-            padding: 0 5%;
-        }
-        .profile-header {
-            display: flex;
-            align-items: center;
-            gap: 2rem;
-            margin-bottom: 3rem;
-            padding: 2rem;
-            background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            border: 1px solid rgba(212, 175, 55, 0.1);
-        }
-        .header-avatar-container { position: relative; cursor: pointer; }
-        .header-avatar {
-            width: 130px;
-            height: 130px;
-            border-radius: 50%;
-            border: 3px solid var(--accent-gold);
-            padding: 3px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            object-fit: cover;
-            transition: all 0.3s ease;
-        }
-        .header-avatar-container:hover .header-avatar {
-            filter: brightness(0.85);
-            transform: scale(1.02);
-        }
-        
-        .avatar-action-menu {
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%) translateY(10px);
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(13, 27, 42, 0.15);
-            border: 1px solid rgba(13, 27, 42, 0.08);
-            width: 180px;
-            z-index: 100;
+{% block title %}Manage Profile | GlassEntials{% endblock %}
+
+{% block extra_css %}
+<style>
+    .flash-message {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        border-width: 1px;
+        border-style: solid;
+    }
+
+    .flash-message.success {
+        background: #ecfdf5;
+        color: #059669;
+        border-color: #10b981;
+    }
+
+    .flash-message.error {
+        background: #fef2f2;
+        color: #dc2626;
+        border-color: #f87171;
+    }
+
+    .stats-ribbon {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .stat-card-mini {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid rgba(13, 27, 42, 0.05);
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    }
+
+    .stat-card-mini .stat-value {
+        display: block;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-card-mini .stat-label {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+    }
+
+    .activity-timeline {
+        position: relative;
+        padding-left: 2.5rem;
+    }
+
+    .activity-timeline::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: rgba(13, 27, 42, 0.08);
+        border-radius: 2px;
+    }
+
+    .activity-dot {
+        position: absolute;
+        left: -2.9rem;
+        top: 0.2rem;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--accent-gold);
+        border: 3px solid #fff;
+        box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.1);
+    }
+
+    .activity-bubble {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid rgba(13, 27, 42, 0.05);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+        margin-bottom: 2rem;
+    }
+
+    .profile-container {
+        max-width: 1200px;
+        margin: 3rem auto;
+        padding: 0 5%;
+    }
+
+    .profile-header {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        margin-bottom: 3rem;
+        padding: 2rem;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(212, 175, 55, 0.1);
+    }
+
+    .header-avatar-container {
+        position: relative;
+        cursor: pointer;
+    }
+
+    .header-avatar {
+        width: 130px;
+        height: 130px;
+        border-radius: 50%;
+        border: 3px solid var(--accent-gold);
+        padding: 3px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        object-fit: cover;
+        transition: all 0.3s ease;
+    }
+
+    .header-avatar-container:hover .header-avatar {
+        filter: brightness(0.85);
+        transform: scale(1.02);
+    }
+
+    .avatar-action-menu {
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%) translateY(10px);
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(13, 27, 42, 0.15);
+        border: 1px solid rgba(13, 27, 42, 0.08);
+        width: 180px;
+        z-index: 100;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .header-avatar-container.active .avatar-action-menu {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(5px);
+    }
+
+    .avatar-action-menu a,
+    .avatar-action-menu button {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0.9rem 1.25rem;
+        width: 100%;
+        border: none;
+        background: none;
+        color: var(--primary-color);
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-align: left;
+        cursor: pointer;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(13, 27, 42, 0.04);
+        transition: background 0.2s ease;
+    }
+
+    .avatar-action-menu a:hover,
+    .avatar-action-menu button:hover {
+        background: rgba(212, 175, 55, 0.05);
+        color: var(--accent-gold);
+    }
+
+    .avatar-action-menu .remove-btn {
+        color: #dc2626;
+        border-bottom: none;
+    }
+
+    .avatar-action-menu .remove-btn:hover {
+        background: rgba(220, 38, 38, 0.05);
+        color: #dc2626;
+    }
+
+    .header-info h1 {
+        font-size: 2.2rem;
+        margin-bottom: 0.5rem;
+        color: var(--primary-color);
+    }
+
+    .section-tabs {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+        border-bottom: 1px solid rgba(13, 27, 42, 0.1);
+    }
+
+    .tab-btn {
+        padding: 1rem 1.5rem;
+        background: none;
+        border: none;
+        font-family: var(--font-heading);
+        font-weight: 600;
+        color: var(--text-muted);
+        cursor: pointer;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+
+    .tab-btn.active {
+        color: var(--primary-color);
+    }
+
+    .tab-btn.active::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: var(--accent-gold);
+    }
+
+    .tab-content {
+        display: none;
+        animation: fadeIn 0.4s ease;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    @keyframes fadeIn {
+        from {
             opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(10px);
         }
-        .header-avatar-container.active .avatar-action-menu {
+
+        to {
             opacity: 1;
-            visibility: visible;
-            transform: translateX(-50%) translateY(5px);
+            transform: translateY(0);
         }
-        .avatar-action-menu a, .avatar-action-menu button {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 0.9rem 1.25rem;
-            width: 100%;
-            border: none;
-            background: none;
-            color: var(--primary-color);
-            font-size: 0.9rem;
-            font-weight: 600;
-            text-align: left;
-            cursor: pointer;
-            text-decoration: none;
-            border-bottom: 1px solid rgba(13, 27, 42, 0.04);
-            transition: background 0.2s ease;
-        }
-        .avatar-action-menu a:hover, .avatar-action-menu button:hover {
-            background: rgba(212, 175, 55, 0.05);
-            color: var(--accent-gold);
-        }
-        .avatar-action-menu .remove-btn { color: #dc2626; border-bottom: none; }
-        .avatar-action-menu .remove-btn:hover { background: rgba(220, 38, 38, 0.05); color: #dc2626; }
-        .header-info h1 {
-            font-size: 2.2rem;
-            margin-bottom: 0.5rem;
-            color: var(--primary-color);
-        }
-        .section-tabs {
-            display: flex;
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-            border-bottom: 1px solid rgba(13, 27, 42, 0.1);
-        }
-        .tab-btn {
-            padding: 1rem 1.5rem;
-            background: none;
-            border: none;
-            font-family: var(--font-heading);
-            font-weight: 600;
-            color: var(--text-muted);
-            cursor: pointer;
-            position: relative;
-            transition: all 0.3s ease;
-        }
-        .tab-btn.active {
-            color: var(--primary-color);
-        }
-        .tab-btn.active::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: var(--accent-gold);
-        }
-        .tab-content { display: none; animation: fadeIn 0.4s ease; }
-        .tab-content.active { display: block; }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+    }
 
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: #fff;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.03);
-        }
-        .data-table th {
-            text-align: left;
-            padding: 1.25rem;
-            background: var(--bg-tertiary);
-            color: var(--text-muted);
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .data-table td {
-            padding: 1.25rem;
-            border-bottom: 1px solid rgba(13, 27, 42, 0.05);
-            font-size: 0.95rem;
-        }
-        .empty-state {
-            padding: 4rem;
-            text-align: center;
-            color: var(--text-muted);
-            background: #fff;
-            border-radius: 12px;
-            border: 2px dashed rgba(13, 27, 42, 0.1);
-        }
-    </style>
-</head>
-<body class="dashboard-page">
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.03);
+    }
 
-    <!-- Top Navbar -->
-        <header class="dash-nav">
-        <div class="logo">
-            <a href="/home" class="logo-link">
-                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
-            </a>
-            <span class="crm-badge">{{ current_user.organization.name if current_user.organization else 'CRM' }}</span>
-        </div>
-        
-        <nav class="dash-menu">
-            <a href="{{ url_for('home_page') }}">Dashboard</a>
-            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
-            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
-            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
-            <div class="dropdown">
-                <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
-                    <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
-                </div>
-            </div>
-            <div class="dropdown">
-                <a href="#">Accounts ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
-                    <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
-                    <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
-                </div>
-            </div>
-            <a href="{{ url_for('products.products_list') }}" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
-            <div class="dropdown">
-                <a href="#">Settings ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
-                </div>
-            </div>
-        </nav>
-        
-                <div class="user-profile">
-            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
-            <div class="profile-dropdown">
-                <div class="profile-trigger">
-                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
-                </div>
-                <div class="profile-dropdown-content">
-                    <a href="{{ url_for('auth.user_profile') }}">
-                        <span class="icon">👤</span> Manage Profile
-                    </a>
-                    <a href="{{ url_for('auth.logout') }}" class="logout-link">
-                        <span class="icon">🚪</span> Logout
-                    </a>
-                </div>
-            </div>
-        </div>
-    </header>
-    <main class="profile-container">
-        
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(category_filter=["profilesuccess", "profileerror"]) %}
-          {% if messages %}
-            {% for message in messages %}
-            <div class="flash-message {{ 'success' if 'success' in message|lower else 'error' }}">
-                {{ message }}
-            </div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
+    .data-table th {
+        text-align: left;
+        padding: 1.25rem;
+        background: var(--bg-tertiary);
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
 
-        <div class="profile-header">
-            <div class="header-avatar-container" id="avatarTrigger" onclick="this.classList.toggle('active')">
-                <img src="{{ get_profile_pic(current_user.employee) }}" alt="Avatar" class="header-avatar">
-                <div class="avatar-action-menu">
-                    <button onclick="document.getElementById('profile_pic_input').click()">
-                        <span style="font-size: 1.1rem;">📷</span> Update Photo
-                    </button>
-                    {% if employee.profile_pic %}
-                    <a href="{{ url_for('auth.remove_profile_pic') }}" class="remove-btn">
-                        <span style="font-size: 1.1rem;">🗑️</span> Remove Photo
-                    </a>
-                    {% endif %}
-                </div>
-                <!-- Hidden Upload Form -->
-                <form id="avatarUploadForm" action="{{ url_for('auth.user_profile') }}" method="POST" enctype="multipart/form-data" style="display:none;">
-                    <input type="file" id="profile_pic_input" name="profile_pic" onchange="document.getElementById('avatarUploadForm').submit()">
-                </form>
-            </div>
-            <div class="header-info">
-                <h1>{{ employee.name }}</h1>
-                <p style="color: var(--accent-gold); font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem">{{ employee.position or 'Team Member' }}</p>
-                <p style="color: var(--text-muted); font-size: 0.95rem;">{{ current_user.organization.name }} • Staff Portal</p>
-            </div>
-            <div style="margin-left: auto;">
-                <button onclick="document.getElementById('editModal').style.display='flex'" class="btn-action gold">
-                    <span>✏️</span> Edit Profile
+    .data-table td {
+        padding: 1.25rem;
+        border-bottom: 1px solid rgba(13, 27, 42, 0.05);
+        font-size: 0.95rem;
+    }
+
+    .empty-state {
+        padding: 4rem;
+        text-align: center;
+        color: var(--text-muted);
+        background: #fff;
+        border-radius: 12px;
+        border: 2px dashed rgba(13, 27, 42, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="profile-container">
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(category_filter=["profilesuccess", "profileerror"]) %}
+    {% if messages %}
+    {% for message in messages %}
+    <div class="flash-message {{ 'success' if 'success' in message|lower else 'error' }}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="profile-header">
+        <div class="header-avatar-container" id="avatarTrigger" onclick="this.classList.toggle('active')">
+            <img src="{{ get_profile_pic(current_user.employee) }}" alt="Avatar" class="header-avatar">
+            <div class="avatar-action-menu">
+                <button onclick="document.getElementById('profile_pic_input').click()">
+                    <span style="font-size: 1.1rem;">📷</span> Update Photo
                 </button>
+                {% if employee.profile_pic %}
+                <a href="{{ url_for('auth.remove_profile_pic') }}" class="remove-btn">
+                    <span style="font-size: 1.1rem;">🗑️</span> Remove Photo
+                </a>
+                {% endif %}
             </div>
+            <!-- Hidden Upload Form -->
+            <form id="avatarUploadForm" action="{{ url_for('auth.user_profile') }}" method="POST"
+                enctype="multipart/form-data" style="display:none;">
+                <input type="file" id="profile_pic_input" name="profile_pic"
+                    onchange="document.getElementById('avatarUploadForm').submit()">
+            </form>
         </div>
-
-        <!-- Stats Ribbon -->
-        <div class="stats-ribbon">
-            <div class="stat-card-mini">
-                <span class="stat-value">{{ my_tasks|selectattr('status_display', 'equalto', 'Pending')|list|length }}</span>
-                <span class="stat-label">Tasks Pending</span>
-            </div>
-            <div class="stat-card-mini">
-                <span class="stat-value">{{ my_leads|length }}</span>
-                <span class="stat-label">My Leads</span>
-            </div>
-            <div class="stat-card-mini">
-                <span class="stat-value">{{ my_customers|length }}</span>
-                <span class="stat-label">Customers</span>
-            </div>
-            <div class="stat-card-mini">
-                <span class="stat-value">{{ my_activities|length }}</span>
-                <span class="stat-label">Total Logs</span>
-            </div>
+        <div class="header-info">
+            <h1>{{ employee.name }}</h1>
+            <p style="color: var(--accent-gold); font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem">{{
+                employee.position or 'Team Member' }}</p>
+            <p style="color: var(--text-muted); font-size: 0.95rem;">{{ current_user.organization.name }} • Staff Portal
+            </p>
         </div>
-
-        <!-- Section Tabs -->
-        <div class="section-tabs">
-            <button class="tab-btn active" onclick="openTab(event, 'tasks')">My Tasks ({{ my_tasks|length }})</button>
-            <button class="tab-btn" onclick="openTab(event, 'leads')">My Leads ({{ my_leads|length }})</button>
-            <button class="tab-btn" onclick="openTab(event, 'customers')">My Customers ({{ my_customers|length }})</button>
-            <button class="tab-btn" onclick="openTab(event, 'activities')">My Activity ({{ my_activities|length }})</button>
+        <div style="margin-left: auto;">
+            <button onclick="document.getElementById('editModal').style.display='flex'" class="btn-action gold">
+                <span>✏️</span> Edit Profile
+            </button>
         </div>
+    </div>
 
-        <!-- Tab Contents -->
-        <div id="tasks" class="tab-content active">
-            {% if my_tasks %}
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th style="width: 40%">Task</th>
-                        <th>Due Date</th>
-                        <th>Status</th>
-                        <th>Related</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for task in my_tasks %}
-                    <tr>
-                        <td>
-                            <div style="font-weight: 700; color: var(--primary-color);">
-                                <a href="{{ url_for('tasks.view_task', task_id=task.id) }}" style="text-decoration: none; color: inherit;">{{ task.title }}</a>
-                            </div>
-                            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">{{ task.description or 'No description' }}</div>
-                        </td>
-                        <td>{{ task.due_date.strftime('%d %b, %Y') if task.due_date else 'No Date' }}</td>
-                        <td>
-                            <span class="status-badge 
+    <!-- Stats Ribbon -->
+    <div class="stats-ribbon">
+        <div class="stat-card-mini">
+            <span class="stat-value">{{ my_tasks|selectattr('status_display', 'equalto', 'Pending')|list|length
+                }}</span>
+            <span class="stat-label">Tasks Pending</span>
+        </div>
+        <div class="stat-card-mini">
+            <span class="stat-value">{{ my_leads|length }}</span>
+            <span class="stat-label">My Leads</span>
+        </div>
+        <div class="stat-card-mini">
+            <span class="stat-value">{{ my_customers|length }}</span>
+            <span class="stat-label">Customers</span>
+        </div>
+        <div class="stat-card-mini">
+            <span class="stat-value">{{ my_activities|length }}</span>
+            <span class="stat-label">Total Logs</span>
+        </div>
+    </div>
+
+    <!-- Section Tabs -->
+    <div class="section-tabs">
+        <button class="tab-btn active" onclick="openTab(event, 'tasks')">My Tasks ({{ my_tasks|length }})</button>
+        <button class="tab-btn" onclick="openTab(event, 'leads')">My Leads ({{ my_leads|length }})</button>
+        <button class="tab-btn" onclick="openTab(event, 'customers')">My Customers ({{ my_customers|length }})</button>
+        <button class="tab-btn" onclick="openTab(event, 'activities')">My Activity ({{ my_activities|length }})</button>
+    </div>
+
+    <!-- Tab Contents -->
+    <div id="tasks" class="tab-content active">
+        {% if my_tasks %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 40%">Task</th>
+                    <th>Due Date</th>
+                    <th>Status</th>
+                    <th>Related</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in my_tasks %}
+                <tr>
+                    <td>
+                        <div style="font-weight: 700; color: var(--primary-color);">
+                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}"
+                                style="text-decoration: none; color: inherit;">{{ task.title }}</a>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">{{ task.description
+                            or 'No description' }}</div>
+                    </td>
+                    <td>{{ task.due_date.strftime('%d %b, %Y') if task.due_date else 'No Date' }}</td>
+                    <td>
+                        <span class="status-badge 
                                 {% if task.status_display == 'Completed' %}status-active
                                 {% elif task.status_display == 'In Progress' %}status-active
                                 {% elif task.status_display == 'Cancelled' %}status-pending
                                 {% else %}status-pending{% endif %}">
-                                {{ task.status_display }}
-                            </span>
-                        </td>
-                        <td>
-                            {% if task.lead_record %}
-                                <span style="font-size: 0.85rem; color: var(--text-muted);">Lead:</span> 
-                                <a href="/view-lead/{{ task.lead_record.id }}" style="color: var(--accent-gold); font-weight: 600; text-decoration: none;">{{ task.lead_record.name }}</a>
-                            {% elif task.project %}
-                                <span style="font-size: 0.85rem; color: var(--text-muted);">Project:</span> 
-                                <a href="/view-project/{{ task.project.id }}" style="color: var(--primary-color); font-weight: 600; text-decoration: none;">{{ task.project.name }}</a>
-                            {% else %}
-                                —
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="empty-state">
-                <span style="font-size: 3rem; opacity: 0.3;">📋</span>
-                <h3>No tasks assigned yet</h3>
-                <p>Stay tuned for updates from your manager.</p>
-            </div>
-            {% endif %}
-        </div>
-
-        <div id="leads" class="tab-content">
-            {% if my_leads %}
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Source</th>
-                        <th>Status</th>
-                        <th>Created At</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for lead in my_leads %}
-                    <tr>
-                        <td style="font-weight: 600;"><a href="/view-lead/{{ lead.id }}" style="color: inherit; text-decoration: none;">{{ lead.name }}</a></td>
-                        <td>{{ lead.source.value if lead.source else 'Other' }}</td>
-                        <td><span class="status-badge status-pending">{{ lead.status.value }}</span></td>
-                        <td>{{ lead.created_at.strftime('%d %b, %Y') }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="empty-state">
-                <span style="font-size: 3rem; opacity: 0.3;">🎯</span>
-                <h3>No leads assigned</h3>
-                <p>Check the Leads portal to browse available prospects.</p>
-            </div>
-            {% endif %}
-        </div>
-
-        <div id="customers" class="tab-content">
-            {% if my_customers %}
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Customer Name</th>
-                        <th>Company</th>
-                        <th>Stage</th>
-                        <th>Last Updated</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for customer in my_customers %}
-                    <tr>
-                        <td style="font-weight: 600;"><a href="/view-customer/{{ customer.id }}" style="color: inherit; text-decoration: none;">{{ customer.name }}</a></td>
-                        <td>{{ customer.company or '—' }}</td>
-                        <td><span class="status-badge status-active">{{ customer.status_display }}</span></td>
-                        <td>{{ customer.updated_at.strftime('%d %b, %Y') }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="empty-state">
-                <span style="font-size: 3rem; opacity: 0.3;">👥</span>
-                <h3>No active customers</h3>
-                <p>Start converting leads to grow your list.</p>
-            </div>
-            {% endif %}
-        </div>
-
-        <div id="activities" class="tab-content">
-            {% if my_activities %}
-            <div class="activity-timeline">
-                {% for act in my_activities %}
-                <div class="activity-bubble" style="position: relative;">
-                    <div class="activity-dot"></div>
-                    <div style="display:flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
-                        <div>
-                            <span style="background: rgba(13, 27, 42, 0.05); padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; color: var(--primary-color); margin-right: 10px;">{{ act.activity_type.value }}</span>
-                            {% if act.lead %}
-                            <span style="font-size: 0.9rem; color: var(--text-muted);">Lead: <a href="/view-lead/{{ act.lead.id }}" style="color: var(--accent-gold); font-weight: 600;">{{ act.lead.name }}</a></span>
-                            {% endif %}
-                        </div>
-                        <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">{{ act.created_at.strftime('%d %b, %Y • %I:%M %p') }}</span>
-                    </div>
-                    <p style="margin: 0; color: var(--primary-color); line-height: 1.6;">{{ act.description }}</p>
-                </div>
+                            {{ task.status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if task.lead_record %}
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">Lead:</span>
+                        <a href="/view-lead/{{ task.lead_record.id }}"
+                            style="color: var(--accent-gold); font-weight: 600; text-decoration: none;">{{
+                            task.lead_record.name }}</a>
+                        {% elif task.project %}
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">Project:</span>
+                        <a href="/view-project/{{ task.project.id }}"
+                            style="color: var(--primary-color); font-weight: 600; text-decoration: none;">{{
+                            task.project.name }}</a>
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                </tr>
                 {% endfor %}
-            </div>
-            {% else %}
-            <div class="empty-state">
-                <span style="font-size: 3rem; opacity: 0.3;">📜</span>
-                <h3>No activity logs</h3>
-                <p>Record your meetings and calls to track progress.</p>
-            </div>
-            {% endif %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <span style="font-size: 3rem; opacity: 0.3;">📋</span>
+            <h3>No tasks assigned yet</h3>
+            <p>Stay tuned for updates from your manager.</p>
         </div>
-
-    </main>
-
-    <!-- Edit Profile Modal -->
-    <div id="editModal" style="display:none; position: fixed; inset: 0; background: rgba(13, 27, 42, 0.6); backdrop-filter: blur(4px); z-index: 2000; align-items: center; justify-content: center;">
-        <div style="background: #fff; width: 90%; max-width: 500px; padding: 2.5rem; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); border-top: 4px solid var(--accent-gold);">
-            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                <h2 style="margin: 0; font-family: var(--font-heading); color: var(--primary-color);">Edit Your Profile</h2>
-                <button onclick="document.getElementById('editModal').style.display='none'" style="background:none; border:none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">×</button>
-            </div>
-            
-            <form action="{{ url_for('auth.user_profile') }}" method="POST" enctype="multipart/form-data">
-                <div class="form-group" style="margin-bottom: 1.25rem;">
-                    <label style="display:block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Display Name</label>
-                    <input type="text" name="name" class="form-control" value="{{ employee.name }}" required style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.1);">
-                </div>
-                <div class="form-group" style="margin-bottom: 1.25rem;">
-                    <label style="display:block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Login Username</label>
-                    <input type="text" name="username" class="form-control" value="{{ current_user.username }}" required style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.1);">
-                </div>
-                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
-                    <div class="form-group">
-                        <label style="display:block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Email Address</label>
-                        <input type="email" name="email" class="form-control" value="{{ employee.email }}" required style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.1);">
-                    </div>
-                    <div class="form-group">
-                        <label style="display:block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Phone Number</label>
-                        <input type="tel" name="phone_number" class="form-control" value="{{ employee.phone_number }}" style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.1);">
-                    </div>
-                </div>
-                <div class="form-group" style="margin-bottom: 2rem;">
-                    <label style="display:block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Position / Role</label>
-                    <input type="text" name="position" class="form-control" value="{{ employee.position or '' }}" placeholder="e.g. Sales Manager" style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.1);">
-                </div>
-                
-                <div style="display:flex; justify-content: flex-end; gap: 1rem;">
-                    <button type="button" onclick="document.getElementById('editModal').style.display='none'" class="btn-action outline" style="padding: 0.8rem 1.5rem;">Cancel</button>
-                    <button type="submit" class="btn-action dark" style="padding: 0.8rem 1.5rem;">Save Changes</button>
-                </div>
-            </form>
-        </div>
+        {% endif %}
     </div>
 
-    <script>
-        function openTab(evt, tabName) {
-            var i, tabContent, tabBtns;
-            tabContent = document.getElementsByClassName("tab-content");
-            for (i = 0; i < tabContent.length; i++) {
-                tabContent[i].classList.remove("active");
-            }
-            tabBtns = document.getElementsByClassName("tab-btn");
-            for (i = 0; i < tabBtns.length; i++) {
-                tabBtns[i].classList.remove("active");
-            }
-            document.getElementById(tabName).classList.add("active");
-            evt.currentTarget.classList.add("active");
+    <div id="leads" class="tab-content">
+        {% if my_leads %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lead in my_leads %}
+                <tr>
+                    <td style="font-weight: 600;"><a href="/view-lead/{{ lead.id }}"
+                            style="color: inherit; text-decoration: none;">{{ lead.name }}</a></td>
+                    <td>{{ lead.source.value if lead.source else 'Other' }}</td>
+                    <td><span class="status-badge status-pending">{{ lead.status.value }}</span></td>
+                    <td>{{ lead.created_at.strftime('%d %b, %Y') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <span style="font-size: 3rem; opacity: 0.3;">🎯</span>
+            <h3>No leads assigned</h3>
+            <p>Check the Leads portal to browse available prospects.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="customers" class="tab-content">
+        {% if my_customers %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Customer Name</th>
+                    <th>Company</th>
+                    <th>Stage</th>
+                    <th>Last Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in my_customers %}
+                <tr>
+                    <td style="font-weight: 600;"><a href="/view-customer/{{ customer.id }}"
+                            style="color: inherit; text-decoration: none;">{{ customer.name }}</a></td>
+                    <td>{{ customer.company or '—' }}</td>
+                    <td><span class="status-badge status-active">{{ customer.status_display }}</span></td>
+                    <td>{{ customer.updated_at.strftime('%d %b, %Y') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <span style="font-size: 3rem; opacity: 0.3;">👥</span>
+            <h3>No active customers</h3>
+            <p>Start converting leads to grow your list.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="activities" class="tab-content">
+        {% if my_activities %}
+        <div class="activity-timeline">
+            {% for act in my_activities %}
+            <div class="activity-bubble" style="position: relative;">
+                <div class="activity-dot"></div>
+                <div
+                    style="display:flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                    <div>
+                        <span
+                            style="background: rgba(13, 27, 42, 0.05); padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; color: var(--primary-color); margin-right: 10px;">{{
+                            act.activity_type.value }}</span>
+                        {% if act.lead %}
+                        <span style="font-size: 0.9rem; color: var(--text-muted);">Lead: <a
+                                href="/view-lead/{{ act.lead.id }}"
+                                style="color: var(--accent-gold); font-weight: 600;">{{ act.lead.name }}</a></span>
+                        {% endif %}
+                    </div>
+                    <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">{{
+                        act.created_at.strftime('%d %b, %Y • %I:%M %p') }}</span>
+                </div>
+                <p style="margin: 0; color: var(--primary-color); line-height: 1.6;">{{ act.description }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <span style="font-size: 3rem; opacity: 0.3;">📜</span>
+            <h3>No activity logs</h3>
+            <p>Record your meetings and calls to track progress.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</main>
+
+<!-- Edit Profile Modal -->
+<div id="editModal"
+    style="display:none; position: fixed; inset: 0; background: rgba(13, 27, 42, 0.6); backdrop-filter: blur(4px); z-index: 2000; align-items: center; justify-content: center;">
+    <div
+        style="background: #fff; width: 90%; max-width: 500px; padding: 2.5rem; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); border-top: 4px solid var(--accent-gold);">
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h2 style="margin: 0; font-family: var(--font-heading); color: var(--primary-color);">Edit Your Profile</h2>
+            <button onclick="document.getElementById('editModal').style.display='none'"
+                style="background:none; border:none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">×</button>
+        </div>
+
+        <form action="{{ url_for('auth.user_profile') }}" method="POST" enctype="multipart/form-data">
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label style="display:block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Display
+                    Name</label>
+                <input type="text" name="name" class="form-control" value="{{ employee.name }}" required
+                    style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.1);">
+            </div>
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label style="display:block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Login
+                    Username</label>
+                <input type="text" name="username" class="form-control" value="{{ current_user.username }}" required
+                    style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.1);">
+            </div>
+            <div class="form-grid"
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div class="form-group">
+                    <label style="display:block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Email
+                        Address</label>
+                    <input type="email" name="email" class="form-control" value="{{ employee.email }}" required
+                        style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.1);">
+                </div>
+                <div class="form-group">
+                    <label style="display:block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Phone
+                        Number</label>
+                    <input type="tel" name="phone_number" class="form-control" value="{{ employee.phone_number }}"
+                        style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.1);">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label style="display:block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Position /
+                    Role</label>
+                <input type="text" name="position" class="form-control" value="{{ employee.position or '' }}"
+                    placeholder="e.g. Sales Manager"
+                    style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.1);">
+            </div>
+
+            <div style="display:flex; justify-content: flex-end; gap: 1rem;">
+                <button type="button" onclick="document.getElementById('editModal').style.display='none'"
+                    class="btn-action outline" style="padding: 0.8rem 1.5rem;">Cancel</button>
+                <button type="submit" class="btn-action dark" style="padding: 0.8rem 1.5rem;">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openTab(evt, tabName) {
+        var i, tabContent, tabBtns;
+        tabContent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabContent.length; i++) {
+            tabContent[i].classList.remove("active");
         }
-    </script>
-</body>
-</html>
-
-
-
+        tabBtns = document.getElementsByClassName("tab-btn");
+        for (i = 0; i < tabBtns.length; i++) {
+            tabBtns[i].classList.remove("active");
+        }
+        document.getElementById(tabName).classList.add("active");
+        evt.currentTarget.classList.add("active");
+    }
+</script>
+{% endblock %}

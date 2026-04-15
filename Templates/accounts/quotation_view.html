@@ -143,34 +143,16 @@
   <div class="qv-document" id="print-area">
 
     <!-- Document Header -->
-    <div class="doc-header">
-      <div class="doc-company">
-        {% if settings.company_logo %}
-        <img src="{{ url_for('static', filename='uploads/logos/' + settings.company_logo) }}"
-             alt="Logo" class="doc-logo">
-        {% else %}
-        <div class="doc-logo-placeholder">GL</div>
+    <div class="doc-header" style="display:block; padding:0; border:none; background:none; margin: -10px -40px 0;">
+      <img src="{{ url_for('static', filename='img/invoice-quotation-header.png') }}"
+           alt="GlassEntials Header"
+           style="width:100%; display:block; border-radius:4px 4px 0 0; margin-bottom:0;">
+      <div class="doc-meta-info" style="padding: 12px 40px 4px; margin:0;">
+        <span>Number: <strong>{{ quotation.quotation_number }}</strong></span>
+        <span>Date: <strong>{{ quotation.issue_date.strftime('%d %B %Y') if quotation.issue_date else '—' }}</strong></span>
+        {% if quotation.due_date %}
+        <span>Valid Till: <strong>{{ quotation.due_date.strftime('%d %B %Y') }}</strong></span>
         {% endif %}
-        <div class="doc-company-info">
-          <h2>{{ settings.company_name or 'GlassEntials' }}</h2>
-          {% if settings.company_address %}<p>{{ settings.company_address }}</p>{% endif %}
-          {% if settings.company_gstin %}<p><strong>GSTIN:</strong> {{ settings.company_gstin }}</p>{% endif %}
-          {% if settings.company_pan %}<p><strong>PAN:</strong> {{ settings.company_pan }}</p>{% endif %}
-          {% if settings.company_phone %}<p>📞 {{ settings.company_phone }}</p>{% endif %}
-          {% if settings.company_email %}<p>✉ {{ settings.company_email }}</p>{% endif %}
-        </div>
-      </div>
-      <div class="doc-meta">
-        <h1 class="doc-title">{{ quotation.quotation_title or quotation.doc_type_display }}</h1>
-        <table class="doc-meta-table">
-          <tr><td>Number</td><td><strong>{{ quotation.quotation_number }}</strong></td></tr>
-          <tr><td>Date</td><td>{{ quotation.issue_date.strftime('%d %B %Y') if quotation.issue_date else '—' }}</td></tr>
-          {% if quotation.due_date %}
-          <tr><td>Valid Till</td><td>{{ quotation.due_date.strftime('%d %B %Y') }}</td></tr>
-          {% endif %}
-          {% if quotation.timeline %}<tr><td>Timeline</td><td>{{ quotation.timeline }}</td></tr>{% endif %}
-          {% if quotation.project %}<tr><td>Project</td><td>{{ quotation.project.name }}</td></tr>{% endif %}
-        </table>
       </div>
     </div>
 

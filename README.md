@@ -83,7 +83,7 @@ python app.py
 
 ## 📘 Developer Notes & Best Practices
 - **Data Integrity**: Never use `db.session.delete()`! Always use the implemented soft-delete logic (`is_deleted = True`) to maintain business history.
-- **Styling**: All global variables (colors, fonts, glass effects) are located in `static/Css/home.css`. Update the root tokens there for system-wide branding changes.
+- **Styling**: All global variables (colors, fonts, glass effects) are located in `static/css/home.css`. Update the root tokens there for system-wide branding changes.
 - **Exporting**: Always ensure the `static/templates/` folder exists for template-based downloads.
 
 ---

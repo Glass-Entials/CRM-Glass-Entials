@@ -141,14 +141,17 @@ def user_profile():
             file = request.files['profile_pic']
             if file and file.filename != '' and allowed_file(file.filename):
                 if employee.profile_pic:
-                    old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], employee.profile_pic)
+                    old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'profile_pics', employee.profile_pic)
                     if os.path.exists(old_path):
                         try: os.remove(old_path)
                         except Exception: pass
                 
                 ext = file.filename.rsplit('.', 1)[1].lower()
                 filename = secure_filename(f"user_{current_user.id}.{ext}")
-                file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+                # Save to specific subfolder
+                save_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'profile_pics')
+                os.makedirs(save_dir, exist_ok=True)
+                file.save(os.path.join(save_dir, filename))
                 employee.profile_pic = filename
         
         try:
@@ -175,7 +178,7 @@ def user_profile():
 def remove_profile_pic():
     employee = current_user.employee
     if employee and employee.profile_pic:
-        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], employee.profile_pic)
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'profile_pics', employee.profile_pic)
         if os.path.exists(file_path):
             try: os.remove(file_path)
             except Exception: pass
@@ -183,3 +186,49 @@ def remove_profile_pic():
         db.session.commit()
         flash('Profile picture removed!', 'profilesuccess')
     return redirect(url_for('auth.user_profile'))
+@auth_bp.route('/notifications')
+@login_required
+def notifications():
+    from model import Notification
+    if not current_user.employee:
+        return redirect(url_for('home_page'))
+    
+    # Get all notifications for current user
+    user_notifications = Notification.query.filter_by(
+        recipient_id=current_user.employee.id,
+        organization_id=current_user.organization_id
+    ).order_by(Notification.created_at.desc()).all()
+    
+    return render_template('login/notifications.html', notifications=user_notifications)
+
+@auth_bp.route('/notifications/mark-read/<int:id>')
+@login_required
+def mark_notification_read(id):
+    from model import Notification
+    notification = Notification.query.get_or_404(id)
+    
+    # Security check
+    if notification.recipient_id != current_user.employee.id:
+        flash('Unauthorized action.', 'error')
+        return redirect(url_for('auth.notifications'))
+    
+    notification.is_read = True
+    db.session.commit()
+    
+    if notification.link:
+        return redirect(notification.link)
+    
+    return redirect(url_for('auth.notifications'))
+
+@auth_bp.route('/notifications/mark-all-read')
+@login_required
+def mark_all_notifications_read():
+    from model import Notification
+    Notification.query.filter_by(
+        recipient_id=current_user.employee.id, 
+        is_read=False,
+        organization_id=current_user.organization_id
+    ).update({Notification.is_read: True})
+    db.session.commit()
+    flash('All notifications marked as read.', 'success')
+    return redirect(url_for('auth.notifications'))

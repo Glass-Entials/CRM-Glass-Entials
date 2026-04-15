@@ -19,18 +19,18 @@ from routes.expenses import expenses_bp
 from routes.quotations import quotations_bp
 from routes.quotation_settings import quotation_settings_bp
 from routes.products import products_bp
+from routes.documents import documents_bp
 
 app = Flask(__name__, template_folder='templates')
 app.config.from_object(Config)
 
-# Ensure upload directory exists
-upload_path = app.config.get('UPLOAD_FOLDER')
-if upload_path and not os.path.exists(upload_path):
-    os.makedirs(upload_path, exist_ok=True)
-    # Subdirectories
-    os.makedirs(os.path.join(upload_path, 'profile_pics'), exist_ok=True)
-    os.makedirs(os.path.join(upload_path, 'customer_docs'), exist_ok=True)
-    os.makedirs(os.path.join(upload_path, 'receipts'), exist_ok=True)
+# Ensure asset directories exist
+upload_root = app.config.get('UPLOAD_FOLDER')
+if upload_root:
+    os.makedirs(os.path.join(upload_root, 'profile_pics'), exist_ok=True)
+    os.makedirs(os.path.join(upload_root, 'customer_docs'), exist_ok=True)
+    os.makedirs(os.path.join(upload_root, 'receipts'), exist_ok=True)
+    os.makedirs(os.path.join(upload_root, 'crm_docs'), exist_ok=True)
 
 # Context Processor for Avatars
 @app.context_processor
@@ -54,7 +54,19 @@ def utility_processor():
         if seconds < 172800: return "Yesterday"
         return dt.strftime('%d %b')
 
-    return dict(get_profile_pic=get_profile_pic, time_ago=time_ago)
+    def unread_notifications_count():
+        if current_user.is_authenticated and current_user.employee:
+            from model import Notification
+            return Notification.query.filter_by(recipient_id=current_user.employee.id, is_read=False).count()
+        return 0
+
+    return dict(get_profile_pic=get_profile_pic, time_ago=time_ago, unread_notifications_count=unread_notifications_count)
+
+@app.template_filter('nl2br')
+def nl2br_filter(s):
+    if not s: return ""
+    import markupsafe
+    return markupsafe.Markup(s.replace('\n', '<br>\n'))
 
 # Initialize Plugins
 login_manager = LoginManager()
@@ -76,6 +88,7 @@ app.register_blueprint(expenses_bp)
 app.register_blueprint(quotations_bp)
 app.register_blueprint(quotation_settings_bp)
 app.register_blueprint(products_bp)
+app.register_blueprint(documents_bp)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -235,4 +248,6 @@ def register(): return redirect(url_for('auth.register'))
 def logout(): return redirect(url_for('auth.logout'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Use environment variable for debug mode, default to False for production safety
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(debug=debug_mode)

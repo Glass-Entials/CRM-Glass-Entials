@@ -79,9 +79,13 @@
             {% endif %}
             {% endwith %}
 
-            <form action="{{ url_for('tasks.add_task') }}" method="POST">
+            <form action="{{ url_for('tasks.add_task') }}" method="POST" enctype="multipart/form-data">
                 <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                     
+                    <div class="form-group" style="grid-column: 1 / -1; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed rgba(13,27,42,0.1);">
+                        <h4 style="margin: 0 0 1rem 0; color: var(--primary-color);">Task Details</h4>
+                    </div>
+
                     <div class="form-group" style="grid-column: 1 / -1;">
                         <label for="title" style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem;">Task Title <span style="color: #dc3545;">*</span></label>
                         <input type="text" id="title" name="title" class="form-control" placeholder="E.g., Review glass measurements" required style="width: 100%; padding: 0.8rem; border: 1px solid rgba(13,27,42,0.2); border-radius: 6px;">
@@ -89,7 +93,12 @@
 
                     <div class="form-group" style="grid-column: 1 / -1;">
                         <label for="description" style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem;">Description</label>
-                        <textarea id="description" name="description" rows="4" class="form-control" placeholder="Provide task details..." style="width: 100%; padding: 0.8rem; border: 1px solid rgba(13,27,42,0.2); border-radius: 6px;"></textarea>
+                        <textarea id="description" name="description" rows="3" class="form-control" placeholder="Provide task details..." style="width: 100%; padding: 0.8rem; border: 1px solid rgba(13,27,42,0.2); border-radius: 6px;"></textarea>
+                    </div>
+
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="file" style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem;">Attach Document (Optional)</label>
+                        <input type="file" id="file" name="file" class="form-control" style="width: 100%; padding: 0.6rem; border: 1px solid rgba(13,27,42,0.2); border-radius: 6px; background: #f9fbfd;">
                     </div>
 
                     <div class="form-group">

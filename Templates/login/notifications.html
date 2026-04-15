@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications - GlassEntials{% endblock %}
+
+{% block extra_css %}
+<style>
+    .notifications-container {
+        padding: 2rem 5%;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .notifications-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .notifications-header h1 {
+        font-size: 2rem;
+        color: var(--primary-color);
+        font-weight: 800;
+        margin: 0;
+    }
+
+    .notification-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .notification-card {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(13, 27, 42, 0.04);
+        border: 1px solid rgba(13, 27, 42, 0.05);
+        display: flex;
+        gap: 1.25rem;
+        position: relative;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .notification-card.unread {
+        border-left: 4px solid var(--accent-gold);
+        background: rgba(212, 175, 55, 0.02);
+    }
+
+    .notification-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(13, 27, 42, 0.1);
+        border-color: rgba(212, 175, 55, 0.3);
+    }
+
+    .notification-icon {
+        width: 48px;
+        height: 48px;
+        background: rgba(212, 175, 55, 0.1);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: var(--accent-gold);
+        flex-shrink: 0;
+    }
+
+    .notification-content {
+        flex-grow: 1;
+    }
+
+    .notification-content h3 {
+        margin: 0 0 5px 0;
+        font-size: 1.1rem;
+        color: var(--primary-color);
+        font-weight: 700;
+    }
+
+    .notification-content p {
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+
+    .notification-time {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 8px;
+        display: block;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: rgba(248, 250, 252, 0.5);
+        border-radius: 24px;
+        border: 2px dashed rgba(13, 27, 42, 0.1);
+    }
+
+    .empty-state .icon {
+        font-size: 4rem;
+        color: #cbd5e1;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    .empty-state h2 {
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .mark-all-btn {
+        background: transparent;
+        border: 1px solid var(--accent-gold);
+        color: var(--accent-gold);
+        padding: 0.6rem 1.2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+
+    .mark-all-btn:hover {
+        background: var(--accent-gold);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="notifications-container">
+    <div class="notifications-header">
+        <h1>Notifications</h1>
+        {% if notifications %}
+        <a href="{{ url_for('auth.mark_all_notifications_read') }}" class="mark-all-btn">Mark all as read</a>
+        {% endif %}
+    </div>
+
+    <div class="notification-list">
+        {% for notification in notifications %}
+        <a href="{{ url_for('auth.mark_notification_read', id=notification.id) }}" class="notification-card {% if not notification.is_read %}unread{% endif %}">
+            <div class="notification-icon">
+                {% if 'task' in notification.title|lower %}📋
+                {% elif 'lead' in notification.title|lower %}🎯
+                {% elif 'customer' in notification.title|lower %}👤
+                {% elif 'project' in notification.title|lower %}🏗️
+                {% else %}🔔{% endif %}
+            </div>
+            <div class="notification-content">
+                <h3>{{ notification.title }}</h3>
+                <p>{{ notification.message }}</p>
+                <span class="notification-time">{{ time_ago(notification.created_at) }}</span>
+            </div>
+        </a>
+        {% else %}
+        <div class="empty-state">
+            <span class="icon">📭</span>
+            <h2>No notifications yet</h2>
+            <p>You're all caught up! New notifications will appear here.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

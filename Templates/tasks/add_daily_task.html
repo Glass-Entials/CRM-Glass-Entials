@@ -228,7 +228,7 @@
                     <h2 class="card-title">Detailed Work Log</h2>
                 </div>
                 
-                <form action="{{ url_for('tasks.add_daily_task') }}" method="POST">
+                <form action="{{ url_for('tasks.add_daily_task') }}" method="POST" enctype="multipart/form-data">
                     <div class="log-form-grid">
                         <div class="form-group">
                             <label for="date">Working Date <span style="color: #dc2626;">*</span></label>
@@ -272,6 +272,12 @@
                             <label for="description">Tasks Accomplished <span style="color: #dc2626;">*</span></label>
                             <textarea id="description" name="description" class="form-control" placeholder="Break down your daily activities here... e.g., &#10;- Completed glass cutting for Project X&#10;- Site visit for measurement at Y&#10;- Sent quotation to Z" required></textarea>
                             <p class="helper-text">Provide a bulleted list of your accomplishments today.</p>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label for="file">Attach Document / Photo (Optional)</label>
+                            <input type="file" id="file" name="file" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx">
+                            <p class="helper-text">You can attach site photos, reports, or any related document.</p>
                         </div>
                     </div>
 

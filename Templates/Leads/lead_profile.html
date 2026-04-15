@@ -263,6 +263,11 @@
                 <div style="margin-right: 1.5rem; display:flex; align-items:center;">
                     <span class="status-badge status-pending badge-large">{{ lead.status.value }}</span>
                 </div>
+                <!-- Quick Upload Button -->
+                <button class="btn-action gold" onclick="openTab(null, 'documents'); document.getElementById('docUploadModal').style.display='flex'">
+                    📤 Upload Document
+                </button>
+
                 <a href="{{ url_for('leads.edit_lead', lead_id=lead.id) }}" class="btn-action outline"
                     style="text-decoration: none;">
                     ✏ Edit Profile
@@ -368,6 +373,7 @@
             <div class="tab-nav">
                 <button class="tab-btn active" onclick="openTab(event, 'overview')">Timeline & Activity</button>
                 <button class="tab-btn" onclick="openTab(event, 'tasks')">Tasks related to lead</button>
+                <button class="tab-btn" onclick="openTab(event, 'documents')">Documents & Attachments</button>
             </div>
 
             <div id="overview" class="tab-content active">
@@ -385,6 +391,79 @@
                     <p>Manage and schedule pending tasks for {{ lead.name }}. (Task Module coming soon)</p>
                 </div>
             </div>
+
+            <div id="documents" class="tab-content">
+                <div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="color: var(--primary-color); font-family: var(--font-heading);">Uploaded Documents</h3>
+                    <button class="btn-action gold" onclick="document.getElementById('docUploadModal').style.display='flex'">+ Upload Document</button>
+                </div>
+
+                {% set docs = lead.documents.all() %}
+                {% if docs %}
+                <div class="table-responsive">
+                    <table class="customer-table" style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Filename</th>
+                                <th>Type</th>
+                                <th>Uploaded By</th>
+                                <th>Date</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in docs %}
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 600;">{{ doc.original_name }}</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted);">{{ doc.description or 'No description' }}</div>
+                                </td>
+                                <td><span style="text-transform: uppercase; font-size: 0.75rem; background: #eee; padding: 2px 6px; border-radius: 4px;">{{ doc.file_type }}</span></td>
+                                <td>{{ doc.uploader.name if doc.uploader else 'Unknown' }}</td>
+                                <td>{{ doc.uploaded_at.strftime('%d %b, %Y') }}</td>
+                                <td style="text-align: right;">
+                                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                                        <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" title="Download" style="text-decoration: none;">📥</a>
+                                        <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');">
+                                            <button type="submit" style="background: none; border: none; cursor: pointer;" title="Delete">🗑️</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 3rem; background: #f8fafc; border-radius: 12px; border: 2px dashed rgba(13,27,42,0.1);">
+                    <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.2;">📄</div>
+                    <p style="color: var(--text-muted); font-weight: 500;">No documents uploaded for this lead yet.</p>
+                </div>
+                {% endif %}
+
+                <!-- Upload Modal (Simplistic for now) -->
+                <div id="docUploadModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+                    <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                        <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Upload Lead Document</h3>
+                        <form action="{{ url_for('documents.upload_document') }}" method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="entity_type" value="lead">
+                            <input type="hidden" name="entity_id" value="{{ lead.id }}">
+                            <div style="margin-bottom: 1.2rem;">
+                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Select File</label>
+                                <input type="file" name="file" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
+                            </div>
+                            <div style="margin-bottom: 1.5rem;">
+                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Description (Optional)</label>
+                                <input type="text" name="description" placeholder="e.g. Agreement Copy" style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;">
+                            </div>
+                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                                <button type="button" class="btn-action outline" onclick="document.getElementById('docUploadModal').style.display='none'">Cancel</button>
+                                <button type="submit" class="btn-action gold">Start Upload</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -399,10 +478,28 @@
             tablinks = document.getElementsByClassName("tab-btn");
             for (i = 0; i < tablinks.length; i++) {
                 tablinks[i].className = tablinks[i].className.replace(" active", "");
+                if (tablinks[i].getAttribute('onclick').includes(tabName)) {
+                    tablinks[i].classList.add("active");
+                }
             }
             document.getElementById(tabName).style.display = "block";
             document.getElementById(tabName).classList.add("active");
-            evt.currentTarget.className += " active";
+            
+            if (evt) {
+                // evt might be null for programmatic calls
+            }
+        }
+
+        // Auto-open tab if specified in URL
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tab = urlParams.get('tab');
+            if (tab) {
+                openTab(null, tab);
+                if (tab === 'documents' && urlParams.get('upload') === 'true') {
+                    document.getElementById('docUploadModal').style.display='flex';
+                }
+            }
         }
     </script>
 </body>

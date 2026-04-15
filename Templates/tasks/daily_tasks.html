@@ -402,6 +402,15 @@
                             </td>
                             <td>
                                 <div class="desc-text">{{ task.task_description }}</div>
+                                {% if task.documents.count() > 0 %}
+                                <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                                    {% for doc in task.documents %}
+                                    <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" title="{{ doc.original_name }}" style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: #f1f5f9; border-radius: 4px; color: #475569; text-decoration: none; font-size: 0.8rem; border: 1px solid #e2e8f0;">
+                                        📎 {{ doc.original_name[:15] + '...' if doc.original_name|length > 15 else doc.original_name }}
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
                             </td>
                             <td>
                                 <div class="hours-tag">{{ task.hours_spent if task.hours_spent else '0' }} <span class="hours-label">HRS</span></div>

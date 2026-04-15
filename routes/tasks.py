@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from model import db, Task, Employee, Project, Lead, TaskStatus, DailyTask
 from utils.activity import log_activity
+from utils.notifications import create_notification
 from datetime import datetime
 
 tasks_bp = Blueprint('tasks', __name__)
@@ -57,10 +58,35 @@ def add_task():
             db.session.add(new_task)
             db.session.flush()
             
+            # Notification for assignment
+            if assigned_to_id:
+                create_notification(
+                    recipient_id=assigned_to_id,
+                    title="New Task Assigned",
+                    message=f"You have been assigned a new task: {new_task.title}",
+                    link=url_for('tasks.view_task', task_id=new_task.id),
+                    sender_id=current_user.employee.id if current_user.employee else None,
+                    organization_id=org_id
+                )
+
             # Log activity. We use 'task' as entity_type, we can log it on project if it's related to a project too
             actor_id = current_user.employee.id if current_user.employee else None
             log_activity('task_added', 'task', new_task.title, org_id, actor_id, new_task.id)
             
+            # Handle file upload if present
+            if 'file' in request.files:
+                file = request.files['file']
+                if file and file.filename != '':
+                    from utils.documents import handle_file_upload
+                    handle_file_upload(
+                        file=file,
+                        entity_type='task',
+                        entity_id=new_task.id,
+                        organization_id=org_id,
+                        uploader_id=current_user.employee.id if current_user.employee else None,
+                        description=f"Attached during task creation: {new_task.title}"
+                    )
+
             db.session.commit()
             flash('Task created successfully!', 'tasksuccess')
             return redirect(url_for('tasks.tasks_list'))
@@ -93,21 +119,47 @@ def edit_task(task_id):
         due_date_str = request.form.get('due_date')
         task.due_date = datetime.strptime(due_date_str, '%Y-%m-%d') if due_date_str else None
         
-        assigned_to_id = request.form.get('assigned_to')
-        task.assigned_to = int(assigned_to_id) if assigned_to_id and assigned_to_id != 'unassigned' else None
-        
-        project_id = request.form.get('project_id')
-        task.project_id = int(project_id) if project_id and project_id != 'none' else None
-        
-        lead_id = request.form.get('lead_id')
-        task.lead_id = int(lead_id) if lead_id and lead_id != 'none' else None
-
-        status_map = {e.value: e for e in TaskStatus}
-        task.status = status_map.get(request.form.get('status'), TaskStatus.PENDING)
-
         try:
+            # Check if assignment changed
+            old_assignee = task.assigned_to
+            task.assigned_to = int(assigned_to_id) if assigned_to_id and assigned_to_id != 'unassigned' else None
+            
+            project_id = request.form.get('project_id')
+            task.project_id = int(project_id) if project_id and project_id != 'none' else None
+            
+            lead_id = request.form.get('lead_id')
+            task.lead_id = int(lead_id) if lead_id and lead_id != 'none' else None
+
+            status_map = {e.value: e for e in TaskStatus}
+            task.status = status_map.get(request.form.get('status'), TaskStatus.PENDING)
+
+            if task.assigned_to and task.assigned_to != old_assignee:
+                create_notification(
+                    recipient_id=task.assigned_to,
+                    title="Task Assigned to You",
+                    message=f"Task '{task.title}' has been assigned to you.",
+                    link=url_for('tasks.view_task', task_id=task.id),
+                    sender_id=current_user.employee.id if current_user.employee else None,
+                    organization_id=org_id
+                )
+
             actor_id = current_user.employee.id if current_user.employee else None
             log_activity('task_updated', 'task', task.title, org_id, actor_id, task.id)
+            
+            # Handle file upload if present
+            if 'file' in request.files:
+                file = request.files['file']
+                if file and file.filename != '':
+                    from utils.documents import handle_file_upload
+                    handle_file_upload(
+                        file=file,
+                        entity_type='task',
+                        entity_id=task.id,
+                        organization_id=org_id,
+                        uploader_id=current_user.employee.id if current_user.employee else None,
+                        description=f"Attached during task edit: {task.title}"
+                    )
+
             db.session.commit()
             flash('Task updated successfully!', 'tasksuccess')
             return redirect(url_for('tasks.tasks_list'))
@@ -233,6 +285,21 @@ def add_daily_task():
                 organization_id=org_id
             )
             db.session.add(new_daily_task)
+            db.session.flush()
+            
+            if 'file' in request.files:
+                file = request.files['file']
+                if file and file.filename != '':
+                    from utils.documents import handle_file_upload
+                    handle_file_upload(
+                        file=file,
+                        entity_type='daily_task',
+                        entity_id=new_daily_task.id,
+                        organization_id=org_id,
+                        uploader_id=current_user.employee.id if current_user.employee else None,
+                        description=f"Attached to daily log: {task_date}"
+                    )
+            
             db.session.commit()
             flash('Daily task added successfully!', 'tasksuccess')
             return redirect(url_for('tasks.daily_tasks_list'))

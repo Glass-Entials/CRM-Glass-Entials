@@ -1,390 +1,481 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Invoice | GlassEntials Accounts</title>
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-    <style>
-        .invoice-form-panel {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 16px;
-            border: 1px solid rgba(13, 27, 42, 0.08);
-            padding: 30px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
-        }
+{% block title %}Add New Invoice | GlassEntials{% endblock %}
 
-        .form-section-title {
-            font-family: var(--font-heading);
-            font-weight: 700;
-            color: var(--primary-color);
-            border-bottom: 2px solid rgba(212, 175, 55, 0.2);
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}">
+<div class="qf-wrapper">
+  
+  <div class="qf-topbar">
+    <div class="flex items-center gap-4">
+      <a href="{{ url_for('accounts.invoice_list') }}" class="btn-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
+        Invoices
+      </a>
+      <div>
+        <h1 class="text-xl font-bold">{% if mode == 'edit' %}Edit Invoice #{{ invoice.invoice_number }}{% else %}Create Tax Invoice{% endif %}</h1>
+        <p class="text-xs text-muted">{% if mode == 'edit' %}Modify existing invoice details{% else %}Generate a professional tax invoice for your customer{% endif %}</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      {% if mode == 'edit' %}
+      <a href="{{ url_for('accounts.view_invoice', invoice_id=invoice.id) }}" class="btn-secondary">Cancel</a>
+      {% endif %}
+      <button type="submit" form="invoice-main-form" class="btn-primary" id="btn-save-invoice">
+        🚀 {% if mode == 'edit' %}Update Invoice{% else %}Finalize &amp; Generate{% endif %}
+      </button>
+    </div>
+  </div>
 
-        .item-row {
-            display: grid;
-            grid-template-columns: 3fr 1fr 1fr 1fr auto;
-            gap: 15px;
-            align-items: end;
-            margin-bottom: 15px;
-            padding: 15px;
-            background: #f8fafc;
-            border-radius: 10px;
-            border: 1px solid rgba(13, 27, 42, 0.05);
-        }
-
-        .item-list-header {
-            display: grid;
-            grid-template-columns: 3fr 1fr 1fr 1fr auto;
-            gap: 15px;
-            padding: 0 15px 10px;
-            font-weight: 700;
-            font-size: 0.85rem;
-            color: #64748b;
-            text-transform: uppercase;
-        }
-
-        .input-group { margin-bottom: 20px; }
-        .input-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #334155; }
-        .input-group input, .input-group select, .input-group textarea {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid rgba(13, 27, 42, 0.15);
-            background: white;
-            font-family: var(--font-body);
-        }
-
-        .item-row input {
-            width: 100%;
-            padding: 10px 14px;
-            border-radius: 8px;
-            border: 1px solid rgba(13, 27, 42, 0.12);
-            background: white;
-            font-family: var(--font-body);
-            font-size: 0.95rem;
-            transition: all 0.2s ease;
-        }
-
-        .item-row input:focus {
-            outline: none;
-            border-color: var(--accent-gold);
-            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
-            background: #fff;
-        }
-
-        .item-row input::placeholder {
-            color: #cbd5e1;
-            font-size: 0.85rem;
-        }
-
-        .remove-row {
-            background: #fff1f2;
-            color: #e11d48;
-            border: 1px solid #ffe4e6;
-            width: 38px;
-            height: 38px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 1.1rem;
-        }
-
-        .remove-row:hover { 
-            background: #e11d48; 
-            color: white;
-            border-color: #e11d48;
-            transform: scale(1.05);
-        }
-
-        .btn-add {
-            background: white;
-            color: var(--primary-color);
-            border: 2px dashed rgba(212, 175, 55, 0.4);
-            padding: 14px;
-            width: 100%;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 700;
-            margin-top: 15px;
-            font-size: 0.95rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: all 0.3s ease;
-            font-family: var(--font-heading);
-            color: #856404;
-        }
-
-        .btn-add:hover { 
-            background: rgba(212, 175, 55, 0.05);
-            border-color: var(--accent-gold);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.1);
-        }
-
-        .summary-box {
-            background: var(--primary-color);
-            color: white;
-            padding: 30px;
-            border-radius: 16px;
-            margin-top: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            box-shadow: 0 10px 30px rgba(13, 27, 42, 0.2);
-        }
-
-        .summary-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .summary-total {
-            font-size: 1.5rem;
-            font-weight: 700;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            padding-top: 10px;
-            margin-top: 10px;
-            color: var(--accent-gold);
-        }
-
-        .btn-add {
-            background: rgba(212, 175, 55, 0.1);
-            color: #856404;
-            border: 1px dashed #d4af37;
-            padding: 12px;
-            width: 100%;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            margin-top: 10px;
-        }
-
-        .btn-add:hover { background: rgba(212, 175, 55, 0.2); }
-    </style>
-</head>
-
-<body class="dashboard-page">
-
-    <!-- Navbar (Simplified inclusion for this turn) -->
-    <header class="dash-nav">
-        <div class="logo">
-            <a href="/home" class="logo-link">
-                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
-            </a>
+  <form id="invoice-main-form" action="{% if mode == 'edit' %}{{ url_for('accounts.edit_invoice', invoice_id=invoice.id) }}{% else %}{{ url_for('accounts.add_invoice') }}{% endif %}" method="POST">
+    <div class="qf-layout">
+      
+      <!-- Main Form Area -->
+      <div class="qf-main">
+        
+        <!-- Header Card: Doc Info -->
+        <div class="qf-card">
+          <div class="qf-card-body">
+            <div class="qf-row">
+              <div class="qf-field" style="flex: 2;">
+                <label class="qf-label">Invoice Title</label>
+                <input type="text" name="invoice_title" class="qf-input" value="{{ invoice.invoice_title if invoice else 'Tax Invoice' }}" placeholder="e.g. Tax Invoice">
+              </div>
+              <div class="qf-field">
+                <label class="qf-label">Invoice #</label>
+                <input type="text" class="qf-input bg-gray-50" value="{{ invoice.invoice_number if invoice else next_number }}" readonly>
+                <p class="text-xs text-muted mt-1">Auto-generated sequence</p>
+              </div>
+              <div class="qf-field" style="flex: 1.5;">
+                <div class="qf-row" style="margin-bottom: 0;">
+                  <div class="qf-field">
+                    <label class="qf-label">Issue Date</label>
+                    <input type="date" name="issue_date" class="qf-input" value="{{ (invoice.issue_date.strftime('%Y-%m-%d') if invoice.issue_date else today) if mode == 'edit' else today }}">
+                  </div>
+                  <div class="qf-field">
+                    <label class="qf-label">Due Date</label>
+                    <input type="date" name="due_date" class="qf-input" value="{{ invoice.due_date.strftime('%Y-%m-%d') if invoice and invoice.due_date else '' }}">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <nav class="dash-menu">
-            <a href="{{ url_for('home_page') }}">Dashboard</a>
-            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
-            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
-            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
-            <div class="dropdown">
-                <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
-                    <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
-                </div>
-            </div>
-            <div class="dropdown">
-                <a href="#" class="active">Accounts ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
-                    <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
-                    <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
-                </div>
-            </div>
-            <a href="{{ url_for('products.products_list') }}" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
-            <div class="dropdown">
-                <a href="#">Settings ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
-                </div>
-            </div>
-        </nav>
-    </header>
+        <!-- Billing Section -->
+        <div class="qf-card">
+          <div class="qf-card-body">
+            <div class="qf-row">
+              <div class="qf-field" style="flex: 2;">
+              <div class="flex items-center justify-between mb-2">
+                <label class="qf-label mb-0">Customer / Client</label>
+                <a href="{{ url_for('customers.add_customer') }}" class="text-xs text-primary">+ New Customer</a>
+              </div>
+              <select name="customer_id" id="customer-select" class="qf-select" required>
+                <option value="">-- Select Customer --</option>
+                {% for c in customers %}
+                  <option value="{{ c.id }}" 
+                          {% if invoice and invoice.customer_id == c.id %}selected{% endif %}
+                          data-company="{{ c.company or c.name }}"
+                          data-address="{{ c.address }}"
+                          data-gstin="{{ c.gst_number or 'Unregistered' }}"
+                          data-phone="{{ c.phone_number }}"
+                          data-email="{{ c.email }}"
+                          data-state="{{ c.state }}">
+                    {{ c.name }} {% if c.company %}({{ c.company }}){% endif %}
+                  </option>
+                {% endfor %}
+              </select>
 
-    <main class="dash-container">
-        <div class="dash-header">
-            <div>
-                <h1>Generate New Invoice</h1>
-                <p>Create a professional billing statement for your clients.</p>
+              <div id="customer-autofill" class="{% if not invoice %}hidden{% endif %}">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h4 id="af-company">{{ invoice.customer.company if invoice else 'Company Name' }}</h4>
+                    <p id="af-address">{{ invoice.customer.address if invoice else 'Street Address, City, State' }}</p>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-xs font-bold uppercase text-muted">GSTIN</div>
+                    <div id="af-gstin" class="text-xs font-mono">{{ invoice.customer.gst_number if invoice else '27AAAAA0000A1Z5' }}</div>
+                  </div>
+                </div>
+                <div class="flex gap-4 mt-3 pt-2 border-t">
+                  <div class="text-xs">📞 <span id="af-phone">{{ invoice.customer.phone_number if invoice else '9999999999' }}</span></div>
+                  <div class="text-xs">✉️ <span id="af-email">{{ invoice.customer.email if invoice else 'client@example.com' }}</span></div>
+                </div>
+              </div>
             </div>
-            <div class="quick-actions">
-                <a href="{{ url_for('accounts.invoice_list') }}" class="btn-action outline" style="text-decoration: none;">
-                    ← Cancel
-                </a>
+
+              <div class="qf-field">
+                <label class="qf-label">Link to Project (Optional)</label>
+                <select name="project_id" class="qf-select">
+                  <option value="">-- Select Project --</option>
+                  {% for p in projects %}
+                    <option value="{{ p.id }}" {% if invoice and invoice.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                  {% endfor %}
+                </select>
+                
+                <div class="mt-4">
+                  <label class="qf-label">Reference / PO No.</label>
+                  <input type="text" name="references" class="qf-input" value="{{ invoice.references if invoice else '' }}" placeholder="e.g. PO/2026/102">
+                </div>
+              </div>
             </div>
+          </div>
         </div>
 
-        <div class="invoice-form-panel">
-            <form id="invoiceForm" method="POST" action="{{ url_for('accounts.add_invoice') }}">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
-                    <section>
-                        <h3 class="form-section-title"><span>👤</span> Billing Details</h3>
-                        <div class="input-group">
-                            <label>Customer <span style="color: red;">*</span></label>
-                            <select name="customer_id" required>
-                                <option value="">Select Customer</option>
-                                {% for customer in customers %}
-                                <option value="{{ customer.id }}">{{ customer.name }} ({{ customer.company or 'Individual' }})</option>
-                                {% endfor %}
-                            </select>
+        <!-- ─── ERP ITEM TABLE ─── -->
+        <div class="qf-card p-0 overflow-hidden">
+          <div class="bg-gray-50">
+            <h3>Line Items &amp; Measurements</h3>
+            <div class="flex gap-2">
+                <button type="button" class="btn-erp-tool" id="btn-config-gst" title="Global GST">⚙ GST</button>
+                <button type="button" class="btn-erp-tool" id="btn-edit-cols" title="Columns">📐 Formula</button>
+            </div>
+          </div>
+          
+          <div class="erp-table-container">
+            <table class="erp-table">
+              <thead>
+                <tr>
+                  <th class="col-drag"></th>
+                  <th class="col-sn">#</th>
+                  <th class="col-item">Item Description</th>
+                  <th class="col-dim">
+                    Width
+                    <select id="global-dim-unit" style="font-size: 10px; margin-top: 2px; padding: 0 4px; display: block; border-radius: 2px; background: transparent; border: 1px solid #ccc;">
+                      <option value="Inches">In(s)</option>
+                      <option value="Feet">Ft(s)</option>
+                      <option value="cm">cm</option>
+                      <option value="mm">mm</option>
+                    </select>
+                  </th>
+                  <th class="col-dim">Height</th>
+                  <th class="col-c-area">Area</th>
+                  <th class="col-qty">Qty</th>
+                  <th class="col-c-qty">Charge Qty</th>
+                  <th class="col-unit">Unit</th>
+                  <th class="col-rate">Rate (₹)</th>
+                  <th class="col-disc">Disc</th>
+                  <th class="col-gst">GST%</th>
+                  <th class="col-amt">Amount</th>
+                  <th class="col-total">Total</th>
+                  <th class="col-action"></th>
+                </tr>
+              </thead>
+              <tbody id="items-tbody">
+                {% if mode == 'edit' and invoice %}
+                  {% for item in invoice.items %}
+                    <tr class="erp-item-row item-row">
+                      <input type="hidden" name="group_name[]" class="input-group-name" value="{{ item.group_name or '' }}">
+                      <input type="hidden" name="formula_type[]" class="input-formula" value="{{ item.formula_type or 'standard' }}">
+                      <td class="col-drag"><span class="drag-handle">⠿</span></td>
+                      <td class="col-sn">{{ loop.index }}</td>
+                      <td class="col-item">
+                        <input type="text" name="item_name[]" class="erp-inline-input item-name" value="{{ item.item_name }}" placeholder="Item name">
+                        <textarea name="description[]" class="erp-inline-textarea item-desc" rows="1" placeholder="Details...">{{ item.description }}</textarea>
+                      </td>
+                      <td class="col-dim">
+                        <input type="number" name="width[]" class="erp-inline-input dim-w item-calc" value="{{ item.width or 0 }}" step="0.01">
+                      </td>
+                      <td class="col-dim">
+                        <input type="number" name="height[]" class="erp-inline-input dim-h item-calc" value="{{ item.height or 0 }}" step="0.01">
+                      </td>
+                      <td class="col-c-area">
+                        <span class="erp-readonly-val area-val">0.00</span>
+                      </td>
+                      <td class="col-qty">
+                        <input type="number" name="quantity[]" class="erp-inline-input item-qty item-calc" value="{{ item.quantity or 1 }}" step="0.01">
+                      </td>
+                      <td class="col-c-qty">
+                        <input type="number" name="chargeable_quantity[]" class="erp-inline-input item-c-qty item-calc" value="{{ item.chargeable_quantity or '' }}" placeholder="Auto" step="0.01">
+                      </td>
+                      <td class="col-unit">
+                        <select name="unit[]" class="erp-inline-select select-unit">
+                          <option {% if item.unit == 'Sq.Ft' %}selected{% endif %}>Sq.Ft</option>
+                          <option {% if item.unit == 'Sq.M' %}selected{% endif %}>Sq.M</option>
+                          <option {% if item.unit == 'Pcs' %}selected{% endif %}>Pcs</option>
+                          <option {% if item.unit == 'Nos' %}selected{% endif %}>Nos</option>
+                          <option {% if item.unit == 'RFT' %}selected{% endif %}>RFT</option>
+                        </select>
+                      </td>
+                      <td class="col-rate">
+                        <input type="number" name="rate[]" class="erp-inline-input item-rate item-calc" value="{{ item.rate or 0 }}" step="0.01">
+                      </td>
+                      <td class="col-disc">
+                        <div class="disc-wrap">
+                          <input type="number" name="discount[]" class="erp-inline-input item-disc item-calc" value="{{ item.discount or 0 }}" style="width:40px;">
+                          <select name="discount_type[]" class="erp-inline-select disc-type" style="width:30px;">
+                            <option value="flat" {% if item.discount_type == 'flat' %}selected{% endif %}>₹</option>
+                            <option value="percent" {% if item.discount_type == 'percent' %}selected{% endif %}>%</option>
+                          </select>
                         </div>
-                        <div class="input-group">
-                            <label>Associate Project</label>
-                            <select name="project_id">
-                                <option value="">No Project Reference</option>
-                                {% for project in projects %}
-                                <option value="{{ project.id }}">{{ project.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </section>
-                    
-                    <section>
-                        <h3 class="form-section-title"><span>📅</span> Invoice Info</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div class="input-group">
-                                <label>Issue Date <span style="color: red;">*</span></label>
-                                <input type="date" name="issue_date" value="{{ today.strftime('%Y-%m-%d') }}" required>
-                            </div>
-                            <div class="input-group">
-                                <label>Due Date</label>
-                                <input type="date" name="due_date">
-                            </div>
-                        </div>
-                        <div class="input-group">
-                            <label>Status</label>
-                            <select name="status" disabled>
-                                <option value="Unpaid">Unpaid (Default)</option>
-                            </select>
-                        </div>
-                    </section>
-                </div>
+                      </td>
+                      <td class="col-gst">
+                        <select name="gst_rate[]" class="erp-inline-select item-gst item-calc">
+                          <option value="0" {% if item.gst_percentage == 0 %}selected{% endif %}>0%</option>
+                          <option value="5" {% if item.gst_percentage == 5 %}selected{% endif %}>5%</option>
+                          <option value="12" {% if item.gst_percentage == 12 %}selected{% endif %}>12%</option>
+                          <option value="18" {% if item.gst_percentage == 18 %}selected{% endif %}>18%</option>
+                          <option value="28" {% if item.gst_percentage == 28 %}selected{% endif %}>28%</option>
+                        </select>
+                      </td>
+                      <td class="col-amt"><span class="erp-readonly-val item-amount">₹{{ "{:,.2f}".format(item.amount) }}</span></td>
+                      <td class="col-total"><strong class="item-total-str">₹{{ "{:,.2f}".format(item.total) }}</strong></td>
+                      <td class="col-action">
+                        <button type="button" class="btn-remove-erp" title="Remove">✕</button>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
 
-                <section style="margin-top: 30px;">
-                    <h3 class="form-section-title"><span>🛍️</span> Invoice Items</h3>
-                    <div class="item-list-header">
-                        <div>Description</div>
-                        <div>Quantity</div>
-                        <div>Rate (₹)</div>
-                        <div>Amount (₹)</div>
-                        <div></div>
-                    </div>
-                    <div id="itemsContainer">
-                        <div class="item-row">
-                            <input type="text" name="description[]" placeholder="Product or Service name" required>
-                            <input type="number" name="quantity[]" value="1" min="0.01" step="0.01" class="qty-field" required>
-                            <input type="number" name="rate[]" value="0" min="0" step="0.01" class="rate-field" required>
-                            <input type="number" class="amount-field" value="0.00" readonly style="background: transparent; border: none; font-weight: 700; color: var(--primary-color);">
-                            <button type="button" class="remove-row" style="visibility: hidden;">🗑</button>
-                        </div>
-                    </div>
-                    <button type="button" class="btn-add" id="addItemBtn">+ Add Item</button>
+          <div class="erp-footer-actions">
+            <button type="button" id="btn-add-row" class="btn-add-erp">
+                <span>✚</span> Add Item Row
+            </button>
+            <button type="button" id="btn-add-group" class="btn-add-erp secondary">
+                <span>📁</span> Add Category Group
+            </button>
+          </div>
+        </div><!-- /.qf-card ERP table -->
 
-                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-top: 30px;">
-                        <div>
-                            <div class="input-group">
-                                <label>Special Notes / Payment Terms</label>
-                                <textarea name="notes" rows="4" placeholder="Mention payment details, terms & conditions..."></textarea>
-                            </div>
-                        </div>
-                        <div class="summary-box">
-                            <div class="summary-row">
-                                <span>Sub-Total:</span>
-                                <span id="subTotal">₹ 0.00</span>
-                            </div>
-                            <div class="summary-row">
-                                <span>GST (18%):</span>
-                                <span id="gstAmount">₹ 0.00</span>
-                            </div>
-                            <div class="summary-row summary-total">
-                                <span>Grand Total:</span>
-                                <span id="grandTotal">₹ 0.00</span>
-                            </div>
-                            <button type="submit" class="btn-action gold" style="width: 100%; border: none; padding: 15px; font-weight: 700; font-size: 1.1rem; margin-top: 15px;">
-                                Generate Invoice
-                            </button>
-                        </div>
-                    </div>
-                </section>
-            </form>
+        <!-- Bottom Sections: Notes & Terms -->
+        <div class="qf-row mt-6">
+          <div class="qf-field">
+            <div class="qf-card qf-card-body">
+              <label class="qf-label">Invoice Notes (Visible to Customer)</label>
+              <textarea name="notes" class="qf-input" style="min-height:120px; resize:vertical;" placeholder="e.g. Bank details, Payment reminder...">{{ invoice.notes if invoice else '' }}</textarea>
+            </div>
+          </div>
+          <div class="qf-field">
+            <div class="qf-card qf-card-body">
+              <label class="qf-label">Terms &amp; Conditions</label>
+              <textarea name="terms_conditions" class="qf-input" style="min-height:120px; resize:vertical;" placeholder="Standard terms apply...">{{ invoice.terms_conditions if invoice else '1. Goods once sold will not be taken back.\n2. Interest @18% p.a. will be charged if payment is not made within due date.\n3. Subject to local jurisdiction.' }}</textarea>
+            </div>
+          </div>
         </div>
-    </main>
 
-    <script>
-        const itemsContainer = document.getElementById('itemsContainer');
-        const addItemBtn = document.getElementById('addItemBtn');
+      </div><!-- /.qf-main -->
 
-        function calculateTotals() {
-            let subTotal = 0;
-            document.querySelectorAll('.item-row').forEach(row => {
-                const qty = parseFloat(row.querySelector('.qty-field').value) || 0;
-                const rate = parseFloat(row.querySelector('.rate-field').value) || 0;
-                const amount = qty * rate;
-                row.querySelector('.amount-field').value = amount.toFixed(2);
-                subTotal += amount;
-            });
+       <div class="qf-sidebar">
+        
+         <div class="qf-card-sidebar">
+           <h3 class="font-bold text-sm mb-4 border-b pb-2" style="padding-bottom:12px;">Invoice Summary</h3>
+          
+          <div class="totals-row">
+            <span>Subtotal</span>
+            <span id="t-subtotal">₹{{ "{:,.2f}".format((invoice.subtotal if invoice else 0) or 0) }}</span>
+          </div>
 
-            const gst = subTotal * 0.18;
-            const grand = subTotal + gst;
+          <div class="totals-row">
+            <span>Discount</span>
+            <div class="flex items-center gap-1">
+               <input type="number" name="total_discount" id="total-discount" class="erp-inline-input text-right" style="width: 60px; height: 24px; font-size: 13px;" value="{{ invoice.total_discount if invoice else 0 }}" step="0.01">
+               <select name="total_discount_type" id="total-discount-type" class="erp-inline-select" style="width: 40px; height: 24px; padding: 0 4px;">
+                  <option value="flat" {% if invoice and invoice.total_discount_type == 'flat' %}selected{% endif %}>₹</option>
+                  <option value="percent" {% if invoice and invoice.total_discount_type == 'percent' %}selected{% endif %}>%</option>
+               </select>
+            </div>
+          </div>
+          
+          <div class="totals-row highlight">
+            <span>Taxable Amount</span>
+            <span id="t-taxable">₹{{ "{:,.2f}".format(((invoice.subtotal - invoice.total_discount) if invoice else 0) or 0) }}</span>
+          </div>
 
-            document.getElementById('subTotal').innerText = `₹ ${subTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-            document.getElementById('gstAmount').innerText = `₹ ${gst.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-            document.getElementById('grandTotal').innerText = `₹ ${grand.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-        }
-
-        addItemBtn.addEventListener('click', () => {
-            const newRow = document.createElement('div');
-            newRow.className = 'item-row';
-            newRow.innerHTML = `
-                <input type="text" name="description[]" placeholder="Item name" required>
-                <input type="number" name="quantity[]" value="1" min="0.01" step="0.01" class="qty-field" required>
-                <input type="number" name="rate[]" value="0" min="0" step="0.01" class="rate-field" required>
-                <input type="number" class="amount-field" value="0.00" readonly style="background: transparent; border: none; font-weight: 700; color: var(--primary-color);">
-                <button type="button" class="remove-row">🗑</button>
-            `;
-            itemsContainer.appendChild(newRow);
+          <div class="mt-4 pt-4 border-t space-y-2">
+            <div class="flex items-center justify-between text-xs font-semibold text-muted">
+              <span>TAX BREAKDOWN</span>
+              <label class="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" name="is_igst" value="1" id="toggle-igst" {% if invoice and invoice.is_igst %}checked{% endif %}> 
+                <span>Apply IGST</span>
+              </label>
+            </div>
             
-            newRow.querySelector('.remove-row').addEventListener('click', () => {
-                newRow.remove();
-                calculateTotals();
-            });
+             <div id="row-sgst" class="totals-row mini {% if invoice and invoice.is_igst %}hidden{% endif %}">
+               <span>SGST</span>
+               <span id="t-sgst">₹{{ "{:,.2f}".format((invoice.sgst if invoice else 0) or 0) }}</span>
+             </div>
+             <div id="row-cgst" class="totals-row mini {% if invoice and invoice.is_igst %}hidden{% endif %}">
+               <span>CGST</span>
+               <span id="t-cgst">₹{{ "{:,.2f}".format((invoice.cgst if invoice else 0) or 0) }}</span>
+             </div>
+             <div id="row-igst" class="totals-row mini {% if not (invoice and invoice.is_igst) %}hidden{% endif %}">
+               <span>IGST</span>
+               <span id="t-igst">₹{{ "{:,.2f}".format((invoice.igst if invoice else 0) or 0) }}</span>
+             </div>
+          </div>
 
-            newRow.querySelectorAll('input').forEach(input => {
-                input.addEventListener('input', calculateTotals);
-            });
-        });
+           <div class="mt-4 pt-4 border-t">
+             <div class="totals-row total">
+               <span>Grand Total</span>
+               <span id="t-total">₹{{ "{:,.2f}".format((invoice.total_amount if invoice else 0) or 0) }}</span>
+             </div>
+            <p id="t-words" class="text-xs text-right text-muted mt-1 leading-tight uppercase font-medium">{{ invoice.total_in_words if invoice else 'Zero Rupees Only' }}</p>
+          </div>
 
-        // Initialize first row events
-        document.querySelectorAll('.item-row input').forEach(input => {
-            input.addEventListener('input', calculateTotals);
-        });
+          <div class="mt-6">
+            <label class="qf-label">Invoice Status</label>
+            <select name="status" class="qf-select font-bold">
+              <option value="Unpaid" {% if invoice and invoice.status.value == 'Unpaid' %}selected{% endif %}>Unpaid</option>
+              <option value="Paid" {% if invoice and invoice.status.value == 'Paid' %}selected{% endif %}>Paid</option>
+              <option value="Partially Paid" {% if invoice and invoice.status.value == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
+              <option value="Overdue" {% if invoice and invoice.status.value == 'Overdue' %}selected{% endif %}>Overdue</option>
+            </select>
+          </div>
 
-        calculateTotals();
-    </script>
-</body>
+          <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">
+          
+          <div class="space-y-4">
+              <div class="qf-field">
+                  <label class="qf-label">Additional Charges Label</label>
+                  <input type="text" name="additional_charges_label" class="qf-input text-xs" value="{{ invoice.additional_charges_label if invoice else '' }}" placeholder="e.g. Shipping / Packing">
+              </div>
+              <div class="qf-field">
+                  <label class="qf-label">Amount (₹)</label>
+                  <input type="number" name="additional_charges" id="additional-charges" class="qf-input" value="{{ invoice.additional_charges if invoice else 0 }}" step="0.01">
+              </div>
+            <label class="qf-toggle-label">
+                <input type="checkbox" name="additional_charges_taxable" value="1" id="charges-taxable" {% if invoice and invoice.additional_charges_taxable %}checked{% endif %}>
+                <span class="text-xs">Is this charge taxable?</span>
+            </label>
+          </div>
 
-</html>
+          <button type="submit" form="invoice-main-form" class="btn-primary w-full mt-8" style="padding: 14px; font-size: 1rem; font-weight: 700; letter-spacing: 0.02em; box-shadow: 0 8px 20px rgba(37,99,235,0.3);">
+            ✔ Finalize Invoice
+          </button>
+        </div>
 
+      </div><!-- /.qf-sidebar -->
 
+    </div><!-- /.qf-layout -->
+  </form>
 
+</div>
+
+<!-- ─── Modals for ERP Extras ─── -->
+<div id="modal-gst-config" class="qt-modal">
+  <div class="qt-modal-content">
+    <div class="qt-modal-header">
+      <h3>GST Configuration</h3>
+      <button type="button" class="btn-close" onclick="closeQtModal('modal-gst-config')">✕</button>
+    </div>
+    <div class="qt-modal-body">
+      <div class="qf-field">
+        <label>Default GST Rate (%)</label>
+        <select id="config-default-gst" class="qf-select">
+          <option value="0">0%</option>
+          <option value="5">5%</option>
+          <option value="12">12%</option>
+          <option value="18" selected>18%</option>
+          <option value="28">28%</option>
+        </select>
+      </div>
+      <div class="qf-field mt-4">
+        <button type="button" class="btn-secondary w-full" id="btn-apply-gst-all">Apply to All Rows</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-edit-cols" class="qt-modal">
+  <div class="qt-modal-content">
+    <div class="qt-modal-header">
+      <h3>Area Formula</h3>
+      <button type="button" class="btn-close" onclick="closeQtModal('modal-edit-cols')">✕</button>
+    </div>
+    <div class="qt-modal-body">
+      <div class="qf-field">
+        <label>Calculation Method</label>
+        <select id="config-global-formula" class="qf-select">
+          <option value="standard">Standard (W x H)</option>
+          <option value="minimal_1">Minimum 1.0 Sq.Ft</option>
+          <option value="round_05">Round to 0.5</option>
+          <option value="inches_to_sqft">Inches to Sq.Ft</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Row Template -->
+<template id="item-row-template">
+  <tr class="erp-item-row item-row">
+    <input type="hidden" name="group_name[]" class="input-group-name" value="">
+    <input type="hidden" name="formula_type[]" class="input-formula" value="standard">
+    <td class="col-drag"><span class="drag-handle">⠿</span></td>
+    <td class="col-sn">1</td>
+    <td class="col-item">
+      <input type="text" name="item_name[]" class="erp-inline-input item-name" placeholder="Item name">
+      <textarea name="description[]" class="erp-inline-textarea item-desc" rows="1" placeholder="Details..."></textarea>
+    </td>
+    <td class="col-dim">
+      <input type="number" name="width[]" class="erp-inline-input dim-w item-calc" value="0" step="0.01">
+    </td>
+    <td class="col-dim">
+      <input type="number" name="height[]" class="erp-inline-input dim-h item-calc" value="0" step="0.01">
+    </td>
+    <td class="col-c-area">
+      <span class="erp-readonly-val area-val">0.00</span>
+    </td>
+    <td class="col-qty">
+      <input type="number" name="quantity[]" class="erp-inline-input item-qty item-calc" value="1" step="0.01">
+    </td>
+    <td class="col-c-qty">
+      <input type="number" name="chargeable_quantity[]" class="erp-inline-input item-c-qty item-calc" placeholder="Auto" step="0.01">
+    </td>
+    <td class="col-unit">
+      <select name="unit[]" class="erp-inline-select select-unit">
+        <option selected>Sq.Ft</option><option>Sq.M</option>
+        <option>Pcs</option><option>Nos</option><option>RFT</option>
+      </select>
+    </td>
+    <td class="col-rate">
+      <input type="number" name="rate[]" class="erp-inline-input item-rate item-calc" value="0" step="0.01">
+    </td>
+    <td class="col-disc">
+      <div class="disc-wrap">
+        <input type="number" name="discount[]" class="erp-inline-input item-disc item-calc" value="0" style="width:40px;">
+        <select name="discount_type[]" class="erp-inline-select disc-type" style="width:30px;">
+          <option value="flat">₹</option><option value="percent">%</option>
+        </select>
+      </div>
+    </td>
+    <td class="col-gst">
+      <select name="gst_rate[]" class="erp-inline-select item-gst item-calc">
+        <option value="0">0%</option><option value="5">5%</option>
+        <option value="12">12%</option><option value="18" selected>18%</option>
+        <option value="28">28%</option>
+      </select>
+    </td>
+    <td class="col-amt"><span class="erp-readonly-val item-amount">₹0.00</span></td>
+    <td class="col-total"><strong class="item-total-str">₹0.00</strong></td>
+    <td class="col-action">
+      <button type="button" class="btn-remove-erp" title="Remove">✕</button>
+    </td>
+  </tr>
+</template>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="{{ url_for('static', filename='js/quotation_engine.js') }}"></script>
+<script>
+  window.QE_CONFIG = {
+    calcUrl: "{{ url_for('accounts.api_calculate') }}",
+    defaultGst: 18,
+    isIgst: false,
+    mode: "create"
+  };
+
+  // Re-run SN update and initial row
+  document.addEventListener('DOMContentLoaded', () => {
+    const btnAdd = document.getElementById('btn-add-row');
+    if(btnAdd) btnAdd.click(); 
+  });
+  
+  window.openQtModal = (id) => document.getElementById(id).style.display = 'flex';
+  window.closeQtModal = (id) => document.getElementById(id).style.display = 'none';
+</script>
+
+{% endblock %}

@@ -5,6 +5,7 @@ from flask_login import login_required, current_user
 from model import db, Lead, Employee, LeadSource, LeadStatus, LeadActivity, ActivityType, Customer, CustomerStatus
 from utils.exports import export_to_csv, export_to_excel, export_to_pdf
 from utils.activity import log_activity
+from utils.notifications import create_notification
 import pandas as pd
 
 leads_bp = Blueprint('leads', __name__)
@@ -70,6 +71,18 @@ def add_lead():
         try:
             db.session.add(new_lead)
             db.session.flush()
+            
+            # Notification for assignment
+            if assigned_to_id:
+                create_notification(
+                    recipient_id=assigned_to_id,
+                    title="New Lead Assigned",
+                    message=f"You have been assigned a new lead: {new_lead.name}",
+                    link=url_for('leads.view_lead', lead_id=new_lead.id),
+                    sender_id=current_user.employee.id,
+                    organization_id=current_user.organization_id
+                )
+
             log_activity('lead_added', 'lead', new_lead.name, current_user.organization_id, current_user.employee.id, new_lead.id)
             db.session.commit()
             flash('Lead added!', 'leadssuccess')
@@ -90,30 +103,42 @@ def edit_lead(lead_id):
         lead.name = request.form.get('name', '').strip()
         lead.email = request.form.get('email', '').strip()
         lead.phone_number = re.sub(r'\D', '', request.form.get('phone', ''))
-        
         assigned_to_id = request.form.get('assigned_to')
-        lead.assigned_to = int(assigned_to_id) if assigned_to_id and assigned_to_id != 'unassigned' else None
-
         source_map = {e.value: e for e in LeadSource}
         status_map = {e.value: e for e in LeadStatus}
-        lead.source = source_map.get(request.form.get('source'), LeadSource.OTHER)
-        lead.status = status_map.get(request.form.get('status'), LeadStatus.NEW)
-        lead.company = request.form.get('company', '').strip()
-        lead.address = request.form.get('address', '').strip()
-        lead.city = request.form.get('city', '').strip()
-        lead.notes = request.form.get('notes', '').strip()
         
-        # GST Fields
-        lead.gst_number = request.form.get('gst_number', '').strip()
-        lead.trade_name = request.form.get('trade_name', '').strip()
-        lead.state = request.form.get('state', '').strip()
-        lead.pincode = request.form.get('pincode', '').strip()
-        lead.business_type = request.form.get('business_type', '').strip()
-        lead.gst_status = request.form.get('gst_status', '').strip()
-        
-        lead.updated_by = current_user.employee.id
-
         try:
+            # Check if assignment changed
+            old_assignee = lead.assigned_to
+            lead.assigned_to = int(assigned_to_id) if assigned_to_id and assigned_to_id != 'unassigned' else None
+            
+            lead.source = source_map.get(request.form.get('source'), LeadSource.OTHER)
+            lead.status = status_map.get(request.form.get('status'), LeadStatus.NEW)
+            lead.company = request.form.get('company', '').strip()
+            lead.address = request.form.get('address', '').strip()
+            lead.city = request.form.get('city', '').strip()
+            lead.notes = request.form.get('notes', '').strip()
+            
+            # GST Fields
+            lead.gst_number = request.form.get('gst_number', '').strip()
+            lead.trade_name = request.form.get('trade_name', '').strip()
+            lead.state = request.form.get('state', '').strip()
+            lead.pincode = request.form.get('pincode', '').strip()
+            lead.business_type = request.form.get('business_type', '').strip()
+            lead.gst_status = request.form.get('gst_status', '').strip()
+            
+            lead.updated_by = current_user.employee.id
+
+            if lead.assigned_to and lead.assigned_to != old_assignee:
+                create_notification(
+                    recipient_id=lead.assigned_to,
+                    title="Lead Assigned to You",
+                    message=f"Lead '{lead.name}' has been assigned to you.",
+                    link=url_for('leads.view_lead', lead_id=lead.id),
+                    sender_id=current_user.employee.id,
+                    organization_id=current_user.organization_id
+                )
+
             log_activity('lead_updated', 'lead', lead.name, current_user.organization_id, current_user.employee.id, lead.id)
             db.session.commit()
             flash('Lead updated!', 'leadssuccess')
@@ -185,6 +210,18 @@ def convert_lead(lead_id):
         lead.status = LeadStatus.ACTIVE
         db.session.add(new_c)
         db.session.flush()
+        
+        # Notification for assignment
+        if new_c.assigned_to:
+            create_notification(
+                recipient_id=new_c.assigned_to,
+                title="New Customer Assigned",
+                message=f"A lead has been converted to a customer and assigned to you: {new_c.name}",
+                link=url_for('customers.view_customer', customer_id=new_c.id),
+                sender_id=current_user.employee.id,
+                organization_id=current_user.organization_id
+            )
+
         log_activity('customer_added', 'customer', new_c.name, current_user.organization_id, current_user.employee.id, new_c.id, description=f"Converted Lead to Customer: {new_c.name}")
         db.session.commit()
         flash(f'Lead "{lead.name}" converted to customer!', 'leadssuccess')

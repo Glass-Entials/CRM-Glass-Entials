@@ -1,301 +1,177 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice {{ invoice.invoice_number }} | GlassEntials</title>
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #0f172a;
-            --accent: #d4af37;
-            --border: #e2e8f0;
-            --text-muted: #64748b;
-        }
+{% block title %}Invoice {{ invoice.invoice_number }} | GlassEntials{% endblock %}
 
-        * { box-sizing: border-box; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #f1f5f9;
-            margin: 0;
-            padding: 40px 0;
-            color: var(--primary);
-        }
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}">
 
-        .invoice-wrapper {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            padding: 60px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
-            border-radius: 8px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .invoice-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 50px;
-        }
-
-        .company-info h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: 2rem;
-            margin: 0;
-            color: var(--primary);
-            letter-spacing: -0.02em;
-        }
-
-        .company-info p { margin: 5px 0 0; color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; }
-
-        .invoice-label {
-            text-align: right;
-        }
-
-        .invoice-label h2 {
-            font-size: 8rem;
-            margin: 0;
-            font-weight: 900;
-            color: rgba(13, 27, 42, 0.02);
-            position: absolute;
-            top: 10px;
-            right: -20px;
-            text-transform: uppercase;
-            letter-spacing: -0.02em;
-            pointer-events: none;
-            z-index: 0;
-            font-family: 'Playfair Display', serif;
-        }
-
-        .invoice-header, .invoice-meta, .invoice-table, .totals-section, .footer {
-            position: relative;
-            z-index: 1;
-        }
-
-        .invoice-meta {
-            margin-top: 40px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
-            border-bottom: 2px solid var(--border);
-            padding-bottom: 40px;
-        }
-
-        .meta-box h4 {
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            letter-spacing: 0.1em;
-            color: var(--text-muted);
-            margin: 0 0 15px;
-        }
-
-        .meta-box p { margin: 0; font-weight: 600; font-size: 1rem; color: var(--primary); }
-        .meta-box span { display: block; color: var(--text-muted); font-weight: 400; font-size: 0.9rem; margin-top: 5px; }
-
-        .invoice-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 50px;
-        }
-
-        .invoice-table th {
-            text-align: left;
-            background: var(--primary);
-            color: white;
-            padding: 16px 15px;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            border: none;
-        }
-
-        .invoice-table th:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
-        .invoice-table th:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
-
-        .invoice-table td {
-            padding: 22px 15px;
-            border-bottom: 1px dashed var(--border);
-            font-size: 1rem;
-        }
-
-        .totals-section {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 40px;
-            background: #f8fafc;
-            padding: 30px;
-            border-radius: 12px;
-        }
-
-        .totals-box { width: 320px; }
-        .total-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            font-size: 0.95rem;
-        }
-
-        .total-row.grand-total {
-            border-top: 2px solid var(--accent);
-            margin-top: 15px;
-            padding-top: 20px;
-            font-weight: 800;
-            font-size: 1.5rem;
-        }
-
-        /* Status Colors */
-        .status-paid { color: #10b981; }
-        .status-unpaid { color: #ef4444; }
-        .status-partially-paid { color: #f59e0b; }
-        .status-cancelled { color: #64748b; }
-        .status-overdue { color: #b91c1c; }
-
-        .footer {
-            margin-top: 60px;
-            border-top: 1px solid var(--border);
-            padding-top: 30px;
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-        }
-
-        @media print {
-            body { background: white; padding: 0; }
-            .invoice-wrapper { box-shadow: none; border-radius: 0; max-width: 100%; width: 100%; padding: 0; }
-            .print-btn, .totals-section { background: transparent; }
-            .print-btn { display: none; }
-        }
-
-        .print-btn {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 50px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-            transition: all 0.3s;
-            z-index: 1000;
-        }
-
-        .print-btn:hover { background: var(--accent); color: var(--primary); transform: translateY(-3px); }
-    </style>
-</head>
-
-<body>
-
-    <button class="print-btn" onclick="window.print()">Print Invoice 🖨️</button>
-
-    <div class="invoice-wrapper">
-        <div class="invoice-label"><h2>INVOICE</h2></div>
-        
-        <div class="invoice-header">
-            <div class="company-info">
-                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" style="max-width: 350px; height: auto; max-height: 160px; margin-bottom: 30px;">
-                <p style="border-left: 4px solid var(--accent); padding-left: 18px; font-size: 0.95rem; line-height: 1.6;">
-                    <strong style="color: var(--primary); font-size: 1.1rem; letter-spacing: -0.01em;">Premium Architectural Glass Solutions</strong><br>
-                    <span style="color: var(--primary);">GSTIN:</span> 27AABCG1234F1Z1<br>
-                    Mumbai, Maharashtra, India
-                </p>
-            </div>
-            <div style="text-align: right;">
-                <p style="font-weight: 700; margin: 0; color: var(--text-muted); text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.1em;">Invoice No</p>
-                <p style="font-size: 1.8rem; font-weight: 800; margin: 5px 0; color: var(--primary);">{{ invoice.invoice_number }}</p>
-                
-                <p style="font-weight: 700; margin: 25px 0 0; color: var(--text-muted); text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.1em;">Date</p>
-                <p style="margin: 5px 0; font-weight: 600; font-size: 1.1rem; color: var(--primary);">{{ invoice.issue_date.strftime('%d %B, %Y') }}</p>
-            </div>
-        </div>
-
-        <div class="invoice-meta">
-            <div class="meta-box">
-                <h4>Bill To:</h4>
-                <p>{{ invoice.customer.name }}</p>
-                {% if invoice.customer.company %}
-                <span>{{ invoice.customer.company }}</span>
-                {% endif %}
-                <span>{{ invoice.customer.address or '' }}</span>
-                <span>{{ invoice.customer.city or '' }}</span>
-                <span>GST: {{ invoice.customer.gst_number or 'Unregistered' }}</span>
-            </div>
-            <div class="meta-box" style="text-align: right;">
-                <h4>Project Reference:</h4>
-                <p>{{ invoice.project.name if invoice.project else 'General Account' }}</p>
-                <span>Due Date: {{ invoice.due_date.strftime('%d %B, %Y') if invoice.due_date else 'Upon Receipt' }}</span>
-                <span>Status: <strong class="status-{{ invoice.status.value | lower | replace(' ', '-') }}">{{ invoice.status.value }}</strong></span>
-            </div>
-        </div>
-
-        <table class="invoice-table">
-            <thead>
-                <tr>
-                    <th style="width: 50px;">#</th>
-                    <th>Description</th>
-                    <th style="text-align: center; width: 100px;">Qty</th>
-                    <th style="text-align: right; width: 140px;">Rate</th>
-                    <th style="text-align: right; width: 160px;">Amount</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in invoice.items %}
-                <tr>
-                    <td style="color: var(--text-muted);">{{ loop.index }}</td>
-                    <td style="font-weight: 500;">{{ item.description }}</td>
-                    <td style="text-align: center;">{{ item.quantity }}</td>
-                    <td style="text-align: right;">₹{{ "{:,.2f}".format(item.rate) }}</td>
-                    <td style="text-align: right; font-weight: 700;">₹{{ "{:,.2f}".format(item.amount) }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <div class="totals-section">
-            <div class="totals-box">
-                <div class="total-row">
-                    <span>Sub-Total</span>
-                    <span>₹{{ "{:,.2f}".format(invoice.amount) }}</span>
-                </div>
-                <div class="total-row">
-                    <span>GST (18%)</span>
-                    <span>₹{{ "{:,.2f}".format(invoice.gst_amount) }}</span>
-                </div>
-                <div class="total-row grand-total">
-                    <span>Total Amount</span>
-                    <span style="color: var(--accent);">₹{{ "{:,.2f}".format(invoice.total_amount) }}</span>
-                </div>
-            </div>
-        </div>
-
-        <div style="margin-top: 60px; padding: 30px; background: #f8fafc; border-radius: 8px;">
-            <h4 style="margin: 0 0 10px; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Payment Terms & Notes</h4>
-            <p style="margin: 0; font-size: 0.9rem; line-height: 1.6;">
-                {{ invoice.notes or 'Please make payment within the due date. Bank details: HDFC Bank, A/C: 502000XXXXXXX, IFSC: HDFC0001234.' }}
-            </p>
-        </div>
-
-        <div class="footer">
-            <div>
-                <p><strong>Authorized Signatory</strong></p>
-                <div style="height: 50px;"></div>
-                <p>For Glass Entials</p>
-            </div>
-            <div style="text-align: right; align-self: flex-end;">
-                <p>Thank you for your business!</p>
-            </div>
-        </div>
+<div class="qv-wrapper">
+  
+  <div class="qv-topbar no-print">
+    <div class="qv-topbar-left">
+      <a href="{{ url_for('accounts.invoice_list') }}" class="btn-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
+        Invoices
+      </a>
+      <div class="qv-breadcrumb">
+        <span>Tax Invoice</span>
+        <span class="sep">›</span>
+        <span class="active">{{ invoice.invoice_number }}</span>
+      </div>
     </div>
+    <div class="qv-topbar-right">
+      <span class="status-pill status-{{ invoice.status.value.lower().replace(' ', '-') }}">{{ invoice.status.value }}</span>
+      <button onclick="window.print()" class="btn-secondary">🖨 Print / PDF</button>
+      <a href="{{ url_for('accounts.edit_invoice', invoice_id=invoice.id) }}" class="btn-secondary">✏️ Edit</a>
+      <a href="{{ url_for('accounts.add_invoice') }}" class="btn-primary">Generate New</a>
+    </div>
+  </div>
 
-</body>
+  <!-- ── PRINT PREVIEW AREA ───────────────────────── -->
+  <div class="doc-container" id="print-area">
+    <div class="qv-document">
+      <!-- Document Header -->
+      <div class="doc-header" style="display:block; padding:0; border:none; background:none; margin: -10px -40px 0;">
+        <img src="{{ url_for('static', filename='img/invoice-quotation-header.png') }}"
+             alt="GlassEntials Header"
+             style="width:100%; display:block; border-radius:4px 4px 0 0; margin-bottom:0;">
+        <div class="doc-meta-info" style="padding: 12px 40px 4px; margin:0;">
+          <span>Invoice No: <strong>{{ invoice.invoice_number }}</strong></span>
+          <span>Date: <strong>{{ invoice.issue_date.strftime('%d %B %Y') if invoice.issue_date else '—' }}</strong></span>
+          {% if invoice.due_date %}
+          <span>Due Date: <strong>{{ invoice.due_date.strftime('%d %B %Y') }}</strong></span>
+          {% endif %}
+        </div>
+      </div>
 
-</html>
+      <!-- Parties Grid -->
+      <div class="doc-parties">
+        <div class="doc-party doc-from">
+          <p class="doc-party-label">BILLED TO</p>
+          {% if invoice.customer %}
+            <p class="doc-party-name">{{ invoice.customer.company_name or invoice.customer.customer_name }}</p>
+            {% if invoice.customer.company_name %}<p>{{ invoice.customer.customer_name }}</p>{% endif %}
+            <p>{{ invoice.customer.address or '' }}</p>
+            {% if invoice.customer.state %}<p>{{ invoice.customer.state }}</p>{% endif %}
+            {% if invoice.customer.gst_number %}<p><strong>GSTIN:</strong> {{ invoice.customer.gst_number }}</p>{% endif %}
+          {% else %}
+            <p class="text-muted">No Customer assigned</p>
+          {% endif %}
+        </div>
+        <div class="doc-party doc-to">
+          <p class="doc-party-label">FROM</p>
+          <p class="doc-party-name">{{ settings.display_name or settings.company_name or 'GlassEntials' }}</p>
+          <p>{{ settings.address or settings.company_address or 'Company Address' }}</p>
+          {% if settings.gstin or settings.company_gstin %}<p><strong>GSTIN:</strong> {{ settings.gstin or settings.company_gstin }}</p>{% endif %}
+          {% if settings.contact_email or settings.company_email %}<p>✉ {{ settings.contact_email or settings.company_email }}</p>{% endif %}
+        </div>
+      </div>
+
+      <!-- Line Items Section -->
+      <div class="doc-items-section">
+        <table class="doc-items-table">
+          <thead>
+            <tr>
+              <th class="th-no">#</th>
+              <th class="th-item">Description & Specification</th>
+              <th class="th-dim">Dimensions</th>
+              <th class="th-qty">Qty</th>
+              <th class="th-rate">Rate</th>
+              <th class="th-gst">GST</th>
+              <th class="th-amt text-right">Amount ₹</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in invoice.items %}
+            <tr>
+              <td class="th-no">{{ loop.index }}</td>
+              <td class="th-item">
+                <strong>{{ item.item_name }}</strong>
+                {% if item.description %}<p class="item-desc-small">{{ item.description }}</p>{% endif %}
+              </td>
+              <td class="th-dim">
+                {% if item.width and item.height %}
+                <span>{{ item.width }} x {{ item.height }} {{ item.unit }}</span>
+                {% else %}—{% endif %}
+              </td>
+              <td class="th-qty text-center">{{ item.quantity }}</td>
+              <td class="th-rate">₹{{ "{:,.2f}".format(item.rate or 0) }}</td>
+              <td class="th-gst text-center">{{ item.gst_percentage or 0 }}%</td>
+              <td class="th-amt text-right"><strong>₹{{ "{:,.2f}".format(item.total or 0) }}</strong></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Summary & Totals -->
+      <div class="doc-totals-wrap">
+        <div class="doc-totals-spacer">
+          <div class="doc-words">
+            <strong>Amount in Words:</strong> {{ invoice.total_in_words or '—' }}
+          </div>
+          
+          {% if settings.bank_name %}
+          <div class="doc-bank">
+            <h4>Bank Details</h4>
+            <div class="doc-bank-grid">
+              <div><span>Bank</span><span>{{ settings.bank_name }}</span></div>
+              <div><span>Account</span><span>{{ settings.bank_account_no }}</span></div>
+              <div><span>IFSC</span><span>{{ settings.bank_ifsc }}</span></div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="doc-totals">
+          <div class="doc-totals-row">
+            <span>Subtotal</span>
+            <span>₹{{ "{:,.2f}".format(invoice.subtotal or 0) }}</span>
+          </div>
+          {% if invoice.total_discount and invoice.total_discount > 0 %}
+          <div class="doc-totals-row text-danger">
+            <span>Discount</span>
+            <span>- ₹{{ "{:,.2f}".format(invoice.total_discount or 0) }}</span>
+          </div>
+          {% endif %}
+          
+          {% if invoice.is_igst %}
+          <div class="doc-totals-row doc-tax-row">
+            <span>IGST</span>
+            <span>₹{{ "{:,.2f}".format(invoice.igst or 0) }}</span>
+          </div>
+          {% else %}
+          <div class="doc-totals-row doc-tax-row"><span>SGST</span><span>₹{{ "{:,.2f}".format(invoice.sgst or 0) }}</span></div>
+          <div class="doc-totals-row doc-tax-row"><span>CGST</span><span>₹{{ "{:,.2f}".format(invoice.cgst or 0) }}</span></div>
+          {% endif %}
+          
+          {% if invoice.additional_charges and invoice.additional_charges > 0 %}
+          <div class="doc-totals-row">
+            <span>{{ invoice.additional_charges_label or 'Misc Charges' }}</span>
+            <span>₹{{ "{:,.2f}".format(invoice.additional_charges or 0) }}</span>
+          </div>
+          {% endif %}
+
+          <div class="doc-totals-row doc-totals-grand">
+            <span>TOTAL AMOUNT</span>
+            <span>₹{{ "{:,.2f}".format(invoice.total_amount or 0) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-signature-wrap">
+        <div class="doc-signature-blank"></div>
+        <div class="doc-signature-line"></div>
+        <div class="doc-signature-label">Authorized Signatory</div>
+      </div>
+
+      <div class="doc-footer">
+        Computer generated invoice. No signature required if stamped.
+      </div>
+
+    </div><!-- /.qv-document -->
+  </div><!-- /.doc-container -->
+
+</div><!-- /.qv-wrapper -->
+
+{% endblock %}

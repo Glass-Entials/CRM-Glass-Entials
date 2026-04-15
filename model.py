@@ -198,6 +198,7 @@ class Lead(db.Model):
     assignee = db.relationship('Employee', foreign_keys=[assigned_to], backref='assigned_leads')
     creator = db.relationship('Employee', foreign_keys=[created_by], backref='leads_created')
     updater = db.relationship('Employee', foreign_keys=[updated_by], backref='leads_updated')
+    documents = db.relationship('CRMDocument', backref='lead', lazy='dynamic', cascade='all, delete-orphan')
     organization = db.relationship('Organization', back_populates='leads')
 
     @property
@@ -313,6 +314,7 @@ class Task(db.Model):
     lead_record = db.relationship('Lead', foreign_keys=[lead_id], backref=db.backref('tasks_related', lazy='dynamic'))
     project = db.relationship('Project', foreign_keys=[project_id], backref=db.backref('tasks_related', lazy='dynamic'))
     organization = db.relationship('Organization', foreign_keys=[organization_id], backref=db.backref('tasks', lazy='dynamic'))
+    documents = db.relationship('CRMDocument', backref='task', lazy='dynamic', cascade='all, delete-orphan')
 
     @property
     def status_display(self):
@@ -340,6 +342,7 @@ class DailyTask(db.Model):
     employee = db.relationship('Employee', backref=db.backref('daily_tasks', lazy='dynamic'))
     organization = db.relationship('Organization', backref=db.backref('daily_tasks', lazy='dynamic'))
     project = db.relationship('Project', backref=db.backref('daily_tasks', lazy='dynamic'))
+    documents = db.relationship('CRMDocument', backref='daily_task', lazy='dynamic', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<DailyTask {self.id} for Employee {self.employee_id}>'
@@ -371,6 +374,7 @@ class Project(db.Model):
     assignee = db.relationship('Employee', foreign_keys=[assigned_to], backref='assigned_projects')
     creator = db.relationship('Employee', foreign_keys=[created_by], backref='projects_created')
     updater = db.relationship('Employee', foreign_keys=[updated_by], backref='projects_updated')
+    documents = db.relationship('CRMDocument', backref='project', lazy='dynamic', cascade='all, delete-orphan')
     organization = db.relationship('Organization', backref='projects')
 
     @property
@@ -408,23 +412,67 @@ class ActivityLog(db.Model):
     def __repr__(self):
         return f'<ActivityLog {self.action} on {self.entity_type} {self.entity_id}>'
 
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False, index=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=True, index=True)
+    
+    title = db.Column(db.String(150), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    link = db.Column(db.String(255), nullable=True) # URL to redirect when clicked
+    
+    is_read = db.Column(db.Boolean, default=False, index=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    
+    # Tenancy
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False, index=True)
+    
+    # Relationships
+    recipient = db.relationship('Employee', foreign_keys=[recipient_id], backref=db.backref('notifications', lazy='dynamic'))
+    sender = db.relationship('Employee', foreign_keys=[sender_id], backref=db.backref('sent_notifications', lazy='dynamic'))
+    organization = db.relationship('Organization', backref='notifications_list')
+
+    def __repr__(self):
+        return f'<Notification {self.title} for {self.recipient_id}>'
+
 class Invoice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_number = db.Column(db.String(20), unique=True, nullable=False, index=True)
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=True, index=True)
     organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False, index=True)
+    invoice_title = db.Column(db.String(100), default="Tax Invoice")
     
-    amount = db.Column(db.Float, default=0.0)
+    subtotal = db.Column(db.Float, default=0.0)
+    amount = db.Column(db.Float, default=0.0) # Used as taxable amount in some contexts
+    total_discount = db.Column(db.Float, default=0.0)
+    total_discount_type = db.Column(db.String(10), default='flat') # 'flat' | 'percent'
+    
+    additional_charges = db.Column(db.Float, default=0.0)
+    additional_charges_taxable = db.Column(db.Boolean, default=False)
+    additional_charges_label = db.Column(db.String(100), nullable=True)
+    
+    sgst = db.Column(db.Float, default=0.0)
+    cgst = db.Column(db.Float, default=0.0)
+    igst = db.Column(db.Float, default=0.0)
     gst_amount = db.Column(db.Float, default=0.0)
     total_amount = db.Column(db.Float, default=0.0)
+    total_in_words = db.Column(db.String(255), nullable=True)
+    total_quantity = db.Column(db.Float, default=0.0)
     
     status = db.Column(db.Enum(InvoiceStatus, values_callable=lambda x: [e.value for e in x]), default=InvoiceStatus.UNPAID, index=True)
     
     issue_date = db.Column(db.DateTime, default=db.func.current_timestamp())
     due_date = db.Column(db.DateTime, nullable=True)
     
+    # GST type for auto split
+    is_igst = db.Column(db.Boolean, default=False)
+    
     notes = db.Column(db.Text, nullable=True)
+    terms_conditions = db.Column(db.Text, nullable=True)
+    
+    # Signature
+    signature_label = db.Column(db.String(100), default="Authorised Signatory")
     
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
@@ -447,10 +495,35 @@ class Invoice(db.Model):
 class InvoiceItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False, index=True)
-    description = db.Column(db.String(255), nullable=False)
+    
+    sort_order = db.Column(db.Integer, default=0)
+    group_name = db.Column(db.String(100), nullable=True)
+    item_name = db.Column(db.String(255), nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    
+    width = db.Column(db.Float, nullable=True)
+    height = db.Column(db.Float, nullable=True)
+    dimensions = db.Column(db.String(100), nullable=True)
+    
+    formula_type = db.Column(db.String(50), nullable=True, default='standard') # 'sqft', 'pcs', 'custom'
     quantity = db.Column(db.Float, default=1.0)
+    chargeable_quantity = db.Column(db.Float, nullable=True)
+    
+    unit = db.Column(db.String(20), nullable=True, default='Sq.Ft')
     rate = db.Column(db.Float, default=0.0)
-    amount = db.Column(db.Float, default=0.0)
+    discount = db.Column(db.Float, default=0.0)
+    discount_type = db.Column(db.String(10), default='flat') # 'flat' | 'percent'
+    
+    # Tax
+    gst_percentage = db.Column(db.Float, default=18.0)
+    sgst_rate = db.Column(db.Float, default=9.0)
+    cgst_rate = db.Column(db.Float, default=9.0)
+    igst_rate = db.Column(db.Float, default=0.0)
+    
+    # Amounts
+    amount = db.Column(db.Float, default=0.0)     # pre-tax subtotal
+    gst_amount = db.Column(db.Float, default=0.0)
+    total = db.Column(db.Float, default=0.0)      # amount + gst
     
     def __repr__(self):
         return f'<InvoiceItem {self.description}>'
@@ -941,3 +1014,39 @@ class Product(db.Model):
 
     def __repr__(self):
         return f'<Product {self.name}>'
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CRM DOCUMENT MANAGEMENT (LEADS & PROJECTS)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class CRMDocument(db.Model):
+    __tablename__ = 'crm_document'
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Links to standard entities
+    lead_id = db.Column(db.Integer, db.ForeignKey('lead.id'), nullable=True, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=True, index=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=True, index=True)
+    daily_task_id = db.Column(db.Integer, db.ForeignKey('daily_task.id'), nullable=True, index=True)
+    
+    # File details
+    filename = db.Column(db.String(255), nullable=False)        # Unique stored name
+    original_name = db.Column(db.String(255), nullable=False)   # User-uploaded name
+    file_type = db.Column(db.String(50), nullable=True)         # Extension or Mime
+    file_size = db.Column(db.Integer, nullable=True)            # In bytes
+    
+    # Meta
+    description = db.Column(db.String(255), nullable=True)
+    uploaded_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    uploaded_by = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
+    
+    # Tenancy
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False, index=True)
+    
+    # Relationships
+    uploader = db.relationship('Employee', foreign_keys=[uploaded_by], backref='uploaded_docs')
+    organization = db.relationship('Organization', backref='crm_documents')
+
+    def __repr__(self):
+        return f'<CRMDocument {self.original_name}>'

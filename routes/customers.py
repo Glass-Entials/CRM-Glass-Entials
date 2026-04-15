@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 import uuid
 from datetime import datetime
 from utils.activity import log_activity
+from utils.notifications import create_notification
 
 customers_bp = Blueprint('customers', __name__)
 
@@ -127,6 +128,18 @@ def add_customer():
         try:
             db.session.add(new_customer)
             db.session.flush()
+            
+            # Notification for assignment
+            if assigned_to_id:
+                create_notification(
+                    recipient_id=assigned_to_id,
+                    title="New Customer Assigned",
+                    message=f"You have been assigned a new customer: {new_customer.name}",
+                    link=url_for('customers.view_customer', customer_id=new_customer.id),
+                    sender_id=current_user.employee.id,
+                    organization_id=current_user.organization_id
+                )
+
             log_activity('customer_added', 'customer', new_customer.name, current_user.organization_id, current_user.employee.id, new_customer.id)
             db.session.commit()
             flash('Customer added successfully!', 'customersuccess')
@@ -152,25 +165,38 @@ def edit_customer(customer_id):
         customer.company = request.form.get('company', '').strip()
         
         assigned_to_id = request.form.get('assigned_to')
-        customer.assigned_to = int(assigned_to_id) if assigned_to_id and assigned_to_id != 'unassigned' else None
-
         source_map = {e.value: e for e in LeadSource}
         status_map = {e.value: e for e in CustomerStatus}
-        customer.source = source_map.get(request.form.get('source'), LeadSource.OTHER)
-        customer.status = status_map.get(request.form.get('status'), CustomerStatus.NEW)
-        customer.notes = request.form.get('notes', '').strip()
         
-        # GST Fields
-        customer.gst_number = request.form.get('gst_number', '').strip()
-        customer.trade_name = request.form.get('trade_name', '').strip()
-        customer.state = request.form.get('state', '').strip()
-        customer.pincode = request.form.get('pincode', '').strip()
-        customer.business_type = request.form.get('business_type', '').strip()
-        customer.gst_status = request.form.get('gst_status', '').strip()
-        
-        customer.updated_by = current_user.employee.id
-
         try:
+            # Check if assignment changed
+            old_assignee = customer.assigned_to
+            customer.assigned_to = int(assigned_to_id) if assigned_to_id and assigned_to_id != 'unassigned' else None
+            
+            customer.source = source_map.get(request.form.get('source'), LeadSource.OTHER)
+            customer.status = status_map.get(request.form.get('status'), CustomerStatus.NEW)
+            customer.notes = request.form.get('notes', '').strip()
+            
+            # GST Fields
+            customer.gst_number = request.form.get('gst_number', '').strip()
+            customer.trade_name = request.form.get('trade_name', '').strip()
+            customer.state = request.form.get('state', '').strip()
+            customer.pincode = request.form.get('pincode', '').strip()
+            customer.business_type = request.form.get('business_type', '').strip()
+            customer.gst_status = request.form.get('gst_status', '').strip()
+            
+            customer.updated_by = current_user.employee.id
+
+            if customer.assigned_to and customer.assigned_to != old_assignee:
+                create_notification(
+                    recipient_id=customer.assigned_to,
+                    title="Customer Assigned to You",
+                    message=f"Customer '{customer.name}' has been assigned to you.",
+                    link=url_for('customers.view_customer', customer_id=customer.id),
+                    sender_id=current_user.employee.id,
+                    organization_id=current_user.organization_id
+                )
+
             log_activity('customer_updated', 'customer', customer.name, current_user.organization_id, current_user.employee.id, customer.id)
             db.session.commit()
             flash('Customer updated successfully!', 'customersuccess')
