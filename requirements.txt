@@ -1,17 +1,28 @@
+# Core Framework
 Flask==3.0.3
-Flask-SQLAlchemy==3.1.1
-gunicorn==22.0.0
+Werkzeug==3.0.3
 Flask-Login==0.6.3
+
+# Database
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.31
 Flask-Migrate==4.0.7
 PyMySQL==1.1.0
+
+# Security / Auth
+Argon2-cffi==23.1.0
+cryptography==42.0.5
+
+# Data & Exports
 pandas==2.2.2
+openpyxl==3.1.2
 xlsxwriter==3.2.0
 fpdf2==2.7.9
-Werkzeug==3.0.3
-SQLAlchemy==2.0.31
+
+# Utilities
 python-dotenv==1.0.1
-openpyxl==3.1.2
-cryptography==42.0.5
-Argon2-cffi==23.1.0
 requests==2.32.2
+
+# Production Server
+gunicorn==22.0.0
 
