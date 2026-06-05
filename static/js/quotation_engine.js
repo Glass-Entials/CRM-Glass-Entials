@@ -102,11 +102,21 @@ if (vtType) {
 
 function attachRowListeners(row) {
   row.querySelectorAll('.item-calc, .select-unit').forEach(el => {
-    el.addEventListener('input', () => {
+    el.addEventListener('input', (e) => {
+      // If user edits directly, mark as manual
+      if (e.target.classList.contains('item-c-qty')) {
+        e.target.dataset.manual = 'true';
+      } 
+      // If user edits dimensions or qty, remove manual override so it auto-calculates again
+      else if (e.target.classList.contains('dim-w') || e.target.classList.contains('dim-h') || e.target.classList.contains('item-qty')) {
+        const cQtyInput = row.querySelector('.item-c-qty');
+        if (cQtyInput) delete cQtyInput.dataset.manual;
+      }
+      
       calculateRowArea(row);
       scheduleRecalculate();
     });
-    el.addEventListener('change', () => {
+    el.addEventListener('change', (e) => {
       calculateRowArea(row);
       scheduleRecalculate();
     });

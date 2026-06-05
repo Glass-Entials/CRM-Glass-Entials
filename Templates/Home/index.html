@@ -25,8 +25,8 @@
         <nav class="nav-links">
             <a href="{{ url_for('about') }}">About Us</a>
             <a href="{{ url_for('home_page') }}">Dashboard</a>
-            <a href="#">Directory</a>
-            <a href="#">Resources</a>
+            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
             <a href="{{ url_for('auth.login') }}">Login</a>
             <a href="{{ url_for('auth.register') }}" class="btn-outline">Create Account</a>
         </nav>

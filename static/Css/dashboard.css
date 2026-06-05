@@ -95,24 +95,31 @@ body.dashboard-page {
     background-color: #ffffff;
     min-width: 220px;
     box-shadow: 0 20px 50px rgba(13, 27, 42, 0.12);
-    z-index: 1000;
+    z-index: 9999;
     border: 1px solid rgba(13, 27, 42, 0.1);
     border-radius: 0 0 8px 8px;
-    overflow: hidden;
+    overflow: visible;
 
     /* Smooth Transition Setup */
     opacity: 0;
     visibility: hidden;
     transform: translateY(10px);
     transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    pointer-events: none;
 }
 
 .dash-menu .dropdown:hover .dropdown-content {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
-    pointer-events: auto;
+}
+
+.dash-menu .dropdown-content::before {
+    content: '';
+    position: absolute;
+    top: -15px;
+    left: 0;
+    right: 0;
+    height: 15px;
 }
 
 .dash-menu .dropdown-content a {

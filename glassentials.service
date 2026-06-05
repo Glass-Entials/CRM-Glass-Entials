@@ -1,0 +1,51 @@
+[Unit]
+Description=GlassEntials CRM — Gunicorn WSGI Server
+Documentation=https://github.com/your-repo/glassentials
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+# Run as a non-privileged user (create with: sudo useradd -r -s /bin/false glassentials)
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/glassentials
+
+# Environment (production secrets loaded from AWS Secrets Manager)
+EnvironmentFile=/home/ubuntu/glassentials/.env.production
+
+# Activate virtualenv and run Gunicorn
+ExecStart=/home/ubuntu/glassentials/venv/bin/gunicorn \
+    --config /home/ubuntu/glassentials/gunicorn.conf.py \
+    wsgi:application
+
+# Graceful reload (SIGHUP)
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# Auto-restart on failure
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+# Prevent privilege escalation
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/ubuntu/glassentials/static/uploads /home/ubuntu/glassentials/migrations
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Logging (stdout/stderr → journald → CloudWatch agent)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=glassentials
+
+# Kill mode
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

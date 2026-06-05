@@ -20,6 +20,32 @@
 
 html {
     scroll-behavior: smooth;
+    zoom: 0.75;
+}
+
+/* Responsive Zoom for stability across sizes */
+@media screen and (max-width: 1600px) {
+    html { zoom: 0.70; }
+}
+@media screen and (max-width: 1440px) {
+    html { zoom: 0.65; }
+}
+@media screen and (max-width: 1280px) {
+    html { zoom: 0.60; }
+}
+@media screen and (max-width: 1024px) {
+    html { zoom: 0.55; }
+}
+@media screen and (max-width: 768px) {
+    html { 
+        zoom: 0.7; 
+        /* Slightly larger for mobile to retain readability */
+    }
+}
+@media screen and (max-width: 480px) {
+    html { 
+        zoom: 0.6; 
+    }
 }
 
 body {

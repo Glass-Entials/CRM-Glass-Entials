@@ -1,0 +1,65 @@
+# ─────────────────────────────────────────────────────────
+# .gitignore — CRM GlassEntials
+# ─────────────────────────────────────────────────────────
+
+# NEVER commit secrets to git
+.env
+*.env
+!.env.example
+!production.env.example
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+.installed.cfg
+lib/
+lib64/
+parts/
+sdist/
+var/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+.Python
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Flask / Migrations
+instance/
+migrations/versions/__pycache__/
+
+# Uploads (stored on S3 in production — don't commit)
+static/uploads/
+temp_uploads/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.log
+
+# Scratch files
+scratch/
+temp_base.html
+fix_templates.py
+update_all_navbars.py

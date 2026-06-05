@@ -11,6 +11,17 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}">
+    <style>
+        .badge-in-progress { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+        .badge-cancelled { background: rgba(220, 53, 69, 0.08); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2); }
+        .badge-completed { background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2); }
+        .badge-default { background: rgba(212, 175, 55, 0.15); color: #d4af37; border: 1px solid rgba(212, 175, 55, 0.4); }
+        
+        .task-badge-in-progress { background: rgba(0, 123, 255, 0.08); color: #007bff; border: 1px solid rgba(0, 123, 255, 0.2); }
+        .task-badge-cancelled { background: rgba(220, 53, 69, 0.08); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2); }
+        .task-badge-completed { background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2); }
+        .task-badge-default { background: rgba(255, 193, 7, 0.08); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.2); }
+    </style>
 </head>
 <body class="dashboard-page">
 
@@ -23,33 +34,43 @@
         </div>
         
         <nav class="dash-menu">
-            <a href="{{ url_for('home_page') }}">Dashboard</a>
-            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
-            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
-            <a href="{{ url_for('projects.projects_list') }}" class="active">Projects</a>
-            <div class="dropdown">
-                <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
-                    <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
-                </div>
-            </div>
-            <div class="dropdown">
-                <a href="#">Accounts ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
-                    <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
-                    <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
-                </div>
-            </div>
-            <a href="{{ url_for('products.products_list') }}" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
-            <div class="dropdown">
-                <a href="#">Settings ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
-                </div>
-            </div>
-        </nav>
+    <a href="{{ url_for('home_page') }}" {% if request.endpoint == 'home_page' %}class="active"{% endif %}>Dashboard</a>
+    <a href="{{ url_for('customers.customers_list') }}" {% if request.blueprint == 'customers' %}class="active"{% endif %}>Customers</a>
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'leads' %}class="active"{% endif %}>Leads ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('leads.leads_list') }}">All Leads</a>
+            <a href="{{ url_for('leads.all_follow_ups') }}">📞 Follow-Ups</a>
+        </div>
+    </div>
+    <a href="{{ url_for('projects.projects_list') }}" {% if request.blueprint == 'projects' %}class="active"{% endif %}>Projects</a>
+    
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'tasks' %}class="active"{% endif %}>Tasks ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+            <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+        </div>
+    </div>
+
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'accounts' or request.blueprint == 'quotations' or request.blueprint == 'expenses' %}class="active"{% endif %}>Accounts ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+            <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+            <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+        </div>
+    </div>
+
+    <a href="#" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
+    
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'employees' %}class="active"{% endif %}>Settings ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+        </div>
+    </div>
+</nav>
         
         <div class="user-profile">
             <span class="welcome-text">Welcome, {{ current_user.username }}</span>
@@ -92,11 +113,7 @@
             <div class="panel" style="padding: 2.5rem; border-top: 4px solid var(--primary-color);">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
                     <h2 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.5rem; margin: 0;">Project Overview</h2>
-                    <span class="status-badge" style="padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; 
-                        {% if project.status_display == 'In Progress' %}background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3);
-                        {% elif project.status_display == 'Cancelled' %}background: rgba(220, 53, 69, 0.08); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2);
-                        {% elif project.status_display == 'Completed' %}background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2);
-                        {% else %}background: rgba(212, 175, 55, 0.15); color: #d4af37; border: 1px solid rgba(212, 175, 55, 0.4);{% endif %}">
+                    <span class="status-badge {% if project.status_display == 'In Progress' %}badge-in-progress{% elif project.status_display == 'Cancelled' %}badge-cancelled{% elif project.status_display == 'Completed' %}badge-completed{% else %}badge-default{% endif %}" style="padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600;">
                         {{ project.status_display }}
                     </span>
                 </div>
@@ -179,11 +196,7 @@
                                     {% endif %}
                                 </td>
                                 <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05);">
-                                    <span class="status-badge" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 600;
-                                        {% if task.status_display == 'Completed' %}background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2);
-                                        {% elif task.status_display == 'In Progress' %}background: rgba(0, 123, 255, 0.08); color: #007bff; border: 1px solid rgba(0, 123, 255, 0.2);
-                                        {% elif task.status_display == 'Cancelled' %}background: rgba(220, 53, 69, 0.08); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2);
-                                        {% else %}background: rgba(255, 193, 7, 0.08); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.2);{% endif %}">
+                                    <span class="status-badge {% if task.status_display == 'Completed' %}task-badge-completed{% elif task.status_display == 'In Progress' %}task-badge-in-progress{% elif task.status_display == 'Cancelled' %}task-badge-cancelled{% else %}task-badge-default{% endif %}" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 600;">
                                         {{ task.status_display }}
                                     </span>
                                 </td>

@@ -70,33 +70,43 @@
     <header class="dash-nav">
         <div class="logo"><a href="/home"><img src="{{ url_for('static', filename='img/logo.png') }}" class="site-logo"></a></div>
         <nav class="dash-menu">
-            <a href="{{ url_for('home_page') }}">Dashboard</a>
-            <a href="{{ url_for('customers.customers_list') }}">Customers</a>
-            <a href="{{ url_for('leads.leads_list') }}">Leads</a>
-            <a href="{{ url_for('projects.projects_list') }}">Projects</a>
-            <div class="dropdown">
-                <a href="#" {% if request.endpoint and 'tasks' in request.endpoint %}class="active"{% endif %}>Tasks ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
-                    <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
-                </div>
-            </div>
-            <div class="dropdown">
-                <a href="#" class="active">Accounts ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('accounts.invoice_list') }}">Invoices</a>
-                    <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
-                    <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
-                </div>
-            </div>
-            <a href="{{ url_for('products.products_list') }}" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
-            <div class="dropdown">
-                <a href="#">Settings ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
-                </div>
-            </div>
-        </nav>
+    <a href="{{ url_for('home_page') }}" {% if request.endpoint == 'home_page' %}class="active"{% endif %}>Dashboard</a>
+    <a href="{{ url_for('customers.customers_list') }}" {% if request.blueprint == 'customers' %}class="active"{% endif %}>Customers</a>
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'leads' %}class="active"{% endif %}>Leads ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('leads.leads_list') }}">All Leads</a>
+            <a href="{{ url_for('leads.all_follow_ups') }}">📞 Follow-Ups</a>
+        </div>
+    </div>
+    <a href="{{ url_for('projects.projects_list') }}" {% if request.blueprint == 'projects' %}class="active"{% endif %}>Projects</a>
+    
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'tasks' %}class="active"{% endif %}>Tasks ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+            <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+        </div>
+    </div>
+
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'accounts' or request.blueprint == 'quotations' or request.blueprint == 'expenses' %}class="active"{% endif %}>Accounts ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+            <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+            <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+        </div>
+    </div>
+
+    <a href="#" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
+    
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'employees' %}class="active"{% endif %}>Settings ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+        </div>
+    </div>
+</nav>
         <div class="user-profile">
             <span class="welcome-text">Welcome, {{ current_user.username }}</span>
             <div class="profile-dropdown">

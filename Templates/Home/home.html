@@ -135,10 +135,14 @@
                     style="border: 1px solid var(--accent-gold); color: var(--accent-gold);">
                     🚀 Log Work
                 </a>
-                <button class="btn-action outline"
-                    style="border: 1px solid var(--primary-color); color: var(--primary-color);">
-                    Add Follow-up
-                </button>
+                <a href="{{ url_for('tasks.add_task') }}" class="btn-action outline"
+                    style="border: 1px solid var(--primary-color); color: var(--primary-color); text-decoration: none;">
+                    Add Tasks
+                </a>
+                <a href="{{ url_for('leads.all_follow_ups') }}" class="btn-action outline"
+                    style="border: 1px solid var(--primary-color); color: var(--primary-color); text-decoration: none;">
+                    Follow-ups
+                </a>
             </div>
         </div>
 

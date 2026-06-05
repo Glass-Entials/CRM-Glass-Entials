@@ -5,7 +5,7 @@ from utils.gst import validate_gst
 import os
 import requests
 
-api_bp = Blueprint('api', __name__, url_prefix='/api')
+api_bp = Blueprint("api", __name__, url_prefix="/api")
 
 
 def get_sandbox_token(api_key, api_secret):
@@ -17,12 +17,10 @@ def get_sandbox_token(api_key, api_secret):
         headers = {
             "x-api-key": api_key,
             "x-api-secret": api_secret,
-            "x-api-version": "1.0.0"
+            "x-api-version": "1.0.0",
         }
         resp = requests.post(
-            "https://api.sandbox.co.in/authenticate",
-            headers=headers,
-            timeout=15
+            "https://api.sandbox.co.in/authenticate", headers=headers, timeout=15
         )
         res_json = resp.json()
 
@@ -51,7 +49,7 @@ def get_sandbox_token(api_key, api_secret):
         return None, f"Auth Error: {str(e)}"
 
 
-@api_bp.route('/gst/<gst_number>', methods=['GET'])
+@api_bp.route("/gst/<gst_number>", methods=["GET"])
 @login_required
 def get_gst_details(gst_number):
     """
@@ -64,7 +62,14 @@ def get_gst_details(gst_number):
     # 1. Normalize and validate format
     gst_number = gst_number.strip().upper()
     if not validate_gst(gst_number):
-        return jsonify({"error": "Invalid GSTIN format. Must be 15 characters (e.g. 22AAAAA0000A1Z5)"}), 400
+        return (
+            jsonify(
+                {
+                    "error": "Invalid GSTIN format. Must be 15 characters (e.g. 22AAAAA0000A1Z5)"
+                }
+            ),
+            400,
+        )
 
     # 2. Duplicate Check within this organization
     org_id = current_user.organization_id
@@ -77,7 +82,7 @@ def get_gst_details(gst_number):
         duplicate_warning = {
             "id": existing_customer.id,
             "type": "customer",
-            "message": f"GST number already registered to Customer: {existing_customer.name}"
+            "message": f"GST number already registered to Customer: {existing_customer.name}",
         }
     else:
         existing_lead = Lead.query.filter_by(
@@ -87,7 +92,7 @@ def get_gst_details(gst_number):
             duplicate_warning = {
                 "id": existing_lead.id,
                 "type": "lead",
-                "message": f"GST number already exists in Lead: {existing_lead.name}"
+                "message": f"GST number already exists in Lead: {existing_lead.name}",
             }
 
     # 3. Load API credentials
@@ -95,13 +100,23 @@ def get_gst_details(gst_number):
     api_secret = os.getenv("GST_CLIENT_SECRET")
 
     if not api_key or not api_secret:
-        return jsonify({"error": "GST API credentials not configured. Add GST_CLIENT_ID and GST_CLIENT_SECRET to .env"}), 500
+        return (
+            jsonify(
+                {
+                    "error": "GST API credentials not configured. Add GST_CLIENT_ID and GST_CLIENT_SECRET to .env"
+                }
+            ),
+            500,
+        )
 
     try:
         # Step A: Authenticate with Sandbox
         token, auth_error = get_sandbox_token(api_key, api_secret)
         if not token:
-            return jsonify({"error": auth_error or "Failed to authenticate with GST API"}), 401
+            return (
+                jsonify({"error": auth_error or "Failed to authenticate with GST API"}),
+                401,
+            )
 
         # Step B: Search GSTIN
         # Correct endpoint per Sandbox docs: POST /gst/compliance/public/gstin/search
@@ -110,7 +125,7 @@ def get_gst_details(gst_number):
             "x-api-key": api_key,
             "x-api-version": "1.0",
             "Content-Type": "application/json",
-            "accept": "application/json"
+            "accept": "application/json",
         }
         search_payload = {"gstin": gst_number}
 
@@ -118,7 +133,7 @@ def get_gst_details(gst_number):
             "https://api.sandbox.co.in/gst/compliance/public/gstin/search",
             json=search_payload,
             headers=search_headers,
-            timeout=15
+            timeout=15,
         )
 
         # If the primary endpoint fails, try the alternate endpoint
@@ -126,7 +141,7 @@ def get_gst_details(gst_number):
             response = requests.get(
                 f"https://api.sandbox.co.in/gsp/public/gstin/{gst_number}",
                 headers=search_headers,
-                timeout=15
+                timeout=15,
             )
 
         # Handle API errors
@@ -139,15 +154,48 @@ def get_gst_details(gst_number):
                     or error_data.get("error_description", "")
                 )
                 if response.status_code == 401:
-                    return jsonify({"error": f"GST API authentication expired or invalid. {msg}"}), 401
+                    return (
+                        jsonify(
+                            {
+                                "error": f"GST API authentication expired or invalid. {msg}"
+                            }
+                        ),
+                        401,
+                    )
                 elif response.status_code == 404:
-                    return jsonify({"error": f"GSTIN {gst_number} not found on GST portal."}), 404
+                    return (
+                        jsonify(
+                            {"error": f"GSTIN {gst_number} not found on GST portal."}
+                        ),
+                        404,
+                    )
                 elif response.status_code == 429:
-                    return jsonify({"error": "GST API rate limit exceeded. Please wait and try again."}), 429
+                    return (
+                        jsonify(
+                            {
+                                "error": "GST API rate limit exceeded. Please wait and try again."
+                            }
+                        ),
+                        429,
+                    )
                 else:
-                    return jsonify({"error": f"GST API Error ({response.status_code}): {msg or 'Unknown error'}"}), response.status_code
+                    return (
+                        jsonify(
+                            {
+                                "error": f"GST API Error ({response.status_code}): {msg or 'Unknown error'}"
+                            }
+                        ),
+                        response.status_code,
+                    )
             except ValueError:
-                return jsonify({"error": f"GST API returned status {response.status_code}. Ensure 'GSTIN Public Search' is enabled in your Sandbox dashboard."}), response.status_code
+                return (
+                    jsonify(
+                        {
+                            "error": f"GST API returned status {response.status_code}. Ensure 'GSTIN Public Search' is enabled in your Sandbox dashboard."
+                        }
+                    ),
+                    response.status_code,
+                )
 
         # Step C: Parse the response
         res_data = response.json()
@@ -161,7 +209,7 @@ def get_gst_details(gst_number):
             data = outer_data[0]
         else:
             data = {}
-        
+
         if not isinstance(data, dict):
             data = {}
 
@@ -227,10 +275,7 @@ def get_gst_details(gst_number):
             or ""
         )
         gst_status = (
-            data.get("sts")
-            or data.get("status")
-            or data.get("gst_status")
-            or ""
+            data.get("sts") or data.get("status") or data.get("gst_status") or ""
         )
 
         # Construct unified response
@@ -243,14 +288,26 @@ def get_gst_details(gst_number):
             "pincode": pincode,
             "business_type": business_type,
             "gst_status": gst_status,
-            "duplicate_warning": duplicate_warning
+            "duplicate_warning": duplicate_warning,
         }
 
         return jsonify(gst_data), 200
 
     except requests.exceptions.Timeout:
-        return jsonify({"error": "GST API request timed out. The government portal may be slow. Please try again."}), 504
+        return (
+            jsonify(
+                {
+                    "error": "GST API request timed out. The government portal may be slow. Please try again."
+                }
+            ),
+            504,
+        )
     except requests.exceptions.ConnectionError:
-        return jsonify({"error": "Cannot connect to GST API. Check your internet connection."}), 503
+        return (
+            jsonify(
+                {"error": "Cannot connect to GST API. Check your internet connection."}
+            ),
+            503,
+        )
     except Exception as e:
         return jsonify({"error": f"System Error: {str(e)}"}), 500

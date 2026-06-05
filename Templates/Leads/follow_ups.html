@@ -1,0 +1,486 @@
+{% extends 'base.html' %}
+
+{% block title %}Follow-Ups | GlassEntials CRM{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fu-page {
+        max-width: 1300px;
+        margin: 0 auto;
+        padding: 2.5rem 5%;
+    }
+
+    /* Page Header */
+    .fu-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: 2.5rem;
+    }
+    .fu-header h1 {
+        font-size: 2rem;
+        color: var(--primary-color);
+        font-family: var(--font-heading);
+        margin-bottom: 0.3rem;
+    }
+    .fu-header p { color: var(--text-muted); font-size: 0.95rem; }
+
+    /* Summary Chips */
+    .fu-summary {
+        display: flex;
+        gap: 1.2rem;
+        margin-bottom: 2.5rem;
+        flex-wrap: wrap;
+    }
+    .fu-chip {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: #fff;
+        border-radius: 14px;
+        padding: 1.1rem 1.6rem;
+        border: 1px solid rgba(13,27,42,0.06);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        min-width: 180px;
+        flex: 1;
+    }
+    .fu-chip-icon {
+        width: 46px; height: 46px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.3rem;
+    }
+    .fu-chip-icon.red   { background: rgba(239,68,68,0.1);   color: #ef4444; }
+    .fu-chip-icon.gold  { background: rgba(212,175,55,0.1);  color: var(--accent-gold); }
+    .fu-chip-icon.green { background: rgba(16,185,129,0.1);  color: #10b981; }
+    .fu-chip-val  { font-size: 1.6rem; font-weight: 800; color: var(--primary-color); line-height: 1; }
+    .fu-chip-lbl  { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+
+    /* Section */
+    .fu-section { margin-bottom: 2.5rem; }
+    .fu-section-title {
+        display: flex; align-items: center; gap: 10px;
+        font-family: var(--font-heading);
+        font-size: 1.15rem;
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+        padding-bottom: 0.8rem;
+        border-bottom: 2px solid rgba(13,27,42,0.06);
+    }
+    .fu-section-title .dot {
+        width: 10px; height: 10px; border-radius: 50%;
+    }
+    .dot-red   { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.2); }
+    .dot-gold  { background: var(--accent-gold); box-shadow: 0 0 0 3px rgba(212,175,55,0.2); }
+    .dot-green { background: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
+
+    /* Cards Row */
+    .fu-cards { display: flex; flex-direction: column; gap: 0.85rem; }
+
+    .fu-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid rgba(13,27,42,0.06);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.02);
+        padding: 1.2rem 1.6rem;
+        display: flex;
+        align-items: center;
+        gap: 1.4rem;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    .fu-card:hover {
+        box-shadow: 0 8px 25px rgba(13,27,42,0.08);
+        transform: translateY(-2px);
+    }
+    .fu-card.overdue { border-left: 4px solid #ef4444; }
+    .fu-card.upcoming { border-left: 4px solid var(--accent-gold); }
+    .fu-card.done { border-left: 4px solid #10b981; opacity: 0.85; }
+
+    .fu-method-icon {
+        width: 44px; height: 44px;
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        background: rgba(212,175,55,0.08);
+        color: var(--accent-gold);
+    }
+
+    .fu-info { flex: 1; min-width: 0; }
+    .fu-lead-name {
+        font-weight: 700;
+        color: var(--primary-color);
+        font-size: 0.98rem;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .fu-lead-name a { color: inherit; text-decoration: none; }
+    .fu-lead-name a:hover { color: var(--accent-gold); }
+    .fu-meta {
+        display: flex; flex-wrap: wrap; gap: 0.7rem;
+        margin-top: 4px; font-size: 0.82rem; color: var(--text-muted);
+    }
+    .fu-meta span { display: flex; align-items: center; gap: 4px; }
+
+    .fu-notes {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-top: 5px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        max-width: 500px;
+    }
+
+    .fu-date-badge {
+        text-align: center;
+        flex-shrink: 0;
+        min-width: 80px;
+    }
+    .fu-date-badge .date-main {
+        font-size: 1.3rem; font-weight: 800; color: var(--primary-color); line-height: 1;
+    }
+    .fu-date-badge .date-sub {
+        font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;
+    }
+    .fu-date-badge.overdue .date-main { color: #ef4444; }
+    .fu-date-badge.upcoming .date-main { color: var(--accent-gold); }
+
+    .fu-actions {
+        display: flex; gap: 0.6rem; flex-shrink: 0;
+    }
+    .fu-btn {
+        padding: 0.45rem 1rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        text-decoration: none;
+        display: inline-flex; align-items: center; gap: 5px;
+        transition: all 0.25s ease;
+        white-space: nowrap;
+    }
+    .fu-btn-done  { background: rgba(16,185,129,0.1); color:#10b981; border:1px solid rgba(16,185,129,0.2); }
+    .fu-btn-done:hover  { background: #10b981; color: #fff; }
+    .fu-btn-view  { background: rgba(212,175,55,0.08); color:var(--accent-gold); border:1px solid rgba(212,175,55,0.2); }
+    .fu-btn-view:hover  { background: var(--accent-gold); color:#fff; }
+    .fu-btn-del   { background: rgba(239,68,68,0.08); color:#ef4444; border:1px solid rgba(239,68,68,0.2); }
+    .fu-btn-del:hover   { background: #ef4444; color:#fff; }
+
+    /* Outcome pill */
+    .outcome-pill {
+        display: inline-flex; align-items: center;
+        padding: 2px 10px; border-radius: 20px;
+        font-size: 0.73rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.03em;
+        white-space: nowrap;
+    }
+    .out-interested   { background: rgba(16,185,129,0.1); color:#10b981; }
+    .out-notinterested{ background: rgba(239,68,68,0.1);  color:#ef4444; }
+    .out-callback     { background: rgba(245,158,11,0.1); color:#f59e0b; }
+    .out-noresponse   { background: rgba(100,116,139,0.1); color:#64748b; }
+    .out-meeting      { background: rgba(99,102,241,0.1); color:#6366f1; }
+    .out-converted    { background: rgba(212,175,55,0.1); color:var(--accent-gold); }
+    .out-other        { background: rgba(13,27,42,0.06); color:var(--text-muted); }
+
+    /* Empty State */
+    .fu-empty {
+        text-align: center; padding: 2.5rem;
+        background: #f8fafc; border-radius: 12px;
+        border: 2px dashed rgba(13,27,42,0.08);
+        color: var(--text-muted);
+    }
+    .fu-empty-icon { font-size: 2.5rem; opacity: 0.2; margin-bottom: 0.8rem; }
+
+    /* Mark Done Inline Modal */
+    .done-form-popup {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.45); z-index: 9999;
+        align-items: center; justify-content: center;
+    }
+    .done-form-popup.open { display: flex; }
+    .done-form-box {
+        background: white; border-radius: 16px; width: 440px;
+        padding: 2rem; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .done-form-box h3 { color: var(--primary-color); margin-bottom: 1.5rem; font-family: var(--font-heading); }
+    .field-group { margin-bottom: 1.2rem; }
+    .field-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600; }
+    .field-group select, .field-group textarea {
+        width: 100%; padding: 0.7rem 1rem; border: 1px solid #e2e8f0;
+        border-radius: 8px; font-family: var(--font-body); font-size: 0.9rem;
+        color: var(--primary-color); background: #f8fafc;
+        outline: none; transition: border 0.2s;
+    }
+    .field-group select:focus, .field-group textarea:focus { border-color: var(--accent-gold); }
+    .modal-actions { display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="fu-page">
+
+    <!-- Header -->
+    <div class="fu-header">
+        <div>
+            <h1>📞 Follow-Ups</h1>
+            <p>Track and manage all your lead follow-up interactions</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-action gold" onclick="openAddModal()">+ Schedule Follow-Up</button>
+            <a href="{{ url_for('leads.leads_list') }}" class="btn-action outline">← Back to Leads</a>
+        </div>
+    </div>
+
+    <!-- Summary Chips -->
+    <div class="fu-summary">
+        <div class="fu-chip">
+            <div class="fu-chip-icon red">⚠️</div>
+            <div>
+                <div class="fu-chip-val">{{ overdue|length }}</div>
+                <div class="fu-chip-lbl">Overdue</div>
+            </div>
+        </div>
+        <div class="fu-chip">
+            <div class="fu-chip-icon gold">🕐</div>
+            <div>
+                <div class="fu-chip-val">{{ upcoming|length }}</div>
+                <div class="fu-chip-lbl">Upcoming</div>
+            </div>
+        </div>
+        <div class="fu-chip">
+            <div class="fu-chip-icon green">✅</div>
+            <div>
+                <div class="fu-chip-val">{{ completed|length }}</div>
+                <div class="fu-chip-lbl">Completed (recent)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERDUE -->
+    <div class="fu-section">
+        <h2 class="fu-section-title"><span class="dot dot-red"></span> Overdue Follow-Ups</h2>
+        {% if overdue %}
+        <div class="fu-cards">
+            {% for fu in overdue %}
+            <div class="fu-card overdue">
+                <div class="fu-method-icon">{{ {'Call':'📞','Email':'📧','WhatsApp':'💬','Meeting':'🤝','Site Visit':'🏗️','SMS':'📱','Other':'📌'}[fu.method.value] }}</div>
+                <div class="fu-date-badge overdue">
+                    <div class="date-main">{{ fu.follow_up_date.strftime('%d') }}</div>
+                    <div class="date-sub">{{ fu.follow_up_date.strftime('%b %Y') }}</div>
+                    <div class="date-sub" style="color:#ef4444;">Overdue</div>
+                </div>
+                <div class="fu-info">
+                    <div class="fu-lead-name"><a href="{{ url_for('leads.view_lead', lead_id=fu.lead.id) }}">{{ fu.lead.name }}</a>
+                        {% if fu.lead.company %}<span style="font-weight:400; color:var(--text-muted); font-size:0.85rem;"> · {{ fu.lead.company }}</span>{% endif %}
+                    </div>
+                    <div class="fu-meta">
+                        <span>📲 {{ fu.method.value }}</span>
+                        {% if fu.outcome %}<span class="outcome-pill out-{{ fu.outcome.value|lower|replace(' ','') }}">{{ fu.outcome.value }}</span>{% endif %}
+                        <span>By {{ fu.creator.name }}</span>
+                    </div>
+                    {% if fu.notes %}<div class="fu-notes">{{ fu.notes }}</div>{% endif %}
+                </div>
+                <div class="fu-actions">
+                    <button class="fu-btn fu-btn-done" onclick="openDoneModal({{ fu.id }})">✅ Mark Done</button>
+                    <a href="{{ url_for('leads.view_lead', lead_id=fu.lead.id) }}" class="fu-btn fu-btn-view">View Lead</a>
+                    <form action="{{ url_for('leads.delete_follow_up', fu_id=fu.id) }}" method="POST" onsubmit="return confirm('Delete this follow-up?');" style="display:inline;">
+                        <button type="submit" class="fu-btn fu-btn-del">🗑</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="fu-empty"><div class="fu-empty-icon">🎉</div><p>No overdue follow-ups. You're all caught up!</p></div>
+        {% endif %}
+    </div>
+
+    <!-- UPCOMING -->
+    <div class="fu-section">
+        <h2 class="fu-section-title"><span class="dot dot-gold"></span> Upcoming Follow-Ups</h2>
+        {% if upcoming %}
+        <div class="fu-cards">
+            {% for fu in upcoming %}
+            <div class="fu-card upcoming">
+                <div class="fu-method-icon">{{ {'Call':'📞','Email':'📧','WhatsApp':'💬','Meeting':'🤝','Site Visit':'🏗️','SMS':'📱','Other':'📌'}[fu.method.value] }}</div>
+                <div class="fu-date-badge upcoming">
+                    <div class="date-main">{{ fu.follow_up_date.strftime('%d') }}</div>
+                    <div class="date-sub">{{ fu.follow_up_date.strftime('%b %Y') }}</div>
+                    <div class="date-sub">{{ fu.follow_up_date.strftime('%H:%M') }}</div>
+                </div>
+                <div class="fu-info">
+                    <div class="fu-lead-name"><a href="{{ url_for('leads.view_lead', lead_id=fu.lead.id) }}">{{ fu.lead.name }}</a>
+                        {% if fu.lead.company %}<span style="font-weight:400; color:var(--text-muted); font-size:0.85rem;"> · {{ fu.lead.company }}</span>{% endif %}
+                    </div>
+                    <div class="fu-meta">
+                        <span>📲 {{ fu.method.value }}</span>
+                        <span>By {{ fu.creator.name }}</span>
+                        {% if fu.lead.assignee %}<span>Assigned: {{ fu.lead.assignee.name }}</span>{% endif %}
+                    </div>
+                    {% if fu.notes %}<div class="fu-notes">{{ fu.notes }}</div>{% endif %}
+                </div>
+                <div class="fu-actions">
+                    <button class="fu-btn fu-btn-done" onclick="openDoneModal({{ fu.id }})">✅ Mark Done</button>
+                    <a href="{{ url_for('leads.view_lead', lead_id=fu.lead.id) }}" class="fu-btn fu-btn-view">View Lead</a>
+                    <form action="{{ url_for('leads.delete_follow_up', fu_id=fu.id) }}" method="POST" onsubmit="return confirm('Delete this follow-up?');" style="display:inline;">
+                        <button type="submit" class="fu-btn fu-btn-del">🗑</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="fu-empty"><div class="fu-empty-icon">📭</div><p>No upcoming follow-ups scheduled.</p></div>
+        {% endif %}
+    </div>
+
+    <!-- COMPLETED -->
+    <div class="fu-section">
+        <h2 class="fu-section-title"><span class="dot dot-green"></span> Recently Completed</h2>
+        {% if completed %}
+        <div class="fu-cards">
+            {% for fu in completed %}
+            <div class="fu-card done">
+                <div class="fu-method-icon" style="opacity:0.6;">{{ {'Call':'📞','Email':'📧','WhatsApp':'💬','Meeting':'🤝','Site Visit':'🏗️','SMS':'📱','Other':'📌'}[fu.method.value] }}</div>
+                <div class="fu-date-badge">
+                    <div class="date-main" style="color:#10b981;">{{ fu.follow_up_date.strftime('%d') }}</div>
+                    <div class="date-sub">{{ fu.follow_up_date.strftime('%b %Y') }}</div>
+                </div>
+                <div class="fu-info">
+                    <div class="fu-lead-name"><a href="{{ url_for('leads.view_lead', lead_id=fu.lead.id) }}">{{ fu.lead.name }}</a></div>
+                    <div class="fu-meta">
+                        <span>📲 {{ fu.method.value }}</span>
+                        {% if fu.outcome %}
+                        <span class="outcome-pill out-{{ fu.outcome.value|lower|replace(' ','') }}">{{ fu.outcome.value }}</span>
+                        {% endif %}
+                        <span>By {{ fu.creator.name }}</span>
+                    </div>
+                    {% if fu.notes %}<div class="fu-notes">{{ fu.notes }}</div>{% endif %}
+                </div>
+                <div class="fu-actions">
+                    <a href="{{ url_for('leads.view_lead', lead_id=fu.lead.id) }}" class="fu-btn fu-btn-view">View Lead</a>
+                    <form action="{{ url_for('leads.delete_follow_up', fu_id=fu.id) }}" method="POST" onsubmit="return confirm('Delete this follow-up?');" style="display:inline;">
+                        <button type="submit" class="fu-btn fu-btn-del">🗑</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="fu-empty"><div class="fu-empty-icon">📋</div><p>No completed follow-ups yet.</p></div>
+        {% endif %}
+    </div>
+</main>
+
+<!-- Mark Done Modal -->
+<div class="done-form-popup" id="doneModal">
+    <div class="done-form-box">
+        <h3>✅ Mark Follow-Up as Done</h3>
+        <form id="doneForm" method="POST">
+            <div class="field-group">
+                <label>Outcome</label>
+                <select name="outcome">
+                    <option value="">-- Select Outcome --</option>
+                    <option value="Interested">Interested</option>
+                    <option value="Not Interested">Not Interested</option>
+                    <option value="Callback Requested">Callback Requested</option>
+                    <option value="No Response">No Response</option>
+                    <option value="Meeting Scheduled">Meeting Scheduled</option>
+                    <option value="Converted">Converted</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label>Notes / Summary (optional)</label>
+                <textarea name="notes" rows="3" placeholder="What was discussed..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-action outline" onclick="closeDoneModal()">Cancel</button>
+                <button type="submit" class="btn-action gold">Save & Mark Done</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Follow-Up Modal -->
+<div class="done-form-popup" id="addModal">
+    <div class="done-form-box" style="width: 500px;">
+        <h3>➕ Schedule Follow-Up</h3>
+        <form id="addForm" method="POST" onsubmit="return setAddFormAction()">
+            <div class="field-group">
+                <label>Select Lead *</label>
+                <select id="addModalLead" required>
+                    <option value="">-- Choose Lead --</option>
+                    {% for l in leads %}
+                    <option value="{{ l.id }}">{{ l.name }} {% if l.company %}({{ l.company }}){% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field-group" style="display: flex; gap: 1rem;">
+                <div style="flex: 1;">
+                    <label>Method *</label>
+                    <select name="method" required>
+                        <option value="Call">📞 Call</option>
+                        <option value="Email">📧 Email</option>
+                        <option value="WhatsApp">💬 WhatsApp</option>
+                        <option value="Meeting">🤝 Meeting</option>
+                        <option value="Site Visit">🏗️ Site Visit</option>
+                        <option value="SMS">📱 SMS</option>
+                        <option value="Other">📌 Other</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label>Follow-Up Date *</label>
+                    <input type="datetime-local" name="follow_up_date" required style="width: 100%; padding: 0.7rem 1rem; border: 1px solid #e2e8f0; border-radius: 8px; outline: none; font-family: var(--font-body); color: var(--primary-color); background: #f8fafc;">
+                </div>
+            </div>
+            <div class="field-group">
+                <label>Next Follow-Up (optional)</label>
+                <input type="datetime-local" name="next_follow_up_date" style="width: 100%; padding: 0.7rem 1rem; border: 1px solid #e2e8f0; border-radius: 8px; outline: none; font-family: var(--font-body); color: var(--primary-color); background: #f8fafc;">
+            </div>
+            <div class="field-group">
+                <label>Notes / Summary</label>
+                <textarea name="notes" rows="2" placeholder="Context..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-action outline" onclick="closeAddModal()">Cancel</button>
+                <button type="submit" class="btn-action gold">Schedule Follow-Up</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openDoneModal(fuId) {
+    const baseUrl = '/lead/follow-up/' + fuId + '/done';
+    document.getElementById('doneForm').action = baseUrl;
+    document.getElementById('doneModal').classList.add('open');
+}
+function closeDoneModal() {
+    document.getElementById('doneModal').classList.remove('open');
+}
+document.getElementById('doneModal').addEventListener('click', function(e) {
+    if (e.target === this) closeDoneModal();
+});
+
+// Add Follow-Up functions
+function openAddModal() {
+    document.getElementById('addModal').classList.add('open');
+}
+function closeAddModal() {
+    document.getElementById('addModal').classList.remove('open');
+}
+function setAddFormAction() {
+    const leadId = document.getElementById('addModalLead').value;
+    if (!leadId) {
+        alert("Please select a lead.");
+        return false;
+    }
+    document.getElementById('addForm').action = '/lead/' + leadId + '/follow-up/add';
+    return true;
+}
+document.getElementById('addModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddModal();
+});
+</script>
+{% endblock %}

@@ -20,21 +20,28 @@ load_dotenv()
 from app import app
 from model import db
 
+
 def setup():
     with app.app_context():
-        print("✅ Connected to database:", app.config.get('SQLALCHEMY_DATABASE_URI', '').split('@')[-1])
+        print(
+            "✅ Connected to database:",
+            app.config.get("SQLALCHEMY_DATABASE_URI", "").split("@")[-1],
+        )
         print("⏳ Creating all tables...")
-        
+
         # This directly creates all tables in correct dependency order
         # bypassing Alembic's migration ordering issue for fresh installs
         db.create_all()
-        
+
         print("✅ All tables created successfully!")
         print()
-        print("📌 Now stamp the migration head so Flask-Migrate knows the DB is up to date:")
+        print(
+            "📌 Now stamp the migration head so Flask-Migrate knows the DB is up to date:"
+        )
         print("   flask db stamp head")
         print()
         print("✅ Setup complete! You can now run: python app.py")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     setup()

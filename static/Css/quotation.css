@@ -57,15 +57,16 @@ p {
 .qf-textarea-sm,
 .qf-inline,
 .qf-inline-select {
-  border: 1px solid #d1d5db;
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  font-size: 14px;
+  border: 2px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  font-size: 16px;
   width: 100%;
   background: white;
-  transition: border 0.15s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
   box-sizing: border-box;
+  color: #0f172a;
 }
 
 .qf-input:focus,
@@ -73,20 +74,23 @@ p {
 .qf-inline:focus {
   border-color: var(--q-primary);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.15), 0 0 0 4px rgba(37, 99, 235, 0.1);
+  background: white;
 }
 
 .qf-inline,
 .qf-inline-select {
-  padding: 4px 8px;
+  padding: 6px 10px;
 }
 
 label {
   display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--q-text);
-  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 .text-muted {
@@ -348,8 +352,8 @@ label {
 }
 
 .qf-card-header h2 {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--q-dark);
   margin: 0;
 }
@@ -368,7 +372,7 @@ label {
 }
 
 .qf-card-body {
-  padding: 20px;
+  padding: 30px 40px;
 }
 
 .qf-card-body.p-0 {
@@ -378,8 +382,8 @@ label {
 .qf-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 30px;
+  margin-bottom: 30px;
 }
 
 .qf-row:last-child {
@@ -537,7 +541,7 @@ label {
 }
 
 .col-item {
-  width: 250px;
+  width: 350px;
 }
 
 .col-dim {
@@ -545,27 +549,27 @@ label {
 }
 
 .col-qty {
-  width: 80px;
-}
-
-.col-unit {
-  width: 90px;
-}
-
-.col-rate {
-  width: 100px;
-}
-
-.col-disc {
   width: 120px;
 }
 
+.col-unit {
+  width: 130px;
+}
+
+.col-rate {
+  width: 140px;
+}
+
+.col-disc {
+  width: 150px;
+}
+
 .col-gst {
-  width: 80px;
+  width: 120px;
 }
 
 .col-amt {
-  width: 110px;
+  width: 150px;
   text-align: right;
 }
 
@@ -2116,14 +2120,15 @@ label {
   background: #312e81;
   /* Premium Purple / Dark Blue */
   color: #f8fafc;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 700;
   text-transform: uppercase;
-  padding: 12px 10px;
+  padding: 20px 16px;
   text-align: left;
   position: sticky;
   top: 0;
   z-index: 10;
+  letter-spacing: 0.5px;
 }
 
 .erp-table-hdr th:first-child {
@@ -2135,9 +2140,9 @@ label {
 }
 
 .erp-item-row td {
-  padding: 12px 10px;
+  padding: 22px 14px;
   border-bottom: 1px solid #e5e7eb;
-  vertical-align: top;
+  vertical-align: middle;
   background: white;
 }
 
@@ -2178,13 +2183,12 @@ label {
   width: 100%;
   border: 1px solid transparent;
   background: transparent;
-  font-size: 12px;
+  font-size: 13px;
   resize: vertical;
-  min-height: 24px;
-  padding: 4px;
-  color: #6b7280;
-  font-style: italic;
-  transition: border 0.2s;
+  min-height: 32px;
+  padding: 6px;
+  color: #4b5563;
+  transition: border 0.2s, background 0.2s;
   box-sizing: border-box;
 }
 
@@ -2221,20 +2225,30 @@ label {
 .erp-inline-input,
 .erp-inline-select {
   width: 100%;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  padding: 6px;
-  font-size: 13px;
-  transition: border 0.2s;
-  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 15px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #f1f5f9;
   box-sizing: border-box;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.erp-inline-input:hover,
+.erp-inline-select:hover {
+  background: #ffffff;
+  border-color: #94a3b8;
 }
 
 .erp-inline-input:focus,
 .erp-inline-select:focus {
   border-color: var(--q-primary);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+  background: white;
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.1), 0 0 0 4px rgba(37, 99, 235, 0.1);
+  transform: translateY(-1px);
 }
 
 .erp-readonly-val {
@@ -2321,15 +2335,15 @@ label {
 }
 
 .col-c-area {
-  width: 100px;
+  width: 140px;
 }
 
 .col-c-qty {
-  width: 100px;
+  width: 140px;
 }
 
 .col-total {
-  width: 120px;
+  width: 160px;
   text-align: right;
 }
 
@@ -2338,7 +2352,7 @@ label {
    ========================================================================= */
 
 .erp-table { 
-    width: 100%; border-collapse: collapse; min-width: 1100px; table-layout: fixed; 
+    width: 100%; border-collapse: collapse; min-width: 1500px; table-layout: fixed; 
 }
 .erp-table-container { 
     overflow-x: auto; width: 100%; border: 1px solid var(--q-glass-border); border-radius: 0 0 12px 12px; 
