@@ -42,6 +42,9 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 csrf = CSRFProtect(app)
 
 # Add Talisman for Security Headers
+# Only enforce HTTPS in production
+force_https_enabled = os.environ.get("FLASK_ENV", "development") == "production"
+
 csp = {
     'default-src': ["'self'"],
     'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://code.jquery.com"],
@@ -50,7 +53,7 @@ csp = {
     'img-src': ["'self'", "data:", "blob:"],
     'frame-ancestors': ["'none'"]
 }
-Talisman(app, content_security_policy=csp, force_https=app.config.get("SESSION_COOKIE_SECURE", True), strict_transport_security=True, session_cookie_secure=app.config.get("SESSION_COOKIE_SECURE", True))
+Talisman(app, content_security_policy=csp, force_https=force_https_enabled, strict_transport_security=force_https_enabled, session_cookie_secure=force_https_enabled)
 
 from utils.extensions import limiter
 
@@ -65,11 +68,15 @@ def health_check():
 
 # Ensure asset directories exist
 upload_root = app.config.get("UPLOAD_FOLDER")
+
 if upload_root:
-    os.makedirs(os.path.join(upload_root, "profile_pics"), exist_ok=True)
-    os.makedirs(os.path.join(upload_root, "customer_docs"), exist_ok=True)
-    os.makedirs(os.path.join(upload_root, "receipts"), exist_ok=True)
-    os.makedirs(os.path.join(upload_root, "crm_docs"), exist_ok=True)
+    try:
+        os.makedirs(os.path.join(upload_root, "profile_pics"), exist_ok=True)
+        os.makedirs(os.path.join(upload_root, "customer_docs"), exist_ok=True)
+        os.makedirs(os.path.join(upload_root, "receipts"), exist_ok=True)
+        os.makedirs(os.path.join(upload_root, "crm_docs"), exist_ok=True)
+    except Exception as e:
+        print("Upload folder creation failed:", e)
 
 
 # Context Processor for Avatars
@@ -134,8 +141,8 @@ def nl2br_filter(s):
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth.login"
-Migrate(app, db)
 db.init_app(app)
+Migrate(app, db)
 
 # Register Blueprints
 app.register_blueprint(auth_bp, url_prefix="/auth")
