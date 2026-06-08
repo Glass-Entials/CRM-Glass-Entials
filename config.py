@@ -46,6 +46,9 @@ class Config:
     if not SECRET_KEY or SECRET_KEY == "secret123":
         raise RuntimeError("Set a strong SECRET_KEY in the environment before startup.")
 
+    if not os.environ.get("DATABASE_URL") and not use_aws_secrets:
+        raise RuntimeError("Set DATABASE_URL in the environment before startup.")
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(basedir, "static", "uploads"))
     MAX_CONTENT_LENGTH = int(os.environ.get("MAX_CONTENT_LENGTH", 5 * 1024 * 1024))

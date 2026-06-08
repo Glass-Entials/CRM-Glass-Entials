@@ -58,7 +58,7 @@
         </div>
     </div>
 
-    <a href="#" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
+    <a href="{{ url_for('products.products_list') }}" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
     
     <div class="dropdown">
         <a href="#" {% if request.blueprint == 'employees' %}class="active"{% endif %}>Settings ▾</a>

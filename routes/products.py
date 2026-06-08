@@ -32,7 +32,7 @@ def save_product_image(file):
     """Save uploaded product image and return stored filename."""
     ext = file.filename.rsplit(".", 1)[1].lower()
     unique_name = f"{uuid.uuid4().hex}.{ext}"
-    upload_dir = os.path.join(current_app.root_path, "static", "uploads", "products")
+    upload_dir = os.path.join(current_app.config.get("UPLOAD_FOLDER"), "products")
     os.makedirs(upload_dir, exist_ok=True)
     file.save(os.path.join(upload_dir, unique_name))
     return unique_name
@@ -157,7 +157,7 @@ def add_product():
                 tags=request.form.get("tags", "").strip() or None,
                 organization_id=org_id,
                 created_by=current_user.employee.id if current_user.employee else None,
-            )
+            )  # type: ignore
             db.session.add(product)
             db.session.commit()
             flash(f'Product "{name}" added successfully!', "productsuccess")

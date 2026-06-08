@@ -50,10 +50,14 @@ csp = {
     'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://code.jquery.com"],
     'style-src': ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
     'font-src': ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
-    'img-src': ["'self'", "data:", "blob:"],
+    'img-src': ["'self'", "data:", "blob:", "https://images.unsplash.com"],
     'frame-ancestors': ["'none'"]
 }
+
 Talisman(app, content_security_policy=csp, force_https=force_https_enabled, strict_transport_security=force_https_enabled, session_cookie_secure=force_https_enabled)
+
+if force_https_enabled:
+    app.config['PREFERRED_URL_SCHEME'] = 'https'
 
 from utils.extensions import limiter
 
@@ -91,7 +95,7 @@ def utility_processor():
                 return url_for(
                     "static", filename="uploads/profile_pics/" + employee.profile_pic
                 )
-        return url_for("static", filename="img/default_avatar.jpg")
+        return url_for("static", filename="img/default_avatar.png")
 
     def time_ago(dt):
         if not dt:
@@ -367,7 +371,7 @@ def home_page():
 @login_required
 def download_template():
     return send_file(
-        "static/templates/bulk_upload_template.csv",
+        os.path.join(app.root_path, "static", "templates", "bulk_upload_template.csv"),
         as_attachment=True,
         download_name="bulk_upload_template.csv",
     )
@@ -377,7 +381,7 @@ def download_template():
 @login_required
 def download_lead_template():
     return send_file(
-        "static/templates/bulk_upload_lead_template.csv",
+        os.path.join(app.root_path, "static", "templates", "bulk_upload_lead_template.csv"),
         as_attachment=True,
         download_name="bulk_upload_lead_template.csv",
     )

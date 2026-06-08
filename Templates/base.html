@@ -56,7 +56,7 @@
         </div>
     </div>
 
-    <a href="#" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
+    <a href="{{ url_for('products.products_list') }}" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
     
     <div class="dropdown">
         <a href="#" {% if request.blueprint == 'employees' %}class="active"{% endif %}>Settings ▾</a>
@@ -106,7 +106,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="flash-message {{ category }}" style="padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; font-size: 14px; animation: slideIn 0.3s ease-out; background: {% if category == 'success' %}#10b981{% elif category == 'error' %}#ef4444{% else %}#3b82f6{% endif %}; color: white;">
+                    <div class="flash-message {{ category }} {% if category == 'success' %}bg-success{% elif category == 'error' %}bg-error{% else %}bg-info{% endif %}" style="padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; font-size: 14px; animation: slideIn 0.3s ease-out; color: white;">
                         {{ message }}
                     </div>
                 {% endfor %}
@@ -119,6 +119,9 @@
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
+        .bg-success { background: #10b981; }
+        .bg-error { background: #ef4444; }
+        .bg-info { background: #3b82f6; }
     </style>
 
     {% block content %}{% endblock %}
