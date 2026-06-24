@@ -18,6 +18,7 @@
     <div class="edit-container">
         <h2 style="font-family: 'Playfair Display', serif; color: var(--primary-color); margin-bottom: 1.5rem;">Edit Expense Submission</h2>
         <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group">
                 <label class="form-label">Expense Title</label>
                 <input type="text" name="title" class="form-control" value="{{ expense.title }}" required>

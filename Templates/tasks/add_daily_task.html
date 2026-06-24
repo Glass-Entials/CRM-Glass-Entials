@@ -239,6 +239,7 @@
                 </div>
                 
                 <form action="{{ url_for('tasks.add_daily_task') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="log-form-grid">
                         <div class="form-group">
                             <label for="date">Working Date <span style="color: #dc2626;">*</span></label>

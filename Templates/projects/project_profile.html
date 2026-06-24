@@ -108,12 +108,14 @@
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
-            <!-- Main Content -->
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; align-items: start;">
+            <!-- Left Sidebar Column (Overview & Info) -->
+            <div style="display: flex; flex-direction: column; gap: 2rem; min-width: 0;">
+            <!-- Project Overview -->
             <div class="panel" style="padding: 2.5rem; border-top: 4px solid var(--primary-color);">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
-                    <h2 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.5rem; margin: 0;">Project Overview</h2>
-                    <span class="status-badge {% if project.status_display == 'In Progress' %}badge-in-progress{% elif project.status_display == 'Cancelled' %}badge-cancelled{% elif project.status_display == 'Completed' %}badge-completed{% else %}badge-default{% endif %}" style="padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600;">
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 1.2rem; margin-bottom: 2rem;">
+                    <h2 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.5rem; margin: 0; line-height: 1.3;">Project Overview</h2>
+                    <span class="status-badge {% if project.status_display == 'In Progress' %}badge-in-progress{% elif project.status_display == 'Cancelled' %}badge-cancelled{% elif project.status_display == 'Completed' %}badge-completed{% else %}badge-default{% endif %}" style="padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; white-space: nowrap; width: fit-content;">
                         {{ project.status_display }}
                     </span>
                 </div>
@@ -123,7 +125,7 @@
                     <p style="font-size: 1.05rem; line-height: 1.6; color: var(--text-color); margin: 0;">{{ project.description or 'No description provided.' }}</p>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
                     <div>
                         <h3 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.3rem;">Associated Customer</h3>
                         {% if project.customer %}
@@ -152,8 +154,36 @@
                 </div>
             </div>
 
+            <!-- Responsibility (Moved to Left Column) -->
+            <div class="panel" style="padding: 2rem;">
+                <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0 0 1.5rem 0; border-bottom: 1px solid rgba(13, 27, 42, 0.1); padding-bottom: 0.8rem;">Responsibility</h3>
+                
+                <div style="margin-bottom: 1.2rem;">
+                    <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Assigned To</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1rem;">
+                            {{ project.assignee.name[:1] if project.assignee else '?' }}
+                        </div>
+                        <span style="font-weight: 500; font-size: 1rem;">{{ project.assignee.name if project.assignee else 'Unassigned' }}</span>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1.2rem;">
+                    <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Created By</span>
+                    <span style="font-weight: 500; font-size: 0.95rem;">{{ project.creator.name if project.creator else 'System' }}</span>
+                </div>
+
+                <div>
+                    <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Last Updated</span>
+                    <span style="font-weight: 500; font-size: 0.95rem;">{{ project.updated_at.strftime('%B %d, %Y') if project.updated_at else '—' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Main Column (Tasks & Files) -->
+        <div style="display: flex; flex-direction: column; gap: 2rem; min-width: 0;">
             <!-- Tasks Section -->
-            <div class="panel" style="padding: 2.5rem; margin-top: 2rem; border-top: 4px solid var(--accent-gold);">
+            <div class="panel" style="padding: 2.5rem;  border-top: 4px solid var(--accent-gold);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                     <h2 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.5rem; margin: 0;">Project Tasks</h2>
                     <a href="{{ url_for('tasks.add_task', project_id=project.id) }}" class="btn-action gold" style="text-decoration: none; padding: 0.6rem 1.2rem; display: flex; align-items: center; gap: 8px;">
@@ -221,35 +251,7 @@
                 </div>
             </div>
 
-            <!-- Sidebar -->
-            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-                
-                <!-- Assignment Info -->
-                <div class="panel" style="padding: 2rem;">
-                    <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0 0 1.5rem 0; border-bottom: 1px solid rgba(13, 27, 42, 0.1); padding-bottom: 0.8rem;">Responsibility</h3>
-                    
-                    <div style="margin-bottom: 1.2rem;">
-                        <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Assigned To</span>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1rem;">
-                                {{ project.assignee.name[:1] if project.assignee else '?' }}
-                            </div>
-                            <span style="font-weight: 500; font-size: 1rem;">{{ project.assignee.name if project.assignee else 'Unassigned' }}</span>
-                        </div>
-                    </div>
-
-                    <div style="margin-bottom: 1.2rem;">
-                        <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Created By</span>
-                        <span style="font-weight: 500; font-size: 0.95rem;">{{ project.creator.name if project.creator else 'System' }}</span>
-                    </div>
-
-                    <div>
-                        <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Last Updated</span>
-                        <span style="font-weight: 500; font-size: 0.95rem;">{{ project.updated_at.strftime('%B %d, %Y') if project.updated_at else '—' }}</span>
-                    </div>
-                </div>
-
-                <!-- Documents Panel -->
+            <!-- Documents Panel -->
                 <div class="panel" style="padding: 2rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(13, 27, 42, 0.1); padding-bottom: 0.8rem;">
                         <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0;">Project Files</h3>
@@ -268,6 +270,7 @@
                             <div style="display: flex; gap: 8px; margin-left: 10px;">
                                 <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="text-decoration: none; font-size: 1rem;">📥</a>
                                 <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 1rem;">🗑️</button>
                                 </form>
                             </div>
@@ -281,11 +284,15 @@
                     {% endif %}
                 </div>
 
-                <!-- Project Document Upload Modal -->
+                            </div>
+        </div>
+
+        <!-- Project Document Upload Modal -->
                 <div id="docUploadModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
                     <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
                         <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Upload Project Document</h3>
                         <form action="{{ url_for('documents.upload_document') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <input type="hidden" name="entity_type" value="project">
                             <input type="hidden" name="entity_id" value="{{ project.id }}">
                             <div style="margin-bottom: 1.2rem;">
@@ -304,8 +311,7 @@
                     </div>
                 </div>
 
-            </div>
-        </div>
+            
     </main>
 
     <script>

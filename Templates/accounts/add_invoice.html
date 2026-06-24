@@ -28,6 +28,7 @@
   </div>
 
   <form id="invoice-main-form" action="{% if mode == 'edit' %}{{ url_for('accounts.edit_invoice', invoice_id=invoice.id) }}{% else %}{{ url_for('accounts.add_invoice') }}{% endif %}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <div class="qf-layout">
       
       <!-- Main Form Area -->

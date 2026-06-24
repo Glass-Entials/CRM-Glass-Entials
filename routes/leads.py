@@ -640,7 +640,7 @@ def mark_follow_up_done(fu_id):
 
     db.session.commit()
     flash("Follow-up marked as done.", "leadssuccess")
-    return redirect(safe_redirect_target(request.referrer, url_for("leads.view_lead", lead_id=fu.lead_id)))
+    return redirect(url_for("leads.view_lead", lead_id=fu.lead_id))
 
 
 @leads_bp.route("/lead/follow-up/<int:fu_id>/delete", methods=["POST"])
@@ -653,4 +653,4 @@ def delete_follow_up(fu_id):
     db.session.delete(fu)
     db.session.commit()
     flash("Follow-up deleted.", "leadssuccess")
-    return redirect(safe_redirect_target(request.referrer, url_for("leads.view_lead", lead_id=lead_id)))
+    return redirect(url_for("leads.view_lead", lead_id=lead_id))

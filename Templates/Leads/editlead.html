@@ -100,6 +100,7 @@
          <div class="form-container" style="animation: none;">
             <div class="panel" style="border-top: 4px solid var(--accent-gold);">
                 <form method="POST" action="{{ url_for('leads.edit_lead', lead_id=lead_id) }}" class="customer-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="form-grid">
                         <!-- GST Auto-Fetch Section -->
                         <div class="form-group full-width" style="background: rgba(212, 175, 55, 0.05); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(212, 175, 55, 0.2); margin-bottom: 1rem;">

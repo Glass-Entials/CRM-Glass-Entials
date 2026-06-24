@@ -284,7 +284,8 @@
                 </a>
                 <form action="{{ url_for('leads.delete_lead', lead_id=lead.id) }}" method="POST" style="display: inline;"
                     onsubmit="return confirm('Permanently delete this lead?');">
-                    {% if csrf_token is defined %}{{ csrf_token() }}{% endif %}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
                     <button type="submit" class="btn-action dark" style="background: #dc3545; color: white;">🗑
                         Delete</button>
                 </form>
@@ -505,7 +506,8 @@
                 <div class="fu-schedule-box">
                     <h3>➕ Schedule a Follow-Up</h3>
                     <form action="{{ url_for('leads.add_follow_up', lead_id=lead.id) }}" method="POST">
-                        {% if csrf_token is defined %}{{ csrf_token() }}{% endif %}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
                         <div class="fu-form-grid">
                             <div class="fu-field">
                                 <label>Method *</label>
@@ -591,6 +593,8 @@
                             <button class="fu-mini-btn fu-mini-done" onclick="openMarkDone({{ fu.id }})">✅ Done</button>
                             {% endif %}
                             <form action="{{ url_for('leads.delete_follow_up', fu_id=fu.id) }}" method="POST" onsubmit="return confirm('Delete this follow-up?');" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
                                 <button type="submit" class="fu-mini-btn fu-mini-del">🗑</button>
                             </form>
                         </div>
@@ -609,7 +613,8 @@
                     <div style="background:white; border-radius:16px; width:430px; padding:2rem; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
                         <h3 style="color:var(--primary-color); margin-bottom:1.5rem; font-family:var(--font-heading);">✅ Mark as Done</h3>
                                 <form id="markDoneForm" method="POST">
-                                    {% if csrf_token is defined %}{{ csrf_token() }}{% endif %}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
                             <div style="margin-bottom:1rem;">
                                 <label style="display:block; font-size:0.82rem; color:var(--text-muted); margin-bottom:0.4rem; font-weight:600;">Outcome</label>
                                 <select name="outcome" style="width:100%; padding:0.7rem 1rem; border:1px solid #e2e8f0; border-radius:8px; font-family:var(--font-body); font-size:0.9rem;">
@@ -682,7 +687,9 @@
                                 <td style="text-align: right;">
                                     <div style="display: flex; gap: 10px; justify-content: flex-end;">
                                         <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" title="Download" style="text-decoration: none;">📥</a>
-                                        <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');">
+                                        <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
                                             <button type="submit" style="background: none; border: none; cursor: pointer;" title="Delete">🗑️</button>
                                         </form>
                                     </div>
@@ -704,7 +711,8 @@
                     <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
                         <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Upload Lead Document</h3>
                         <form action="{{ url_for('documents.upload_document') }}" method="POST" enctype="multipart/form-data">
-                            {% if csrf_token is defined %}{{ csrf_token() }}{% endif %}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
                             <input type="hidden" name="entity_type" value="lead">
                             <input type="hidden" name="entity_id" value="{{ lead.id }}">
                             <div style="margin-bottom: 1.2rem;">

@@ -221,6 +221,7 @@
                 {% if current_user.role in [UserRole.ADMIN, UserRole.MANAGER] %}
                 <div class="action-bar">
                     <form action="{{ url_for('expenses.update_status', expense_id=expense.id) }}" method="POST" style="display:flex; gap: 10px; width: 100%; flex-wrap: wrap;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         {% if expense.status_display == 'Pending' %}
                             <button type="submit" name="status" value="Approved" class="btn-modern approve" style="flex:1;">✔️ Approve</button>
                             <button type="submit" name="status" value="Rejected" class="btn-modern reject" style="flex:1;">✖️ Reject</button>

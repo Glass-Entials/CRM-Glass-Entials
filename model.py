@@ -208,6 +208,7 @@ class Employee(db.Model):
     profile_pic = db.Column(
         db.String(255), nullable=True
     )  # Filename of profile picture
+    temp_password = db.Column(db.String(100), nullable=True)
 
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(

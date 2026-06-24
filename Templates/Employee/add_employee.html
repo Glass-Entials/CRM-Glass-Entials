@@ -101,6 +101,8 @@
         <div class="form-container" style="animation: none;">
             <div class="panel" style="border-top: 4px solid var(--accent-gold);">
                 <form action="{{ url_for('employees.add_employee') }}" method="POST" class="customer-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="form-grid">
                         <div class="form-group">
                             <label>Full Name <span style="color: red; opacity: 0.7;">*</span></label>

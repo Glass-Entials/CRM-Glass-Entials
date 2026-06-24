@@ -249,6 +249,7 @@
                                     {% if current_user.role.value in ['admin', 'manager'] %}
                                     <div style="padding: 8px 1.2rem; border-top: 1px solid #f1f5f9; margin-top: 8px; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; font-weight: 800;">Set Status</div>
                                     <form action="{{ url_for('expenses.update_status', expense_id=exp.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" name="status" value="Approved">✔️ Approve</button>
                                         <button type="submit" name="status" value="Rejected">✖️ Reject</button>
                                         <button type="submit" name="status" value="Paid">💰 Mark as Paid</button>
@@ -257,6 +258,7 @@
 
                                     {% if current_user.role.value in ['admin', 'manager'] or (current_user.employee and exp.employee_id == current_user.employee.id and exp.status_display == 'Pending') %}
                                     <form action="{{ url_for('expenses.delete_expense', expense_id=exp.id) }}" method="POST" onsubmit="return confirm('Delete this expense?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="delete-item">🗑️ Delete Permanently</button>
                                     </form>
                                     {% endif %}

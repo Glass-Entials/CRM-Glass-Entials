@@ -286,6 +286,7 @@
                     ✏ Edit Profile
                 </a>
                 <form action="{{ url_for('customers.delete_customer', customer_id=customer.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Permanently delete this customer?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="btn-action dark" style="background: #dc3545; color: white;">🗑 Delete</button>
                 </form>
             </div>
@@ -441,6 +442,7 @@
                         <p style="margin: 0.3rem 0 0; font-size: 0.9rem; color: var(--text-muted);">Upload quotations, site photos, or work orders.</p>
                     </div>
                     <form action="{{ url_for('customers.upload_document', customer_id=customer.id) }}" method="POST" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center; margin: 0; position: relative; z-index: 5;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="file" name="document" id="docUpload" style="display: none;" onchange="this.form.submit()" required>
                         <label for="docUpload" class="btn-action gold" style="padding: 0.73rem 1.4rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; text-decoration: none; transition: transform 0.2s, background 0.2s; box-shadow: 0 4px 12px rgba(212, 175, 55, 0.15);">
                             <span style="font-size: 1.1rem;">➕</span> Upload File
@@ -481,6 +483,7 @@
                         <div class="doc-actions" style="display: flex; gap: 8px;">
                             <a href="{{ url_for('customers.download_document', doc_id=doc.id) }}" class="action-pill" style="background: #fff; color: var(--accent-gold); border: 1px solid rgba(212, 175, 55, 0.2); padding: 5px 8px;" title="Download">⬇</a>
                             <form action="{{ url_for('customers.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <button type="submit" class="action-pill" style="background: #fff; color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2); padding: 5px 8px; cursor: pointer;" title="Delete">🗑</button>
                             </form>
                         </div>

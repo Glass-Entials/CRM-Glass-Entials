@@ -90,6 +90,7 @@
             {% endwith %}
 
             <form action="{{ url_for('tasks.edit_task', task_id=task.id) }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                     
                     <div class="form-group" style="grid-column: 1 / -1;">

@@ -315,6 +315,7 @@
             <!-- Hidden Upload Form -->
             <form id="avatarUploadForm" action="{{ url_for('auth.user_profile') }}" method="POST"
                 enctype="multipart/form-data" style="display:none;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="file" id="profile_pic_input" name="profile_pic"
                     onchange="document.getElementById('avatarUploadForm').submit()">
             </form>
@@ -535,6 +536,7 @@
         </div>
 
         <form action="{{ url_for('auth.user_profile') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group" style="margin-bottom: 1.25rem;">
                 <label style="display:block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Display
                     Name</label>

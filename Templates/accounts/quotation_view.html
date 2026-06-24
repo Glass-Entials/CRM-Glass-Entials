@@ -120,17 +120,20 @@
         <button class="btn-icon-sm" id="more-menu-btn">⋮ More</button>
         <div class="qv-more-dropdown" id="more-menu-dropdown">
           <form method="POST" action="{{ url_for('quotations.duplicate_quotation', quotation_id=quotation.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button class="dropdown-item">📋 Duplicate</button>
           </form>
           {% if quotation.doc_type.value == 'Quotation' %}
           <form method="POST" action="{{ url_for('quotations.convert_to_proforma', quotation_id=quotation.id) }}"
                 onsubmit="return confirm('Convert to Proforma Invoice?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button class="dropdown-item">🔄 Convert to Proforma Invoice</button>
           </form>
           {% endif %}
           <hr class="dropdown-divider">
           <form method="POST" action="{{ url_for('quotations.delete_quotation', quotation_id=quotation.id) }}"
                 onsubmit="return confirm('Delete {{ quotation.quotation_number }}? This cannot be undone.')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button class="dropdown-item text-danger">🗑 Delete</button>
           </form>
         </div>
@@ -139,6 +142,7 @@
       <!-- Quick status change -->
       <div class="qv-status-form">
         <form id="status-form" method="POST" action="{{ url_for('quotations.update_status', quotation_id=quotation.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <select name="status" class="qf-select qf-select--sm" onchange="this.form.submit()">
             {% for s in ['Draft', 'Sent', 'Accepted', 'Rejected'] %}
             <option value="{{ s }}" {{ 'selected' if quotation.status.value == s }}>{{ s }}</option>

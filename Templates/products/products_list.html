@@ -368,6 +368,7 @@
                                 {% if current_user.role.value in ['admin', 'manager'] %}
                                 <form action="{{ url_for('products.delete_product', product_id=product.id) }}" method="POST"
                                       onsubmit="return confirm('Delete this product?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <button type="submit" class="delete-action">
                                         <span class="icon">🗑</span> Delete
                                     </button>

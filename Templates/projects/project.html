@@ -261,6 +261,7 @@
                                         </a>
                                         <form action="/delete-project/{{ project.id }}" method="POST"
                                             onsubmit="return confirm('Are you sure you want to delete this project?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <button type="submit" class="delete-action">
                                                 <span class="icon">🗑</span> Delete
                                             </button>

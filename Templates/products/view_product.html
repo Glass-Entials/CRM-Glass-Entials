@@ -187,6 +187,7 @@
         {% if current_user.role.value in ['admin', 'manager'] %}
         <form action="{{ url_for('products.delete_product', product_id=product.id) }}" method="POST"
               onsubmit="return confirm('Permanently delete this product?')" style="margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button type="submit" class="btn-action"
                     style="background:rgba(239,68,68,.08); color:#dc2626; border:1px solid rgba(239,68,68,.2); font-size:.85rem;">
                 🗑 Delete
@@ -298,6 +299,7 @@
     <div class="stock-form">
         <h3>📦 Adjust Stock</h3>
         <form action="{{ url_for('products.adjust_stock', product_id=product.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="stock-adjust-row">
                 <input type="number" name="adjustment" id="adjInput" step="0.01" placeholder="Enter qty (+ to add, - to remove)"
                        style="flex:1; padding:.75rem 1rem; border:1px solid rgba(13,27,42,.12); border-radius:8px; font-family:var(--font-body); font-size:.9rem; outline:none;">

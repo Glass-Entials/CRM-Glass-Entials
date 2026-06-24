@@ -97,6 +97,7 @@
 
         <div class="form-panel">
             <form action="{{ url_for('expenses.add_expense') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 
                 <div class="form-group">
                     <label>Title / Purpose of Expense <span style="color:#ef4444;">*</span></label>

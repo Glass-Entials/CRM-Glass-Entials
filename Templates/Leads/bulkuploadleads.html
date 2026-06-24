@@ -150,6 +150,7 @@
                 <p style="color: rgba(255,255,255,0.7); font-size: 0.95rem; margin-bottom: 2rem;">Ready to import? Upload your completed .csv file below.</p>
                 
                 <form action="{{ url_for('leads.bulk_upload_leads') }}" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 20px; position: relative; z-index: 1;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="file-drop-area" style="position: relative; border: 2px dashed rgba(212, 175, 55, 0.4); border-radius: 8px; padding: 3rem 1.5rem; text-align: center; background: rgba(255, 255, 255, 0.03); transition: all 0.3s ease; cursor: pointer;">
                         <span style="font-size: 2rem; display: block; margin-bottom: 1rem;">📁</span>
                         <label for="lead_file" style="color: #fff; font-weight: 500; cursor: pointer; display: block;">

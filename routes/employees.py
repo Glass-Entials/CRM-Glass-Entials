@@ -69,6 +69,7 @@ def add_employee():
                 phone_number=phone_number,
                 position=position,
                 organization_id=current_user.organization_id,
+                temp_password=temp_password,
             )
             db.session.add(new_emp)
             db.session.commit()
@@ -82,6 +83,14 @@ def add_employee():
 
     return render_template("employee/add_employee.html")
 
+@employees_bp.route("/view-employee/<int:employee_id>")
+@login_required
+@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+def view_employee(employee_id):
+    employee = Employee.query.filter_by(
+        id=employee_id, organization_id=current_user.organization_id
+    ).first_or_404()
+    return render_template("employee/view_employee.html", employee=employee)
 
 @employees_bp.route("/edit-employee/<int:employee_id>", methods=["GET", "POST"])
 @login_required

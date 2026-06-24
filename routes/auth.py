@@ -360,6 +360,8 @@ def change_password():
 
         current_user.password = generate_password_hash(new_password)
         current_user.must_change_password = False
+        if current_user.employee:
+            current_user.employee.temp_password = None
         db.session.commit()
         
         flash("Password changed successfully!", "success")

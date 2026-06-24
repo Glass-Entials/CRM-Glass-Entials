@@ -147,6 +147,7 @@
             <div class="action-bar">
                 <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" class="btn-action gold" style="text-decoration: none;">✏ Edit Task</a>
                 <form action="{{ url_for('tasks.delete_task', task_id=task.id) }}" method="POST" onsubmit="return confirm('Delete this task permanently?');" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="btn-action" style="background: rgba(220,53,69,0.08); color: #dc3545; border: 1px solid rgba(220,53,69,0.2); cursor: pointer;">🗑 Delete</button>
                 </form>
             </div>
@@ -265,6 +266,7 @@
                                             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                                                 <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="text-decoration: none;">📥</a>
                                                 <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                                     <button type="submit" style="background: none; border: none; cursor: pointer;">🗑️</button>
                                                 </form>
                                             </div>
@@ -286,6 +288,7 @@
                     <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
                         <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Upload Task Document</h3>
                         <form action="{{ url_for('documents.upload_document') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <input type="hidden" name="entity_type" value="task">
                             <input type="hidden" name="entity_id" value="{{ task.id }}">
                             <div style="margin-bottom: 1.2rem;">
@@ -344,6 +347,7 @@
                 <div class="panel" style="padding: 1.5rem 2rem;">
                     <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1rem; margin: 0 0 1rem 0;">Quick Status Update</h3>
                     <form action="{{ url_for('tasks.edit_task', task_id=task.id) }}" method="POST" id="quickStatusForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <!-- Hidden fields to keep everything else intact -->
                         <input type="hidden" name="title" value="{{ task.title }}">
                         <input type="hidden" name="description" value="{{ task.description or '' }}">

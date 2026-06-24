@@ -132,6 +132,7 @@
         {% endwith %}
 
         <form method="POST" enctype="multipart/form-data" id="addProductForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-card">
                 <h1 class="form-card-title">Add New Product</h1>
                 <p class="form-card-sub">Fill in the product details to add it to your catalogue.</p>

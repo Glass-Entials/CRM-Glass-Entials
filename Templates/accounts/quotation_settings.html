@@ -110,6 +110,7 @@
         <li><a href="#terms">Terms & Annexure</a></li>
       </ul>
       <form method="POST" action="{{ url_for('quotation_settings.seed_defaults') }}" class="mt-xl text-center" onsubmit="return confirm('Seed defaults? This will add standard fields and terms if they don\'t exist.')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <button type="submit" class="btn-ghost btn-sm">🌱 Seed Defaults</button>
       </form>
     </div>
@@ -121,6 +122,7 @@
       <div id="company" class="qs-panel active">
         <h2 class="qs-panel-title">Company Profile <span class="text-muted font-normal text-sm ml-sm">(Appears on document header)</span></h2>
         <form method="POST" action="{{ url_for('quotation_settings.settings_home') }}" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <input type="hidden" name="section" value="company">
           
           <div class="qf-row">
@@ -161,6 +163,7 @@
       <div id="numbering" class="qs-panel">
         <h2 class="qs-panel-title">Numbering Schema</h2>
         <form method="POST" action="{{ url_for('quotation_settings.settings_home') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <input type="hidden" name="section" value="numbering">
           <div class="qf-row mb-md">
             <div class="qf-field">
@@ -184,6 +187,7 @@
       <div id="defaults" class="qs-panel">
         <h2 class="qs-panel-title">Default Values</h2>
         <form method="POST" action="{{ url_for('quotation_settings.settings_home') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <input type="hidden" name="section" value="defaults">
           <div class="qf-row mb-md">
             <div class="qf-field">
@@ -211,6 +215,7 @@
       <div id="bank" class="qs-panel">
         <h2 class="qs-panel-title">Bank Details</h2>
         <form method="POST" action="{{ url_for('quotation_settings.settings_home') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <input type="hidden" name="section" value="bank">
           <div class="qf-row mb-md">
             <div class="qf-field"><label>Bank Name</label><input type="text" name="bank_name" class="qf-input" value="{{ settings.bank_name or '' }}"></div>
@@ -232,6 +237,7 @@
       <div id="pdf" class="qs-panel">
         <h2 class="qs-panel-title">PDF & Signature Configuration</h2>
         <form method="POST" action="{{ url_for('quotation_settings.settings_home') }}" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <input type="hidden" name="section" value="pdf">
           <div class="qf-row mb-md">
             <div class="qf-field">

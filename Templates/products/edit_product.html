@@ -160,6 +160,7 @@
         {% endwith %}
 
         <form method="POST" enctype="multipart/form-data" id="editProductForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-card">
 
                 <!-- Header -->
@@ -344,6 +345,7 @@
                     <form action="{{ url_for('products.delete_product', product_id=product.id) }}"
                           method="POST" style="margin:0;"
                           onsubmit="return confirm('Delete this product permanently?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit" class="btn-action"
                                 style="background:rgba(239,68,68,.08); color:#dc2626; border:1px solid rgba(239,68,68,.2);">
                             🗑 Delete

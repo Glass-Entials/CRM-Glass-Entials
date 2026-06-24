@@ -284,6 +284,8 @@
                     <button class="fu-btn fu-btn-done" onclick="openDoneModal({{ fu.id }})">✅ Mark Done</button>
                     <a href="{{ url_for('leads.view_lead', lead_id=fu.lead.id) }}" class="fu-btn fu-btn-view">View Lead</a>
                     <form action="{{ url_for('leads.delete_follow_up', fu_id=fu.id) }}" method="POST" onsubmit="return confirm('Delete this follow-up?');" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
                         <button type="submit" class="fu-btn fu-btn-del">🗑</button>
                     </form>
                 </div>
@@ -323,6 +325,8 @@
                     <button class="fu-btn fu-btn-done" onclick="openDoneModal({{ fu.id }})">✅ Mark Done</button>
                     <a href="{{ url_for('leads.view_lead', lead_id=fu.lead.id) }}" class="fu-btn fu-btn-view">View Lead</a>
                     <form action="{{ url_for('leads.delete_follow_up', fu_id=fu.id) }}" method="POST" onsubmit="return confirm('Delete this follow-up?');" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
                         <button type="submit" class="fu-btn fu-btn-del">🗑</button>
                     </form>
                 </div>
@@ -360,6 +364,8 @@
                 <div class="fu-actions">
                     <a href="{{ url_for('leads.view_lead', lead_id=fu.lead.id) }}" class="fu-btn fu-btn-view">View Lead</a>
                     <form action="{{ url_for('leads.delete_follow_up', fu_id=fu.id) }}" method="POST" onsubmit="return confirm('Delete this follow-up?');" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
                         <button type="submit" class="fu-btn fu-btn-del">🗑</button>
                     </form>
                 </div>
@@ -377,6 +383,8 @@
     <div class="done-form-box">
         <h3>✅ Mark Follow-Up as Done</h3>
         <form id="doneForm" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
             <div class="field-group">
                 <label>Outcome</label>
                 <select name="outcome">
@@ -407,6 +415,8 @@
     <div class="done-form-box" style="width: 500px;">
         <h3>➕ Schedule Follow-Up</h3>
         <form id="addForm" method="POST" onsubmit="return setAddFormAction()">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
             <div class="field-group">
                 <label>Select Lead *</label>
                 <select id="addModalLead" required>

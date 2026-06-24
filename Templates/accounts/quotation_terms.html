@@ -113,6 +113,7 @@
             <span class="text-xs text-muted">{{ tg.terms|length }} terms</span>
           </div>
           <form method="POST" action="{{ url_for('quotation_settings.delete_term_group', group_id=tg.id) }}" onsubmit="return confirm('Delete this group entirely?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button type="submit" class="btn-icon-sm text-danger" title="Delete Group">🗑</button>
           </form>
         </div>
@@ -143,6 +144,7 @@
               <div class="qt-term-actions">
                 <button class="btn-icon-sm" title="Edit" onclick="editTerm({{ t.id }}, '{{ t.term_title|escape }}', `{{ t.term_body|escape }}`)">✏</button>
                 <form method="POST" action="{{ url_for('quotation_settings.delete_term', term_id=t.id) }}" style="display:inline" onsubmit="return confirm('Delete this term?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <button type="submit" class="btn-icon-sm text-danger" title="Delete">✕</button>
                 </form>
               </div>
@@ -168,6 +170,7 @@
       <button class="btn-close" onclick="document.getElementById('modal-new-group').style.display='none'">✕</button>
     </div>
     <form method="POST" action="{{ url_for('quotation_settings.add_term_group') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="qt-modal-body">
         <div class="qf-field mb-md">
           <label>Group Name</label>
@@ -197,6 +200,7 @@
       <button class="btn-close" onclick="closeTermModal()">✕</button>
     </div>
     <form method="POST" action="{{ url_for('quotation_settings.add_term') }}" id="form-term">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <input type="hidden" name="group_id" id="mt-group-id">
       <div class="qt-modal-body">
         <div class="qf-field mb-md">

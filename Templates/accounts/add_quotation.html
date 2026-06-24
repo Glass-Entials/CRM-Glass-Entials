@@ -231,6 +231,7 @@
         </div>
 
         <form action="{{ url_for('quotations.add_quotation') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="invoice-form-panel">
                 
                 <!-- Client Details -->
