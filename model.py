@@ -171,7 +171,7 @@ class User(db.Model, UserMixin):
         nullable=False,
         default=UserRole.EMPLOYEE,
     )
-    must_change_password = db.Column(db.Boolean, default=False)
+    must_change_password = db.Column(db.Boolean, server_default=db.text("0"), default=False)
 
     # Multi-tenant field
     organization_id = db.Column(
@@ -234,10 +234,12 @@ class Lead(db.Model):
     company = db.Column(db.String(100), nullable=True)
     source = db.Column(
         db.Enum(LeadSource, values_callable=lambda x: [e.value for e in x]),
+        server_default=db.text("'Other'"),
         default=LeadSource.OTHER,
     )
     status = db.Column(
         db.Enum(LeadStatus, values_callable=lambda x: [e.value for e in x]),
+        server_default=db.text("'New'"),
         default=LeadStatus.NEW,
         index=True,
     )
@@ -334,10 +336,12 @@ class Customer(db.Model):
     company = db.Column(db.String(100), nullable=True)
     source = db.Column(
         db.Enum(LeadSource, values_callable=lambda x: [e.value for e in x]),
+        server_default=db.text("'Other'"),
         default=LeadSource.OTHER,
     )
     status = db.Column(
         db.Enum(CustomerStatus, values_callable=lambda x: [e.value for e in x]),
+        server_default=db.text("'New'"),
         default=CustomerStatus.NEW,
         index=True,
     )
@@ -514,7 +518,7 @@ class LeadFollowUp(db.Model):
 
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(150), nullable=False)
+    title = db.Column(db.String(150), nullable=False, server_default=db.text("'Generic Task'"))
     description = db.Column(db.Text, nullable=True)
     due_date = db.Column(db.DateTime, nullable=True)
     status = db.Column(
@@ -539,7 +543,7 @@ class Task(db.Model):
         db.Integer, db.ForeignKey("employee.id"), nullable=True, index=True
     )
     created_by = db.Column(
-        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True, server_default=db.text("'1'")
     )
     lead_id = db.Column(db.Integer, db.ForeignKey("lead.id"), nullable=True, index=True)
     project_id = db.Column(
@@ -1177,7 +1181,7 @@ class QuotationSettings(db.Model):
     number_format = db.Column(
         db.String(30), default="{prefix}/{year}/{seq:04d}"
     )  # e.g. GL/26/0001
-    invoice_counter = db.Column(db.Integer, default=1)  # Atomic invoice number counter
+    invoice_counter = db.Column(db.Integer, server_default=db.text("'1'"), default=1)  # Atomic invoice number counter
 
     # Defaults
     validity_days = db.Column(db.Integer, default=30)
