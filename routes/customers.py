@@ -369,7 +369,15 @@ def bulk_upload():
             flash("No file.", "customererror")
             return redirect(url_for("customers.bulk_upload"))
         try:
-            df = pd.read_csv(file).fillna("")
+            try:
+                df = pd.read_csv(file, encoding="utf-8").fillna("")
+            except UnicodeDecodeError:
+                file.seek(0)
+                try:
+                    df = pd.read_csv(file, encoding="cp1252").fillna("")
+                except UnicodeDecodeError:
+                    file.seek(0)
+                    df = pd.read_csv(file, encoding="latin1").fillna("")
             col_map = {c.lower(): c for c in df.columns}
             if not {"name", "email", "phone"}.issubset(set(col_map.keys())):
                 flash("Missing required columns.", "customererror")

@@ -373,6 +373,7 @@ def change_password():
 
 @auth_bp.route("/notifications/unread")
 @login_required
+@limiter.exempt
 def unread_notifications():
     """API endpoint to fetch unread notifications count and recent items."""
     from model import Notification
