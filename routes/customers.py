@@ -417,11 +417,6 @@ def bulk_upload():
                     current_app.logger.warning(f"Row {row_num} skipped\nReason:\nMissing Name\n")
                     skipped_validation += 1
                     continue
-                if not email and not phone_number:
-                    failed_rows.append({"row": row_num, "name": name, "reason": "Missing both Email and Phone"})
-                    current_app.logger.warning(f"Row {row_num} skipped\nReason:\nMissing both Email and Phone\n")
-                    skipped_validation += 1
-                    continue
                 if phone_number and len(phone_number) != 10:
                     failed_rows.append({"row": row_num, "name": name, "reason": "Invalid Phone"})
                     current_app.logger.warning(f"Row {row_num} skipped\nReason:\nInvalid Phone\nPhone:\n{phone_raw}\n")
