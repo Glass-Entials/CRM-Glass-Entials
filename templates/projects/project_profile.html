@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project.name }} - Overview</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}">
+    <style>
+        .badge-in-progress { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+        .badge-cancelled { background: rgba(220, 53, 69, 0.08); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2); }
+        .badge-completed { background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2); }
+        .badge-default { background: rgba(212, 175, 55, 0.15); color: #d4af37; border: 1px solid rgba(212, 175, 55, 0.4); }
+        
+        .task-badge-in-progress { background: rgba(0, 123, 255, 0.08); color: #007bff; border: 1px solid rgba(0, 123, 255, 0.2); }
+        .task-badge-cancelled { background: rgba(220, 53, 69, 0.08); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2); }
+        .task-badge-completed { background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2); }
+        .task-badge-default { background: rgba(255, 193, 7, 0.08); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.2); }
+    </style>
+</head>
+<body class="dashboard-page">
+
+    <!-- Top Navbar -->
+    <header class="dash-nav">
+        <div class="logo">
+            <a href="/home" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+        </div>
+        
+        <nav class="dash-menu">
+    <a href="{{ url_for('home_page') }}" {% if request.endpoint == 'home_page' %}class="active"{% endif %}>Dashboard</a>
+    <a href="{{ url_for('customers.customers_list') }}" {% if request.blueprint == 'customers' %}class="active"{% endif %}>Customers</a>
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'leads' %}class="active"{% endif %}>Leads ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('leads.leads_list') }}">All Leads</a>
+            <a href="{{ url_for('leads.all_follow_ups') }}">📞 Follow-Ups</a>
+        </div>
+    </div>
+    <a href="{{ url_for('projects.projects_list') }}" {% if request.blueprint == 'projects' %}class="active"{% endif %}>Projects</a>
+    
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'tasks' %}class="active"{% endif %}>Tasks ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+            <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+        </div>
+    </div>
+
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'accounts' or request.blueprint == 'quotations' or request.blueprint == 'expenses' %}class="active"{% endif %}>Accounts ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+            <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+            <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+        </div>
+    </div>
+
+    <a href="{{ url_for('products.products_list') }}" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
+    
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'employees' %}class="active"{% endif %}>Settings ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+        </div>
+    </div>
+</nav>
+        
+        <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <form action="{{ url_for('auth.logout') }}" method="POST" style="display:inline;"><button type="submit" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container" style="max-width: 1000px; padding-top: 3rem;">
+        
+        <!-- Top Section -->
+        <div class="top-bar" style="border-bottom: 2px solid rgba(212, 175, 55, 0.2); padding-bottom: 1.5rem; margin-bottom: 2rem;">
+            <div>
+                <a href="{{ url_for('projects.projects_list') }}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem; margin-bottom: 0.5rem; display: inline-block;">← Back to Projects</a>
+                <h1 style="color: var(--primary-color); font-size: 2.2rem; font-family: var(--font-heading); margin-top: 0.2rem;">{{ project.name }}</h1>
+                <p style="color: var(--text-muted); font-size: 1rem; margin-top: 0.3rem;">Created on {{ project.created_at.strftime('%B %d, %Y') if project.created_at else '—' }}</p>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn-action outline" onclick="document.getElementById('docUploadModal').style.display='flex'">
+                    📤 Upload File
+                </button>
+                <a href="/edit-project/{{ project.id }}" class="btn-action gold" style="text-decoration: none;">✏ Edit Detalis</a>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; align-items: start;">
+            <!-- Left Sidebar Column (Overview & Info) -->
+            <div style="display: flex; flex-direction: column; gap: 2rem; min-width: 0;">
+            <!-- Project Overview -->
+            <div class="panel" style="padding: 2.5rem; border-top: 4px solid var(--primary-color);">
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 1.2rem; margin-bottom: 2rem;">
+                    <h2 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.5rem; margin: 0; line-height: 1.3;">Project Overview</h2>
+                    <span class="status-badge {% if project.status_display == 'In Progress' %}badge-in-progress{% elif project.status_display == 'Cancelled' %}badge-cancelled{% elif project.status_display == 'Completed' %}badge-completed{% else %}badge-default{% endif %}" style="padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; white-space: nowrap; width: fit-content;">
+                        {{ project.status_display }}
+                    </span>
+                </div>
+
+                <div style="background: rgba(13, 27, 42, 0.02); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.05); margin-bottom: 2rem;">
+                    <h3 style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.5rem;">Description</h3>
+                    <p style="font-size: 1.05rem; line-height: 1.6; color: var(--text-color); margin: 0;">{{ project.description or 'No description provided.' }}</p>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div>
+                        <h3 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.3rem;">Associated Customer</h3>
+                        {% if project.customer %}
+                            <p style="font-size: 1.1rem; font-weight: 500; color: var(--primary-color); margin: 0;"><a href="{{ url_for('customers.view_customer', customer_id=project.customer.id) }}" style="color: var(--accent-gold); text-decoration: none;">{{ project.customer.name }}</a></p>
+                        {% else %}
+                            <p style="font-size: 1.1rem; font-weight: 500; color: var(--text-muted); margin: 0;">None</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h3 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.3rem;">Work Type</h3>
+                        <p style="font-size: 1.1rem; font-weight: 500; margin: 0;">
+                            {% if project.work_type %}
+                                {% if project.work_type.value == 'Glass' %}🪟
+                                {% elif project.work_type.value == 'Hardware' %}🔩
+                                {% elif project.work_type.value == 'Mirror' %}🪞
+                                {% endif %} {{ project.work_type.value }}
+                            {% else %}—{% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.3rem;">Category</h3>
+                        <p style="font-size: 1.1rem; font-weight: 500; margin: 0;">
+                            {{ ('🏢 ' if project.category and project.category.value == 'Commercial' else '🏠 ') if project.category else '' }}{{ project.category.value if project.category else '—' }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Responsibility (Moved to Left Column) -->
+            <div class="panel" style="padding: 2rem;">
+                <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0 0 1.5rem 0; border-bottom: 1px solid rgba(13, 27, 42, 0.1); padding-bottom: 0.8rem;">Responsibility</h3>
+                
+                <div style="margin-bottom: 1.2rem;">
+                    <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Assigned To</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1rem;">
+                            {{ project.assignee.name[:1] if project.assignee else '?' }}
+                        </div>
+                        <span style="font-weight: 500; font-size: 1rem;">{{ project.assignee.name if project.assignee else 'Unassigned' }}</span>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1.2rem;">
+                    <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Created By</span>
+                    <span style="font-weight: 500; font-size: 0.95rem;">{{ project.creator.name if project.creator else 'System' }}</span>
+                </div>
+
+                <div>
+                    <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Last Updated</span>
+                    <span style="font-weight: 500; font-size: 0.95rem;">{{ project.updated_at.strftime('%B %d, %Y') if project.updated_at else '—' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Main Column (Tasks & Files) -->
+        <div style="display: flex; flex-direction: column; gap: 2rem; min-width: 0;">
+            <!-- Tasks Section -->
+            <div class="panel" style="padding: 2.5rem;  border-top: 4px solid var(--accent-gold);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h2 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.5rem; margin: 0;">Project Tasks</h2>
+                    <a href="{{ url_for('tasks.add_task', project_id=project.id) }}" class="btn-action gold" style="text-decoration: none; padding: 0.6rem 1.2rem; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.2rem; font-weight: bold;">+</span> New Task
+                    </a>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="customer-table" style="width: 100%; border-collapse: separate; border-spacing: 0;">
+                        <thead>
+                            <tr style="background: rgba(13, 27, 42, 0.03);">
+                                <th style="padding: 1.2rem; text-align: left; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Task</th>
+                                <th style="padding: 1.2rem; text-align: left; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Due Date</th>
+                                <th style="padding: 1.2rem; text-align: left; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Assigned To</th>
+                                <th style="padding: 1.2rem; text-align: left; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Status</th>
+                                <th style="padding: 1.2rem; text-align: right; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set tasks = project.tasks_related.all() %}
+                            {% for task in tasks %}
+                            <tr style="transition: all 0.2s ease;">
+                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05);">
+                                    <div style="font-weight: 600; color: var(--primary-color);">{{ task.title }}</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ task.description or 'No description' }}</div>
+                                </td>
+                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05); font-size: 0.95rem;">
+                                    {{ task.due_date.strftime('%d %b, %Y') if task.due_date else 'No due date' }}
+                                </td>
+                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05);">
+                                    {% if task.assignee %}
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.7rem;">
+                                            {{ task.assignee.name[:1] }}
+                                        </div>
+                                        <span style="font-size: 0.9rem;">{{ task.assignee.name }}</span>
+                                    </div>
+                                    {% else %}
+                                    <span style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05);">
+                                    <span class="status-badge {% if task.status_display == 'Completed' %}task-badge-completed{% elif task.status_display == 'In Progress' %}task-badge-in-progress{% elif task.status_display == 'Cancelled' %}task-badge-cancelled{% else %}task-badge-default{% endif %}" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 600;">
+                                        {{ task.status_display }}
+                                    </span>
+                                </td>
+                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05); text-align: right;">
+                                    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                        <a href="{{ url_for('tasks.view_task', task_id=task.id) }}" style="padding: 5px; color: var(--text-muted); transition: color 0.2s;" onmouseover="this.style.color='var(--accent-gold)'" onmouseout="this.style.color='var(--text-muted)'">👁</a>
+                                        <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" style="padding: 5px; color: var(--text-muted); transition: color 0.2s;" onmouseover="this.style.color='var(--primary-color)'" onmouseout="this.style.color='var(--text-muted)'">✏️</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" style="padding: 3rem; text-align: center; color: var(--text-muted); border-bottom: 1px solid rgba(13, 27, 42, 0.05);">
+                                    <div style="font-size: 2.5rem; opacity: 0.2; margin-bottom: 1rem;">📋</div>
+                                    <div style="font-weight: 500;">No tasks found for this project yet.</div>
+                                    <div style="font-size: 0.9rem; margin-top: 0.5rem;">Click 'New Task' to get started.</div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Documents Panel -->
+                <div class="panel" style="padding: 2rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(13, 27, 42, 0.1); padding-bottom: 0.8rem;">
+                        <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0;">Project Files</h3>
+                        <button class="btn-action gold" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="document.getElementById('docUploadModal').style.display='flex'">+ Upload</button>
+                    </div>
+
+                    {% set docs = project.documents.all() %}
+                    {% if docs %}
+                    <div class="doc-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                        {% for doc in docs %}
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.8rem; background: rgba(13, 27, 42, 0.02); border-radius: 6px; border: 1px solid rgba(13, 27, 42, 0.05);">
+                            <div style="flex: 1; overflow: hidden;">
+                                <div style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ doc.original_name }}">{{ doc.original_name }}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ doc.uploaded_at.strftime('%d %b') }} • {{ doc.file_type | upper }}</div>
+                            </div>
+                            <div style="display: flex; gap: 8px; margin-left: 10px;">
+                                <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="text-decoration: none; font-size: 1rem;">📥</a>
+                                <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 1rem;">🗑️</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.9rem; border: 1px dashed #ddd; border-radius: 8px;">
+                        No project documents yet.
+                    </div>
+                    {% endif %}
+                </div>
+
+                            </div>
+        </div>
+
+        <!-- Project Document Upload Modal -->
+                <div id="docUploadModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+                    <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                        <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Upload Project Document</h3>
+                        <form action="{{ url_for('documents.upload_document') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="entity_type" value="project">
+                            <input type="hidden" name="entity_id" value="{{ project.id }}">
+                            <div style="margin-bottom: 1.2rem;">
+                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Select File</label>
+                                <input type="file" name="file" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
+                            </div>
+                            <div style="margin-bottom: 1.5rem;">
+                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Description (Optional)</label>
+                                <input type="text" name="description" placeholder="e.g. Site Plan" style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;">
+                            </div>
+                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                                <button type="button" class="btn-action outline" onclick="document.getElementById('docUploadModal').style.display='none'">Cancel</button>
+                                <button type="submit" class="btn-action gold">Upload File</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+            
+    </main>
+
+    <script>
+        // Auto-open upload modal if specified in URL
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('upload') === 'true') {
+                const modal = document.getElementById('docUploadModal');
+                if (modal) modal.style.display = 'flex';
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+

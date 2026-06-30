@@ -46,7 +46,7 @@ def is_safe_url(target):
            ref_url.netloc == test_url.netloc
 
 @auth_bp.route("/login", methods=["GET", "POST"])
-@limiter.limit("5 per minute; 20 per hour")
+@limiter.limit("50 per minute; 250 per hour")
 def login():
     if request.method == "POST":
         email = request.form["email"]
@@ -72,7 +72,7 @@ def logout():
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
-@limiter.limit("5 per hour")
+@limiter.limit("250 per hour")
 def register():
     if request.method == "POST":
         username = request.form.get("username")

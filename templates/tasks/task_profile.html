@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ task.title }} | GlassEntials CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}">
+    <style>
+        .info-label {
+            display: block;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .info-value {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--primary-color);
+            margin: 0;
+        }
+        .info-block { margin-bottom: 1.5rem; }
+        .status-pill {
+            display: inline-block;
+            padding: 6px 18px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 0.02em;
+        }
+        .status-pending  { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .status-progress { background: #cce5ff; color: #004085; border: 1px solid #b8daff; }
+        .status-done     { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-cancel   { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .relation-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(13,27,42,0.1);
+            background: rgba(13,27,42,0.02);
+            text-decoration: none;
+            color: var(--primary-color);
+            transition: all 0.2s ease;
+        }
+        .relation-card:hover {
+            background: rgba(212,175,55,0.06);
+            border-color: rgba(212,175,55,0.4);
+        }
+        .relation-icon {
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+        .action-bar {
+            display: flex;
+            gap: 10px;
+        }
+        .timeline-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: var(--accent-gold);
+            flex-shrink: 0;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body class="dashboard-page">
+
+    <!-- Top Navbar -->
+    <header class="dash-nav">
+        <div class="logo">
+            <a href="/home" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+        </div>
+        <nav class="dash-menu">
+    <a href="{{ url_for('home_page') }}" {% if request.endpoint == 'home_page' %}class="active"{% endif %}>Dashboard</a>
+    <a href="{{ url_for('customers.customers_list') }}" {% if request.blueprint == 'customers' %}class="active"{% endif %}>Customers</a>
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'leads' %}class="active"{% endif %}>Leads ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('leads.leads_list') }}">All Leads</a>
+            <a href="{{ url_for('leads.all_follow_ups') }}">📞 Follow-Ups</a>
+        </div>
+    </div>
+    <a href="{{ url_for('projects.projects_list') }}" {% if request.blueprint == 'projects' %}class="active"{% endif %}>Projects</a>
+    
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'tasks' %}class="active"{% endif %}>Tasks ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+            <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+        </div>
+    </div>
+
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'accounts' or request.blueprint == 'quotations' or request.blueprint == 'expenses' %}class="active"{% endif %}>Accounts ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+            <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+            <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+        </div>
+    </div>
+
+    <a href="{{ url_for('products.products_list') }}" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
+    
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'employees' %}class="active"{% endif %}>Settings ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+        </div>
+    </div>
+</nav>
+        <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}"><span class="icon">👤</span> Manage Profile</a>
+                    <form action="{{ url_for('auth.logout') }}" method="POST" style="display:inline;"><button type="submit" class="logout-link"><span class="icon">🚪</span> Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container" style="max-width: 1020px; padding-top: 2.5rem;">
+
+        <!-- Breadcrumb + Actions -->
+        <div class="top-bar" style="border-bottom: 2px solid rgba(212,175,55,0.2); padding-bottom: 1.5rem; margin-bottom: 2rem; align-items: flex-start;">
+            <div>
+                <a href="{{ url_for('tasks.tasks_list') }}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem; display: inline-block; margin-bottom: 6px;">← Back to Tasks</a>
+                <h1 style="color: var(--primary-color); font-size: 2rem; font-family: var(--font-heading); margin: 0 0 4px 0; line-height: 1.2;">{{ task.title }}</h1>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
+                    Created on {{ task.created_at.strftime('%B %d, %Y at %I:%M %p') if task.created_at else '—' }}
+                </p>
+            </div>
+            <div class="action-bar">
+                <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" class="btn-action gold" style="text-decoration: none;">✏ Edit Task</a>
+                <form action="{{ url_for('tasks.delete_task', task_id=task.id) }}" method="POST" onsubmit="return confirm('Delete this task permanently?');" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="btn-action" style="background: rgba(220,53,69,0.08); color: #dc3545; border: 1px solid rgba(220,53,69,0.2); cursor: pointer;">🗑 Delete</button>
+                </form>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; align-items: start;">
+
+            <!-- Main Panel -->
+            <div>
+                <!-- Overview Card -->
+                <div class="panel" style="padding: 2.5rem; border-top: 4px solid var(--primary-color); margin-bottom: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                        <h2 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.4rem; margin: 0;">Task Overview</h2>
+                        {% set sd = task.status_display %}
+                        {% if sd == 'Pending' %}
+                            <span class="status-pill status-pending">⏳ Pending</span>
+                        {% elif sd == 'In Progress' %}
+                            <span class="status-pill status-progress">🔄 In Progress</span>
+                        {% elif sd == 'Completed' %}
+                            <span class="status-pill status-done">✅ Completed</span>
+                        {% elif sd == 'Cancelled' %}
+                            <span class="status-pill status-cancel">❌ Cancelled</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Description -->
+                    <div style="background: rgba(13,27,42,0.02); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(13,27,42,0.06); margin-bottom: 2rem;">
+                        <span class="info-label">Description</span>
+                        <p style="font-size: 1rem; line-height: 1.7; color: var(--text-color); margin: 0; white-space: pre-wrap;">{{ task.description or 'No description provided.' }}</p>
+                    </div>
+
+                    <!-- Due Date -->
+                    <div class="info-block">
+                        <span class="info-label">Due Date</span>
+                        {% if task.due_date %}
+                            {% set today = None %}
+                            <p class="info-value" style="{% if task.status_display not in ['Completed','Cancelled'] %}color: {% if task.due_date.strftime('%Y-%m-%d') < '2099-01-01' %}var(--primary-color){% endif %};{% endif %}">
+                                📅 {{ task.due_date.strftime('%B %d, %Y') }}
+                            </p>
+                        {% else %}
+                            <p class="info-value" style="color: var(--text-muted); font-style:italic;">No due date set</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Related To -->
+                {% if task.project or task.lead_record %}
+                <div class="panel" style="padding: 2rem; border-top: 4px solid var(--accent-gold);">
+                    <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0 0 1.2rem 0;">Related To</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        {% if task.project %}
+                        <a href="{{ url_for('projects.view_project', project_id=task.project.id) }}" class="relation-card">
+                            <span class="relation-icon">📦</span>
+                            <div>
+                                <span style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;">Project</span>
+                                <span style="font-weight: 700; font-size: 1rem;">{{ task.project.name }}</span>
+                                {% if task.project.status_display %}
+                                <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px;">• {{ task.project.status_display }}</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                        {% endif %}
+                        {% if task.lead_record %}
+                        <a href="{{ url_for('leads.view_lead', lead_id=task.lead_record.id) }}" class="relation-card">
+                            <span class="relation-icon">🎯</span>
+                            <div>
+                                <span style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;">Lead</span>
+                                <span style="font-weight: 700; font-size: 1rem;">{{ task.lead_record.name }}</span>
+                                {% if task.lead_record.company %}
+                                <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px;">• {{ task.lead_record.company }}</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="panel" style="padding: 1.5rem 2rem; border-top: 4px solid #e2e8f0;">
+                    <div style="display: flex; align-items: center; gap: 12px; color: var(--text-muted);">
+                        <span style="font-size: 1.5rem;">👤</span>
+                        <div>
+                            <span style="font-weight: 600; display: block;">Independent Task</span>
+                            <span style="font-size: 0.87rem;">Not linked to any project or lead.</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Task Documents Section -->
+                <div class="panel" style="padding: 2rem; margin-top: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0;">Task Documents</h3>
+                        <button class="btn-action gold" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="document.getElementById('taskDocModal').style.display='flex'">+ Add Document</button>
+                    </div>
+
+                    {% set docs = task.documents.all() %}
+                    {% if docs %}
+                        <div class="table-responsive">
+                            <table class="customer-table" style="width: 100%;">
+                                <thead>
+                                    <tr>
+                                        <th style="padding: 0.8rem; text-align: left; font-size: 0.8rem;">Filename</th>
+                                        <th style="padding: 0.8rem; text-align: left; font-size: 0.8rem;">Uploaded At</th>
+                                        <th style="padding: 0.8rem; text-align: right; font-size: 0.8rem;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for doc in docs %}
+                                    <tr>
+                                        <td style="padding: 0.8rem; font-size: 0.9rem;">
+                                            <div style="font-weight: 600;">{{ doc.original_name }}</div>
+                                            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ doc.description or '' }}</div>
+                                        </td>
+                                        <td style="padding: 0.8rem; font-size: 0.85rem; color: var(--text-muted);">{{ doc.uploaded_at.strftime('%d %b, %Y') }}</td>
+                                        <td style="padding: 0.8rem; text-align: right;">
+                                            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                                                <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="text-decoration: none;">📥</a>
+                                                <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                    <button type="submit" style="background: none; border: none; cursor: pointer;">🗑️</button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div style="text-align: center; padding: 2rem; background: rgba(13,27,42,0.02); border-radius: 8px; border: 1px dashed rgba(13,27,42,0.2);">
+                            <p style="color: var(--text-muted); margin: 0; font-size: 0.9rem;">No documents attached to this task.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Task Document Modal -->
+                <div id="taskDocModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+                    <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                        <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Upload Task Document</h3>
+                        <form action="{{ url_for('documents.upload_document') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="entity_type" value="task">
+                            <input type="hidden" name="entity_id" value="{{ task.id }}">
+                            <div style="margin-bottom: 1.2rem;">
+                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Select File</label>
+                                <input type="file" name="file" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
+                            </div>
+                            <div style="margin-bottom: 1.5rem;">
+                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Description (Optional)</label>
+                                <input type="text" name="description" placeholder="Short note..." style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;">
+                            </div>
+                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                                <button type="button" class="btn-action outline" onclick="document.getElementById('taskDocModal').style.display='none'">Cancel</button>
+                                <button type="submit" class="btn-action gold">Upload Now</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+                <!-- Assignment -->
+                <div class="panel" style="padding: 2rem;">
+                    <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.1rem; margin: 0 0 1.5rem 0; border-bottom: 1px solid rgba(13,27,42,0.08); padding-bottom: 0.8rem;">Responsibility</h3>
+
+                    <div class="info-block">
+                        <span class="info-label">Assigned To</span>
+                        {% if task.assignee %}
+                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 6px;">
+                            <div style="width: 38px; height: 38px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(212,175,55,0.35); background: #eee; flex-shrink: 0;">
+                                <img src="{{ get_profile_pic(task.assignee) }}" alt="{{ task.assignee.name }}" style="width:100%; height:100%; object-fit:cover;">
+                            </div>
+                            <div>
+                                <span style="font-weight: 700; display: block; font-size: 0.95rem;">{{ task.assignee.name }}</span>
+                                <span style="font-size: 0.8rem; color: var(--text-muted);">{{ task.assignee.position or 'Staff' }}</span>
+                            </div>
+                        </div>
+                        {% else %}
+                            <p class="info-value" style="color: var(--text-muted); font-style: italic;">Unassigned</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="info-block">
+                        <span class="info-label">Created By</span>
+                        <p class="info-value">{{ task.creator.username if task.creator else 'System' }}</p>
+                    </div>
+
+                    <div class="info-block" style="margin-bottom: 0;">
+                        <span class="info-label">Last Updated</span>
+                        <p class="info-value">{{ task.updated_at.strftime('%d %b %Y, %I:%M %p') if task.updated_at else '—' }}</p>
+                    </div>
+                </div>
+
+                <!-- Quick Status Update -->
+                <div class="panel" style="padding: 1.5rem 2rem;">
+                    <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1rem; margin: 0 0 1rem 0;">Quick Status Update</h3>
+                    <form action="{{ url_for('tasks.edit_task', task_id=task.id) }}" method="POST" id="quickStatusForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <!-- Hidden fields to keep everything else intact -->
+                        <input type="hidden" name="title" value="{{ task.title }}">
+                        <input type="hidden" name="description" value="{{ task.description or '' }}">
+                        <input type="hidden" name="due_date" value="{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '' }}">
+                        <input type="hidden" name="assigned_to" value="{{ task.assigned_to or 'unassigned' }}">
+                        <input type="hidden" name="project_id" value="{{ task.project_id or 'none' }}">
+                        <input type="hidden" name="lead_id" value="{{ task.lead_id or 'none' }}">
+                        <select name="status" onchange="this.form.submit()" class="form-control" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid rgba(13,27,42,0.2); border-radius: 8px; font-size: 0.95rem; cursor: pointer;">
+                            <option value="Pending"     {% if task.status_display == 'Pending'     %}selected{% endif %}>⏳ Pending</option>
+                            <option value="In Progress" {% if task.status_display == 'In Progress' %}selected{% endif %}>🔄 In Progress</option>
+                            <option value="Completed"   {% if task.status_display == 'Completed'   %}selected{% endif %}>✅ Completed</option>
+                            <option value="Cancelled"   {% if task.status_display == 'Cancelled'   %}selected{% endif %}>❌ Cancelled</option>
+                        </select>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </main>
+</body>
+</html>
+
+
+

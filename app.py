@@ -32,7 +32,13 @@ from routes.quotation_settings import quotation_settings_bp
 from routes.products import products_bp
 from routes.documents import documents_bp
 
-app = Flask(__name__, template_folder="templates")
+from dotenv import load_dotenv
+load_dotenv()
+
+import os
+print("SECRET:", os.getenv("SECRET_KEY"))
+
+app = Flask(__name__, template_folder="templates",static_folder="static")
 app.config.from_object(Config)
 
 # Add ProxyFix for AWS ALB / Nginx

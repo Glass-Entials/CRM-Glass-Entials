@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Customer | Glassentials Staff Portal</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}">
+</head>
+<body class="dashboard-page">
+    <!-- Top Navbar -->
+     <header class="dash-nav">
+        <div class="logo">
+            <a href="/home" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+        </div>
+        
+        <nav class="dash-menu">
+    <a href="{{ url_for('home_page') }}" {% if request.endpoint == 'home_page' %}class="active"{% endif %}>Dashboard</a>
+    <a href="{{ url_for('customers.customers_list') }}" {% if request.blueprint == 'customers' %}class="active"{% endif %}>Customers</a>
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'leads' %}class="active"{% endif %}>Leads ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('leads.leads_list') }}">All Leads</a>
+            <a href="{{ url_for('leads.all_follow_ups') }}">📞 Follow-Ups</a>
+        </div>
+    </div>
+    <a href="{{ url_for('projects.projects_list') }}" {% if request.blueprint == 'projects' %}class="active"{% endif %}>Projects</a>
+    
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'tasks' %}class="active"{% endif %}>Tasks ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+            <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
+        </div>
+    </div>
+
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'accounts' or request.blueprint == 'quotations' or request.blueprint == 'expenses' %}class="active"{% endif %}>Accounts ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
+            <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+            <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+        </div>
+    </div>
+
+    <a href="{{ url_for('products.products_list') }}" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
+    
+    <div class="dropdown">
+        <a href="#" {% if request.blueprint == 'employees' %}class="active"{% endif %}>Settings ▾</a>
+        <div class="dropdown-content">
+            <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+        </div>
+    </div>
+</nav>
+                <div class="user-profile">
+            <span class="welcome-text">Welcome, {{ current_user.username }}</span>
+            <div class="profile-dropdown">
+                <div class="profile-trigger">
+                    <img src="{{ get_profile_pic(current_user.employee) }}" alt="User" class="avatar">
+                </div>
+                <div class="profile-dropdown-content">
+                    <a href="{{ url_for('auth.user_profile') }}">
+                        <span class="icon">👤</span> Manage Profile
+                    </a>
+                    <form action="{{ url_for('auth.logout') }}" method="POST" style="display:inline;"><button type="submit" class="logout-link">
+                        <span class="icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+     </header>
+
+     <main class="container" style="max-width: 1000px; padding-top: 3rem;">
+        <!-- Top Section -->
+        <div class="top-bar" style="border-bottom: 2px solid rgba(212, 175, 55, 0.2); padding-bottom: 1.5rem; margin-bottom: 2rem;">
+            <h1 style="color: var(--primary-color); font-size: 2rem; font-family: var(--font-heading);">Edit Customer</h1>
+            <a href="{{ url_for('customers.customers_list') }}" class="btn-action outline" style="text-decoration:none;">← Back to Customers</a>
+        </div>
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(category_filter=["customererror", "customersuccess"]) %}
+          {% if messages %}
+            {% for message in messages %}
+            <div class="flash-message" style="padding: 15px; background-color: rgba(139, 0, 0, 0.04); border-left: 4px solid rgba(139, 0, 0, 0.5); font-family: var(--font-body); color: #8b0000; display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; border-radius: 4px;">
+              <span style="font-size: 1.2rem; line-height: 1;">⚠</span> {{ message }}
+            </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- Customer Edit Form -->
+         <div class="form-container" style="animation: none;">
+            <div class="panel" style="border-top: 4px solid var(--accent-gold);">
+                <form method="POST" action="{{ url_for('customers.edit_customer', customer_id=customer_id) }}" class="customer-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="form-grid">
+                        <!-- GST Auto-Fetch Section -->
+                        <div class="form-group full-width" style="background: rgba(212, 175, 55, 0.05); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(212, 175, 55, 0.2); margin-bottom: 1rem;">
+                            <label style="color: var(--accent-gold); font-weight: 700; margin-bottom: 1rem; display: block;">⚡ GST Auto-Fetch</label>
+                            <div style="display: flex; gap: 1rem; align-items: flex-end;">
+                                <div style="flex: 1;">
+                                    <label>GST Number (GSTIN)</label>
+                                    <input type="text" id="gst_number_input" name="gst_number" class="form-control" value="{{ customer.gst_number or '' }}" placeholder="22AAAAA0000A1Z5" maxlength="15" style="text-transform: uppercase;">
+                                </div>
+                                <button type="button" id="fetchGstBtn" class="btn-action gold" style="height: 48px; min-width: 150px;">Fetch/Update</button>
+                            </div>
+                            <div id="gstLoader" style="display: none; margin-top: 10px; font-size: 0.85rem; color: var(--accent-gold);">
+                                <span class="spinner">⏳</span> Fetching latest data from GST portal...
+                            </div>
+                            <div id="gstDuplicateWarning" style="display: none; margin-top: 10px; padding: 10px; background: #fffbeb; border-left: 4px solid #f59e0b; font-size: 0.9rem; border-radius: 4px;">
+                                <span id="gstWarningText" style="color: #92400e;"></span>
+                                <a id="gstExistingLink" href="#" style="color: var(--accent-gold); font-weight: 600; margin-left: 10px;">View Record →</a>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="name">Name <span style="color:red;opacity: 0.7;">*</span></label>
+                            <input type="text" id="name" name="name" class="form-control" value="{{ customer.name }}" placeholder="e.g. Jane Doe" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email <span style="color:red;opacity: 0.7;">*</span></label>
+                            <input type="email" id="email" name="email" class="form-control" value="{{ customer.email }}" placeholder="jane@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone_number">Phone Number <span style="color:red;opacity: 0.7;">*</span></label>
+                            <input type="tel" id="phone_number" name="phone_number" class="form-control" value="{{ customer.phone_number }}" placeholder="10 digit number" required pattern="\d{10}" title="Please enter exactly 10 digits (0-9)">
+                        </div>
+                        <div class="form-group">
+                            <label for="address">Address</label>
+                            <input type="text" id="address_input" name="address" class="form-control" value="{{ customer.address }}" placeholder="123 Main St">
+                        </div>
+                        <div class="form-group">
+                            <label for="city">City</label>
+                            <input type="text" id="city_input" name="city" class="form-control" value="{{ customer.city }}" placeholder="Mumbai">
+                        </div>
+                        <div class="form-group">
+                            <label for="company">Company / Legal Name</label>
+                            <input type="text" id="company" name="company" class="form-control" value="{{ customer.company }}" placeholder="Glass Corp">
+                        </div>
+                        <div class="form-group">
+                            <label>Trade Name</label>
+                            <input type="text" id="trade_name" name="trade_name" class="form-control" value="{{ customer.trade_name or '' }}" placeholder="Business Trade Name">
+                        </div>
+                        <div class="form-group">
+                            <label>State</label>
+                            <input type="text" id="state" name="state" class="form-control" value="{{ customer.state or '' }}" placeholder="e.g. Maharashtra">
+                        </div>
+                        <div class="form-group">
+                            <label>Pincode</label>
+                            <input type="text" id="pincode" name="pincode" class="form-control" value="{{ customer.pincode or '' }}" placeholder="6 Digit Pincode">
+                        </div>
+                        <div class="form-group">
+                            <label>Business Type</label>
+                            <input type="text" id="business_type" name="business_type" class="form-control" value="{{ customer.business_type or '' }}" placeholder="e.g. Pvt Ltd, Proprietorship">
+                        </div>
+                        <div class="form-group">
+                            <label>GST Status</label>
+                            <input type="text" id="gst_status" name="gst_status" class="form-control" value="{{ customer.gst_status or '' }}" readonly style="background: rgba(13, 27, 42, 0.03);" placeholder="Status will appear here">
+                        </div>
+                        <div class="form-group">
+                            <label for="source">Source</label>
+                            <input type="text" id="source" name="source" class="form-control" value="{{ customer.source }}" placeholder="Website, Referral, etc.">
+                        </div>
+                        <div class="form-group">
+                            <label for="status">Status <span style="color:red;opacity: 0.7;">*</span></label>
+                            <select id="status" name="status" class="form-control" required>
+                                <option value="New" {% if customer.status_display == 'New' %}selected{% endif %}>New</option>
+                                <option value="Requirement Understood" {% if customer.status_display == 'Requirement Understood' %}selected{% endif %}>Requirement Understood</option>
+                                <option value="Measurement Scheduled" {% if customer.status_display == 'Measurement Scheduled' %}selected{% endif %}>Measurement Scheduled</option>
+                                <option value="Quotation Sent" {% if customer.status_display == 'Quotation Sent' %}selected{% endif %}>Quotation Sent</option>
+                                <option value="Follow Up" {% if customer.status_display == 'Follow Up' %}selected{% endif %}>Follow Up</option>
+                                <option value="Order Confirmed" {% if customer.status_display == 'Order Confirmed' %}selected{% endif %}>Order Confirmed</option>
+                                <option value="In Production" {% if customer.status_display == 'In Production' %}selected{% endif %}>In Production</option>
+                                <option value="Ready for Dispatch" {% if customer.status_display == 'Ready for Dispatch' %}selected{% endif %}>Ready for Dispatch</option>
+                                <option value="Installation Scheduled" {% if customer.status_display == 'Installation Scheduled' %}selected{% endif %}>Installation Scheduled</option>
+                                <option value="Installation Done" {% if customer.status_display == 'Installation Done' %}selected{% endif %}>Installation Done</option>
+                                <option value="Completed" {% if customer.status_display == 'Completed' %}selected{% endif %}>Completed</option>
+                                <option value="Cancelled" {% if customer.status_display == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="assigned_to">Assigned To</label>
+                            <select id="assigned_to" name="assigned_to" class="form-control">
+                                <option value="unassigned" {% if not customer.assigned_to %}selected{% endif %}>Unassigned</option>
+                                {% for emp in employees %}
+                                    <option value="{{ emp.id }}" {% if customer.assigned_to == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="notes">Notes</label>
+                            <textarea id="notes" name="notes" rows="4" class="form-control" placeholder="Additional details...">{{ customer.notes }}</textarea>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                        <a href="{{ url_for('customers.customers_list') }}" class="btn-action outline" style="text-decoration:none;">Cancel</a>
+                        <button type="submit" class="btn-action dark">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+         </div>
+    <script>
+        document.getElementById('fetchGstBtn').addEventListener('click', async function() {
+            const gstin = document.getElementById('gst_number_input').value.trim().toUpperCase();
+            if (gstin.length !== 15) {
+                alert('Please enter a valid 15-character GST number.');
+                return;
+            }
+
+            const btn = this;
+            const loader = document.getElementById('gstLoader');
+            const warningBox = document.getElementById('gstDuplicateWarning');
+            const warningText = document.getElementById('gstWarningText');
+            const existingLink = document.getElementById('gstExistingLink');
+
+            // Reset UI
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btn.innerText = '⌛ Fetching...';
+            loader.style.display = 'block';
+            warningBox.style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/gst/${gstin}`);
+                const data = await response.json();
+                console.log("GST API Response:", data);
+
+                if (!response.ok) {
+                    alert(data.error || 'Failed to fetch GST details');
+                } else {
+                    // Success - Auto-fill
+                    document.getElementById('company').value = data.company || '';
+                    if (!document.getElementById('name').value) {
+                         document.getElementById('name').value = data.company || '';
+                    }
+                    
+                    document.getElementById('trade_name').value = data.trade_name || '';
+                    document.getElementById('address_input').value = data.address || '';
+                    document.getElementById('city_input').value = data.city || '';
+                    document.getElementById('state').value = data.state || '';
+                    document.getElementById('pincode').value = data.pincode || '';
+                    document.getElementById('business_type').value = data.business_type || '';
+                    document.getElementById('gst_status').value = data.gst_status || '';
+
+                    // Duplicate Warning
+                    if (data.duplicate_warning) {
+                        warningBox.style.display = 'block';
+                        warningText.innerText = data.duplicate_warning.message;
+                        existingLink.href = data.duplicate_warning.type === 'customer' 
+                            ? `/view-customer/${data.duplicate_warning.id}` 
+                            : `/view-lead/${data.duplicate_warning.id}`;
+                    }
+                    
+                    btn.innerText = '✅ Fetched';
+                    setTimeout(() => btn.innerText = 'Fetch Details', 3000);
+                }
+            } catch (error) {
+                console.error('GST Fetch Error:', error);
+                alert('An error occurred while fetching GST details.');
+            } finally {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                if (btn.innerText === '⌛ Fetching...') btn.innerText = 'Fetch/Update';
+                loader.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
+
+
