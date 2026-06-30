@@ -72,7 +72,7 @@ def view_lead(lead_id):
 def add_lead():
     if request.method == "POST":
         name = request.form.get("name")
-        email = request.form.get("email")
+        email = request.form.get("email", "").strip() or None
         phone_number = request.form.get("phone")
 
         assigned_to_id = request.form.get("assigned_to")
@@ -80,15 +80,22 @@ def add_lead():
             Employee, assigned_to_id, current_user.organization_id, is_deleted=False
         )
 
-        if not all([name, email, phone_number]) or len(phone_number) != 10:
+        if not all([name, phone_number]) or len(phone_number) != 10:
             flash("Required fields missing or phone invalid.", "leadserror")
             return redirect(url_for("leads.add_lead"))
 
-        existing = Lead.query.filter(
-            ((Lead.email == email) | (Lead.phone_number == phone_number)),
-            Lead.organization_id == current_user.organization_id,
-            Lead.is_deleted == False,
-        ).first()
+        if email:
+            existing = Lead.query.filter(
+                ((Lead.email == email) | (Lead.phone_number == phone_number)),
+                Lead.organization_id == current_user.organization_id,
+                Lead.is_deleted == False,
+            ).first()
+        else:
+            existing = Lead.query.filter(
+                (Lead.phone_number == phone_number),
+                Lead.organization_id == current_user.organization_id,
+                Lead.is_deleted == False,
+            ).first()
 
         if existing:
             flash(
@@ -167,7 +174,7 @@ def edit_lead(lead_id):
     ).first_or_404()
     if request.method == "POST":
         lead.name = request.form.get("name", "").strip()
-        lead.email = request.form.get("email", "").strip()
+        lead.email = request.form.get("email", "").strip() or None
         lead.phone_number = re.sub(r"\D", "", request.form.get("phone", ""))
         assigned_to_id = request.form.get("assigned_to")
         source_map = {e.value: e for e in LeadSource}
@@ -320,14 +327,23 @@ def convert_lead(lead_id):
         flash("Already converted.", "leadserror")
         return redirect(url_for("leads.leads_list"))
 
-    existing = (
-        Customer.query.filter(
-            (Customer.email == lead.email)
-            | (Customer.phone_number == lead.phone_number)
+    if lead.email:
+        existing = (
+            Customer.query.filter(
+                (Customer.email == lead.email)
+                | (Customer.phone_number == lead.phone_number)
+            )
+            .filter_by(organization_id=current_user.organization_id, is_deleted=False)
+            .first()
         )
-        .filter_by(organization_id=current_user.organization_id, is_deleted=False)
-        .first()
-    )
+    else:
+        existing = (
+            Customer.query.filter(
+                (Customer.phone_number == lead.phone_number)
+            )
+            .filter_by(organization_id=current_user.organization_id, is_deleted=False)
+            .first()
+        )
     if existing:
         flash("Customer already exists with this email/phone.", "leadserror")
         return redirect(url_for("leads.leads_list"))
@@ -451,17 +467,25 @@ def bulk_upload_leads():
                 email_col = col_map.get("email", "")
                 phone_col = col_map.get("phone", "")
                 email = str(row.get(email_col, "")).strip() if email_col else ""
+                email = email if email else None
                 phone_raw = str(row.get(phone_col, "")).strip() if phone_col else ""
                 phone_number = re.sub(r"\D", "", phone_raw)
 
-                if not email or not phone_number:
+                if not phone_number:
                     continue
 
-                existing = Lead.query.filter(
-                    ((Lead.email == email) | (Lead.phone_number == phone_number)),
-                    Lead.organization_id == current_user.organization_id,
-                    Lead.is_deleted == False,
-                ).first()
+                if email:
+                    existing = Lead.query.filter(
+                        ((Lead.email == email) | (Lead.phone_number == phone_number)),
+                        Lead.organization_id == current_user.organization_id,
+                        Lead.is_deleted == False,
+                    ).first()
+                else:
+                    existing = Lead.query.filter(
+                        (Lead.phone_number == phone_number),
+                        Lead.organization_id == current_user.organization_id,
+                        Lead.is_deleted == False,
+                    ).first()
                 if not existing:
                     c_name = col_map.get("name", "")
                     c_comp = col_map.get("company", "")
