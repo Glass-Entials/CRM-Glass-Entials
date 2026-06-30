@@ -899,3 +899,61 @@ a {
     height: 500px;
     object-fit: cover;
 }
+
+/* Real-Time Notification Toast */
+#realtime-toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none; /* Let clicks pass through empty space */
+}
+
+.realtime-toast {
+    background: #ffffff;
+    border-left: 4px solid var(--accent-gold);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    padding: 16px 20px;
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    pointer-events: auto; /* Enable clicks on the toast itself */
+    cursor: pointer;
+}
+
+.realtime-toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.realtime-toast-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.realtime-toast-msg {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.realtime-toast-time {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    text-align: right;
+    margin-top: 4px;
+}

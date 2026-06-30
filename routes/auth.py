@@ -8,7 +8,8 @@ from flask import (
     redirect,
     url_for,
     current_app,
-    make_response
+    make_response,
+    jsonify
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -369,3 +370,38 @@ def change_password():
 
     return render_template("login/change_password.html")
 
+
+@auth_bp.route("/notifications/unread")
+@login_required
+def unread_notifications():
+    """API endpoint to fetch unread notifications count and recent items."""
+    from model import Notification
+
+    if not current_user.employee:
+        return jsonify({"count": 0, "notifications": []})
+
+    # Get count
+    count = Notification.query.filter_by(
+        recipient_id=current_user.employee.id,
+        is_read=False,
+        organization_id=current_user.organization_id,
+    ).count()
+
+    # Get top 5 recent unread to show in toast/popup
+    recent = Notification.query.filter_by(
+        recipient_id=current_user.employee.id,
+        is_read=False,
+        organization_id=current_user.organization_id,
+    ).order_by(Notification.created_at.desc()).limit(5).all()
+
+    notifs = []
+    for n in recent:
+        notifs.append({
+            "id": n.id,
+            "title": n.title,
+            "message": n.message,
+            "link": n.link,
+            "created_at": n.created_at.isoformat() if n.created_at else None
+        })
+
+    return jsonify({"count": count, "notifications": notifs})
