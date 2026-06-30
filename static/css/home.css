@@ -20,31 +20,31 @@
 
 html {
     scroll-behavior: smooth;
-    zoom: 0.75;
+    zoom: 1.0;
 }
 
 /* Responsive Zoom for stability across sizes */
 @media screen and (max-width: 1600px) {
-    html { zoom: 0.70; }
+    html { zoom: 0.95; }
 }
 @media screen and (max-width: 1440px) {
-    html { zoom: 0.65; }
+    html { zoom: 0.90; }
 }
 @media screen and (max-width: 1280px) {
-    html { zoom: 0.60; }
+    html { zoom: 0.85; }
 }
 @media screen and (max-width: 1024px) {
-    html { zoom: 0.55; }
+    html { zoom: 0.80; }
 }
 @media screen and (max-width: 768px) {
     html { 
-        zoom: 0.7; 
+        zoom: 0.9; 
         /* Slightly larger for mobile to retain readability */
     }
 }
 @media screen and (max-width: 480px) {
     html { 
-        zoom: 0.6; 
+        zoom: 0.85; 
     }
 }
 

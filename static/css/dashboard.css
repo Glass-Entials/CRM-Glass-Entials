@@ -7,12 +7,14 @@ body.dashboard-page {
 /* Dashboard Navbar */
 .dash-nav {
     background: #fff;
-    padding: 0 5%;
-    height: 65px;
-    /* Stable height for consistent alignment */
+    padding: 0 2%;
+    min-height: 65px;
+    /* min-height so it grows gracefully at high zoom levels */
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
     border-bottom: 1px solid rgba(212, 175, 55, 0.1);
     position: sticky;
@@ -26,34 +28,33 @@ body.dashboard-page {
 }
 
 .dash-nav .logo img {
-    height: 140px;
-    /* Reduced slightly to fit better */
-    margin-top: -30px;
-    margin-bottom: -30px;
+    height: 55px;
+    /* Capped height so logo never overflows the navbar at high zoom */
     object-fit: contain;
+    flex-shrink: 0;
 }
 
 .dash-menu {
     display: flex;
-    gap: 0.3rem;
+    gap: 0.1rem;
     align-items: center;
-    margin-left: 2rem;
+    margin-left: 0;
+    flex-wrap: nowrap;
 }
 
 .dash-menu a {
     color: var(--text-muted);
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.82rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    padding: 0.8rem 1.1rem;
+    padding: 0.65rem 0.9rem;
     border-radius: 8px;
     position: relative;
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
-    height: 45px;
-    /* Fixed height for consistent vertical matching */
+    white-space: nowrap;
 }
 
 .dash-menu a:hover,
@@ -613,7 +614,7 @@ body.dashboard-page {
 
 .welcome-text {
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.88rem;
     color: var(--primary-color);
     white-space: nowrap;
 }

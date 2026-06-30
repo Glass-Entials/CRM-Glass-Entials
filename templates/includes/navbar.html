@@ -1,14 +1,15 @@
 <!-- Top Navbar -->
-<header class="dash-nav" style="display: flex; justify-content: space-between; align-items: center; position: relative;">
-    <div class="logo">
+<header class="dash-nav">
+    <!-- Column 1: Logo (left-aligned, flex: 1) -->
+    <div style="flex: 1; display: flex; align-items: center;">
         <a href="/home" class="logo-link">
             <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
         </a>
     </div>
 
-    <!-- Absolute centering forces the menu into the exact middle of the screen -->
-    <div style="position: absolute; left: 50%; transform: translateX(-50%); display: flex; justify-content: center;">
-        <nav class="dash-menu" style="margin-left: 0;">
+    <!-- Column 2: Nav menu (always perfectly centered) -->
+    <div style="flex: 2; display: flex; justify-content: center; align-items: center;">
+        <nav class="dash-menu">
             <a href="{{ url_for('home_page') }}" {% if request.endpoint == 'home_page' %}class="active"{% endif %}>Dashboard</a>
             <a href="{{ url_for('customers.customers_list') }}" {% if request.blueprint == 'customers' %}class="active"{% endif %}>Customers</a>
             <div class="dropdown">
@@ -48,7 +49,8 @@
         </nav>
     </div>
 
-    <div class="user-profile" style="display: flex; align-items: center; gap: 15px;">
+    <!-- Column 3: Profile + Bell (right-aligned, flex: 1) -->
+    <div class="user-profile" style="flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
         <span class="welcome-text">Welcome, {{ current_user.username }}</span>
         
         <div class="profile-dropdown">
