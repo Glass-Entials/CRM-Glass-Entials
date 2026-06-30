@@ -402,14 +402,22 @@ def bulk_upload():
                 name_col = col_map.get("name", "")
                 
                 name = str(row.get(name_col, "")).strip() if name_col else ""
+                name = name if name else None
+                
                 email = str(row.get(email_col, "")).strip() if email_col else ""
+                email = email if email else None
+                
                 phone_raw = str(row.get(phone_col, "")).strip() if phone_col else ""
                 
                 # Normalize phone
-                phone_raw = re.sub(r'\.0+$', '', phone_raw)
-                phone_number = re.sub(r"\D", "", phone_raw)
-                if len(phone_number) == 12 and phone_number.startswith("91"):
-                    phone_number = phone_number[2:]
+                phone_number = None
+                if phone_raw:
+                    phone_raw = re.sub(r'\.0+$', '', phone_raw)
+                    phone_number = re.sub(r"\D", "", phone_raw)
+                    if len(phone_number) == 12 and phone_number.startswith("91"):
+                        phone_number = phone_number[2:]
+                    if not phone_number:
+                        phone_number = None
 
                 # Validation
                 if not name:
@@ -455,6 +463,15 @@ def bulk_upload():
                 c_city = col_map.get("city", "")
                 c_src = col_map.get("source", "")
                 c_stat = col_map.get("status", "")
+                
+                company = str(row.get(c_comp, "")).strip() if c_comp else ""
+                company = company if company else None
+                
+                address = str(row.get(c_addr, "")).strip() if c_addr else ""
+                address = address if address else None
+                
+                city = str(row.get(c_city, "")).strip() if c_city else ""
+                city = city if city else None
 
                 s_val = str(row.get(c_src, "")).strip().lower() if c_src else ""
                 st_val = str(row.get(c_stat, "")).strip().lower() if c_stat else ""
@@ -463,9 +480,9 @@ def bulk_upload():
                     name=name,
                     email=email,
                     phone_number=phone_number,
-                    company=str(row.get(c_comp, "")).strip() if c_comp else None,
-                    address=str(row.get(c_addr, "")).strip() if c_addr else None,
-                    city=str(row.get(c_city, "")).strip() if c_city else None,
+                    company=company,
+                    address=address,
+                    city=city,
                     source=source_map.get(s_val, LeadSource.OTHER),
                     status=status_map.get(
                         st_val, CustomerStatus.REQUIREMENT_UNDERSTOOD
