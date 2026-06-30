@@ -417,32 +417,39 @@ def bulk_upload():
                     current_app.logger.warning(f"Row {row_num} skipped\nReason:\nMissing Name\n")
                     skipped_validation += 1
                     continue
-                if not email:
-                    failed_rows.append({"row": row_num, "name": name, "reason": "Missing Email"})
-                    current_app.logger.warning(f"Row {row_num} skipped\nReason:\nMissing Email\n")
+                if not email and not phone_number:
+                    failed_rows.append({"row": row_num, "name": name, "reason": "Missing both Email and Phone"})
+                    current_app.logger.warning(f"Row {row_num} skipped\nReason:\nMissing both Email and Phone\n")
                     skipped_validation += 1
                     continue
-                if not phone_number:
-                    failed_rows.append({"row": row_num, "name": name, "reason": "Missing Phone"})
-                    current_app.logger.warning(f"Row {row_num} skipped\nReason:\nMissing Phone\n")
-                    skipped_validation += 1
-                    continue
-                if len(phone_number) != 10:
+                if phone_number and len(phone_number) != 10:
                     failed_rows.append({"row": row_num, "name": name, "reason": "Invalid Phone"})
                     current_app.logger.warning(f"Row {row_num} skipped\nReason:\nInvalid Phone\nPhone:\n{phone_raw}\n")
                     skipped_validation += 1
                     continue
 
-                existing = Customer.query.filter(
-                    (
-                        (Customer.email == email)
-                        | (Customer.phone_number == phone_number)
-                    ),
-                    Customer.organization_id == current_user.organization_id,
-                    Customer.is_deleted == False,
-                ).first()
+                existing = None
+                if email and phone_number:
+                    existing = Customer.query.filter(
+                        ((Customer.email == email) | (Customer.phone_number == phone_number)),
+                        Customer.organization_id == current_user.organization_id,
+                        Customer.is_deleted == False,
+                    ).first()
+                elif email:
+                    existing = Customer.query.filter(
+                        Customer.email == email,
+                        Customer.organization_id == current_user.organization_id,
+                        Customer.is_deleted == False,
+                    ).first()
+                elif phone_number:
+                    existing = Customer.query.filter(
+                        Customer.phone_number == phone_number,
+                        Customer.organization_id == current_user.organization_id,
+                        Customer.is_deleted == False,
+                    ).first()
+
                 if existing:
-                    reason = "Duplicate Email" if existing.email == email else "Duplicate Phone"
+                    reason = "Duplicate Email" if existing.email == email and email else "Duplicate Phone"
                     failed_rows.append({"row": row_num, "name": name, "reason": reason})
                     current_app.logger.warning(f"Row {row_num} skipped\nReason:\n{reason}\nEmail:\n{email}\nPhone:\n{phone_number}\n")
                     skipped_duplicates += 1
