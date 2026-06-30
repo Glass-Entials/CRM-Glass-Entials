@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -198,9 +198,12 @@
                     <a href="{{ url_for('auth.user_profile') }}">
                         <span class="icon">👤</span> Manage Profile
                     </a>
-                    <form action="{{ url_for('auth.logout') }}" method="POST" style="display:inline;"><button type="submit" class="logout-link">
+                    <form action="{{ url_for('auth.logout') }}" method="POST" style="margin:0; padding:0;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="logout-link">
                         <span class="icon">🚪</span> Logout
-                    </a>
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
