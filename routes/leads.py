@@ -231,7 +231,7 @@ def edit_lead(lead_id):
         organization_id=current_user.organization_id, is_deleted=False
     ).all()
     return render_template(
-        "leads/editLead.html", lead=lead, lead_id=lead_id, employees=employees
+        "leads/editlead.html", lead=lead, lead_id=lead_id, employees=employees
     )
 
 
