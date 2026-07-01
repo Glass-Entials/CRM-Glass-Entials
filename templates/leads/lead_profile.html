@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -583,12 +583,193 @@
             </div>
 
             <div id="tasks" class="tab-content">
-                <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
-                    <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.2;">📅</div>
-                    <h3>Tasks Related to this Lead</h3>
-                    <p>Manage and schedule pending tasks for {{ lead.name }}. (Task Module coming soon)</p>
+                <style>
+                    .task-form-box {
+                        background: linear-gradient(135deg, rgba(99,102,241,0.05), rgba(13,27,42,0.02));
+                        border: 1px solid rgba(99,102,241,0.2);
+                        border-radius: 14px; padding: 1.8rem; margin-bottom: 2rem;
+                    }
+                    .task-form-box h3 { font-family:var(--font-heading); color:var(--primary-color); font-size:1.1rem; margin-bottom:1.2rem; }
+                    .task-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+                    .task-form-grid .full-width { grid-column: 1 / -1; }
+                    .task-field label { display:block; font-size:0.82rem; color:var(--text-muted); margin-bottom:0.4rem; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; }
+                    .task-field input, .task-field select, .task-field textarea {
+                        width:100%; padding:0.7rem 1rem; border:1px solid #e2e8f0;
+                        border-radius:8px; font-family:var(--font-body); font-size:0.9rem;
+                        color:var(--primary-color); background:#f8fafc;
+                        outline:none; transition:border 0.2s; box-sizing: border-box;
+                    }
+                    .task-field input:focus, .task-field select:focus, .task-field textarea:focus { border-color: #6366f1; background:#fff; }
+
+                    .task-timeline { display:flex; flex-direction:column; gap:0.8rem; }
+                    .task-item {
+                        display:flex; align-items:flex-start; gap:1rem;
+                        background:#fff; border:1px solid rgba(13,27,42,0.06);
+                        border-radius:12px; padding:1.1rem 1.4rem;
+                        box-shadow:0 2px 8px rgba(0,0,0,0.02);
+                        transition: all 0.3s ease;
+                    }
+                    .task-item:hover { box-shadow: 0 5px 20px rgba(0,0,0,0.06); transform: translateX(4px); }
+                    .task-item.completed { opacity:0.75; border-left:4px solid #10b981; }
+                    .task-item.pending { border-left:4px solid #6366f1; }
+                    .task-item.in-progress { border-left:4px solid var(--accent-gold); }
+                    .task-item.cancelled { border-left:4px solid #ef4444; opacity:0.6; }
+
+                    .task-icon-circle {
+                        width:38px; height:38px; border-radius:10px;
+                        background:rgba(99,102,241,0.1); color:#6366f1;
+                        display:flex; align-items:center; justify-content:center;
+                        font-size:1rem; flex-shrink:0;
+                    }
+                    .task-item-body { flex:1; }
+                    .task-item-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+                    .task-item-title { font-weight:700; color:var(--primary-color); font-size:0.95rem; }
+                    .task-item-due { font-size:0.8rem; color:var(--text-muted); }
+                    .task-item-desc { font-size:0.88rem; color:var(--text-muted); margin-top:4px; }
+                    .task-item-chips { display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:6px; }
+                    .task-chip {
+                        font-size:0.72rem; font-weight:700; text-transform:uppercase;
+                        padding:2px 9px; border-radius:20px; letter-spacing:0.04em;
+                    }
+                    .chip-completed { background:rgba(16,185,129,0.1); color:#10b981; }
+                    .chip-pending-task { background:rgba(99,102,241,0.1); color:#6366f1; }
+                    .chip-inprogress { background:rgba(212,175,55,0.1); color:var(--accent-gold); }
+                    .chip-cancelled-task { background:rgba(239,68,68,0.1); color:#ef4444; }
+
+                    .task-item-actions { display:flex; gap:0.5rem; flex-shrink:0; align-items:center; }
+                    .task-mini-btn {
+                        padding:0.35rem 0.8rem; border-radius:20px; font-size:0.75rem; font-weight:600;
+                        cursor:pointer; border:none; text-decoration:none;
+                        display:inline-flex; align-items:center; gap:3px;
+                        transition:all 0.2s ease;
+                    }
+                    .task-mini-complete { background:rgba(16,185,129,0.1); color:#10b981; border:1px solid rgba(16,185,129,0.2); }
+                    .task-mini-complete:hover { background:#10b981; color:#fff; }
+                    .task-mini-del { background:rgba(239,68,68,0.08); color:#ef4444; border:1px solid rgba(239,68,68,0.15); }
+                    .task-mini-del:hover { background:#ef4444; color:#fff; }
+
+                    #taskFormToggle { display: none; }
+                </style>
+
+                <!-- Task Count header -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <h3 style="font-family:var(--font-heading); color:var(--primary-color); font-size:1rem; margin:0;">
+                        📋 Tasks for {{ lead.name }}
+                        {% if lead_tasks is defined and lead_tasks %}
+                        <span style="background:rgba(99,102,241,0.1);color:#6366f1;border-radius:20px;padding:2px 9px;font-size:0.75rem;margin-left:6px;">{{ lead_tasks | length }}</span>
+                        {% endif %}
+                    </h3>
+                    <button class="task-mini-btn" style="background:rgba(99,102,241,0.1);color:#6366f1;border:1px solid rgba(99,102,241,0.2);padding:0.4rem 1rem;font-size:0.82rem;" onclick="document.getElementById('taskFormToggle').style.display = document.getElementById('taskFormToggle').style.display === 'none' ? 'block' : 'none';">
+                        ➕ New Task
+                    </button>
                 </div>
+
+                <!-- Always-available create form (toggle) -->
+                <div id="taskFormToggle">
+                    <div class="task-form-box">
+                        <h3>➕ Create a New Task</h3>
+                        <form action="{{ url_for('leads.add_lead_task', lead_id=lead.id) }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <div class="task-form-grid">
+                                <div class="task-field full-width">
+                                    <label>Task Title *</label>
+                                    <input type="text" name="title" placeholder="e.g. Send quotation, Follow up call..." required>
+                                </div>
+                                <div class="task-field">
+                                    <label>Due Date & Time</label>
+                                    <input type="datetime-local" name="due_date">
+                                </div>
+                                <div class="task-field">
+                                    <label>Assign To</label>
+                                    <select name="assigned_to">
+                                        <option value="">-- Unassigned --</option>
+                                        {% for emp in employees %}
+                                        <option value="{{ emp.id }}">{{ emp.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="task-field full-width">
+                                    <label>Description (optional)</label>
+                                    <textarea name="description" rows="2" placeholder="Additional details about this task..."></textarea>
+                                </div>
+                            </div>
+                            <div style="margin-top:1.2rem; display:flex; gap:0.8rem; justify-content:flex-end;">
+                                <button type="button" class="btn-action outline" style="padding:0.5rem 1.2rem; font-size:0.88rem;" onclick="document.getElementById('taskFormToggle').style.display='none'">Cancel</button>
+                                <button type="submit" class="btn-action gold">✅ Create Task</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                {% if lead_tasks is defined and lead_tasks %}
+                <div class="task-timeline">
+                    {% for task in lead_tasks %}
+                    {% set status_val = task.status.value if task.status else 'Pending' %}
+                    {% set is_overdue = (task.due_date and not task.status.value == 'Completed' and task.due_date < now_utc) %}
+                    <div class="task-item {{ 'completed' if status_val == 'Completed' else ('in-progress' if status_val == 'In Progress' else ('cancelled' if status_val == 'Cancelled' else 'pending')) }}">
+                        <div class="task-icon-circle">
+                            {% if status_val == 'Completed' %}✅
+                            {% elif status_val == 'In Progress' %}⚙️
+                            {% elif status_val == 'Cancelled' %}❌
+                            {% else %}📌
+                            {% endif %}
+                        </div>
+                        <div class="task-item-body">
+                            <div class="task-item-top">
+                                <span class="task-item-title">{{ task.title }}</span>
+                                <span class="task-item-due">
+                                    {% if task.due_date %}
+                                        {% if is_overdue %}<span style="color:#ef4444;font-weight:700;">⚠ Overdue · </span>{% endif %}
+                                        Due: {{ task.due_date.strftime('%d %b %Y, %H:%M') }}
+                                    {% else %}
+                                        No due date
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% if task.description %}<div class="task-item-desc">{{ task.description }}</div>{% endif %}
+                            <div class="task-item-chips">
+                                {% if status_val == 'Completed' %}
+                                <span class="task-chip chip-completed">✅ Completed</span>
+                                {% elif status_val == 'In Progress' %}
+                                <span class="task-chip chip-inprogress">⚙️ In Progress</span>
+                                {% elif status_val == 'Cancelled' %}
+                                <span class="task-chip chip-cancelled-task">❌ Cancelled</span>
+                                {% else %}
+                                <span class="task-chip chip-pending-task">📌 Pending</span>
+                                {% endif %}
+                                {% if is_overdue %}<span class="task-chip" style="background:rgba(239,68,68,0.1);color:#ef4444;">Overdue</span>{% endif %}
+                                {% if task.assignee %}
+                                <span class="task-chip" style="background:rgba(13,27,42,0.05);color:var(--text-muted);">👤 {{ task.assignee.name }}</span>
+                                {% endif %}
+                                <span class="task-chip" style="background:rgba(13,27,42,0.04);color:var(--text-muted);">By {{ task.creator.username if task.creator else 'System' }}</span>
+                            </div>
+                        </div>
+                        <div class="task-item-actions">
+                            {% if status_val != 'Completed' and status_val != 'Cancelled' %}
+                            <form action="{{ url_for('leads.complete_lead_task', task_id=task.id) }}" method="POST" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="task-mini-btn task-mini-complete">✅ Done</button>
+                            </form>
+                            {% endif %}
+                            <form action="{{ url_for('leads.delete_lead_task', task_id=task.id) }}" method="POST" onsubmit="return confirm('Delete this task?');" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="task-mini-btn task-mini-del">🗑</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <!-- No tasks yet — show the create form automatically -->
+                <script>document.addEventListener('DOMContentLoaded', function(){ document.getElementById('taskFormToggle').style.display = 'block'; });</script>
+                <div style="text-align:center; padding:2rem 2.5rem; background:#f8fafc; border-radius:12px; border:2px dashed rgba(99,102,241,0.15); margin-bottom:1.5rem;">
+                    <div style="font-size:2.5rem; opacity:0.2; margin-bottom:0.8rem;">📋</div>
+                    <h3 style="color:var(--primary-color); font-size:1rem; margin-bottom:0.4rem;">No Tasks Yet</h3>
+                    <p style="color:var(--text-muted); font-weight:500; font-size:0.9rem;">Use the form above to create the first task for this lead.</p>
+                </div>
+                {% endif %}
             </div>
+
 
                 <div id="documents" class="tab-content">
                 <div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">

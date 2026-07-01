@@ -25,6 +25,8 @@ from model import (
     LeadFollowUp,
     FollowUpMethod,
     FollowUpOutcome,
+    Task,
+    TaskStatus,
 )
 from utils.exports import export_to_csv, export_to_excel, export_to_pdf
 from utils.activity import log_activity
@@ -62,8 +64,22 @@ def view_lead(lead_id):
         .order_by(LeadFollowUp.created_at.desc())
         .all()
     )
+    lead_tasks = (
+        Task.query.filter_by(lead_id=lead_id, organization_id=current_user.organization_id)
+        .order_by(Task.created_at.desc())
+        .all()
+    )
+    all_employees = Employee.query.filter_by(
+        organization_id=current_user.organization_id, is_deleted=False
+    ).all()
     return render_template(
-        "leads/lead_profile.html", lead=lead, now_utc=now_utc, follow_ups=follow_ups
+        "leads/lead_profile.html",
+        lead=lead,
+        now_utc=now_utc,
+        follow_ups=follow_ups,
+        lead_tasks=lead_tasks,
+        employees=all_employees,
+        TaskStatus=TaskStatus,
     )
 
 
@@ -686,3 +702,77 @@ def delete_follow_up(fu_id):
     db.session.commit()
     flash("Follow-up deleted.", "leadssuccess")
     return redirect(url_for("leads.view_lead", lead_id=lead_id))
+
+
+@leads_bp.route("/lead/<int:lead_id>/add-task", methods=["POST"])
+@login_required
+def add_lead_task(lead_id):
+    lead = Lead.query.filter_by(
+        id=lead_id, organization_id=current_user.organization_id
+    ).first_or_404()
+
+    title = request.form.get("title", "").strip()
+    description = request.form.get("description", "").strip()
+    due_date_str = request.form.get("due_date", "").strip()
+    assigned_to_id = request.form.get("assigned_to")
+
+    if not title:
+        flash("Task title is required.", "leadserror")
+        return redirect(url_for("leads.view_lead", lead_id=lead_id) + "#tasks")
+
+    try:
+        due_date = datetime.strptime(due_date_str, "%Y-%m-%dT%H:%M") if due_date_str else None
+    except ValueError:
+        due_date = None
+
+    assigned_to_id = tenant_record_id(
+        Employee, assigned_to_id, current_user.organization_id, is_deleted=False
+    ) if assigned_to_id else None
+
+    try:
+        task = Task(
+            title=title,
+            description=description,
+            due_date=due_date,
+            status=TaskStatus.PENDING,
+            lead_id=lead_id,
+            assigned_to=assigned_to_id,
+            created_by=current_user.id,
+            organization_id=current_user.organization_id,
+        )
+        db.session.add(task)
+        db.session.commit()
+        flash("Task created successfully!", "leadssuccess")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating task: {str(e)}", exc_info=True)
+        flash("An error occurred while creating the task.", "leadserror")
+
+    return redirect(url_for("leads.view_lead", lead_id=lead_id) + "#tasks")
+
+
+@leads_bp.route("/lead/task/<int:task_id>/complete", methods=["POST"])
+@login_required
+def complete_lead_task(task_id):
+    task = Task.query.filter_by(
+        id=task_id, organization_id=current_user.organization_id
+    ).first_or_404()
+    lead_id = task.lead_id
+    task.status = TaskStatus.COMPLETED
+    task.updated_at = datetime.utcnow()
+    db.session.commit()
+    flash("Task marked as completed.", "leadssuccess")
+    return redirect(url_for("leads.view_lead", lead_id=lead_id) + "#tasks")
+
+
+@leads_bp.route("/lead/task/<int:task_id>/delete", methods=["POST"])
+@login_required
+def delete_lead_task(task_id):
+    task = Task.query.filter_by(
+        id=task_id, organization_id=current_user.organization_id
+    ).first_or_404()
+    lead_id = task.lead_id
+    db.session.delete(task)
+    db.session.commit()
+    flash("Task deleted.", "leadssuccess")
+    return redirect(url_for("leads.view_lead", lead_id=lead_id) + "#tasks")
