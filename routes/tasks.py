@@ -558,6 +558,37 @@ def add_task_activity(task_id):
                     organization_id=org_id,
                 )
 
+        # Notify task assignee about new activity (if not the one who added it)
+        if task.assigned_to and task.assigned_to != emp.id:
+            create_notification(
+                recipient_id=task.assigned_to,
+                title=f"New Activity on Task: {task.title}",
+                message=(
+                    f"{emp.name} logged a {activity_type.value} on task '{task.title}': "
+                    f"{message[:100]}{'...' if len(message) > 100 else ''}"
+                ),
+                link=url_for("tasks.view_task", task_id=task.id),
+                sender_id=emp.id,
+                organization_id=org_id,
+            )
+
+        # Also notify the task creator (via their employee profile) if different from assignee and actor
+        if task.creator and task.creator.employee:
+            creator_emp_id = task.creator.employee.id
+            already_notified = {task.assigned_to, emp.id}
+            if creator_emp_id not in already_notified:
+                create_notification(
+                    recipient_id=creator_emp_id,
+                    title=f"New Activity on Task: {task.title}",
+                    message=(
+                        f"{emp.name} logged a {activity_type.value} on task '{task.title}': "
+                        f"{message[:100]}{'...' if len(message) > 100 else ''}"
+                    ),
+                    link=url_for("tasks.view_task", task_id=task.id),
+                    sender_id=emp.id,
+                    organization_id=org_id,
+                )
+
         db.session.commit()
         flash("Activity logged successfully.", "tasksuccess")
     except Exception as e:
