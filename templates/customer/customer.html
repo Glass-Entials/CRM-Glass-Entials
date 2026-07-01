@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -128,8 +128,8 @@
 
         <!-- Table Section -->
         <div class="panel">
-            <div class="table-responsive">
-                <table class="customer-table" id="customersTable">
+            <div class="table-responsive" style="overflow-x: visible; width: 100%;">
+                <table class="customer-table" id="customersTable" style="width: 100%; table-layout: auto;">
                     <thead>
                         <tr>
                             <th>#</th>
@@ -220,6 +220,43 @@
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Pagination Section -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 0.9rem; color: var(--text-muted); font-weight: 500;">Show</span>
+                    <select id="perPageSelector" class="form-control" style="padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid rgba(13, 27, 42, 0.15); font-size: 0.9rem; cursor: pointer; background: #fff;" onchange="changePerPage(this.value)">
+                        <option value="30" {% if per_page == 30 %}selected{% endif %}>30</option>
+                        <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                        <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                    </select>
+                    <span style="font-size: 0.9rem; color: var(--text-muted); font-weight: 500;">entries per page</span>
+                </div>
+                
+                {% if pagination.pages > 1 %}
+                <div class="pagination" style="display: flex; gap: 5px;">
+                    {% if pagination.has_prev %}
+                    <a href="{{ url_for('customers.customers_list', page=pagination.prev_num, per_page=per_page, status=current_status) }}" class="btn-action outline" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">← Prev</a>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            {% if pagination.page == page_num %}
+                            <span class="btn-action gold" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; cursor: default;">{{ page_num }}</span>
+                            {% else %}
+                            <a href="{{ url_for('customers.customers_list', page=page_num, per_page=per_page, status=current_status) }}" class="btn-action outline" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; text-decoration: none;">{{ page_num }}</a>
+                            {% endif %}
+                        {% else %}
+                            <span style="padding: 0.4rem; color: var(--text-muted);">...</span>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <a href="{{ url_for('customers.customers_list', page=pagination.next_num, per_page=per_page, status=current_status) }}" class="btn-action outline" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">Next →</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
         </div>
     </main>
 
@@ -275,6 +312,13 @@
             assigneeFilter.addEventListener('change', applyFilters);
             statusFilter.addEventListener('change', applyFilters);
         });
+        
+        function changePerPage(value) {
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.set('per_page', value);
+            urlParams.set('page', 1); // Reset to first page
+            window.location.search = urlParams.toString();
+        }
     </script>
 </body>
 

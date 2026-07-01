@@ -41,6 +41,8 @@ DOCUMENT_EXTENSIONS = {
 def customers_list():
     org_id = current_user.organization_id
     status_filter = request.args.get("status")
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 30, type=int)
 
     query = Customer.query.filter_by(organization_id=org_id, is_deleted=False)
 
@@ -50,19 +52,25 @@ def customers_list():
         if status_filter in status_map:
             query = query.filter(Customer.status == status_map[status_filter])
 
-    all_customers = query.order_by(Customer.created_at.desc()).all()
+    pagination = query.order_by(Customer.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    paginated_customers = pagination.items
+    
     all_employees = Employee.query.filter_by(
         organization_id=org_id, is_deleted=False
     ).all()
-    unique_cities = sorted(list(set(c.city for c in all_customers if c.city)))
+    
+    cities_query = db.session.query(Customer.city).filter_by(organization_id=org_id, is_deleted=False).distinct().all()
+    unique_cities = sorted([c[0] for c in cities_query if c[0]])
 
     return render_template(
         "customer/customer.html",
-        customers=all_customers,
+        customers=paginated_customers,
+        pagination=pagination,
         employees=all_employees,
         cities=unique_cities,
         current_status=status_filter,
         CustomerStatus=CustomerStatus,
+        per_page=per_page
     )
 
 
