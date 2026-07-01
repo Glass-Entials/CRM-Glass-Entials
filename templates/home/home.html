@@ -190,13 +190,13 @@
 
     <!-- Stats Cards Grid -->
     <div class="stats-grid">
-        <div class="stat-card" style="position: relative; overflow: visible;">
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('customers.customers_list') }}{% if customer_filter and customer_filter != 'Total' %}?status={{ customer_filter|urlencode }}{% endif %}'">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px;">{{ total_customers }}</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ customer_filter }}
                     Customers</p>
 
-                <select onchange="dashboardFilter('customer', this.value)" class="stat-filter-select">
+                <select onchange="dashboardFilter('customer', this.value)" class="stat-filter-select" onclick="event.stopPropagation()">
                     <option value="Total" {% if customer_filter=='Total' %}selected{% endif %}>All Customers</option>
                     <option value="New" {% if customer_filter=='New' %}selected{% endif %}>New</option>
                     <option value="Requirement Understood" {% if customer_filter=='Requirement Understood' %}selected{%
@@ -225,13 +225,13 @@
             </div>
             <div class="stat-icon">👥</div>
         </div>
-        <div class="stat-card" style="position: relative; overflow: visible;">
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('projects.projects_list') }}'">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px;">{{ active_projects_count }}</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ project_filter }}
                     Projects</p>
 
-                <select onchange="dashboardFilter('project', this.value)" class="stat-filter-select">
+                <select onchange="dashboardFilter('project', this.value)" class="stat-filter-select" onclick="event.stopPropagation()">
                     <option value="Active" {% if project_filter=='Active' %}selected{% endif %}>Active Projects</option>
                     <option value="Total" {% if project_filter=='Total' %}selected{% endif %}>All Projects</option>
                     <option value="Planning" {% if project_filter=='Planning' %}selected{% endif %}>Planning</option>
@@ -243,12 +243,12 @@
             </div>
             <div class="stat-icon">💼</div>
         </div>
-        <div class="stat-card" style="position: relative; overflow: visible;">
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('leads.leads_list') }}'">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px;">{{ total_leads }}</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ lead_filter }} Leads</p>
 
-                <select onchange="dashboardFilter('lead', this.value)" class="stat-filter-select">
+                <select onchange="dashboardFilter('lead', this.value)" class="stat-filter-select" onclick="event.stopPropagation()">
                     <option value="Total" {% if lead_filter=='Total' %}selected{% endif %}>All Leads</option>
                     <option value="New" {% if lead_filter=='New' %}selected{% endif %}>New</option>
                     <option value="Prospect" {% if lead_filter=='Prospect' %}selected{% endif %}>Prospect</option>
@@ -259,12 +259,12 @@
             </div>
             <div class="stat-icon">🎯</div>
         </div>
-        <div class="stat-card" style="position: relative; overflow: visible;">
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list') }}'">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px;">{{ pending_tasks_count }}</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ task_filter }} Tasks</p>
 
-                <select onchange="dashboardFilter('task', this.value)" class="stat-filter-select">
+                <select onchange="dashboardFilter('task', this.value)" class="stat-filter-select" onclick="event.stopPropagation()">
                     <option value="Pending" {% if task_filter=='Pending' %}selected{% endif %}>Pending Only</option>
                     <option value="Total" {% if task_filter=='Total' %}selected{% endif %}>All Tasks</option>
                     <option value="Completed" {% if task_filter=='Completed' %}selected{% endif %}>Completed</option>
@@ -272,7 +272,7 @@
             </div>
             <div class="stat-icon">🔔</div>
         </div>
-        <div class="stat-card" style="position: relative; overflow: visible;">
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('expenses.expenses_list') }}'">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px;">₹{{ "{:,.0f}".format(total_Expenses) if total_Expenses is not undefined
                     else '0' }}</h3>
@@ -281,7 +281,7 @@
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                     {% for f in ['Total', 'Approved', 'Rejected', 'Paid'] %}
                     <a href="{{ url_for('home_page', expense_status=f) }}"
-                        class="expense-filter-pill {% if expense_filter == f %}active{% endif %}">
+                        class="expense-filter-pill {% if expense_filter == f %}active{% endif %}" onclick="event.stopPropagation()">
                         {{ f }}
                     </a>
                     {% endfor %}
