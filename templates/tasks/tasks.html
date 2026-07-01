@@ -128,7 +128,9 @@
                         <tr>
                             <td>#{{ loop.index }}</td>
                             <td class="task-title" style="font-weight: 600; color: var(--primary-color);">
-                                {{ task.title }}
+                                <a href="{{ url_for('tasks.view_task', task_id=task.id) }}" style="text-decoration: none; color: var(--primary-color); border-bottom: 1px solid transparent; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-gold)'; this.style.color='var(--accent-gold)'" onmouseout="this.style.borderColor='transparent'; this.style.color='var(--primary-color)'">
+                                    {{ task.title }}
+                                </a>
                             </td>
                             <td>
                                 {% if task.project %}
