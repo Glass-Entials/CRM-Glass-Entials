@@ -593,6 +593,9 @@ def add_task_activity(task_id):
         flash("Activity logged successfully.", "tasksuccess")
     except Exception as e:
         db.session.rollback()
+        import traceback
+        print(f"\n[ACTIVITY ERROR] {e}")
+        traceback.print_exc()
         current_app.logger.error(f"Error adding task activity: {e}", exc_info=True)
         flash("Failed to log activity. Please try again.", "taskerror")
 
