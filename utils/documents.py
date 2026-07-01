@@ -54,6 +54,8 @@ def handle_file_upload(
             new_doc.task_id = entity_id
         elif entity_type == "daily_task":
             new_doc.daily_task_id = entity_id
+        elif entity_type == "task_activity":
+            new_doc.task_activity_id = entity_id
 
         db.session.add(new_doc)
         return True

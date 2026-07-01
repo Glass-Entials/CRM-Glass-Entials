@@ -106,6 +106,29 @@ class TaskStatus(Enum):
     CANCELLED = "Cancelled"
 
 
+class TaskActivityType(Enum):
+    CALL = "Call"
+    WHATSAPP = "WhatsApp"
+    EMAIL = "Email"
+    MEETING = "Meeting"
+    COMMENT = "Comment"
+    FOLLOW_UP = "Follow Up"
+    PAYMENT = "Payment"
+    UPDATE = "Update"
+
+
+class CallResult(Enum):
+    CONNECTED = "Connected"
+    NO_ANSWER = "No Answer"
+    BUSY = "Busy"
+    SWITCHED_OFF = "Switched Off"
+    WRONG_NUMBER = "Wrong Number"
+    CALL_BACK_LATER = "Call Back Later"
+    REJECTED = "Rejected"
+    INTERESTED = "Interested"
+    NOT_INTERESTED = "Not Interested"
+
+
 class InvoiceStatus(Enum):
     UNPAID = "Unpaid"
     PAID = "Paid"
@@ -514,6 +537,60 @@ class LeadFollowUp(db.Model):
 
     def __repr__(self):
         return f"<LeadFollowUp {self.method.value} for Lead {self.lead_id} on {self.follow_up_date}>"
+
+
+class TaskActivity(db.Model):
+    """Per-task collaborative activity timeline — never overwrites description."""
+
+    __tablename__ = "task_activity"
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(
+        db.Integer, db.ForeignKey("task.id"), nullable=False, index=True
+    )
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
+    )
+    employee_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id"), nullable=False, index=True
+    )
+    activity_type = db.Column(
+        db.Enum(TaskActivityType, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=TaskActivityType.COMMENT,
+    )
+    call_result = db.Column(
+        db.Enum(CallResult, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+    )
+    message = db.Column(db.Text, nullable=False)
+    next_follow_up_datetime = db.Column(db.DateTime, nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    employee = db.relationship(
+        "Employee",
+        foreign_keys=[employee_id],
+        backref=db.backref("task_activities", lazy="dynamic"),
+    )
+    organization = db.relationship(
+        "Organization",
+        backref=db.backref("task_activities", lazy="dynamic"),
+    )
+    attachments = db.relationship(
+        "CRMDocument",
+        backref="task_activity",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+        foreign_keys="CRMDocument.task_activity_id",
+    )
+
+    def __repr__(self):
+        return f"<TaskActivity {self.activity_type.value} on Task {self.task_id}>"
 
 
 class Task(db.Model):
@@ -1557,6 +1634,9 @@ class CRMDocument(db.Model):
     task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=True, index=True)
     daily_task_id = db.Column(
         db.Integer, db.ForeignKey("daily_task.id"), nullable=True, index=True
+    )
+    task_activity_id = db.Column(
+        db.Integer, db.ForeignKey("task_activity.id"), nullable=True, index=True
     )
 
     # File details

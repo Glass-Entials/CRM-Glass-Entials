@@ -1,6 +1,6 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
+from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, jsonify
 from flask_login import login_required, current_user
-from model import db, Task, Employee, Project, Lead, TaskStatus, DailyTask, UserRole
+from model import db, Task, Employee, Project, Lead, TaskStatus, DailyTask, UserRole, TaskActivity, TaskActivityType, CallResult
 from utils.activity import log_activity
 from utils.notifications import create_notification
 from utils.security import tenant_record_id
@@ -285,7 +285,47 @@ def update_task_status(task_id):
 def view_task(task_id):
     org_id = current_user.organization_id
     task = Task.query.filter_by(id=task_id, organization_id=org_id).first_or_404()
-    return render_template("tasks/task_profile.html", task=task)
+    
+    # Fetch activities newest-first, excluding soft-deleted, paginated
+    page = request.args.get("act_page", 1, type=int)
+    filter_type = request.args.get("filter", "all")
+    search_q = request.args.get("q", "").strip()
+    
+    act_query = TaskActivity.query.filter_by(
+        task_id=task_id,
+        organization_id=org_id,
+        is_deleted=False,
+    )
+    if filter_type != "all":
+        type_map = {e.value.lower().replace(" ", "_"): e for e in TaskActivityType}
+        matched = type_map.get(filter_type)
+        if matched:
+            act_query = act_query.filter(TaskActivity.activity_type == matched)
+    if search_q:
+        act_query = act_query.filter(TaskActivity.message.ilike(f"%{search_q}%"))
+    
+    activity_pagination = act_query.order_by(
+        TaskActivity.created_at.desc()
+    ).paginate(page=page, per_page=25, error_out=False)
+    
+    employees = Employee.query.filter_by(
+        organization_id=org_id, is_deleted=False
+    ).all()
+    
+    is_manager = current_user.role in [UserRole.ADMIN, UserRole.MANAGER]
+    
+    return render_template(
+        "tasks/task_profile.html",
+        task=task,
+        activity_pagination=activity_pagination,
+        activities=activity_pagination.items,
+        employees=employees,
+        TaskActivityType=TaskActivityType,
+        CallResult=CallResult,
+        is_manager=is_manager,
+        filter_type=filter_type,
+        search_q=search_q,
+    )
 
 
 @tasks_bp.route("/daily-tasks")
@@ -408,3 +448,186 @@ def add_daily_task():
         today_date=date.today().strftime("%Y-%m-%d"),
         projects=projects,
     )
+
+
+# ═══════════════════════════════════════════════════════════
+#  TASK ACTIVITY TIMELINE ROUTES
+# ═══════════════════════════════════════════════════════════
+
+import re as _re
+
+
+def _parse_mentions(message, org_id):
+    """Return list of Employee objects mentioned with @Name in message."""
+    names = _re.findall(r"@([\w\s]+?)(?=\s|$|@|,|\.|!|\?)", message)
+    mentioned = []
+    for name in names:
+        name = name.strip()
+        if not name:
+            continue
+        emp = Employee.query.filter_by(
+            name=name, organization_id=org_id, is_deleted=False
+        ).first()
+        if emp:
+            mentioned.append(emp)
+    return mentioned
+
+
+@tasks_bp.route("/task/<int:task_id>/add-activity", methods=["POST"])
+@login_required
+def add_task_activity(task_id):
+    org_id = current_user.organization_id
+    task = Task.query.filter_by(id=task_id, organization_id=org_id).first_or_404()
+    emp = current_user.employee
+    if not emp:
+        flash("Employee profile not found.", "taskerror")
+        return redirect(url_for("tasks.view_task", task_id=task_id))
+
+    activity_type_val = request.form.get("activity_type", "Comment")
+    call_result_val = request.form.get("call_result", "").strip()
+    message = request.form.get("message", "").strip()
+    next_fu_str = request.form.get("next_follow_up_datetime", "").strip()
+
+    if not message:
+        flash("Activity message cannot be empty.", "taskerror")
+        return redirect(url_for("tasks.view_task", task_id=task_id))
+
+    type_map = {e.value: e for e in TaskActivityType}
+    cr_map = {e.value: e for e in CallResult}
+
+    activity_type = type_map.get(activity_type_val, TaskActivityType.COMMENT)
+    call_result = cr_map.get(call_result_val) if call_result_val else None
+    next_follow_up = None
+    if next_fu_str:
+        try:
+            next_follow_up = datetime.strptime(next_fu_str, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            pass
+
+    try:
+        activity = TaskActivity(
+            task_id=task_id,
+            organization_id=org_id,
+            employee_id=emp.id,
+            activity_type=activity_type,
+            call_result=call_result,
+            message=message,
+            next_follow_up_datetime=next_follow_up,
+        )
+        db.session.add(activity)
+        db.session.flush()  # get activity.id before commit
+
+        # Handle file attachment
+        if "attachment" in request.files:
+            file = request.files["attachment"]
+            if file and file.filename:
+                from utils.documents import handle_file_upload
+                handle_file_upload(
+                    file=file,
+                    entity_type="task_activity",
+                    entity_id=activity.id,
+                    organization_id=org_id,
+                    uploader_id=emp.id,
+                    description=f"Activity attachment – {activity_type.value}",
+                )
+
+        # Auto-create follow-up reminder notification
+        if next_follow_up and task.assigned_to:
+            create_notification(
+                recipient_id=task.assigned_to,
+                title="Follow-up Reminder",
+                message=(
+                    f"Reminder: Follow up on task '{task.title}' scheduled for "
+                    f"{next_follow_up.strftime('%d %b %Y at %H:%M')}."
+                ),
+                link=url_for("tasks.view_task", task_id=task.id),
+                sender_id=emp.id,
+                organization_id=org_id,
+            )
+
+        # Mention notifications – @EmployeeName
+        mentioned = _parse_mentions(message, org_id)
+        for mentioned_emp in mentioned:
+            if mentioned_emp.id != emp.id:
+                create_notification(
+                    recipient_id=mentioned_emp.id,
+                    title="You were mentioned in a Task",
+                    message=f"{emp.name} mentioned you in task '{task.title}'.",
+                    link=url_for("tasks.view_task", task_id=task.id),
+                    sender_id=emp.id,
+                    organization_id=org_id,
+                )
+
+        db.session.commit()
+        flash("Activity logged successfully.", "tasksuccess")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error adding task activity: {e}", exc_info=True)
+        flash("Failed to log activity. Please try again.", "taskerror")
+
+    return redirect(url_for("tasks.view_task", task_id=task_id))
+
+
+@tasks_bp.route("/task/activity/<int:activity_id>/edit", methods=["POST"])
+@login_required
+def edit_task_activity(activity_id):
+    org_id = current_user.organization_id
+    activity = TaskActivity.query.filter_by(
+        id=activity_id, organization_id=org_id, is_deleted=False
+    ).first_or_404()
+
+    emp = current_user.employee
+    is_manager = current_user.role in [UserRole.ADMIN, UserRole.MANAGER]
+
+    # Only author or manager can edit
+    if not is_manager and (not emp or activity.employee_id != emp.id):
+        flash("You are not allowed to edit this activity.", "taskerror")
+        return redirect(url_for("tasks.view_task", task_id=activity.task_id))
+
+    message = request.form.get("message", "").strip()
+    if not message:
+        flash("Activity message cannot be empty.", "taskerror")
+        return redirect(url_for("tasks.view_task", task_id=activity.task_id))
+
+    try:
+        activity.message = message
+        next_fu_str = request.form.get("next_follow_up_datetime", "").strip()
+        activity.next_follow_up_datetime = (
+            datetime.strptime(next_fu_str, "%Y-%m-%dT%H:%M") if next_fu_str else None
+        )
+        db.session.commit()
+        flash("Activity updated.", "tasksuccess")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error editing activity: {e}", exc_info=True)
+        flash("Failed to update activity.", "taskerror")
+
+    return redirect(url_for("tasks.view_task", task_id=activity.task_id))
+
+
+@tasks_bp.route("/task/activity/<int:activity_id>/delete", methods=["POST"])
+@login_required
+def delete_task_activity(activity_id):
+    org_id = current_user.organization_id
+    activity = TaskActivity.query.filter_by(
+        id=activity_id, organization_id=org_id, is_deleted=False
+    ).first_or_404()
+
+    emp = current_user.employee
+    is_manager = current_user.role in [UserRole.ADMIN, UserRole.MANAGER]
+
+    if not is_manager and (not emp or activity.employee_id != emp.id):
+        flash("Not authorized to delete this activity.", "taskerror")
+        return redirect(url_for("tasks.view_task", task_id=activity.task_id))
+
+    task_id = activity.task_id
+    try:
+        activity.is_deleted = True  # Soft delete only
+        db.session.commit()
+        flash("Activity removed.", "tasksuccess")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting activity: {e}", exc_info=True)
+        flash("Failed to remove activity.", "taskerror")
+
+    return redirect(url_for("tasks.view_task", task_id=task_id))

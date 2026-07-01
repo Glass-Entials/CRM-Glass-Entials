@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -104,7 +104,7 @@
             <div>
                 <!-- Overview Card -->
                 <div class="panel" style="padding: 2.5rem; border-top: 4px solid var(--primary-color); margin-bottom: 1.5rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 10px;">
                         <h2 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.4rem; margin: 0;">Task Overview</h2>
                         {% set sd = task.status_display %}
                         {% if sd == 'Pending' %}
@@ -251,6 +251,7 @@
                         </form>
                     </div>
                 </div>
+
             </div>
 
             <!-- Sidebar -->
@@ -311,6 +312,215 @@
 
             </div>
         </div>
+
+                <!-- Activity Timeline -->
+                <div class="panel" style="padding: 2rem; margin-top: 1.5rem; position: relative;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
+                        <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0;">Activity Timeline</h3>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <form method="GET" action="{{ url_for('tasks.view_task', task_id=task.id) }}" style="margin: 0; display: flex; gap: 10px; flex-wrap: wrap;">
+                                <input type="text" name="q" value="{{ search_q }}" placeholder="Search activities..." style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; max-width: 150px;">
+                                <select name="filter" onchange="this.form.submit()" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; max-width: 130px;">
+                                    <option value="all">All Activities</option>
+                                    {% for type_enum in TaskActivityType %}
+                                        {% set val_fmt = type_enum.value|lower|replace(' ', '_') %}
+                                        <option value="{{ val_fmt }}" {% if filter_type == val_fmt %}selected{% endif %}>{{ type_enum.value }}</option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                            <button class="btn-action gold" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="document.getElementById('taskActivityModal').style.display='flex'">+ Add Activity</button>
+                        </div>
+                    </div>
+
+                    {% if activities %}
+                        <div style="position: relative; padding-left: 20px; border-left: 2px solid rgba(212,175,55,0.3);">
+                            {% for act in activities %}
+                            <div style="position: relative; margin-bottom: 2rem;">
+                                <!-- Timeline Marker -->
+                                <div style="position: absolute; left: -26.5px; top: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--accent-gold); border: 2px solid white; box-shadow: 0 0 0 2px rgba(212,175,55,0.2);"></div>
+                                
+                                <div style="background: rgba(13,27,42,0.015); border: 1px solid rgba(13,27,42,0.05); border-radius: 8px; padding: 1.2rem;">
+                                    <!-- Header -->
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <img src="{{ get_profile_pic(act.employee) }}" alt="{{ act.employee.name }}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(212,175,55,0.3);">
+                                            <div>
+                                                <div style="font-weight: 600; font-size: 0.95rem;">{{ act.employee.name }}</div>
+                                                <div style="font-size: 0.75rem; color: var(--text-muted);">
+                                                    <span style="font-weight: 600; color: var(--primary-color);">{{ act.activity_type.value }}</span> 
+                                                    {% if act.call_result %}
+                                                        <span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 4px;">{{ act.call_result.value }}</span>
+                                                    {% endif %}
+                                                    • {{ act.created_at.strftime('%d %b %Y, %I:%M %p') }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Actions -->
+                                        {% if is_manager or (current_user.employee and act.employee_id == current_user.employee.id) %}
+                                        <div style="display: flex; gap: 8px;">
+                                            <button onclick="editActivity({{ act.id }}, '{{ act.message|escape }}', '{{ act.next_follow_up_datetime.strftime('%Y-%m-%dT%H:%M') if act.next_follow_up_datetime else '' }}')" style="background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 0.9rem;">✏️</button>
+                                            <form action="{{ url_for('tasks.delete_task_activity', activity_id=act.id) }}" method="POST" onsubmit="return confirm('Remove this activity?');" style="margin: 0;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit" style="background: none; border: none; cursor: pointer; color: #dc3545; font-size: 0.9rem;">🗑️</button>
+                                            </form>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Message -->
+                                    <div style="font-size: 0.95rem; line-height: 1.5; color: var(--text-color); margin-bottom: {% if act.attachments.count() > 0 or act.next_follow_up_datetime %}12px{% else %}0{% endif %}; white-space: pre-wrap;">{{ act.message|nl2br }}</div>
+                                    
+                                    <!-- Meta Footer -->
+                                    {% if act.attachments.count() > 0 or act.next_follow_up_datetime %}
+                                    <div style="display: flex; flex-wrap: wrap; gap: 15px; font-size: 0.8rem; color: var(--text-muted); border-top: 1px dashed rgba(13,27,42,0.1); padding-top: 10px;">
+                                        {% if act.next_follow_up_datetime %}
+                                        <div style="display: flex; align-items: center; gap: 5px;">
+                                            ⏰ <span style="font-weight: 600; color: #d97706;">Next Follow Up:</span> {{ act.next_follow_up_datetime.strftime('%d %b %Y, %I:%M %p') }}
+                                        </div>
+                                        {% endif %}
+                                        {% if act.attachments.count() > 0 %}
+                                        <div style="display: flex; align-items: center; gap: 5px;">
+                                            📎 <span style="font-weight: 600;">Attachments:</span>
+                                            {% for doc in act.attachments %}
+                                                <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="color: var(--accent-gold); text-decoration: none;">{{ doc.original_name }}</a>{% if not loop.last %}, {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if activity_pagination.pages > 1 %}
+                        <div style="display: flex; justify-content: center; gap: 5px; margin-top: 2rem;">
+                            {% for p in activity_pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                {% if p %}
+                                    <a href="{{ url_for('tasks.view_task', task_id=task.id, act_page=p, filter=filter_type, q=search_q) }}" class="btn-action {% if p == activity_pagination.page %}gold{% else %}outline{% endif %}" style="padding: 0.3rem 0.8rem;">{{ p }}</a>
+                                {% else %}
+                                    <span style="padding: 0.3rem 0.8rem; color: var(--text-muted);">...</span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                    {% else %}
+                        <div style="text-align: center; padding: 3rem 2rem; background: rgba(13,27,42,0.02); border-radius: 8px; border: 1px dashed rgba(13,27,42,0.2);">
+                            <div style="font-size: 2rem; margin-bottom: 10px;">📝</div>
+                            <h4 style="margin: 0 0 5px 0; color: var(--primary-color);">No Activity Yet</h4>
+                            <p style="color: var(--text-muted); margin: 0; font-size: 0.9rem;">Start logging calls, meetings, or notes for this task.</p>
+                            {% if search_q or filter_type != 'all' %}
+                                <a href="{{ url_for('tasks.view_task', task_id=task.id) }}" style="display: inline-block; margin-top: 10px; color: var(--accent-gold); font-size: 0.9rem;">Clear Filters</a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Add Activity Modal -->
+                <div id="taskActivityModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+                    <div style="background: white; padding: 2rem; border-radius: 12px; width: 500px; max-width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                        <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Log Activity</h3>
+                        <form action="{{ url_for('tasks.add_task_activity', task_id=task.id) }}" method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.2rem;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Activity Type <span style="color: red;">*</span></label>
+                                    <select name="activity_type" id="activityTypeSelect" required style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;" onchange="toggleCallResult()">
+                                        {% for type_enum in TaskActivityType %}
+                                            <option value="{{ type_enum.value }}">{{ type_enum.value }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div id="callResultGroup" style="display: none;">
+                                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Call Result</label>
+                                    <select name="call_result" style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;">
+                                        <option value="">Select Result...</option>
+                                        {% for res_enum in CallResult %}
+                                            <option value="{{ res_enum.value }}">{{ res_enum.value }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom: 1.2rem;">
+                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Message / Notes <span style="color: red;">*</span></label>
+                                <textarea name="message" required rows="4" placeholder="Type your notes here... (Use @Name to mention someone)" style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px; resize: vertical;"></textarea>
+                            </div>
+
+                            <div style="margin-bottom: 1.2rem;">
+                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Next Follow Up (Optional)</label>
+                                <input type="datetime-local" name="next_follow_up_datetime" style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;">
+                            </div>
+
+                            <div style="margin-bottom: 1.5rem;">
+                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Attachment (Optional)</label>
+                                <input type="file" name="attachment" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
+                            </div>
+
+                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                                <button type="button" class="btn-action outline" onclick="document.getElementById('taskActivityModal').style.display='none'">Cancel</button>
+                                <button type="submit" class="btn-action gold">Log Activity</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Edit Activity Modal -->
+                <div id="editActivityModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+                    <div style="background: white; padding: 2rem; border-radius: 12px; width: 500px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                        <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Edit Activity</h3>
+                        <form id="editActivityForm" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            
+                            <div style="margin-bottom: 1.2rem;">
+                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Message / Notes <span style="color: red;">*</span></label>
+                                <textarea name="message" id="editActivityMessage" required rows="4" style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px; resize: vertical;"></textarea>
+                            </div>
+
+                            <div style="margin-bottom: 1.5rem;">
+                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Next Follow Up (Optional)</label>
+                                <input type="datetime-local" name="next_follow_up_datetime" id="editActivityFollowUp" style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;">
+                            </div>
+
+                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                                <button type="button" class="btn-action outline" onclick="document.getElementById('editActivityModal').style.display='none'">Cancel</button>
+                                <button type="submit" class="btn-action gold">Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <script>
+                    function toggleCallResult() {
+                        const typeSel = document.getElementById('activityTypeSelect');
+                        const resGroup = document.getElementById('callResultGroup');
+                        if (typeSel.value === 'Call') {
+                            resGroup.style.display = 'block';
+                        } else {
+                            resGroup.style.display = 'none';
+                        }
+                    }
+                    // Run once on load
+                    toggleCallResult();
+
+                    function editActivity(id, message, followup) {
+                        const form = document.getElementById('editActivityForm');
+                        form.action = "{{ url_for('tasks.tasks_list') }}".replace('/tasks', '/task/activity/' + id + '/edit');
+                        
+                        // Parse HTML entities that might be in message due to escaping
+                        const txt = document.createElement("textarea");
+                        txt.innerHTML = message;
+                        document.getElementById('editActivityMessage').value = txt.value;
+                        
+                        document.getElementById('editActivityFollowUp').value = followup;
+                        document.getElementById('editActivityModal').style.display = 'flex';
+                    }
+                </script>
+
     </main>
 </body>
 </html>

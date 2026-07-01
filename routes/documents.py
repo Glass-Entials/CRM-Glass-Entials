@@ -11,7 +11,7 @@ from flask import (
     abort,
 )
 from flask_login import login_required, current_user
-from model import db, CRMDocument, Lead, Project, Task, DailyTask
+from model import db, CRMDocument, Lead, Project, Task, DailyTask, TaskActivity
 from werkzeug.utils import secure_filename
 from utils.security import tenant_record_id, safe_redirect_target
 
@@ -21,6 +21,7 @@ ENTITY_MODELS = {
     "project": Project,
     "task": Task,
     "daily_task": DailyTask,
+    "task_activity": TaskActivity,
 }
 
 ALLOWED_EXTENSIONS = {
