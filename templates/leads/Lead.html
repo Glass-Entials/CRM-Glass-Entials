@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -230,11 +230,14 @@
 
                 <div style="position: relative; flex: 1; max-width: 240px;">
                     <select id="statusFilter" class="form-control" style="padding: 0.7rem 1rem; height: auto; font-size: 0.9rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.15); background-color: #f8fafc; cursor: pointer; width: 100%;">
-                        <option value="">All Lead Statuses</option>
-                        <option value="New">New</option>
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                        <option value="Prospect">Prospect</option>
+                        <option value="" {% if not request.args.get('status') %}selected{% endif %}>All Lead Statuses</option>
+                        <option value="New" {% if request.args.get('status') == 'New' %}selected{% endif %}>New</option>
+                        <option value="Active" {% if request.args.get('status') == 'Active' %}selected{% endif %}>Active</option>
+                        <option value="Inactive" {% if request.args.get('status') == 'Inactive' %}selected{% endif %}>Inactive</option>
+                        <option value="Prospect" {% if request.args.get('status') == 'Prospect' %}selected{% endif %}>Prospect</option>
+                        <option value="Hot" {% if request.args.get('status') == 'Hot' %}selected{% endif %}>Hot</option>
+                        <option value="Cold" {% if request.args.get('status') == 'Cold' %}selected{% endif %}>Cold</option>
+                        <option value="Converted" {% if request.args.get('status') == 'Converted' %}selected{% endif %}>Converted</option>
                     </select>
                 </div>
             </div>
@@ -421,6 +424,8 @@
             sourceFilter.addEventListener('change', applyFilters);
             assigneeFilter.addEventListener('change', applyFilters);
             statusFilter.addEventListener('change', applyFilters);
+            
+            if (statusFilter.value) applyFilters();
             
             // Notification fade out
             setTimeout(() => {

@@ -225,7 +225,7 @@
             </div>
             <div class="stat-icon">👥</div>
         </div>
-        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('projects.projects_list') }}'">
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('projects.projects_list') }}{% if project_filter and project_filter != 'Total' %}?status={{ project_filter|urlencode }}{% endif %}'">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px;">{{ active_projects_count }}</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ project_filter }}
@@ -243,7 +243,7 @@
             </div>
             <div class="stat-icon">💼</div>
         </div>
-        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('leads.leads_list') }}'">
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('leads.leads_list') }}{% if lead_filter and lead_filter != 'Total' %}?status={{ lead_filter|urlencode }}{% endif %}'">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px;">{{ total_leads }}</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ lead_filter }} Leads</p>
@@ -259,7 +259,7 @@
             </div>
             <div class="stat-icon">🎯</div>
         </div>
-        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list') }}'">
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list') }}{% if task_filter and task_filter != 'Total' %}?status={{ task_filter|urlencode }}{% endif %}'">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px;">{{ pending_tasks_count }}</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ task_filter }} Tasks</p>

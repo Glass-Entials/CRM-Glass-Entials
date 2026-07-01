@@ -83,11 +83,11 @@
 
                 <div style="position: relative; flex: 1; max-width: 200px;">
                     <select id="statusFilter" class="form-control" style="padding: 0.7rem 1rem; height: auto; font-size: 0.9rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.15); background-color: #f8fafc; cursor: pointer; width: 100%;">
-                        <option value="">All Statuses</option>
-                        <option value="Pending">Pending</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
+                        <option value="" {% if not request.args.get('status') %}selected{% endif %}>All Statuses</option>
+                        <option value="Pending" {% if request.args.get('status') == 'Pending' %}selected{% endif %}>Pending</option>
+                        <option value="In Progress" {% if request.args.get('status') == 'In Progress' %}selected{% endif %}>In Progress</option>
+                        <option value="Completed" {% if request.args.get('status') == 'Completed' %}selected{% endif %}>Completed</option>
+                        <option value="Cancelled" {% if request.args.get('status') == 'Cancelled' %}selected{% endif %}>Cancelled</option>
                     </select>
                 </div>
 
@@ -303,6 +303,8 @@
             assigneeFilter.addEventListener('change', applyFilters);
             statusFilter.addEventListener('change', applyFilters);
             projectFilter.addEventListener('change', applyFilters);
+
+            if (statusFilter.value) applyFilters();
         });
     </script>
 </body>

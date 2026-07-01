@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -79,12 +79,12 @@
 
                 <div style="position: relative; flex: 1; max-width: 200px;">
                     <select id="statusFilter" class="form-control" style="padding: 0.7rem 1rem; height: auto; font-size: 0.9rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.15); background-color: #f8fafc; cursor: pointer; width: 100%;">
-                        <option value="">All Statuses</option>
-                        <option value="Planning">Planning</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="On Hold">On Hold</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
+                        <option value="" {% if not request.args.get('status') %}selected{% endif %}>All Statuses</option>
+                        <option value="Planning" {% if request.args.get('status') == 'Planning' %}selected{% endif %}>Planning</option>
+                        <option value="In Progress" {% if request.args.get('status') == 'In Progress' %}selected{% endif %}>In Progress</option>
+                        <option value="On Hold" {% if request.args.get('status') == 'On Hold' %}selected{% endif %}>On Hold</option>
+                        <option value="Completed" {% if request.args.get('status') == 'Completed' %}selected{% endif %}>Completed</option>
+                        <option value="Cancelled" {% if request.args.get('status') == 'Cancelled' %}selected{% endif %}>Cancelled</option>
                     </select>
                 </div>
 
@@ -289,6 +289,8 @@
             statusFilter.addEventListener('change', applyFilters);
             workTypeFilter.addEventListener('change', applyFilters);
             categoryFilter.addEventListener('change', applyFilters);
+
+            if (statusFilter.value) applyFilters();
         });
     </script>
 </body>

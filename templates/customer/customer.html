@@ -103,19 +103,19 @@
 
                 <div style="position: relative; flex: 1; max-width: 200px;">
                     <select id="statusFilter" class="form-control" style="padding: 0.7rem 1rem; height: auto; font-size: 0.9rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.15); background-color: #f8fafc; cursor: pointer; width: 100%;">
-                        <option value="">All Project Stages</option>
-                        <option value="New">New</option>
-                        <option value="Requirement Understood">Requirement Understood</option>
-                        <option value="Measurement Scheduled">Measurement Scheduled</option>
-                        <option value="Quotation Sent">Quotation Sent</option>
-                        <option value="Follow Up">Follow Up</option>
-                        <option value="Order Confirmed">Order Confirmed</option>
-                        <option value="In Production">In Production</option>
-                        <option value="Ready for Dispatch">Ready for Dispatch</option>
-                        <option value="Installation Scheduled">Installation Scheduled</option>
-                        <option value="Installation Done">Installation Done</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
+                        <option value="" {% if not request.args.get('status') %}selected{% endif %}>All Project Stages</option>
+                        <option value="New" {% if request.args.get('status') == 'New' %}selected{% endif %}>New</option>
+                        <option value="Requirement Understood" {% if request.args.get('status') == 'Requirement Understood' %}selected{% endif %}>Requirement Understood</option>
+                        <option value="Measurement Scheduled" {% if request.args.get('status') == 'Measurement Scheduled' %}selected{% endif %}>Measurement Scheduled</option>
+                        <option value="Quotation Sent" {% if request.args.get('status') == 'Quotation Sent' %}selected{% endif %}>Quotation Sent</option>
+                        <option value="Follow Up" {% if request.args.get('status') == 'Follow Up' %}selected{% endif %}>Follow Up</option>
+                        <option value="Order Confirmed" {% if request.args.get('status') == 'Order Confirmed' %}selected{% endif %}>Order Confirmed</option>
+                        <option value="In Production" {% if request.args.get('status') == 'In Production' %}selected{% endif %}>In Production</option>
+                        <option value="Ready for Dispatch" {% if request.args.get('status') == 'Ready for Dispatch' %}selected{% endif %}>Ready for Dispatch</option>
+                        <option value="Installation Scheduled" {% if request.args.get('status') == 'Installation Scheduled' %}selected{% endif %}>Installation Scheduled</option>
+                        <option value="Installation Done" {% if request.args.get('status') == 'Installation Done' %}selected{% endif %}>Installation Done</option>
+                        <option value="Completed" {% if request.args.get('status') == 'Completed' %}selected{% endif %}>Completed</option>
+                        <option value="Cancelled" {% if request.args.get('status') == 'Cancelled' %}selected{% endif %}>Cancelled</option>
                     </select>
                 </div>
             </div>
