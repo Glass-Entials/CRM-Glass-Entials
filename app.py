@@ -57,7 +57,7 @@ csp = {
     'style-src': ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
     'font-src': ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
     'img-src': ["'self'", "data:", "blob:", "https://images.unsplash.com"],
-    'frame-ancestors': ["'none'"]
+    'frame-ancestors': ["'self'"]
 }
 
 Talisman(app, content_security_policy=csp, force_https=force_https_enabled, strict_transport_security=force_https_enabled, session_cookie_secure=force_https_enabled)
