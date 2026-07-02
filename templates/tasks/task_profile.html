@@ -138,128 +138,12 @@
                     </div>
                 </div>
 
-                <!-- Related To -->
-                {% if task.project or task.lead_record %}
-                <div class="panel" style="padding: 2rem; border-top: 4px solid var(--accent-gold);">
-                    <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0 0 1.2rem 0;">Related To</h3>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        {% if task.project %}
-                        <a href="{{ url_for('projects.view_project', project_id=task.project.id) }}" class="relation-card">
-                            <span class="relation-icon">📦</span>
-                            <div>
-                                <span style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;">Project</span>
-                                <span style="font-weight: 700; font-size: 1rem;">{{ task.project.name }}</span>
-                                {% if task.project.status_display %}
-                                <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px;">• {{ task.project.status_display }}</span>
-                                {% endif %}
-                            </div>
-                        </a>
-                        {% endif %}
-                        {% if task.lead_record %}
-                        <a href="{{ url_for('leads.view_lead', lead_id=task.lead_record.id) }}" class="relation-card">
-                            <span class="relation-icon">🎯</span>
-                            <div>
-                                <span style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;">Lead</span>
-                                <span style="font-weight: 700; font-size: 1rem;">{{ task.lead_record.name }}</span>
-                                {% if task.lead_record.company %}
-                                <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px;">• {{ task.lead_record.company }}</span>
-                                {% endif %}
-                            </div>
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-                {% else %}
-                <div class="panel" style="padding: 1.5rem 2rem; border-top: 4px solid #e2e8f0;">
-                    <div style="display: flex; align-items: center; gap: 12px; color: var(--text-muted);">
-                        <span style="font-size: 1.5rem;">👤</span>
-                        <div>
-                            <span style="font-weight: 600; display: block;">Independent Task</span>
-                            <span style="font-size: 0.87rem;">Not linked to any project or lead.</span>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-
-                <!-- Task Documents Section -->
-                <div class="panel" style="padding: 2rem; margin-top: 1.5rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                        <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0;">Task Documents</h3>
-                        <button class="btn-action gold" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="document.getElementById('taskDocModal').style.display='flex'">+ Add Document</button>
-                    </div>
-
-                    {% set docs = task.documents.all() %}
-                    {% if docs %}
-                        <div class="table-responsive">
-                            <table class="customer-table" style="width: 100%;">
-                                <thead>
-                                    <tr>
-                                        <th style="padding: 0.8rem; text-align: left; font-size: 0.8rem; width: 60%;">Filename</th>
-                                        <th style="padding: 0.8rem; text-align: left; font-size: 0.8rem; width: 20%;">Uploaded At</th>
-                                        <th style="padding: 0.8rem; text-align: right; font-size: 0.8rem; width: 20%;">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for doc in docs %}
-                                    <tr>
-                                        <td style="padding: 0.8rem; font-size: 0.9rem;">
-                                            <div style="font-weight: 600; word-break: break-all; line-height: 1.4;">{{ doc.original_name }}</div>
-                                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">{{ doc.description or '' }}</div>
-                                        </td>
-                                        <td style="padding: 0.8rem; font-size: 0.85rem; color: var(--text-muted);">{{ doc.uploaded_at.strftime('%d %b, %Y') }}</td>
-                                        <td style="padding: 0.8rem; text-align: right;">
-                                            <div style="display: flex; gap: 12px; justify-content: flex-end; align-items: center;">
-                                                <a href="#" onclick="openPreviewModal('{{ url_for('documents.view_document', doc_id=doc.id, filename=doc.original_name) }}', '{{ url_for('documents.download_document', doc_id=doc.id) }}', '{{ doc.original_name }}'); return false;" style="text-decoration: none; font-size: 1.1rem; color: var(--primary-color);" title="Preview Document">👁️</a>
-                                                <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="text-decoration: none; font-size: 1.1rem;" title="Download Document">📥</a>
-                                                <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');" style="margin: 0;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                                    <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 1.1rem;" title="Delete Document">🗑️</button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <div style="text-align: center; padding: 2rem; background: rgba(13,27,42,0.02); border-radius: 8px; border: 1px dashed rgba(13,27,42,0.2);">
-                            <p style="color: var(--text-muted); margin: 0; font-size: 0.9rem;">No documents attached to this task.</p>
-                        </div>
-                    {% endif %}
-                </div>
-
-                <!-- Task Document Modal -->
-                <div id="taskDocModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
-                    <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-                        <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Upload Task Document</h3>
-                        <form action="{{ url_for('documents.upload_document') }}" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            <input type="hidden" name="entity_type" value="task">
-                            <input type="hidden" name="entity_id" value="{{ task.id }}">
-                            <div style="margin-bottom: 1.2rem;">
-                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Select File</label>
-                                <input type="file" name="file" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
-                            </div>
-                            <div style="margin-bottom: 1.5rem;">
-                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Description (Optional)</label>
-                                <input type="text" name="description" placeholder="Short note..." style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;">
-                            </div>
-                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                                <button type="button" class="btn-action outline" onclick="document.getElementById('taskDocModal').style.display='none'">Cancel</button>
-                                <button type="submit" class="btn-action gold">Upload Now</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
             </div>
 
             <!-- Sidebar -->
             <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-
                 <!-- Assignment -->
-                <div class="panel" style="padding: 2rem;">
+                <div class="panel" style="padding: 2rem; height: 100%;">
                     <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.1rem; margin: 0 0 1.5rem 0; border-bottom: 1px solid rgba(13,27,42,0.08); padding-bottom: 0.8rem;">Responsibility</h3>
 
                     <div class="info-block">
@@ -289,13 +173,62 @@
                         <p class="info-value">{{ task.updated_at.strftime('%d %b %Y, %I:%M %p') if task.updated_at else '—' }}</p>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <!-- Quick Status Update -->
-                <div class="panel" style="padding: 1.5rem 2rem;">
+        <!-- Middle Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem; align-items: stretch;">
+            <!-- Related To / Independent Task -->
+            <div style="height: 100%;">
+                {% if task.project or task.lead_record %}
+                <div class="panel" style="padding: 2rem; border-top: 4px solid var(--accent-gold); height: 100%; margin-bottom: 0;">
+                    <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0 0 1.2rem 0;">Related To</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        {% if task.project %}
+                        <a href="{{ url_for('projects.view_project', project_id=task.project.id) }}" class="relation-card">
+                            <span class="relation-icon">📦</span>
+                            <div>
+                                <span style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;">Project</span>
+                                <span style="font-weight: 700; font-size: 1rem;">{{ task.project.name }}</span>
+                                {% if task.project.status_display %}
+                                <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px;">• {{ task.project.status_display }}</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                        {% endif %}
+                        {% if task.lead_record %}
+                        <a href="{{ url_for('leads.view_lead', lead_id=task.lead_record.id) }}" class="relation-card">
+                            <span class="relation-icon">🎯</span>
+                            <div>
+                                <span style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;">Lead</span>
+                                <span style="font-weight: 700; font-size: 1rem;">{{ task.lead_record.name }}</span>
+                                {% if task.lead_record.company %}
+                                <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px;">• {{ task.lead_record.company }}</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="panel" style="padding: 1.5rem 2rem; border-top: 4px solid #e2e8f0; height: 100%; margin-bottom: 0;">
+                    <div style="display: flex; align-items: center; gap: 12px; color: var(--text-muted); height: 100%;">
+                        <span style="font-size: 1.5rem;">👤</span>
+                        <div>
+                            <span style="font-weight: 600; display: block;">Independent Task</span>
+                            <span style="font-size: 0.87rem;">Not linked to any project or lead.</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Quick Status Update -->
+            <div style="height: 100%;">
+                <div class="panel" style="padding: 1.5rem 2rem; height: 100%; margin-bottom: 0;">
                     <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1rem; margin: 0 0 1rem 0;">Quick Status Update</h3>
-                    <form action="{{ url_for('tasks.edit_task', task_id=task.id) }}" method="POST" id="quickStatusForm">
+                    <form action="{{ url_for('tasks.edit_task', task_id=task.id) }}" method="POST" id="quickStatusForm" style="height: calc(100% - 2rem); display: flex; flex-direction: column; justify-content: center;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <!-- Hidden fields to keep everything else intact -->
                         <input type="hidden" name="title" value="{{ task.title }}">
                         <input type="hidden" name="description" value="{{ task.description or '' }}">
                         <input type="hidden" name="due_date" value="{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '' }}">
@@ -310,12 +243,88 @@
                         </select>
                     </form>
                 </div>
+            </div>
+        </div>
+        <!-- Task Documents Section (Full Width) -->
+        <div class="panel" style="padding: 2rem; margin-top: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0;">Task Documents</h3>
+                <button class="btn-action gold" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="document.getElementById('taskDocModal').style.display='flex'">+ Add Document</button>
+            </div>
 
+            {% set docs = task.documents.all() %}
+            {% if docs %}
+                <div class="table-responsive">
+                    <style>
+                        .task-docs-table td:first-child {
+                            width: auto !important;
+                            padding-left: 1.5rem !important; /* Keep the padding for rounded left edge */
+                        }
+                    </style>
+                    <table class="customer-table task-docs-table" style="width: 100%; table-layout: fixed;">
+                        <thead>
+                            <tr>
+                                <th style="padding: 0.8rem 0.8rem 0.8rem 1.5rem; text-align: left; font-size: 0.8rem; width: 50%;">Filename</th>
+                                <th style="padding: 0.8rem; text-align: left; font-size: 0.8rem; width: 25%;">Uploaded At</th>
+                                <th style="padding: 0.8rem; text-align: right; font-size: 0.8rem; width: 25%;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in docs %}
+                            <tr>
+                                <td style="padding: 0.8rem; font-size: 0.9rem;">
+                                    <div style="font-weight: 600; word-break: break-word; line-height: 1.4;">{{ doc.original_name }}</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">{{ doc.description or '' }}</div>
+                                </td>
+                                <td style="padding: 0.8rem; font-size: 0.85rem; color: var(--text-muted);">{{ doc.uploaded_at.strftime('%d %b, %Y') }}</td>
+                                <td style="padding: 0.8rem; text-align: right;">
+                                    <div style="display: flex; gap: 12px; justify-content: flex-end; align-items: center;">
+                                        <a href="#" onclick="openPreviewModal('{{ url_for('documents.view_document', doc_id=doc.id, filename=doc.original_name) }}', '{{ url_for('documents.download_document', doc_id=doc.id) }}', '{{ doc.original_name }}'); return false;" style="text-decoration: none; font-size: 1.1rem; color: var(--primary-color);" title="Preview Document">👁️</a>
+                                        <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="text-decoration: none; font-size: 1.1rem;" title="Download Document">📥</a>
+                                        <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');" style="margin: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 1.1rem;" title="Delete Document">🗑️</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div style="text-align: center; padding: 2rem; background: rgba(13,27,42,0.02); border-radius: 8px; border: 1px dashed rgba(13,27,42,0.2);">
+                    <p style="color: var(--text-muted); margin: 0; font-size: 0.9rem;">No documents attached to this task.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Task Document Modal -->
+        <div id="taskDocModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+            <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Upload Task Document</h3>
+                <form action="{{ url_for('documents.upload_document') }}" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="entity_type" value="task">
+                    <input type="hidden" name="entity_id" value="{{ task.id }}">
+                    <div style="margin-bottom: 1.2rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Select File</label>
+                        <input type="file" name="file" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
+                    </div>
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Description (Optional)</label>
+                        <input type="text" name="description" placeholder="Short note..." style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;">
+                    </div>
+                    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button type="button" class="btn-action outline" onclick="document.getElementById('taskDocModal').style.display='none'">Cancel</button>
+                        <button type="submit" class="btn-action gold">Upload Now</button>
+                    </div>
+                </form>
             </div>
         </div>
 
-                <!-- Activity Timeline -->
-                <div class="panel" style="padding: 2rem; margin-top: 1.5rem; position: relative;">
+        <!-- Activity Timeline (Full Width) -->
+        <div class="panel" style="padding: 2rem; margin-top: 1.5rem; position: relative;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
                         <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0;">Activity Timeline</h3>
                         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
