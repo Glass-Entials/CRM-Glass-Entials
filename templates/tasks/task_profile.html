@@ -194,25 +194,26 @@
                             <table class="customer-table" style="width: 100%;">
                                 <thead>
                                     <tr>
-                                        <th style="padding: 0.8rem; text-align: left; font-size: 0.8rem;">Filename</th>
-                                        <th style="padding: 0.8rem; text-align: left; font-size: 0.8rem;">Uploaded At</th>
-                                        <th style="padding: 0.8rem; text-align: right; font-size: 0.8rem;">Actions</th>
+                                        <th style="padding: 0.8rem; text-align: left; font-size: 0.8rem; width: 60%;">Filename</th>
+                                        <th style="padding: 0.8rem; text-align: left; font-size: 0.8rem; width: 20%;">Uploaded At</th>
+                                        <th style="padding: 0.8rem; text-align: right; font-size: 0.8rem; width: 20%;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for doc in docs %}
                                     <tr>
                                         <td style="padding: 0.8rem; font-size: 0.9rem;">
-                                            <div style="font-weight: 600;">{{ doc.original_name }}</div>
-                                            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ doc.description or '' }}</div>
+                                            <div style="font-weight: 600; word-break: break-all; line-height: 1.4;">{{ doc.original_name }}</div>
+                                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">{{ doc.description or '' }}</div>
                                         </td>
                                         <td style="padding: 0.8rem; font-size: 0.85rem; color: var(--text-muted);">{{ doc.uploaded_at.strftime('%d %b, %Y') }}</td>
                                         <td style="padding: 0.8rem; text-align: right;">
-                                            <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                                                <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="text-decoration: none;">📥</a>
+                                            <div style="display: flex; gap: 12px; justify-content: flex-end; align-items: center;">
+                                                <a href="#" onclick="openPreviewModal('{{ url_for('documents.view_document', doc_id=doc.id, filename=doc.original_name) }}', '{{ url_for('documents.download_document', doc_id=doc.id) }}', '{{ doc.original_name }}'); return false;" style="text-decoration: none; font-size: 1.1rem; color: var(--primary-color);" title="Preview Document">👁️</a>
+                                                <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="text-decoration: none; font-size: 1.1rem;" title="Download Document">📥</a>
                                                 <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');" style="margin: 0;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                                    <button type="submit" style="background: none; border: none; cursor: pointer;">🗑️</button>
+                                                    <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 1.1rem;" title="Delete Document">🗑️</button>
                                                 </form>
                                             </div>
                                         </td>
@@ -522,6 +523,50 @@
                 </script>
 
     </main>
+    
+    <!-- Document Preview Modal -->
+    <div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;">
+        <div style="width: 80%; height: 80%; background: #fff; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;">
+            <div style="padding: 1rem; background: var(--primary-color); color: white; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 1.2rem;">Document Preview</h3>
+                <button type="button" onclick="closePreviewModal()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </div>
+            <div id="iframeContainer" style="width: 100%; height: 100%; flex-grow: 1;"></div>
+        </div>
+    </div>
+
+    <script>
+        function openPreviewModal(viewUrl, downloadUrl, filename) {
+            let ext = filename.split('.').pop().toLowerCase();
+            let contentHtml = '';
+            let imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+            let officeExts = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+
+            if (imageExts.includes(ext)) {
+                contentHtml = '<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#f5f5f5;">'
+                            + '<img src="' + viewUrl + '" style="max-width:95%;max-height:95%;object-fit:contain;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,0.15);">'
+                            + '</div>';
+            } else if (ext === 'pdf') {
+                contentHtml = '<embed src="' + viewUrl + '" type="application/pdf" style="width:100%;height:100%;border:none;">';
+            } else if (officeExts.includes(ext)) {
+                contentHtml = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:20px;background:#f9f9f9;padding:2rem;text-align:center;">'
+                            + '<div style="font-size:4rem;">📄</div>'
+                            + '<h3 style="margin:0;color:#1a1a2e;font-size:1.2rem;">Cannot Preview in Browser</h3>'
+                            + '<p style="margin:0;color:#666;max-width:350px;">Browser cannot display <strong>.' + ext + '</strong> files directly. Please download the file and open it in Microsoft Office or compatible software.</p>'
+                            + '<a href="' + downloadUrl + '" style="margin-top:10px;padding:12px 28px;background:#c9a227;color:white;text-decoration:none;border-radius:6px;font-weight:600;font-size:1rem;">⬇️ Download File</a>'
+                            + '</div>';
+            } else {
+                contentHtml = '<iframe src="' + viewUrl + '" style="width:100%;height:100%;border:none;"></iframe>';
+            }
+
+            document.getElementById('iframeContainer').innerHTML = contentHtml;
+            document.getElementById('previewModal').style.display = 'flex';
+        }
+        function closePreviewModal() {
+            document.getElementById('previewModal').style.display = 'none';
+            document.getElementById('iframeContainer').innerHTML = '';
+        }
+    </script>
 </body>
 </html>
 
