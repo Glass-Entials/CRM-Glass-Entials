@@ -83,6 +83,16 @@ def upload_document():
     )
 
     if success:
+        if entity_type == "lead":
+            from utils.lead_log import log_lead_event
+            log_lead_event(
+                entity_id, 
+                "document_uploaded", 
+                f"{current_user.employee.name if current_user.employee else 'System'} uploaded a document: {file.filename}", 
+                "📄", 
+                current_user.employee.id if current_user.employee else None, 
+                current_user.organization_id
+            )
         db.session.commit()
         flash("Document uploaded successfully!", "success")
     else:
@@ -194,7 +204,23 @@ def delete_document(doc_id):
         if os.path.exists(file_path):
             os.remove(file_path)
 
+        entity_type = doc.entity_type
+        entity_id = doc.entity_id
+        original_name = doc.original_name
+
         db.session.delete(doc)
+
+        if entity_type == "lead":
+            from utils.lead_log import log_lead_event
+            log_lead_event(
+                entity_id, 
+                "document_deleted", 
+                f"{current_user.employee.name if current_user.employee else 'System'} deleted a document: {original_name}", 
+                "🗑️", 
+                current_user.employee.id if current_user.employee else None, 
+                current_user.organization_id
+            )
+
         db.session.commit()
         flash("Document deleted.", "success")
     except Exception as e:

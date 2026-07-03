@@ -324,7 +324,9 @@
         <!-- Lower Tabs Section -->
         <div class="tabs-container">
             <div class="tab-nav">
-                <button class="tab-btn active" onclick="openTab(event, 'overview')">Timeline & Activity</button>
+                <button class="tab-btn active" onclick="openTab(event, 'overview')">Activity Log</button>
+                <button class="tab-btn" onclick="openTab(event, 'manual-activity')">Activity Timeline</button>
+                <button class="tab-btn" onclick="openTab(event, 'comments-tab')">Comments</button>
                 <button class="tab-btn" onclick="openTab(event, 'followups')">📞 Follow-Ups
                     {% if follow_ups is defined %}
                         {% set pending_count = (follow_ups | selectattr('is_done', 'equalto', False) | list | length) %}
@@ -374,8 +376,9 @@
                     </div>
                     {% endif %}
                 </div>
-                <hr style="border: 0; border-top: 1px solid rgba(13,27,42,0.08); margin: 2rem 0;">
+            </div> <!-- End of Overview tab -->
 
+            <div id="manual-activity" class="tab-content" style="display: none;">
                 <!-- Header row for Manual Activity -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
                     <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.1rem; margin: 0;">Activity Timeline</h3>
@@ -471,7 +474,9 @@
                         </form>
                     </div>
                 </div>
+            </div> <!-- End of manual-activity tab -->
 
+            <div id="comments-tab" class="tab-content" style="display: none;">
                 <!-- ══════════════ COMMENTS SECTION ══════════════ -->
                 <div id="lead-comments-block" style="margin-top: 1.5rem; background: #fff; border: 1px solid rgba(13,27,42,0.08); border-radius: 14px; padding: 2rem;">
                     <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.05rem; margin: 0 0 1.5rem 0; display: flex; align-items: center; gap: 8px;">
@@ -532,7 +537,7 @@
                     {% endif %}
                 </div>
             
-            </div> <!-- End of Overview tab -->
+            </div> <!-- End of comments-tab -->
 
             <!-- ══════════════ FOLLOW-UPS TAB ══════════════ -->
             <div id="followups" class="tab-content">
@@ -1037,6 +1042,7 @@
                         </form>
                     </div>
                 </div>
+            </div> <!-- End of documents tab -->
         </div><!-- /tabs-container -->
     </main>
 
