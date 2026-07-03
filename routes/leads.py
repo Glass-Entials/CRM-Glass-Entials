@@ -72,6 +72,12 @@ def view_lead(lead_id):
     all_employees = Employee.query.filter_by(
         organization_id=current_user.organization_id, is_deleted=False
     ).all()
+    activities = (
+        LeadActivity.query.filter_by(lead_id=lead_id, organization_id=current_user.organization_id)
+        .order_by(LeadActivity.created_at.desc())
+        .all()
+    )
+    is_manager = current_user.role.value in ["admin", "manager"]
     return render_template(
         "leads/lead_profile.html",
         lead=lead,
@@ -80,6 +86,9 @@ def view_lead(lead_id):
         lead_tasks=lead_tasks,
         employees=all_employees,
         TaskStatus=TaskStatus,
+        activities=activities,
+        ActivityType=ActivityType,
+        is_manager=is_manager,
     )
 
 
@@ -450,6 +459,28 @@ def add_activity(lead_id):
         current_app.logger.error(f"Error: {str(e)}", exc_info=True)
         flash("An error occurred. Please try again.", "leadserror")
 
+    return redirect(url_for("leads.view_lead", lead_id=lead_id))
+
+
+@leads_bp.route("/delete-lead-activity/<int:activity_id>", methods=["POST"])
+@login_required
+def delete_lead_activity(activity_id):
+    activity = LeadActivity.query.filter_by(
+        id=activity_id, organization_id=current_user.organization_id
+    ).first_or_404()
+    lead_id = activity.lead_id
+    is_manager = current_user.role.value in ["admin", "manager"]
+    if not is_manager and activity.created_by != current_user.employee.id:
+        flash("You don't have permission to delete this activity.", "leadserror")
+        return redirect(url_for("leads.view_lead", lead_id=lead_id))
+    try:
+        db.session.delete(activity)
+        db.session.commit()
+        flash("Activity deleted.", "leadssuccess")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error: {str(e)}", exc_info=True)
+        flash("An error occurred.", "leadserror")
     return redirect(url_for("leads.view_lead", lead_id=lead_id))
 
 

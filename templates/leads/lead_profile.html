@@ -342,10 +342,100 @@
             </div>
 
             <div id="overview" class="tab-content active">
-                <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
-                    <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.2;">🕒</div>
-                    <h3>Activity Timeline</h3>
-                    <p>Track all follow-ups, calls, and emails here. (Activity Feed coming soon)</p>
+                <!-- Header row -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
+                    <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.1rem; margin: 0;">Activity Timeline</h3>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                        <form method="GET" action="{{ url_for('leads.view_lead', lead_id=lead.id) }}" style="margin: 0; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                            <input type="text" name="act_q" value="{{ request.args.get('act_q', '') }}" placeholder="Search activities..." style="padding: 0.45rem 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; max-width: 180px;">
+                            <select name="act_filter" onchange="this.form.submit()" style="padding: 0.45rem 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem;">
+                                <option value="all" {% if request.args.get('act_filter','all') == 'all' %}selected{% endif %}>All Types</option>
+                                {% for t in ActivityType %}
+                                    <option value="{{ t.value }}" {% if request.args.get('act_filter') == t.value %}selected{% endif %}>{{ t.value }}</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                        <button class="btn-action gold" style="padding: 0.45rem 1rem; font-size: 0.85rem;" onclick="document.getElementById('leadActivityModal').style.display='flex'">+ Add Activity</button>
+                    </div>
+                </div>
+
+                <!-- Timeline entries -->
+                {% set act_q = request.args.get('act_q', '').lower() %}
+                {% set act_filter = request.args.get('act_filter', 'all') %}
+                {% set filtered = activities | selectattr('description', 'defined') | list %}
+                {% if activities %}
+                    {% set ns = namespace(shown=0) %}
+                    <div style="position: relative; padding-left: 20px; border-left: 2px solid rgba(212,175,55,0.3);">
+                        {% for act in activities %}
+                            {% if (act_filter == 'all' or act.activity_type.value == act_filter) and (not act_q or act_q in act.description|lower or act_q in act.activity_type.value|lower) %}
+                            {% set ns.shown = ns.shown + 1 %}
+                            <div style="position: relative; margin-bottom: 1.8rem;">
+                                <!-- Timeline dot -->
+                                <div style="position: absolute; left: -26.5px; top: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--accent-gold); border: 2px solid white; box-shadow: 0 0 0 2px rgba(212,175,55,0.25);"></div>
+                                <div style="background: rgba(13,27,42,0.015); border: 1px solid rgba(13,27,42,0.06); border-radius: 8px; padding: 1.2rem;">
+                                    <!-- Header -->
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                                        <div>
+                                            <span style="font-weight: 700; font-size: 0.9rem; color: var(--primary-color);">
+                                                {% if act.creator %}{{ act.creator.name }}{% else %}Unknown{% endif %}
+                                            </span>
+                                            <span style="margin-left: 8px; background: rgba(212,175,55,0.15); color: var(--accent-gold); padding: 2px 8px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;">{{ act.activity_type.value }}</span>
+                                            <span style="margin-left: 8px; font-size: 0.78rem; color: var(--text-muted);">{{ act.created_at.strftime('%d %b %Y, %I:%M %p') }}</span>
+                                        </div>
+                                        {% if is_manager or (current_user.employee and act.created_by == current_user.employee.id) %}
+                                        <form action="{{ url_for('leads.delete_lead_activity', activity_id=act.id) }}" method="POST" onsubmit="return confirm('Delete this activity?');" style="margin: 0;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" style="background: none; border: none; cursor: pointer; color: #dc3545; font-size: 0.95rem; padding: 0;" title="Delete">🗑️</button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                    <!-- Description -->
+                                    <p style="margin: 0; font-size: 0.93rem; line-height: 1.6; color: var(--text-color); white-space: pre-wrap;">{{ act.description }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                        {% if ns.shown == 0 %}
+                        <div style="text-align: center; padding: 3rem 2rem; background: rgba(13,27,42,0.02); border-radius: 8px; border: 1px dashed rgba(13,27,42,0.15); margin-left: -20px;">
+                            <div style="font-size: 2rem; margin-bottom: 10px;">🔍</div>
+                            <h4 style="margin: 0 0 5px 0; color: var(--primary-color);">No matching activities</h4>
+                            <p style="color: var(--text-muted); margin: 0; font-size: 0.9rem;">Try changing filters or <a href="{{ url_for('leads.view_lead', lead_id=lead.id) }}" style="color: var(--accent-gold);">clear them</a>.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div style="text-align: center; padding: 3rem 2rem; background: rgba(13,27,42,0.02); border-radius: 8px; border: 1px dashed rgba(13,27,42,0.15);">
+                        <div style="font-size: 2.5rem; margin-bottom: 10px;">📝</div>
+                        <h4 style="margin: 0 0 5px 0; color: var(--primary-color);">No Activity Yet</h4>
+                        <p style="color: var(--text-muted); margin: 0; font-size: 0.9rem;">Start logging calls, meetings, or notes for this lead.</p>
+                        <button class="btn-action gold" style="margin-top: 1rem; padding: 0.5rem 1.2rem;" onclick="document.getElementById('leadActivityModal').style.display='flex'">+ Log First Activity</button>
+                    </div>
+                {% endif %}
+
+                <!-- Add Activity Modal -->
+                <div id="leadActivityModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+                    <div style="background: white; padding: 2rem; border-radius: 12px; width: 480px; max-width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                        <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Log Activity</h3>
+                        <form action="{{ url_for('leads.add_activity', lead_id=lead.id) }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <div style="margin-bottom: 1.2rem;">
+                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Activity Type <span style="color: red;">*</span></label>
+                                <select name="activity_type" required style="width: 100%; padding: 0.7rem 1rem; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem;">
+                                    {% for t in ActivityType %}
+                                        <option value="{{ t.value }}">{{ t.value }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div style="margin-bottom: 1.5rem;">
+                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Message / Notes <span style="color: red;">*</span></label>
+                                <textarea name="description" required rows="4" placeholder="What happened? Who did you speak with?" style="width: 100%; padding: 0.7rem 1rem; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; resize: vertical;"></textarea>
+                            </div>
+                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                                <button type="button" class="btn-action outline" onclick="document.getElementById('leadActivityModal').style.display='none'">Cancel</button>
+                                <button type="submit" class="btn-action gold">Log Activity</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
 
