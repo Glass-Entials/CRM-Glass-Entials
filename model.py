@@ -485,6 +485,46 @@ class LeadActivity(db.Model):
         return f"<LeadActivity {self.activity_type.name} for Lead {self.lead_id}>"
 
 
+class LeadComment(db.Model):
+    """Comments on a Lead — visible to the team."""
+
+    __tablename__ = "lead_comment"
+
+    id = db.Column(db.Integer, primary_key=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey("lead.id"), nullable=False, index=True)
+    comment = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=False, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"), nullable=True, index=True)
+
+    lead = db.relationship("Lead", backref=db.backref("comments", cascade="all, delete-orphan", order_by="LeadComment.created_at.desc()"))
+    author = db.relationship("Employee", foreign_keys=[created_by])
+
+    def __repr__(self):
+        return f"<LeadComment {self.id} on Lead {self.lead_id}>"
+
+
+class LeadSystemLog(db.Model):
+    """Automatic system-generated activity log for a lead."""
+
+    __tablename__ = "lead_system_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey("lead.id"), nullable=False, index=True)
+    event_type = db.Column(db.String(80), nullable=False)  # e.g. 'lead_created', 'status_changed'
+    message = db.Column(db.Text, nullable=False)
+    icon = db.Column(db.String(10), default="🔔")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    actor_id = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"), nullable=True, index=True)
+
+    lead = db.relationship("Lead", backref=db.backref("system_logs", cascade="all, delete-orphan", order_by="LeadSystemLog.created_at.desc()"))
+    actor = db.relationship("Employee", foreign_keys=[actor_id])
+
+    def __repr__(self):
+        return f"<LeadSystemLog {self.event_type} on Lead {self.lead_id}>"
+
+
 class LeadFollowUp(db.Model):
     """Tracks follow-up interactions for a specific lead."""
 

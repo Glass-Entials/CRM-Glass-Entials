@@ -342,7 +342,41 @@
             </div>
 
             <div id="overview" class="tab-content active">
-                <!-- Header row -->
+                <!-- ══════════════ SYSTEM LOG BLOCK (1st Position) ══════════════ -->
+                <div style="margin-bottom: 3rem;">
+                    <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.1rem; margin: 0 0 1.2rem 0;">🕑 Automatic Activity Log</h3>
+                    
+                    {% if system_logs %}
+                    <div style="display: flex; flex-direction: column; gap: 0; max-width: 100%;">
+                        {% for log in system_logs %}
+                        <div style="display: flex; gap: 15px; position: relative;">
+                            <!-- Dot + line -->
+                            <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0; margin-top: 3px;">
+                                <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(212,175,55,0.12); border: 1.5px solid rgba(212,175,55,0.4); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0;">{{ log.icon }}</div>
+                                {% if not loop.last %}
+                                <div style="width: 2px; flex: 1; min-height: 24px; background: linear-gradient(to bottom, rgba(212,175,55,0.3), rgba(212,175,55,0.05)); margin: 4px 0;"></div>
+                                {% endif %}
+                            </div>
+                            <!-- Content -->
+                            <div style="padding-bottom: 1.5rem; flex: 1; min-width: 0;">
+                                <p style="margin: 0; font-size: 0.95rem; color: var(--primary-color); line-height: 1.5; word-break: break-word;">{{ log.message }}</p>
+                                <span style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 4px;">
+                                    {{ log.created_at.strftime('%d %b %Y, %I:%M %p') }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div style="text-align: center; padding: 4rem 1rem; color: var(--text-muted); background: #f8fafc; border-radius: 12px; border: 2px dashed rgba(13,27,42,0.1);">
+                        <div style="font-size: 3rem; margin-bottom: 12px; opacity: 0.3;">🕑</div>
+                        <p style="font-size: 1rem; margin: 0;">No activity recorded yet.<br>Automatic actions will appear here.</p>
+                    </div>
+                    {% endif %}
+                </div>
+                <hr style="border: 0; border-top: 1px solid rgba(13,27,42,0.08); margin: 2rem 0;">
+
+                <!-- Header row for Manual Activity -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
                     <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.1rem; margin: 0;">Activity Timeline</h3>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
@@ -437,7 +471,68 @@
                         </form>
                     </div>
                 </div>
-            </div>
+
+                <!-- ══════════════ COMMENTS SECTION ══════════════ -->
+                <div id="lead-comments-block" style="margin-top: 1.5rem; background: #fff; border: 1px solid rgba(13,27,42,0.08); border-radius: 14px; padding: 2rem;">
+                    <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.05rem; margin: 0 0 1.5rem 0; display: flex; align-items: center; gap: 8px;">
+                        💬 Comments
+                        <span style="background: rgba(212,175,55,0.15); color: var(--accent-gold); border-radius: 20px; padding: 2px 10px; font-size: 0.78rem; font-weight: 700;">{{ comments | length }}</span>
+                    </h3>
+
+                    <!-- Input row -->
+                    <form action="{{ url_for('leads.add_lead_comment', lead_id=lead.id) }}" method="POST" style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 2rem;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--accent-gold); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95rem; flex-shrink: 0;">
+                            {{ current_user.employee.name[0] | upper if current_user.employee else '?' }}
+                        </div>
+                        <div style="flex: 1; display: flex; gap: 8px; align-items: flex-start;">
+                            <textarea name="comment" required rows="2" placeholder="Write a comment…"
+                                onkeydown="if(event.ctrlKey && event.key==='Enter'){ this.form.submit(); }"
+                                style="flex: 1; padding: 0.65rem 1rem; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.93rem; resize: none; font-family: inherit; transition: border 0.2s; outline: none;"
+                                onfocus="this.style.borderColor='var(--accent-gold)'"
+                                onblur="this.style.borderColor='#e2e8f0'"></textarea>
+                            <button type="submit" class="btn-action gold" style="padding: 0.65rem 1.2rem; font-size: 0.9rem; border-radius: 10px; white-space: nowrap;">Publish</button>
+                        </div>
+                    </form>
+
+                    <!-- Comment list -->
+                    {% if comments %}
+                        <div style="display: flex; flex-direction: column; gap: 1.2rem;">
+                            {% for c in comments %}
+                            <div style="display: flex; align-items: flex-start; gap: 12px;">
+                                <!-- Avatar -->
+                                {% if c.author %}
+                                <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(13,27,42,0.08); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; color: var(--primary-color); flex-shrink: 0;">
+                                    {{ c.author.name[0] | upper }}
+                                </div>
+                                {% else %}
+                                <div style="width: 38px; height: 38px; border-radius: 50%; background: #eee; flex-shrink: 0;"></div>
+                                {% endif %}
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-weight: 700; font-size: 0.9rem; color: var(--primary-color);">{{ c.author.name if c.author else 'Unknown' }}</span>
+                                        <span style="font-size: 0.78rem; color: var(--text-muted);">• {{ c.created_at.strftime('%d %b %Y, %I:%M %p') }}</span>
+                                        {% if is_manager or (current_user.employee and c.created_by == current_user.employee.id) %}
+                                        <form action="{{ url_for('leads.delete_lead_comment', comment_id=c.id) }}" method="POST" onsubmit="return confirm('Delete comment?');" style="margin: 0; margin-left: auto;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" style="background: none; border: none; cursor: pointer; color: #dc3545; font-size: 0.85rem; padding: 0;" title="Delete">🗑️</button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                    <div style="background: #f8fafc; border-radius: 10px; padding: 0.75rem 1rem; font-size: 0.92rem; line-height: 1.6; color: var(--text-color); white-space: pre-wrap; border: 1px solid rgba(13,27,42,0.05);">{{ c.comment }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div style="text-align: center; padding: 2rem; color: var(--text-muted); background: rgba(13,27,42,0.02); border-radius: 8px; border: 1px dashed rgba(13,27,42,0.12);">
+                            <div style="font-size: 2rem; margin-bottom: 8px;">💬</div>
+                            <p style="margin: 0; font-size: 0.9rem;">No comments yet. Be the first to add one!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            
+            </div> <!-- End of Overview tab -->
 
             <!-- ══════════════ FOLLOW-UPS TAB ══════════════ -->
             <div id="followups" class="tab-content">
@@ -942,8 +1037,7 @@
                         </form>
                     </div>
                 </div>
-            </div>
-        </div>
+        </div><!-- /tabs-container -->
     </main>
 
     <script>
@@ -981,8 +1075,17 @@
         // Auto-open tab based on URL hash or ?tab= param
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
-            const tab = urlParams.get('tab') || (window.location.hash ? window.location.hash.substring(1) : null);
-            if (tab && document.getElementById(tab)) {
+            let tab = urlParams.get('tab') || (window.location.hash ? window.location.hash.substring(1) : null);
+            
+            // Handle redirects to comments
+            if (tab === 'lead-comments-block') {
+                tab = 'overview';
+                setTimeout(() => {
+                    document.getElementById('lead-comments-block').scrollIntoView({behavior: 'smooth'});
+                }, 100);
+            }
+
+            if (tab && document.getElementById(tab) && document.getElementById(tab).classList.contains('tab-content')) {
                 openTab(null, tab);
                 if (tab === 'documents' && urlParams.get('upload') === 'true') {
                     document.getElementById('docUploadModal').style.display = 'flex';

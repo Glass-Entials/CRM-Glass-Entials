@@ -19,6 +19,8 @@ from model import (
     LeadSource,
     LeadStatus,
     LeadActivity,
+    LeadComment,
+    LeadSystemLog,
     ActivityType,
     Customer,
     CustomerStatus,
@@ -30,6 +32,7 @@ from model import (
 )
 from utils.exports import export_to_csv, export_to_excel, export_to_pdf
 from utils.activity import log_activity
+from utils.lead_log import log_lead_event
 from utils.notifications import create_notification
 from utils.security import tenant_record_id
 import pandas as pd
@@ -78,6 +81,17 @@ def view_lead(lead_id):
         .all()
     )
     is_manager = current_user.role.value in ["admin", "manager"]
+    comments = (
+        LeadComment.query.filter_by(lead_id=lead_id, organization_id=current_user.organization_id)
+        .order_by(LeadComment.created_at.desc())
+        .all()
+    )
+    system_logs = (
+        LeadSystemLog.query.filter_by(lead_id=lead_id, organization_id=current_user.organization_id)
+        .order_by(LeadSystemLog.created_at.desc())
+        .limit(100)
+        .all()
+    )
     return render_template(
         "leads/lead_profile.html",
         lead=lead,
@@ -89,7 +103,53 @@ def view_lead(lead_id):
         activities=activities,
         ActivityType=ActivityType,
         is_manager=is_manager,
+        comments=comments,
+        system_logs=system_logs,
     )
+
+
+@leads_bp.route("/add-lead-comment/<int:lead_id>", methods=["POST"])
+@login_required
+def add_lead_comment(lead_id):
+    lead = Lead.query.filter_by(id=lead_id, organization_id=current_user.organization_id).first_or_404()
+    text = request.form.get("comment", "").strip()
+    if not text:
+        flash("Comment cannot be empty.", "leadserror")
+        return redirect(url_for("leads.view_lead", lead_id=lead_id))
+    try:
+        c = LeadComment(
+            lead_id=lead.id,
+            comment=text,
+            created_by=current_user.employee.id,
+            organization_id=current_user.organization_id,
+        )
+        db.session.add(c)
+        snippet = (text[:60] + "…") if len(text) > 60 else text
+        log_lead_event(lead.id, "comment_added", f"{current_user.employee.name} added a comment: \"{snippet}\"", "💬", current_user.employee.id, current_user.organization_id)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error adding comment: {str(e)}", exc_info=True)
+        flash("Could not post comment.", "leadserror")
+    return redirect(url_for("leads.view_lead", lead_id=lead_id) + "#lead-comments-block")
+
+
+@leads_bp.route("/delete-lead-comment/<int:comment_id>", methods=["POST"])
+@login_required
+def delete_lead_comment(comment_id):
+    c = LeadComment.query.filter_by(id=comment_id, organization_id=current_user.organization_id).first_or_404()
+    lead_id = c.lead_id
+    is_manager = current_user.role.value in ["admin", "manager"]
+    if not is_manager and c.created_by != current_user.employee.id:
+        flash("You cannot delete this comment.", "leadserror")
+        return redirect(url_for("leads.view_lead", lead_id=lead_id))
+    try:
+        db.session.delete(c)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting comment: {str(e)}", exc_info=True)
+    return redirect(url_for("leads.view_lead", lead_id=lead_id) + "#lead-comments-block")
 
 
 @leads_bp.route("/add-lead", methods=["GET", "POST"])
@@ -159,6 +219,7 @@ def add_lead():
 
             # Notification for assignment
             if assigned_to_id:
+                assignee = Employee.query.get(assigned_to_id)
                 create_notification(
                     recipient_id=assigned_to_id,
                     title="New Lead Assigned",
@@ -167,7 +228,10 @@ def add_lead():
                     sender_id=current_user.employee.id,
                     organization_id=current_user.organization_id,
                 )
+                assignee_name = assignee.name if assignee else "someone"
+                log_lead_event(new_lead.id, "lead_assigned", f"Lead assigned to {assignee_name}.", "👤", current_user.employee.id, current_user.organization_id)
 
+            log_lead_event(new_lead.id, "lead_created", f"{current_user.employee.name} created the lead.", "🌱", current_user.employee.id, current_user.organization_id)
             log_activity(
                 "lead_added",
                 "lead",
@@ -206,8 +270,10 @@ def edit_lead(lead_id):
         status_map = {e.value: e for e in LeadStatus}
 
         try:
-            # Check if assignment changed
+            # Check if assignment/status changed before update
             old_assignee = lead.assigned_to
+            old_status = lead.status
+
             lead.assigned_to = tenant_record_id(
                 Employee,
                 assigned_to_id,
@@ -216,7 +282,8 @@ def edit_lead(lead_id):
             )
 
             lead.source = source_map.get(request.form.get("source"), LeadSource.OTHER)
-            lead.status = status_map.get(request.form.get("status"), LeadStatus.NEW)
+            new_status = status_map.get(request.form.get("status"), LeadStatus.NEW)
+            lead.status = new_status
             lead.company = request.form.get("company", "").strip()
             lead.address = request.form.get("address", "").strip()
             lead.city = request.form.get("city", "").strip()
@@ -233,6 +300,7 @@ def edit_lead(lead_id):
             lead.updated_by = current_user.employee.id
 
             if lead.assigned_to and lead.assigned_to != old_assignee:
+                assignee = Employee.query.get(lead.assigned_to)
                 create_notification(
                     recipient_id=lead.assigned_to,
                     title="Lead Assigned to You",
@@ -241,6 +309,11 @@ def edit_lead(lead_id):
                     sender_id=current_user.employee.id,
                     organization_id=current_user.organization_id,
                 )
+                aname = assignee.name if assignee else "someone"
+                log_lead_event(lead.id, "lead_assigned", f"Lead reassigned to {aname} by {current_user.employee.name}.", "👤", current_user.employee.id, current_user.organization_id)
+
+            if old_status and new_status and old_status != new_status:
+                log_lead_event(lead.id, "status_changed", f"Status changed from {old_status.value} to {new_status.value} by {current_user.employee.name}.", "🔄", current_user.employee.id, current_user.organization_id)
 
             log_activity(
                 "lead_updated",
@@ -419,6 +492,7 @@ def convert_lead(lead_id):
             new_c.id,
             description=f"Converted Lead to Customer: {new_c.name}",
         )
+        log_lead_event(lead.id, "lead_converted", f"{current_user.employee.name} converted this lead to a customer.", "🏆", current_user.employee.id, current_user.organization_id)
         db.session.commit()
         flash(f'Lead "{lead.name}" converted to customer!', "leadssuccess")
         return redirect(url_for("customers.customers_list"))
@@ -452,6 +526,7 @@ def add_activity(lead_id):
             organization_id=current_user.organization_id,
         )
         db.session.add(new_act)
+        log_lead_event(lead.id, "activity_logged", f"{current_user.employee.name} logged a {activity_type}: \"{description[:60]}\"", "📝", current_user.employee.id, current_user.organization_id)
         db.session.commit()
         flash("Activity logged!", "leadssuccess")
     except Exception as e:
@@ -682,6 +757,7 @@ def add_follow_up(lead_id):
                 organization_id=current_user.organization_id,
             )
 
+        log_lead_event(lead.id, "follow_up_scheduled", f"{current_user.employee.name} scheduled a {method_val} follow-up.", "📅", current_user.employee.id, current_user.organization_id)
         log_activity(
             "follow_up_added",
             "lead",
@@ -717,6 +793,7 @@ def mark_follow_up_done(fu_id):
         fu.notes = notes
     fu.updated_at = datetime.utcnow()
 
+    log_lead_event(fu.lead_id, "follow_up_done", f"Follow-up ({fu.method.value if fu.method else ''}) completed by {current_user.employee.name}.", "📞", current_user.employee.id, current_user.organization_id)
     db.session.commit()
     flash("Follow-up marked as done.", "leadssuccess")
     return redirect(url_for("leads.view_lead", lead_id=fu.lead_id))
@@ -772,6 +849,10 @@ def add_lead_task(lead_id):
             organization_id=current_user.organization_id,
         )
         db.session.add(task)
+        db.session.flush()
+        assignee = Employee.query.get(assigned_to_id) if assigned_to_id else None
+        assignee_txt = f" assigned to {assignee.name}" if assignee else ""
+        log_lead_event(lead_id, "task_created", f"📋 Task \"{title}\"{assignee_txt} created by {current_user.employee.name}.", "📋", current_user.employee.id, current_user.organization_id)
         db.session.commit()
         flash("Task created successfully!", "leadssuccess")
     except Exception as e:
@@ -791,6 +872,7 @@ def complete_lead_task(task_id):
     lead_id = task.lead_id
     task.status = TaskStatus.COMPLETED
     task.updated_at = datetime.utcnow()
+    log_lead_event(lead_id, "task_completed", f"Task \"{task.title}\" marked as completed by {current_user.employee.name}.", "✅", current_user.employee.id, current_user.organization_id)
     db.session.commit()
     flash("Task marked as completed.", "leadssuccess")
     return redirect(url_for("leads.view_lead", lead_id=lead_id) + "#tasks")

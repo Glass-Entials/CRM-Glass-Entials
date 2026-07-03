@@ -40,6 +40,8 @@ print("SECRET:", os.getenv("SECRET_KEY"))
 
 app = Flask(__name__, template_folder="templates",static_folder="static")
 app.config.from_object(Config)
+app.config["TEMPLATES_AUTO_RELOAD"] = True  # Always reload templates on change
+
 
 # Add ProxyFix for AWS ALB / Nginx
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
