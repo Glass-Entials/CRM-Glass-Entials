@@ -25,10 +25,11 @@
     <!-- Top Navbar -->
     {% include 'includes/navbar.html' %}
 
-    <!-- Flash Messages -->
+    <!-- Flash Messages: generic categories only (success, error, info) -->
+    <!-- Module-specific categories (tasksuccess, customererror, etc.) are handled by their own templates -->
     <div class="flash-messages-container"
         style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
-        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% with messages = get_flashed_messages(with_categories=true, category_filter=["success", "error", "info"]) %}
         {% if messages %}
         {% for category, message in messages %}
         <div class="flash-message {{ category }} {% if category == 'success' %}bg-success{% elif category == 'error' %}bg-error{% else %}bg-info{% endif %}"
@@ -39,6 +40,7 @@
         {% endif %}
         {% endwith %}
     </div>
+
 
     <style>
         @keyframes slideIn {

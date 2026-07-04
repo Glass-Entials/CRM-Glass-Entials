@@ -12,12 +12,24 @@ tasks_bp = Blueprint("tasks", __name__)
 @tasks_bp.route("/tasks")
 @login_required
 def tasks_list():
+    from datetime import date
     org_id = current_user.organization_id
-    all_tasks = (
-        Task.query.filter_by(organization_id=org_id)
-        .order_by(Task.created_at.desc())
-        .all()
-    )
+    
+    query = Task.query.filter_by(organization_id=org_id)
+    
+    assigned_to = request.args.get("assigned_to")
+    if assigned_to:
+        query = query.filter_by(assigned_to=int(assigned_to))
+        
+    completed_today = request.args.get("completed_today")
+    if completed_today:
+        query = query.filter(Task.status == TaskStatus.COMPLETED, db.func.date(Task.updated_at) == date.today())
+        
+    overdue = request.args.get("overdue")
+    if overdue:
+        query = query.filter(Task.status.notin_([TaskStatus.COMPLETED, TaskStatus.CANCELLED]), db.func.date(Task.due_date) < date.today())
+    
+    all_tasks = query.order_by(Task.created_at.desc()).all()
     all_employees = Employee.query.filter_by(
         organization_id=org_id, is_deleted=False
     ).all()

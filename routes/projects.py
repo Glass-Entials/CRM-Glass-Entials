@@ -20,11 +20,13 @@ projects_bp = Blueprint("projects", __name__)
 @login_required
 def projects_list():
     org_id = current_user.organization_id
-    all_projects = (
-        Project.query.filter_by(organization_id=org_id, is_deleted=False)
-        .order_by(Project.created_at.desc())
-        .all()
-    )
+    query = Project.query.filter_by(organization_id=org_id, is_deleted=False)
+    
+    assigned_to = request.args.get("assigned_to")
+    if assigned_to:
+        query = query.filter(Project.assigned_to == int(assigned_to))
+        
+    all_projects = query.order_by(Project.created_at.desc()).all()
     all_employees = Employee.query.filter_by(
         organization_id=org_id, is_deleted=False
     ).all()

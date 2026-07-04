@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -28,6 +28,18 @@
 
     <!-- Top Navbar -->
     {% include 'includes/navbar.html' %}
+
+    <!-- Flash Messages -->
+    <div id="flash-toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
+        {% with msgs = get_flashed_messages(with_categories=true, category_filter=['projectsuccess','projecterror']) %}
+        {% for cat, msg in msgs %}
+        <div class="flash-toast" style="padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; font-size: 14px; color: white; animation: slideInRight 0.3s ease-out; background: {% if cat == 'projectsuccess' %}#10b981{% else %}#ef4444{% endif %};">
+            {% if cat == 'projectsuccess' %}✓{% else %}⚠{% endif %} {{ msg }}
+        </div>
+        {% endfor %}
+        {% endwith %}
+    </div>
+    <style>@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }</style>
 
     <main class="container" style="max-width: 1000px; padding-top: 3rem;">
         

@@ -44,11 +44,13 @@ leads_bp = Blueprint("leads", __name__)
 @login_required
 def leads_list():
     org_id = current_user.organization_id
-    all_leads = (
-        Lead.query.filter_by(organization_id=org_id, is_deleted=False)
-        .order_by(Lead.created_at.desc())
-        .all()
-    )
+    query = Lead.query.filter_by(organization_id=org_id, is_deleted=False)
+    
+    assigned_to = request.args.get("assigned_to")
+    if assigned_to:
+        query = query.filter_by(assigned_to=int(assigned_to))
+        
+    all_leads = query.order_by(Lead.created_at.desc()).all()
     all_employees = Employee.query.filter_by(
         organization_id=org_id, is_deleted=False
     ).all()
@@ -653,18 +655,24 @@ def all_follow_ups():
     org_id = current_user.organization_id
     today = datetime.utcnow()
 
-    # Pending / overdue follow-ups (not done, date in past or today)
-    overdue = (
-        LeadFollowUp.query.join(Lead)
-        .filter(
-            LeadFollowUp.organization_id == org_id,
-            LeadFollowUp.is_done == False,
-            LeadFollowUp.follow_up_date <= today,
-            Lead.is_deleted == False,
-        )
-        .order_by(LeadFollowUp.follow_up_date.asc())
-        .all()
+    assigned_to = request.args.get("assigned_to")
+    due_today = request.args.get("due") == "today"
+
+    overdue_query = LeadFollowUp.query.join(Lead).filter(
+        LeadFollowUp.organization_id == org_id,
+        LeadFollowUp.is_done == False,
+        LeadFollowUp.follow_up_date <= today,
+        Lead.is_deleted == False,
     )
+    
+    if assigned_to:
+        overdue_query = overdue_query.filter(Lead.assigned_to == int(assigned_to))
+        
+    if due_today:
+        from sqlalchemy import cast, Date
+        overdue_query = overdue_query.filter(db.func.date(LeadFollowUp.follow_up_date) == today.date())
+        
+    overdue = overdue_query.order_by(LeadFollowUp.follow_up_date.asc()).all()
 
     # Upcoming follow-ups (next 30 days)
     from datetime import timedelta

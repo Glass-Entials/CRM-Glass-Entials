@@ -291,6 +291,78 @@
         </div>
     </div>
 
+    <!-- My Workspace Section -->
+    {% if current_user.employee %}
+    <div style="margin-top: 2rem; margin-bottom: 2rem;">
+        <h2 style="font-size: 1.5rem; color: var(--primary-color); margin-bottom: 1rem; font-family: var(--font-heading);">My Workspace</h2>
+        <div class="stats-grid">
+            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id) }}'">
+                <div class="stat-info">
+                    <h3 style="margin-bottom: 2px;">{{ my_workspace.tasks_assigned }}</h3>
+                    <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Tasks Assigned</p>
+                </div>
+                <div class="stat-icon" style="background: #e0e7ff; color: #4f46e5;">📋</div>
+            </div>
+            
+            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id, status='Pending') }}'">
+                <div class="stat-info">
+                    <h3 style="margin-bottom: 2px;">{{ my_workspace.pending_tasks }}</h3>
+                    <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Pending Tasks</p>
+                </div>
+                <div class="stat-icon" style="background: #fef3c7; color: #d97706;">⏳</div>
+            </div>
+
+            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id, status='In Progress') }}'">
+                <div class="stat-info">
+                    <h3 style="margin-bottom: 2px;">{{ my_workspace.in_progress_tasks }}</h3>
+                    <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">In Progress Tasks</p>
+                </div>
+                <div class="stat-icon" style="background: #e0f2fe; color: #0284c7;">🚧</div>
+            </div>
+
+            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id, completed_today='true') }}'">
+                <div class="stat-info">
+                    <h3 style="margin-bottom: 2px;">{{ my_workspace.completed_today }}</h3>
+                    <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Completed Today</p>
+                </div>
+                <div class="stat-icon" style="background: #dcfce7; color: #16a34a;">✅</div>
+            </div>
+
+            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id, overdue='true') }}'">
+                <div class="stat-info">
+                    <h3 style="margin-bottom: 2px;">{{ my_workspace.overdue_tasks }}</h3>
+                    <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Overdue Tasks</p>
+                </div>
+                <div class="stat-icon" style="background: #fee2e2; color: #dc2626;">🔴</div>
+            </div>
+
+            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('leads.all_follow_ups', assigned_to=current_user.employee.id, due='today') }}'">
+                <div class="stat-info">
+                    <h3 style="margin-bottom: 2px;">{{ my_workspace.todays_followups }}</h3>
+                    <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Today's Follow-ups</p>
+                </div>
+                <div class="stat-icon" style="background: #f3e8ff; color: #9333ea;">📞</div>
+            </div>
+
+            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('leads.leads_list', assigned_to=current_user.employee.id) }}'">
+                <div class="stat-info">
+                    <h3 style="margin-bottom: 2px;">{{ my_workspace.leads_assigned }}</h3>
+                    <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Leads Assigned</p>
+                </div>
+                <div class="stat-icon" style="background: #ffedd5; color: #ea580c;">🎯</div>
+            </div>
+
+            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('projects.projects_list', assigned_to=current_user.employee.id) }}'">
+                <div class="stat-info">
+                    <h3 style="margin-bottom: 2px;">{{ my_workspace.projects_assigned }}</h3>
+                    <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Projects Assigned</p>
+                </div>
+                <div class="stat-icon" style="background: #fce7f3; color: #db2777;">📂</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Main Content Area -->
     <div class="dash-content">
         <!-- Table Panel -->

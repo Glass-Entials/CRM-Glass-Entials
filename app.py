@@ -357,6 +357,51 @@ def home_page():
         )
 
     todays_hours = sum(log.hours_spent for log in todays_work_logs if log.hours_spent)
+
+    # --- My Workspace Metrics ---
+    my_workspace = {
+        "tasks_assigned": 0,
+        "pending_tasks": 0,
+        "in_progress_tasks": 0,
+        "completed_today": 0,
+        "overdue_tasks": 0,
+        "todays_followups": 0,
+        "leads_assigned": 0,
+        "projects_assigned": 0,
+    }
+
+    if emp_id:
+        from model import LeadFollowUp
+        my_workspace["tasks_assigned"] = Task.query.filter_by(organization_id=org_id, assigned_to=emp_id).count()
+        my_workspace["pending_tasks"] = Task.query.filter_by(organization_id=org_id, assigned_to=emp_id, status=TaskStatus.PENDING).count()
+        my_workspace["in_progress_tasks"] = Task.query.filter_by(organization_id=org_id, assigned_to=emp_id, status=TaskStatus.IN_PROGRESS).count()
+        
+        my_workspace["completed_today"] = Task.query.filter(
+            Task.organization_id == org_id,
+            Task.assigned_to == emp_id,
+            Task.status == TaskStatus.COMPLETED,
+            db.func.date(Task.updated_at) == today
+        ).count()
+        
+        my_workspace["overdue_tasks"] = Task.query.filter(
+            Task.organization_id == org_id,
+            Task.assigned_to == emp_id,
+            Task.status.notin_([TaskStatus.COMPLETED, TaskStatus.CANCELLED]),
+            db.func.date(Task.due_date) < today
+        ).count()
+        
+        my_workspace["todays_followups"] = LeadFollowUp.query.join(Lead).filter(
+            LeadFollowUp.organization_id == org_id,
+            LeadFollowUp.is_done == False,
+            db.func.date(LeadFollowUp.follow_up_date) <= today,
+            Lead.is_deleted == False,
+            Lead.assigned_to == emp_id
+        ).count()
+        
+        my_workspace["leads_assigned"] = Lead.query.filter_by(organization_id=org_id, is_deleted=False, assigned_to=emp_id).count()
+        my_workspace["projects_assigned"] = Project.query.filter_by(organization_id=org_id, is_deleted=False, assigned_to=emp_id).count()
+
+
     return render_template(
         "home/home.html",
         total_customers=total_customers,
@@ -375,6 +420,7 @@ def home_page():
         recent_projects=recent_projects,
         todays_hours=todays_hours,
         recent_work_logs=recent_work_logs,
+        my_workspace=my_workspace,
     )
 
 
