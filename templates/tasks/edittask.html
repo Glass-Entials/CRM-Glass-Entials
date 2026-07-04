@@ -78,7 +78,11 @@
 
                     <div class="form-group">
                         <label for="status" style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem;">Status <span style="color: #dc3545;">*</span></label>
-                        <select id="status" name="status" class="form-control" required style="width: 100%; padding: 0.8rem; border: 1px solid rgba(13,27,42,0.2); border-radius: 6px;">
+                        {% set can_edit_status = False %}
+                        {% if current_user.employee and (current_user.employee.id == task.created_by or current_user.employee.id == task.assigned_to) %}
+                            {% set can_edit_status = True %}
+                        {% endif %}
+                        <select id="status" name="status" class="form-control" required {% if not can_edit_status %}disabled title="Only the task creator or assignee can change the status." style="width: 100%; padding: 0.8rem; border: 1px solid rgba(13,27,42,0.2); border-radius: 6px; background: #f1f5f9; color: var(--text-muted); cursor: not-allowed;"{% else %}style="width: 100%; padding: 0.8rem; border: 1px solid rgba(13,27,42,0.2); border-radius: 6px;"{% endif %}>
                             <option value="Pending" {% if task.status_display == 'Pending' %}selected{% endif %}>Pending</option>
                             <option value="In Progress" {% if task.status_display == 'In Progress' %}selected{% endif %}>In Progress</option>
                             <option value="Completed" {% if task.status_display == 'Completed' %}selected{% endif %}>Completed</option>

@@ -243,7 +243,11 @@
                         <input type="hidden" name="assigned_to" value="{{ task.assigned_to or 'unassigned' }}">
                         <input type="hidden" name="project_id" value="{{ task.project_id or 'none' }}">
                         <input type="hidden" name="lead_id" value="{{ task.lead_id or 'none' }}">
-                        <select name="status" onchange="this.form.submit()" class="form-control" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid rgba(13,27,42,0.2); border-radius: 8px; font-size: 0.95rem; cursor: pointer;">
+                        {% set can_edit_status = False %}
+                        {% if current_user.employee and (current_user.employee.id == task.created_by or current_user.employee.id == task.assigned_to) %}
+                            {% set can_edit_status = True %}
+                        {% endif %}
+                        <select name="status" onchange="this.form.submit()" class="form-control" {% if not can_edit_status %}disabled title="Only the task creator or assignee can change the status." style="width: 100%; padding: 0.75rem 1rem; border: 1px solid rgba(13,27,42,0.2); border-radius: 8px; font-size: 0.95rem; background: #f1f5f9; color: var(--text-muted); cursor: not-allowed;"{% else %}style="width: 100%; padding: 0.75rem 1rem; border: 1px solid rgba(13,27,42,0.2); border-radius: 8px; font-size: 0.95rem; cursor: pointer;"{% endif %}>
                             <option value="Pending"     {% if task.status_display == 'Pending'     %}selected{% endif %}>⏳ Pending</option>
                             <option value="In Progress" {% if task.status_display == 'In Progress' %}selected{% endif %}>🔄 In Progress</option>
                             <option value="Completed"   {% if task.status_display == 'Completed'   %}selected{% endif %}>✅ Completed</option>

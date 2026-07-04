@@ -178,7 +178,14 @@ def edit_task(task_id):
             task.lead_id = tenant_record_id(Lead, lead_id, org_id, is_deleted=False)
 
             status_map = {e.value: e for e in TaskStatus}
-            task.status = status_map.get(request.form.get("status"), TaskStatus.PENDING)
+            new_status_val = request.form.get("status")
+            if new_status_val:
+                can_change_status = False
+                if current_user.employee and current_user.employee.id in (task.created_by, task.assigned_to):
+                    can_change_status = True
+                
+                if can_change_status:
+                    task.status = status_map.get(new_status_val, task.status)
 
             if task.assigned_to and task.assigned_to != old_assignee:
                 create_notification(
