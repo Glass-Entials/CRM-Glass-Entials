@@ -357,7 +357,7 @@ def convert_to_lead(contact_id):
     try:
         new_lead = Lead(
             name=lead_title or contact.name,
-            email=contact.email,
+            email=contact.email or "",
             phone_number=contact.phone_number,
             company=contact.company,
             address=contact.address,

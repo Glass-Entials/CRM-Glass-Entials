@@ -290,43 +290,49 @@
                     <p style="margin:0.5rem 0 0;color:#64748b;font-size:0.9rem;">Converting <strong>{{ contact.name }}</strong> into a Lead. A new Lead record will be created automatically.</p>
                 </div>
                 <div style="padding:1.75rem;">
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Lead Title</label>
-                            <input type="text" class="form-control" name="lead_title" value="{{ contact.name }}" required>
+                    <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Lead Title *</label>
+                            <input type="text" name="lead_title" value="{{ contact.name }}" required style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem;">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Interested Products / Services</label>
-                            <input type="text" class="form-control" name="interested_products" placeholder="e.g. Glass Partition, Shower Enclosure">
+                        
+                        <div class="form-group">
+                            <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Interested Products / Services</label>
+                            <input type="text" name="interested_products" placeholder="e.g. Glass Partition, Shower Enclosure" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem;">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Estimated Budget (₹)</label>
-                            <input type="text" class="form-control" name="estimated_budget" placeholder="e.g. 1,50,000">
+                        
+                        <div class="form-group">
+                            <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Estimated Budget (₹)</label>
+                            <input type="text" name="estimated_budget" placeholder="e.g. 1,50,000" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem;">
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Priority</label>
-                            <select class="form-control" name="priority">
+                        
+                        <div class="form-group">
+                            <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Priority</label>
+                            <select name="priority" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;">
                                 <option value="Low">🟢 Low</option>
                                 <option value="Medium" selected>🟡 Medium</option>
                                 <option value="High">🔴 High</option>
                             </select>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Expected Closing Date</label>
-                            <input type="date" class="form-control" name="expected_closing_date">
+                        
+                        <div class="form-group">
+                            <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Expected Closing Date</label>
+                            <input type="date" name="expected_closing_date" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; color: #475569;">
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Lead Owner</label>
-                            <select name="lead_owner" class="form-control">
+                        
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Lead Owner</label>
+                            <select name="lead_owner" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;">
                                 <option value="">— Unassigned —</option>
                                 {% for emp in employees %}
                                 <option value="{{ emp.id }}" {% if emp.id == contact.assigned_to %}selected{% endif %}>{{ emp.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Remarks</label>
-                            <textarea class="form-control" name="remarks" rows="3" placeholder="Additional notes for the lead..."></textarea>
+                        
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Remarks</label>
+                            <textarea name="remarks" rows="3" placeholder="Additional notes for the lead..." style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; resize: vertical;"></textarea>
                         </div>
                     </div>
                 </div>
