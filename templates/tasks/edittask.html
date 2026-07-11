@@ -65,6 +65,10 @@
                                 <span style="color: inherit;">📄 {{ doc.original_name }}</span>
                                 <a href="#" onclick="openPreviewModal('{{ url_for('documents.view_document', doc_id=doc.id, filename=doc.original_name) }}', '{{ url_for('documents.download_document', doc_id=doc.id) }}', '{{ doc.original_name }}'); return false;" style="color: var(--primary-color); text-decoration: none; font-size: 1.1rem; margin-left: auto;" title="Preview Document">👁️</a>
                                 <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" target="_blank" style="color: var(--accent-gold); text-decoration: none; font-weight: 600; font-size: 1.1rem; margin-left: 5px;" title="Download Document">⬇️</a>
+                                <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');" style="margin: 0; margin-left: 5px; display: flex;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" style="background: none; border: none; color: #dc2626; font-size: 1.1rem; cursor: pointer; padding: 0;" title="Delete Document">🗑️</button>
+                                </form>
                             </div>
                             {% endfor %}
                         </div>
