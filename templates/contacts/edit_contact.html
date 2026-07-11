@@ -22,9 +22,11 @@
         </div>
         {% endfor %}{% endif %}{% endwith %}
 
-        <div style="display:flex;align-items:center;gap:16px;margin-bottom:2rem;">
-            <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" style="color:var(--accent-gold);text-decoration:none;font-size:0.9rem;">← Back to Contact</a>
-            <h1 style="margin:0;font-size:1.6rem;color:var(--primary-color);">Edit Contact — {{ contact.name }}</h1>
+        <div style="margin-bottom:2rem;">
+            <div style="margin-bottom: 0.5rem;">
+                <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" style="color:var(--accent-gold);text-decoration:none;font-size:0.9rem;font-weight:600;">← Back to Contact</a>
+            </div>
+            <h1 style="margin:0;font-size:1.8rem;color:var(--primary-color);font-family:var(--font-heading);">Edit Contact — {{ contact.name }}</h1>
         </div>
 
         <form method="POST" action="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}">
@@ -33,30 +35,30 @@
             <!-- Basic Info -->
             <div class="card" style="padding:2rem;margin-bottom:1.5rem;">
                 <h3 style="margin:0 0 1.5rem;color:var(--primary-color);font-size:1.1rem;border-bottom:2px solid rgba(212,175,55,0.3);padding-bottom:0.75rem;">👤 Basic Information</h3>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">First Name *</label>
-                        <input type="text" class="form-control" name="first_name" required value="{{ contact.first_name }}">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">First Name *</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="first_name" required value="{{ contact.first_name }}">
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Last Name</label>
-                        <input type="text" class="form-control" name="last_name" value="{{ contact.last_name or '' }}">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Last Name</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="last_name" value="{{ contact.last_name or '' }}">
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Company</label>
-                        <input type="text" class="form-control" name="company" value="{{ contact.company or '' }}">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Company</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="company" value="{{ contact.company or '' }}">
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Designation</label>
-                        <input type="text" class="form-control" name="designation" value="{{ contact.designation or '' }}">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Designation</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="designation" value="{{ contact.designation or '' }}">
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Birthday</label>
-                        <input type="date" class="form-control" name="birthday" value="{{ contact.birthday.strftime('%Y-%m-%d') if contact.birthday else '' }}">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Birthday</label>
+                        <input type="date" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="birthday" value="{{ contact.birthday.strftime('%Y-%m-%d') if contact.birthday else '' }}">
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Website</label>
-                        <input type="text" class="form-control" name="website" value="{{ contact.website or '' }}">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Website</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="website" value="{{ contact.website or '' }}">
                     </div>
                 </div>
             </div>
@@ -64,22 +66,22 @@
             <!-- Contact Info -->
             <div class="card" style="padding:2rem;margin-bottom:1.5rem;">
                 <h3 style="margin:0 0 1.5rem;color:var(--primary-color);font-size:1.1rem;border-bottom:2px solid rgba(212,175,55,0.3);padding-bottom:0.75rem;">📞 Contact Information</h3>
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Primary Phone *</label>
-                        <input type="text" class="form-control" name="phone" required maxlength="10" value="{{ contact.phone_number }}">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Primary Phone *</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="phone" required maxlength="10" value="{{ contact.phone_number }}">
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Secondary Phone</label>
-                        <input type="text" class="form-control" name="secondary_phone" maxlength="10" value="{{ contact.secondary_phone or '' }}">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Secondary Phone</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="secondary_phone" maxlength="10" value="{{ contact.secondary_phone or '' }}">
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">WhatsApp Number</label>
-                        <input type="text" class="form-control" name="whatsapp_number" maxlength="10" value="{{ contact.whatsapp_number or '' }}">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">WhatsApp Number</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="whatsapp_number" maxlength="10" value="{{ contact.whatsapp_number or '' }}">
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Email</label>
-                        <input type="email" class="form-control" name="email" value="{{ contact.email or '' }}">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Email</label>
+                        <input type="email" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="email" value="{{ contact.email or '' }}">
                     </div>
                 </div>
             </div>
@@ -87,26 +89,26 @@
             <!-- Address -->
             <div class="card" style="padding:2rem;margin-bottom:1.5rem;">
                 <h3 style="margin:0 0 1.5rem;color:var(--primary-color);font-size:1.1rem;border-bottom:2px solid rgba(212,175,55,0.3);padding-bottom:0.75rem;">📍 Address</h3>
-                <div class="row">
-                    <div class="col-md-12 mb-3">
-                        <label class="form-label">Street Address</label>
-                        <input type="text" class="form-control" name="address" value="{{ contact.address or '' }}">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Street Address</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="address" value="{{ contact.address or '' }}">
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label">City</label>
-                        <input type="text" class="form-control" name="city" value="{{ contact.city or '' }}">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">City</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="city" value="{{ contact.city or '' }}">
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label">State</label>
-                        <input type="text" class="form-control" name="state" value="{{ contact.state or '' }}">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">State</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="state" value="{{ contact.state or '' }}">
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label">Country</label>
-                        <input type="text" class="form-control" name="country" value="{{ contact.country or '' }}">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Country</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="country" value="{{ contact.country or '' }}">
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label">Pincode</label>
-                        <input type="text" class="form-control" name="pincode" maxlength="6" value="{{ contact.pincode or '' }}">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Pincode</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="pincode" maxlength="6" value="{{ contact.pincode or '' }}">
                     </div>
                 </div>
             </div>
@@ -114,39 +116,39 @@
             <!-- CRM Settings -->
             <div class="card" style="padding:2rem;margin-bottom:1.5rem;">
                 <h3 style="margin:0 0 1.5rem;color:var(--primary-color);font-size:1.1rem;border-bottom:2px solid rgba(212,175,55,0.3);padding-bottom:0.75rem;">⚙️ CRM Settings</h3>
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Source</label>
-                        <select class="form-control" name="source">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Source</label>
+                        <select style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="source">
                             {% for s in ['Website','Google','Social Media','Referral','Walk-in','Other'] %}
                             <option value="{{ s }}" {% if contact.source and contact.source.value == s %}selected{% endif %}>{{ s }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Status</label>
-                        <select class="form-control" name="status">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Status</label>
+                        <select style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="status">
                             {% for s in ['Contact','Follow Up','Not Interested','Do Not Call','Lead','Customer'] %}
                             <option value="{{ s }}" {% if contact.status and contact.status.value == s %}selected{% endif %}>{{ s }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Assign To</label>
-                        <select class="form-control" name="assigned_to">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Assign To</label>
+                        <select style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="assigned_to">
                             <option value="">— Unassigned —</option>
                             {% for emp in employees %}
                             <option value="{{ emp.id }}" {% if contact.assigned_to == emp.id %}selected{% endif %}>{{ emp.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Tags</label>
-                        <input type="text" class="form-control" name="tags" value="{{ contact.tags or '' }}" placeholder="comma separated">
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Tags</label>
+                        <input type="text" style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="tags" value="{{ contact.tags or '' }}" placeholder="comma separated">
                     </div>
-                    <div class="col-md-12 mb-3">
-                        <label class="form-label">Notes</label>
-                        <textarea class="form-control" name="notes" rows="3">{{ contact.notes or '' }}</textarea>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label style="display: block; font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.85rem;">Notes</label>
+                        <textarea style="width: 100%; padding: 0.85rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; background: #fff;" name="notes" rows="3">{{ contact.notes or '' }}</textarea>
                     </div>
                 </div>
             </div>

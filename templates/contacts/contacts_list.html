@@ -34,6 +34,13 @@
         .contact-name-cell .designation { font-size: 0.78rem; color: #94a3b8; }
         .info-line { font-size: 0.85rem; color: #475569; display: flex; align-items: center; gap: 5px; }
         .info-line small { color: #94a3b8; }
+        .action-trigger-btn { background: transparent; border: 1px solid rgba(13,27,42,0.1); font-size: 1.3rem; font-weight: bold; cursor: pointer; color: #94a3b8; padding: 2px 10px; border-radius: 6px; transition: all 0.2s; line-height:1; }
+        .action-trigger-btn:hover { color: var(--primary-color); background: #f1f5f9; border-color: rgba(13,27,42,0.2); }
+        #actionPopup { display:none; position:fixed; background:#fff; border:1px solid rgba(13,27,42,0.12); border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,0.15); z-index:9999; min-width:155px; overflow:hidden; animation: fadeDropdown 0.15s ease; }
+        #actionPopup a, #actionPopup button { display:flex; align-items:center; gap:9px; width:100%; padding:0.7rem 1.1rem; font-size:0.85rem; font-weight:500; border:none; background:transparent; color:var(--primary-color); cursor:pointer; text-decoration:none; transition:background 0.15s; border-bottom:1px solid rgba(13,27,42,0.05); font-family:var(--font-body); text-align:left; }
+        #actionPopup a:last-child, #actionPopup button:last-child { border-bottom:none; }
+        #actionPopup a:hover, #actionPopup button:hover { background:rgba(212,175,55,0.08); color:var(--accent-gold); }
+        #actionPopup .popup-delete:hover { background:#fef2f2; color:#dc2626; }
     </style>
 </head>
 <body class="dashboard-page">
@@ -169,14 +176,16 @@
                         </td>
                         <td><span style="background:rgba(13,27,42,0.06);padding:4px 10px;border-radius:6px;font-size:0.78rem;font-weight:600;color:var(--primary-color);">{{ contact.source.value if contact.source else '—' }}</span></td>
                         <td style="font-size:0.82rem;color:#94a3b8;">{{ contact.created_at.strftime('%d %b %Y') if contact.created_at else '—' }}</td>
-                        <td>
-                            <div class="action-buttons">
-                                <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="action-pill" style="background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;text-decoration:none;">👁 View</a>
-                                <a href="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" class="action-pill edit-pill" style="text-decoration:none;">✏️ Edit</a>
+                        <td style="text-align:center;">
+                            <button class="action-trigger-btn"
+                                data-view="{{ url_for('contacts.view_contact', contact_id=contact.id) }}"
+                                data-edit="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}"
                                 {% if contact.status.value != 'Lead' and contact.status.value != 'Customer' %}
-                                <button class="action-pill convert-pill" style="border:none;cursor:pointer;background:var(--accent-gold);color:#fff;" onclick="window.location='{{ url_for('contacts.view_contact', contact_id=contact.id) }}'">🚀 Convert</button>
+                                data-convert="{{ url_for('contacts.view_contact', contact_id=contact.id) }}"
                                 {% endif %}
-                            </div>
+                                data-delete="{{ url_for('contacts.delete_contact', contact_id=contact.id) }}"
+                                data-csrf="{{ csrf_token() }}"
+                                onclick="openActionMenu(this, event)">⋮</button>
                         </td>
                     </tr>
                     {% else %}
@@ -226,7 +235,41 @@
                 btn.nextElementSibling.classList.toggle('show');
             });
         });
+        // Fixed-position action popup (avoids overflow clipping)
+        const popup = document.createElement('div');
+        popup.id = 'actionPopup';
+        document.body.appendChild(popup);
+
+        function openActionMenu(btn, e) {
+            e.stopPropagation();
+            const rect = btn.getBoundingClientRect();
+            const viewUrl = btn.dataset.view;
+            const editUrl = btn.dataset.edit;
+            const convertUrl = btn.dataset.convert;
+            const deleteUrl = btn.dataset.delete;
+            const csrf = btn.dataset.csrf;
+
+            let html = '';
+            if (viewUrl)    html += `<a href="${viewUrl}">👁 View</a>`;
+            if (editUrl)    html += `<a href="${editUrl}">✏️ Edit</a>`;
+            if (convertUrl) html += `<a href="${convertUrl}">🚀 Convert</a>`;
+            if (deleteUrl)  html += `
+                <button class="popup-delete" onclick="if(confirm('Delete this contact? This cannot be undone.')){var f=document.createElement('form');f.method='POST';f.action='${deleteUrl}';var i=document.createElement('input');i.type='hidden';i.name='csrf_token';i.value='${csrf}';f.appendChild(i);document.body.appendChild(f);f.submit();}">🗑️ Delete</button>`;
+
+            popup.innerHTML = html;
+            popup.style.display = 'block';
+
+            // Position below button, aligned right
+            const popupW = 160;
+            let left = rect.right - popupW + window.scrollX;
+            let top = rect.bottom + 6 + window.scrollY;
+            if (left < 4) left = 4;
+            popup.style.left = left + 'px';
+            popup.style.top = top + 'px';
+        }
+
         document.addEventListener('click', () => {
+            popup.style.display = 'none';
             document.querySelectorAll('.export-menu').forEach(m => m.classList.remove('show'));
         });
     </script>

@@ -22,9 +22,11 @@
         </div>
         {% endfor %}{% endif %}{% endwith %}
 
-        <div style="display:flex;align-items:center;gap:16px;margin-bottom:2rem;">
-            <a href="{{ url_for('contacts.contacts_list') }}" style="color:var(--accent-gold);text-decoration:none;font-size:0.9rem;">← Back to Contacts</a>
-            <h1 style="margin:0;font-size:1.6rem;color:var(--primary-color);">Add New Contact</h1>
+        <div style="margin-bottom:2rem;">
+            <div style="margin-bottom: 0.5rem;">
+                <a href="{{ url_for('contacts.contacts_list') }}" style="color:var(--accent-gold);text-decoration:none;font-size:0.9rem;font-weight:600;">← Back to Contacts</a>
+            </div>
+            <h1 style="margin:0;font-size:1.8rem;color:var(--primary-color);font-family:var(--font-heading);">Add New Contact</h1>
         </div>
 
         <form method="POST" action="{{ url_for('contacts.add_contact') }}">
