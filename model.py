@@ -14,6 +14,15 @@ class UserRole(Enum):
     EMPLOYEE = "employee"
 
 
+
+class ContactStatus(Enum):
+    CONTACT = "Contact"
+    FOLLOW_UP = "Follow Up"
+    NOT_INTERESTED = "Not Interested"
+    DO_NOT_CALL = "Do Not Call"
+    LEAD = "Lead"
+    CUSTOMER = "Customer"
+
 class LeadStatus(Enum):
     NEW = "New"
     ACTIVE = "Active"
@@ -292,6 +301,9 @@ class Lead(db.Model):
     is_deleted = db.Column(db.Boolean, default=False)
 
     # Foreign Keys
+    contact_id = db.Column(
+        db.Integer, db.ForeignKey("contact.id"), nullable=True, index=True
+    )
     assigned_to = db.Column(
         db.Integer, db.ForeignKey("employee.id"), nullable=True, index=True
     )
@@ -303,6 +315,7 @@ class Lead(db.Model):
     )
 
     # Relationships
+    contact = db.relationship("Contact", foreign_keys=[contact_id])
     assignee = db.relationship(
         "Employee", foreign_keys=[assigned_to], backref="assigned_leads"
     )
@@ -1703,3 +1716,159 @@ class CRMDocument(db.Model):
 
     def __repr__(self):
         return f"<CRMDocument {self.original_name}>"
+
+
+# --- CONTACT MODULE MODELS ---
+
+class Contact(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    
+    first_name = db.Column(db.String(100), nullable=False)
+    last_name = db.Column(db.String(100), nullable=True)
+    company = db.Column(db.String(100), nullable=True)
+    designation = db.Column(db.String(100), nullable=True)
+    
+    email = db.Column(db.String(120), nullable=True, index=True)
+    phone_number = db.Column(db.String(20), nullable=False)
+    secondary_phone = db.Column(db.String(20), nullable=True)
+    whatsapp_number = db.Column(db.String(20), nullable=True)
+    website = db.Column(db.String(255), nullable=True)
+    
+    address = db.Column(db.String(255), nullable=True)
+    city = db.Column(db.String(100), nullable=True)
+    state = db.Column(db.String(100), nullable=True)
+    country = db.Column(db.String(100), nullable=True)
+    pincode = db.Column(db.String(20), nullable=True)
+    
+    birthday = db.Column(db.Date, nullable=True)
+    
+    source = db.Column(
+        db.Enum(LeadSource, values_callable=lambda x: [e.value for e in x]),
+        server_default=db.text("'Other'"),
+        default=LeadSource.OTHER,
+    )
+    status = db.Column(
+        db.Enum(ContactStatus, values_callable=lambda x: [e.value for e in x]),
+        server_default=db.text("'Contact'"),
+        default=ContactStatus.CONTACT,
+        index=True,
+    )
+    tags = db.Column(db.String(255), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    
+    # Lead relationship if converted
+    lead_id = db.Column(db.Integer, db.ForeignKey("lead.id"), nullable=True, index=True)
+
+    # Multi-tenant field
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
+    )
+
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+    )
+    is_deleted = db.Column(db.Boolean, default=False)
+
+    # Foreign Keys
+    assigned_to = db.Column(
+        db.Integer, db.ForeignKey("employee.id"), nullable=True, index=True
+    )
+    created_by = db.Column(
+        db.Integer, db.ForeignKey("employee.id"), nullable=False, index=True
+    )
+    updated_by = db.Column(
+        db.Integer, db.ForeignKey("employee.id"), nullable=True, index=True
+    )
+
+    # Relationships
+    assignee = db.relationship("Employee", foreign_keys=[assigned_to], backref="assigned_contacts")
+    creator = db.relationship("Employee", foreign_keys=[created_by], backref="contacts_created")
+    updater = db.relationship("Employee", foreign_keys=[updated_by], backref="contacts_updated")
+    organization = db.relationship("Organization", backref=db.backref("contacts", lazy="dynamic"))
+    
+    converted_lead = db.relationship("Lead", foreign_keys=[lead_id], uselist=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("phone_number", "organization_id", name="uq_contact_phone_org"),
+    )
+    
+    @property
+    def name(self):
+        if self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.first_name
+
+    @property
+    def status_display(self):
+        return self.status.value if self.status else ""
+
+    def __repr__(self):
+        return f"<Contact {self.name}>"
+
+
+class ContactActivity(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    contact_id = db.Column(
+        db.Integer, db.ForeignKey("contact.id"), nullable=False, index=True
+    )
+    activity_type = db.Column(
+        db.Enum(ActivityType, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+    )
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_by = db.Column(
+        db.Integer, db.ForeignKey("employee.id"), nullable=False, index=True
+    )
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id"), nullable=True, index=True
+    )
+
+    contact = db.relationship("Contact", backref=db.backref("activities", cascade="all, delete-orphan"))
+    creator = db.relationship("Employee", foreign_keys=[created_by])
+    organization = db.relationship("Organization")
+
+
+class ContactNote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    contact_id = db.Column(db.Integer, db.ForeignKey("contact.id"), nullable=False, index=True)
+    note = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=False, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"), nullable=True, index=True)
+
+    contact = db.relationship("Contact", backref=db.backref("notes_list", cascade="all, delete-orphan", order_by="ContactNote.created_at.desc()"))
+    author = db.relationship("Employee", foreign_keys=[created_by])
+
+
+class ContactSystemLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    contact_id = db.Column(db.Integer, db.ForeignKey("contact.id"), nullable=False, index=True)
+    event_type = db.Column(db.String(80), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    icon = db.Column(db.String(10), default="🔔")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    actor_id = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"), nullable=True, index=True)
+
+    contact = db.relationship("Contact", backref=db.backref("system_logs", cascade="all, delete-orphan", order_by="ContactSystemLog.created_at.desc()"))
+    actor = db.relationship("Employee", foreign_keys=[actor_id])
+
+
+class ContactDocument(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    contact_id = db.Column(
+        db.Integer, db.ForeignKey("contact.id"), nullable=False, index=True
+    )
+    filename = db.Column(db.String(255), nullable=False)
+    original_name = db.Column(db.String(255), nullable=False)
+    file_type = db.Column(db.String(50), nullable=True)
+    uploaded_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id"), nullable=True, index=True
+    )
+    contact = db.relationship("Contact", backref=db.backref("documents", cascade="all, delete-orphan"))
+

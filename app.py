@@ -31,6 +31,7 @@ from routes.quotations import quotations_bp
 from routes.quotation_settings import quotation_settings_bp
 from routes.products import products_bp
 from routes.documents import documents_bp
+from routes.contacts import contacts_bp
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -170,6 +171,7 @@ app.register_blueprint(quotations_bp)
 app.register_blueprint(quotation_settings_bp)
 app.register_blueprint(products_bp)
 app.register_blueprint(documents_bp)
+app.register_blueprint(contacts_bp)
 
 
 @login_manager.user_loader

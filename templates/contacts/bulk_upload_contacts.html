@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Upload Contacts | GlassEntials Staff Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <style>
+        @media (max-width: 900px) {
+            .bulk-upload-wrapper { grid-template-columns: 1fr !important; }
+        }
+    </style>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+</head>
+<body class="dashboard-page">
+    {% include 'includes/navbar.html' %}
+
+    <main class="container" style="max-width: 1000px; padding-top: 3rem;">
+
+        <!-- Top Bar -->
+        <div class="top-bar" style="border-bottom: 2px solid rgba(212,175,55,0.2); padding-bottom: 1.5rem; margin-bottom: 2rem;">
+            <h1 style="color: var(--primary-color); font-size: 2rem; font-family: var(--font-heading);">Bulk Upload Contacts</h1>
+            <a href="{{ url_for('contacts.contacts_list') }}" class="btn-action outline" style="text-decoration:none;">← Back to Contacts</a>
+        </div>
+
+        <!-- Flash: success -->
+        {% with messages = get_flashed_messages(category_filter=["leadssuccess"]) %}
+          {% if messages %}{% for message in messages %}
+          <div class="flash-message" style="padding:15px;background:rgba(16,185,129,0.08);border-left:4px solid #10b981;font-family:var(--font-body);color:var(--primary-color);display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;border-radius:4px;">
+            <span style="color:#10b981;font-size:1.2rem;line-height:1;">✓</span> {{ message }}
+          </div>
+          {% endfor %}{% endif %}
+        {% endwith %}
+
+        <!-- Flash: error -->
+        {% with messages = get_flashed_messages(category_filter=["leadserror"]) %}
+          {% if messages %}{% for message in messages %}
+          <div class="flash-message" style="padding:15px;background:rgba(139,0,0,0.04);border-left:4px solid rgba(139,0,0,0.5);font-family:var(--font-body);color:#8b0000;display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;border-radius:4px;">
+            <span style="font-size:1.2rem;line-height:1;">⚠</span> {{ message }}
+          </div>
+          {% endfor %}{% endif %}
+        {% endwith %}
+
+        <!-- Layout -->
+        <div class="bulk-upload-wrapper" style="display:grid;grid-template-columns:1fr 1.2fr;gap:2.5rem;margin-top:1rem;">
+
+            <!-- Left: Download template info -->
+            <div class="upload-card download-section" style="background:rgba(255,255,255,0.95);border:1px solid rgba(13,27,42,0.1);border-radius:12px;padding:2.5rem;box-shadow:0 10px 30px rgba(0,0,0,0.05);display:flex;flex-direction:column;align-items:center;text-align:center;">
+                <div style="width:80px;height:80px;background:rgba(212,175,55,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:2rem;border:1px dashed var(--accent-gold);">
+                    <span style="font-size:2.5rem;">📥</span>
+                </div>
+                <h2 style="font-family:var(--font-heading);color:var(--primary-color);margin-bottom:1rem;font-size:1.5rem;">CSV Format Guide</h2>
+                <p style="color:var(--text-muted);font-size:0.95rem;line-height:1.6;margin-bottom:2rem;max-width:260px;">
+                    Prepare your CSV with the columns below. The file must be UTF-8 encoded.
+                </p>
+
+                <div style="margin-top:0.5rem;text-align:left;width:100%;border-top:1px solid rgba(0,0,0,0.05);padding-top:1.5rem;">
+                    <h4 style="font-size:0.85rem;color:var(--primary-color);margin-bottom:0.75rem;font-weight:700;">Required Columns:</h4>
+                    <ul style="font-size:0.8rem;color:var(--text-muted);padding-left:1.2rem;line-height:1.8;margin-bottom:1.2rem;">
+                        <li><strong>Name</strong> — Required</li>
+                        <li><strong>Phone</strong> — Required (10-digit)</li>
+                    </ul>
+                    <h4 style="font-size:0.85rem;color:var(--primary-color);margin-bottom:0.75rem;font-weight:700;">Optional Columns:</h4>
+                    <ul style="font-size:0.8rem;color:var(--text-muted);padding-left:1.2rem;line-height:1.8;">
+                        <li>Email</li>
+                        <li>Company</li>
+                        <li>Designation</li>
+                        <li>City</li>
+                        <li>State</li>
+                        <li>Country</li>
+                        <li>Source (Website, Google, Social Media, Referral, Walk-in, Other)</li>
+                        <li>Status (Contact, Follow Up, Not Interested, Do Not Call)</li>
+                    </ul>
+                </div>
+
+                <!-- Sample CSV download as text file in browser -->
+                <a href="data:text/csv;charset=utf-8,Name%2CPhone%2CEmail%2CCompany%2CDesignation%2CCity%2CState%2CCountry%2CSource%2CStatus%0AJohn%20Doe%2C9876543210%2Cjohn%40example.com%2CExample%20Corp%2CManager%2CMumbai%2CMaharashtra%2CIndia%2CReferral%2CContact"
+                   download="contacts_template.csv"
+                   class="btn-action outline"
+                   style="width:100%;justify-content:center;text-decoration:none;padding:1rem;margin-top:1.5rem;display:flex;align-items:center;gap:8px;">
+                    📄 Download Sample CSV
+                </a>
+            </div>
+
+            <!-- Right: Upload form -->
+            <div class="upload-card upload-section" style="background:var(--primary-color);color:#fff;border-radius:12px;padding:2.5rem;box-shadow:0 15px 35px rgba(13,27,42,0.2);display:flex;flex-direction:column;position:relative;overflow:hidden;">
+                <div style="position:absolute;top:-10%;right:-10%;width:200px;height:200px;background:rgba(212,175,55,0.05);border-radius:50%;pointer-events:none;"></div>
+
+                <h2 style="font-family:var(--font-heading);color:var(--accent-gold);margin-bottom:0.5rem;font-size:1.5rem;">Upload CSV File</h2>
+                <p style="color:rgba(255,255,255,0.7);font-size:0.95rem;margin-bottom:2rem;">Select your prepared CSV to import contacts in bulk.</p>
+
+                <form action="{{ url_for('contacts.bulk_upload_contacts') }}" method="POST" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:20px;position:relative;z-index:1;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="file-drop-area" style="position:relative;border:2px dashed rgba(212,175,55,0.4);border-radius:8px;padding:3rem 1.5rem;text-align:center;background:rgba(255,255,255,0.03);transition:all 0.3s ease;cursor:pointer;">
+                        <span style="font-size:2rem;display:block;margin-bottom:1rem;">📁</span>
+                        <label for="contact_file" style="color:#fff;font-weight:500;cursor:pointer;display:block;">
+                            <span style="color:var(--accent-gold);text-decoration:underline;">Browse</span> or drag file here
+                        </label>
+                        <input type="file" id="contact_file" name="contact_file" accept=".csv" required
+                               style="opacity:0;position:absolute;top:0;left:0;width:100%;height:100%;cursor:pointer;">
+                        <div id="file-name" style="margin-top:1rem;font-size:0.85rem;color:var(--accent-gold);font-weight:500;">No file selected</div>
+                    </div>
+
+                    <button type="submit" class="btn-action dark"
+                            style="position:relative;z-index:5;background:var(--accent-gold);color:var(--primary-color);border:none;font-weight:700;width:100%;padding:1.1rem;font-size:1rem;margin-top:1rem;transition:transform 0.2s ease;cursor:pointer;">
+                        🚀 Start Bulk Import
+                    </button>
+                    <p style="font-size:0.8rem;color:rgba(255,255,255,0.5);text-align:center;">Maximum file size: 5 MB. Only .csv files are supported.</p>
+                </form>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('contact_file').addEventListener('change', function(e) {
+            const fileName = e.target.files[0] ? e.target.files[0].name : "No file selected";
+            document.getElementById('file-name').textContent = fileName;
+            if (e.target.files[0]) {
+                document.querySelector('.file-drop-area').style.borderColor = 'var(--accent-gold)';
+                document.querySelector('.file-drop-area').style.background = 'rgba(212,175,55,0.08)';
+            }
+        });
+    </script>
+</body>
+</html>

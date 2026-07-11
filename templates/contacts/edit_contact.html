@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Contact | GlassEntials Staff Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+</head>
+<body class="dashboard-page">
+    {% include 'includes/navbar.html' %}
+    <main class="container">
+
+        {% with messages = get_flashed_messages(category_filter=["leadserror"]) %}{% if messages %}{% for message in messages %}
+        <div style="padding:15px;background:rgba(139,0,0,0.04);border-left:4px solid rgba(139,0,0,0.5);color:#8b0000;display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;border-radius:4px;">
+            <span>⚠</span> {{ message }}
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:2rem;">
+            <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" style="color:var(--accent-gold);text-decoration:none;font-size:0.9rem;">← Back to Contact</a>
+            <h1 style="margin:0;font-size:1.6rem;color:var(--primary-color);">Edit Contact — {{ contact.name }}</h1>
+        </div>
+
+        <form method="POST" action="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- Basic Info -->
+            <div class="card" style="padding:2rem;margin-bottom:1.5rem;">
+                <h3 style="margin:0 0 1.5rem;color:var(--primary-color);font-size:1.1rem;border-bottom:2px solid rgba(212,175,55,0.3);padding-bottom:0.75rem;">👤 Basic Information</h3>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">First Name *</label>
+                        <input type="text" class="form-control" name="first_name" required value="{{ contact.first_name }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" class="form-control" name="last_name" value="{{ contact.last_name or '' }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Company</label>
+                        <input type="text" class="form-control" name="company" value="{{ contact.company or '' }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Designation</label>
+                        <input type="text" class="form-control" name="designation" value="{{ contact.designation or '' }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Birthday</label>
+                        <input type="date" class="form-control" name="birthday" value="{{ contact.birthday.strftime('%Y-%m-%d') if contact.birthday else '' }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Website</label>
+                        <input type="text" class="form-control" name="website" value="{{ contact.website or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Info -->
+            <div class="card" style="padding:2rem;margin-bottom:1.5rem;">
+                <h3 style="margin:0 0 1.5rem;color:var(--primary-color);font-size:1.1rem;border-bottom:2px solid rgba(212,175,55,0.3);padding-bottom:0.75rem;">📞 Contact Information</h3>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Primary Phone *</label>
+                        <input type="text" class="form-control" name="phone" required maxlength="10" value="{{ contact.phone_number }}">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Secondary Phone</label>
+                        <input type="text" class="form-control" name="secondary_phone" maxlength="10" value="{{ contact.secondary_phone or '' }}">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">WhatsApp Number</label>
+                        <input type="text" class="form-control" name="whatsapp_number" maxlength="10" value="{{ contact.whatsapp_number or '' }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email" value="{{ contact.email or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Address -->
+            <div class="card" style="padding:2rem;margin-bottom:1.5rem;">
+                <h3 style="margin:0 0 1.5rem;color:var(--primary-color);font-size:1.1rem;border-bottom:2px solid rgba(212,175,55,0.3);padding-bottom:0.75rem;">📍 Address</h3>
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">Street Address</label>
+                        <input type="text" class="form-control" name="address" value="{{ contact.address or '' }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">City</label>
+                        <input type="text" class="form-control" name="city" value="{{ contact.city or '' }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">State</label>
+                        <input type="text" class="form-control" name="state" value="{{ contact.state or '' }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Country</label>
+                        <input type="text" class="form-control" name="country" value="{{ contact.country or '' }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Pincode</label>
+                        <input type="text" class="form-control" name="pincode" maxlength="6" value="{{ contact.pincode or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- CRM Settings -->
+            <div class="card" style="padding:2rem;margin-bottom:1.5rem;">
+                <h3 style="margin:0 0 1.5rem;color:var(--primary-color);font-size:1.1rem;border-bottom:2px solid rgba(212,175,55,0.3);padding-bottom:0.75rem;">⚙️ CRM Settings</h3>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Source</label>
+                        <select class="form-control" name="source">
+                            {% for s in ['Website','Google','Social Media','Referral','Walk-in','Other'] %}
+                            <option value="{{ s }}" {% if contact.source and contact.source.value == s %}selected{% endif %}>{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Status</label>
+                        <select class="form-control" name="status">
+                            {% for s in ['Contact','Follow Up','Not Interested','Do Not Call','Lead','Customer'] %}
+                            <option value="{{ s }}" {% if contact.status and contact.status.value == s %}selected{% endif %}>{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Assign To</label>
+                        <select class="form-control" name="assigned_to">
+                            <option value="">— Unassigned —</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if contact.assigned_to == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Tags</label>
+                        <input type="text" class="form-control" name="tags" value="{{ contact.tags or '' }}" placeholder="comma separated">
+                    </div>
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="3">{{ contact.notes or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-bottom:2rem;">
+                <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="btn-action outline" style="text-decoration:none;">Cancel</a>
+                <button type="submit" class="btn-action gold">💾 Save Changes</button>
+            </div>
+        </form>
+    </main>
+</body>
+</html>

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ contact.name }} | Contact Profile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .profile-container { max-width: 1200px; margin: 2rem auto; padding: 0 20px; }
+        .profile-header { background: #fff; padding: 2.5rem; border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.02); border: 1px solid rgba(13,27,42,0.05); display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-top: 5px solid var(--accent-gold); flex-wrap: wrap; gap: 1rem; }
+        .profile-identity { display: flex; align-items: center; gap: 20px; }
+        .identity-avatar { width: 70px; height: 70px; background: rgba(212,175,55,0.1); color: var(--accent-gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; font-family: var(--font-heading); flex-shrink:0; }
+        .identity-text h1 { font-size: 1.8rem; margin: 0; color: var(--primary-color); }
+        .identity-text span { color: var(--text-muted); font-size: 0.9rem; display: block; margin-top: 4px; }
+        .profile-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+        .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2.5rem; }
+        @media (max-width: 768px) { .profile-grid { grid-template-columns: 1fr; } }
+        .info-card { background: #fff; border-radius: 12px; border: 1px solid rgba(13,27,42,0.07); padding: 1.75rem; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .info-card h4 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; margin: 0 0 1.25rem; font-weight: 700; }
+        .info-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 0.6rem 0; border-bottom: 1px solid rgba(13,27,42,0.04); font-size: 0.9rem; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #64748b; font-weight: 500; min-width: 130px; }
+        .info-value { color: var(--primary-color); font-weight: 600; text-align: right; word-break: break-word; max-width: 220px; }
+        .tab-section { background: #fff; border-radius: 12px; border: 1px solid rgba(13,27,42,0.07); overflow: hidden; margin-bottom: 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .tab-nav { display: flex; border-bottom: 2px solid rgba(13,27,42,0.06); background: #f8fafc; }
+        .tab-btn { padding: 1rem 1.5rem; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; background: none; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+        .tab-btn.active { color: var(--accent-gold); border-bottom-color: var(--accent-gold); background: #fff; }
+        .tab-content { display: none; padding: 1.75rem; }
+        .tab-content.active { display: block; }
+        .timeline-item { display: flex; gap: 16px; padding: 1rem 0; border-bottom: 1px solid rgba(13,27,42,0.05); }
+        .timeline-item:last-child { border-bottom: none; }
+        .timeline-icon { width: 36px; height: 36px; border-radius: 50%; background: rgba(212,175,55,0.1); color: var(--accent-gold); display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink:0; }
+        .timeline-body .meta { font-size: 0.78rem; color: #94a3b8; margin-top: 2px; }
+        .timeline-body .msg { font-size: 0.9rem; color: var(--primary-color); font-weight: 500; }
+        .note-card { background: #fffbeb; border: 1px solid rgba(212,175,55,0.25); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+        .note-card .note-meta { font-size: 0.78rem; color: #92400e; margin-top: 8px; display: flex; justify-content: space-between; }
+        .note-text { font-size: 0.9rem; color: #451a03; line-height: 1.6; }
+        .status-badge { padding: 5px 14px; font-size: 0.72rem; border-radius: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .status-contact { background: #e0f2fe; color: #0369a1; }
+        .status-follow-up { background: #fef3c7; color: #92400e; }
+        .status-not-interested { background: #fee2e2; color: #991b1b; }
+        .status-do-not-call { background: #fce7f3; color: #9d174d; }
+        .status-lead { background: #d1fae5; color: #065f46; }
+        .status-customer { background: #ede9fe; color: #4c1d95; }
+        .activity-form-row { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 1.5rem; background: #f8fafc; padding: 1.25rem; border-radius: 8px; }
+        .activity-form-row select, .activity-form-row input, .activity-form-row textarea { font-size: 0.9rem; }
+        .btn-gold-sm { background: var(--accent-gold); color: #fff; border: none; border-radius: 6px; padding: 0.55rem 1.2rem; font-size: 0.85rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 0.2s; }
+        .btn-gold-sm:hover { background: #c5a037; }
+    </style>
+</head>
+<body class="dashboard-page">
+    {% include 'includes/navbar.html' %}
+    <main class="container">
+
+        {% with messages = get_flashed_messages(category_filter=["leadssuccess"]) %}{% if messages %}{% for message in messages %}
+        <div style="padding:15px;background:rgba(16,185,129,0.08);border-left:4px solid #10b981;color:var(--primary-color);display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;border-radius:4px;">
+            <span style="color:#10b981;font-size:1.2rem;">✓</span> {{ message }}
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        {% with messages = get_flashed_messages(category_filter=["leadserror"]) %}{% if messages %}{% for message in messages %}
+        <div style="padding:15px;background:rgba(139,0,0,0.04);border-left:4px solid rgba(139,0,0,0.5);color:#8b0000;display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;border-radius:4px;">
+            <span>⚠</span> {{ message }}
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        <!-- Breadcrumb -->
+        <div style="margin-bottom:1rem;font-size:0.85rem;color:#94a3b8;">
+            <a href="{{ url_for('contacts.contacts_list') }}" style="color:var(--accent-gold);text-decoration:none;">Contacts</a>
+            <span style="margin:0 6px;">›</span>
+            <span>{{ contact.name }}</span>
+        </div>
+
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="profile-identity">
+                <div class="identity-avatar">{{ contact.first_name[0] | upper }}</div>
+                <div class="identity-text">
+                    <h1>{{ contact.name }}</h1>
+                    <span>
+                        {% if contact.designation %}{{ contact.designation }}{% endif %}
+                        {% if contact.designation and contact.company %} · {% endif %}
+                        {% if contact.company %}{{ contact.company }}{% endif %}
+                    </span>
+                    <div style="margin-top:8px;">
+                        {% set sv = contact.status.value if contact.status else 'Contact' %}
+                        {% if sv == 'Contact' %}<span class="status-badge status-contact">Contact</span>
+                        {% elif sv == 'Follow Up' %}<span class="status-badge status-follow-up">Follow Up</span>
+                        {% elif sv == 'Not Interested' %}<span class="status-badge status-not-interested">Not Interested</span>
+                        {% elif sv == 'Do Not Call' %}<span class="status-badge status-do-not-call">Do Not Call</span>
+                        {% elif sv == 'Lead' %}<span class="status-badge status-lead">Lead</span>
+                        {% elif sv == 'Customer' %}<span class="status-badge status-customer">Customer</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="profile-actions">
+                <a href="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" class="btn-action outline" style="text-decoration:none;">✏️ Edit</a>
+                {% if contact.status.value != 'Lead' and contact.status.value != 'Customer' %}
+                <button class="btn-action gold" data-bs-toggle="modal" data-bs-target="#convertLeadModal" onclick="document.getElementById('convertLeadModal').style.display='flex'">🚀 Convert to Lead</button>
+                {% elif contact.status.value == 'Lead' and contact.lead_id %}
+                <a href="{{ url_for('leads.view_lead', lead_id=contact.lead_id) }}" class="btn-action gold" style="text-decoration:none;">👁 View Lead</a>
+                {% endif %}
+                <form action="{{ url_for('contacts.delete_contact', contact_id=contact.id) }}" method="POST" onsubmit="return confirm('Delete this contact? This cannot be undone.');" style="margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-action outline" style="color:#dc2626;border-color:#fca5a5;">🗑 Delete</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Profile Grid -->
+        <div class="profile-grid">
+            <!-- Basic Info -->
+            <div class="info-card">
+                <h4>📋 Basic Information</h4>
+                <div class="info-row"><span class="info-label">Full Name</span><span class="info-value">{{ contact.name }}</span></div>
+                {% if contact.designation %}<div class="info-row"><span class="info-label">Designation</span><span class="info-value">{{ contact.designation }}</span></div>{% endif %}
+                {% if contact.company %}<div class="info-row"><span class="info-label">Company</span><span class="info-value">{{ contact.company }}</span></div>{% endif %}
+                {% if contact.birthday %}<div class="info-row"><span class="info-label">Birthday</span><span class="info-value">{{ contact.birthday.strftime('%d %b %Y') }}</span></div>{% endif %}
+                {% if contact.website %}<div class="info-row"><span class="info-label">Website</span><span class="info-value"><a href="{{ contact.website }}" target="_blank" style="color:var(--accent-gold);">{{ contact.website }}</a></span></div>{% endif %}
+                <div class="info-row"><span class="info-label">Source</span><span class="info-value">{{ contact.source.value if contact.source else '—' }}</span></div>
+                <div class="info-row"><span class="info-label">Owner</span><span class="info-value">{{ contact.assignee.name if contact.assignee else 'Unassigned' }}</span></div>
+                <div class="info-row"><span class="info-label">Created</span><span class="info-value">{{ contact.created_at.strftime('%d %b %Y') if contact.created_at else '—' }}</span></div>
+                {% if contact.tags %}
+                <div class="info-row">
+                    <span class="info-label">Tags</span>
+                    <span class="info-value">
+                        {% for tag in contact.tags.split(',') %}
+                        <span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:12px;font-size:0.75rem;margin:2px;display:inline-block;">{{ tag.strip() }}</span>
+                        {% endfor %}
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Contact Info -->
+            <div class="info-card">
+                <h4>📞 Contact Information</h4>
+                <div class="info-row"><span class="info-label">Primary Phone</span><span class="info-value"><a href="tel:{{ contact.phone_number }}" style="color:var(--accent-gold);">{{ contact.phone_number }}</a></span></div>
+                {% if contact.secondary_phone %}<div class="info-row"><span class="info-label">Secondary Phone</span><span class="info-value">{{ contact.secondary_phone }}</span></div>{% endif %}
+                {% if contact.whatsapp_number %}<div class="info-row"><span class="info-label">WhatsApp</span><span class="info-value"><a href="https://wa.me/91{{ contact.whatsapp_number }}" target="_blank" style="color:#25d366;">💬 {{ contact.whatsapp_number }}</a></span></div>{% endif %}
+                {% if contact.email %}<div class="info-row"><span class="info-label">Email</span><span class="info-value"><a href="mailto:{{ contact.email }}" style="color:var(--accent-gold);">{{ contact.email }}</a></span></div>{% endif %}
+                {% if contact.address or contact.city %}
+                <div class="info-row" style="flex-direction:column;align-items:flex-start;gap:4px;">
+                    <span class="info-label">📍 Address</span>
+                    <span style="color:var(--primary-color);font-size:0.88rem;line-height:1.6;">
+                        {% if contact.address %}{{ contact.address }}<br>{% endif %}
+                        {% if contact.city %}{{ contact.city }}{% endif %}{% if contact.state %}, {{ contact.state }}{% endif %}{% if contact.pincode %} - {{ contact.pincode }}{% endif %}<br>
+                        {% if contact.country %}{{ contact.country }}{% endif %}
+                    </span>
+                </div>
+                {% endif %}
+                {% if contact.notes %}
+                <div style="margin-top:1rem;padding:1rem;background:#f8fafc;border-radius:8px;font-size:0.88rem;color:#475569;line-height:1.6;">
+                    <strong style="display:block;margin-bottom:4px;color:#64748b;font-size:0.75rem;text-transform:uppercase;">Notes</strong>
+                    {{ contact.notes | nl2br | safe }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tabs Section -->
+        <div class="tab-section">
+            <div class="tab-nav">
+                <button class="tab-btn active" onclick="switchTab('timeline', this)">📅 Timeline</button>
+                <button class="tab-btn" onclick="switchTab('notes', this)">📝 Notes</button>
+                <button class="tab-btn" onclick="switchTab('activity', this)">⚡ Log Activity</button>
+                {% if contact.status.value == 'Lead' and contact.lead_id %}
+                <button class="tab-btn" onclick="window.location='{{ url_for('leads.view_lead', lead_id=contact.lead_id) }}'">🔗 View Lead</button>
+                {% endif %}
+            </div>
+
+            <!-- Timeline Tab -->
+            <div id="tab-timeline" class="tab-content active">
+                {% if system_logs %}
+                <div>
+                    {% for log in system_logs %}
+                    <div class="timeline-item">
+                        <div class="timeline-icon">{{ log.icon }}</div>
+                        <div class="timeline-body">
+                            <div class="msg">{{ log.message }}</div>
+                            <div class="meta">
+                                {{ log.created_at.strftime('%d %b %Y, %I:%M %p') if log.created_at else '' }}
+                                {% if log.actor %} · by {{ log.actor.name }}{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p style="color:#94a3b8;text-align:center;padding:2rem;">No timeline events yet.</p>
+                {% endif %}
+
+                {% if activities %}
+                <div style="margin-top:1.5rem;border-top:1px solid rgba(13,27,42,0.06);padding-top:1.5rem;">
+                    <h5 style="font-size:0.82rem;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:1rem;">Logged Activities</h5>
+                    {% for act in activities %}
+                    <div class="timeline-item">
+                        <div class="timeline-icon">
+                            {% if act.activity_type.value == 'Call' %}📞
+                            {% elif act.activity_type.value == 'Meeting' %}🤝
+                            {% elif act.activity_type.value == 'Email' %}📧
+                            {% elif act.activity_type.value == 'Note' %}📝
+                            {% else %}⚡{% endif %}
+                        </div>
+                        <div class="timeline-body">
+                            <div class="msg"><strong>{{ act.activity_type.value }}</strong> — {{ act.description }}</div>
+                            <div class="meta">{{ act.created_at.strftime('%d %b %Y, %I:%M %p') if act.created_at else '' }} · by {{ act.creator.name if act.creator else 'Unknown' }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Notes Tab -->
+            <div id="tab-notes" class="tab-content">
+                <form action="{{ url_for('contacts.add_note', contact_id=contact.id) }}" method="POST" style="margin-bottom:1.5rem;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div style="display:flex;gap:12px;align-items:flex-end;background:#f8fafc;padding:1.25rem;border-radius:8px;">
+                        <div style="flex:1;">
+                            <label style="font-size:0.82rem;color:#64748b;font-weight:600;margin-bottom:6px;display:block;">Add a Note</label>
+                            <textarea name="note" class="form-control" rows="3" placeholder="Write your note here..."></textarea>
+                        </div>
+                        <button type="submit" class="btn-gold-sm">💬 Add Note</button>
+                    </div>
+                </form>
+
+                {% if notes %}
+                {% for note in notes %}
+                <div class="note-card" id="contact-notes">
+                    <div class="note-text">{{ note.note | nl2br | safe }}</div>
+                    <div class="note-meta">
+                        <span>👤 {{ note.author.name if note.author else 'Unknown' }}</span>
+                        <span>{{ note.created_at.strftime('%d %b %Y, %I:%M %p') if note.created_at else '' }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p style="color:#94a3b8;text-align:center;padding:2rem;">No notes yet. Add the first note above.</p>
+                {% endif %}
+            </div>
+
+            <!-- Log Activity Tab -->
+            <div id="tab-activity" class="tab-content">
+                <form action="{{ url_for('contacts.add_activity', contact_id=contact.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div style="background:#f8fafc;padding:1.5rem;border-radius:8px;">
+                        <h5 style="margin:0 0 1rem;color:var(--primary-color);">Log an Activity</h5>
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Activity Type</label>
+                                <select name="activity_type" class="form-control">
+                                    <option value="Call">📞 Call</option>
+                                    <option value="Meeting">🤝 Meeting</option>
+                                    <option value="Email">📧 Email</option>
+                                    <option value="Note">📝 Note</option>
+                                    <option value="Task">✅ Task</option>
+                                </select>
+                            </div>
+                            <div class="col-md-9 mb-3">
+                                <label class="form-label">Description</label>
+                                <input type="text" name="description" class="form-control" placeholder="What happened? (e.g. Called and discussed glass requirements)" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-gold-sm">📝 Log Activity</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Convert to Lead Modal -->
+    <div id="convertLeadModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center;">
+        <div style="background:#fff;border-radius:12px;padding:0;max-width:680px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <form action="{{ url_for('contacts.convert_to_lead', contact_id=contact.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="padding:1.75rem;border-bottom:1px solid rgba(13,27,42,0.08);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <h3 style="margin:0;color:var(--primary-color);">🚀 Convert to Lead</h3>
+                        <button type="button" onclick="document.getElementById('convertLeadModal').style.display='none'" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#94a3b8;">&times;</button>
+                    </div>
+                    <p style="margin:0.5rem 0 0;color:#64748b;font-size:0.9rem;">Converting <strong>{{ contact.name }}</strong> into a Lead. A new Lead record will be created automatically.</p>
+                </div>
+                <div style="padding:1.75rem;">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Lead Title</label>
+                            <input type="text" class="form-control" name="lead_title" value="{{ contact.name }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Interested Products / Services</label>
+                            <input type="text" class="form-control" name="interested_products" placeholder="e.g. Glass Partition, Shower Enclosure">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Estimated Budget (₹)</label>
+                            <input type="text" class="form-control" name="estimated_budget" placeholder="e.g. 1,50,000">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Priority</label>
+                            <select class="form-control" name="priority">
+                                <option value="Low">🟢 Low</option>
+                                <option value="Medium" selected>🟡 Medium</option>
+                                <option value="High">🔴 High</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Expected Closing Date</label>
+                            <input type="date" class="form-control" name="expected_closing_date">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Lead Owner</label>
+                            <select name="lead_owner" class="form-control">
+                                <option value="">— Unassigned —</option>
+                                {% for emp in employees %}
+                                <option value="{{ emp.id }}" {% if emp.id == contact.assigned_to %}selected{% endif %}>{{ emp.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Remarks</label>
+                            <textarea class="form-control" name="remarks" rows="3" placeholder="Additional notes for the lead..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div style="padding:1.25rem 1.75rem;background:#f8fafc;border-top:1px solid rgba(13,27,42,0.08);display:flex;gap:12px;justify-content:flex-end;border-radius:0 0 12px 12px;">
+                    <button type="button" onclick="document.getElementById('convertLeadModal').style.display='none'" class="btn-action outline">Cancel</button>
+                    <button type="submit" class="btn-action gold">✅ Confirm & Convert to Lead</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(name, btn) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            const tab = document.getElementById('tab-' + name);
+            if (tab) { tab.classList.add('active'); btn.classList.add('active'); }
+        }
+        // Close modal on backdrop click
+        document.getElementById('convertLeadModal').addEventListener('click', function(e) {
+            if (e.target === this) this.style.display = 'none';
+        });
+    </script>
+</body>
+</html>

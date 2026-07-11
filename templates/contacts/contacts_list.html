@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contacts | GlassEntials Staff Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .customer-table { border-collapse: separate; border-spacing: 0 8px; width: 100%; margin-top: -8px; }
+        .customer-table thead th { background: #f8fafc; padding: 1.25rem 1rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; border: none; font-weight: 700; }
+        .customer-table tbody tr { background: #ffffff; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .customer-table tbody tr:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(13,27,42,0.08); z-index:5; position:relative; }
+        .customer-table td { padding: 1.25rem 1rem; border-top: 1px solid rgba(13,27,42,0.05); border-bottom: 1px solid rgba(13,27,42,0.05); vertical-align: middle; }
+        .customer-table td:first-child { border-left: 1px solid rgba(13,27,42,0.05); border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+        .customer-table td:last-child { border-right: 1px solid rgba(13,27,42,0.05); border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+        .action-buttons { display: flex; gap: 8px; flex-wrap: nowrap; }
+        .action-pill { padding: 0.5rem 0.9rem; font-size: 0.75rem; letter-spacing: 0.02em; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; }
+        .status-badge { padding: 5px 12px; font-size: 0.72rem; letter-spacing: 0.04em; border-radius: 20px; font-weight: 700; display: inline-block; text-align: center; text-transform: uppercase; }
+        .status-contact { background: #e0f2fe; color: #0369a1; }
+        .status-follow-up { background: #fef3c7; color: #92400e; }
+        .status-not-interested { background: #fee2e2; color: #991b1b; }
+        .status-do-not-call { background: #fce7f3; color: #9d174d; }
+        .status-lead { background: #d1fae5; color: #065f46; }
+        .status-customer { background: #ede9fe; color: #4c1d95; }
+        .avatar-circle { width: 40px; height: 40px; border-radius: 50%; background: rgba(212,175,55,0.12); color: var(--accent-gold); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; font-family: var(--font-heading); flex-shrink:0; }
+        .contact-name-cell { display: flex; align-items: center; gap: 12px; }
+        .contact-name-cell .name { font-weight: 600; color: var(--primary-color); font-size: 0.95rem; }
+        .contact-name-cell .designation { font-size: 0.78rem; color: #94a3b8; }
+        .info-line { font-size: 0.85rem; color: #475569; display: flex; align-items: center; gap: 5px; }
+        .info-line small { color: #94a3b8; }
+    </style>
+</head>
+<body class="dashboard-page">
+    {% include 'includes/navbar.html' %}
+    <main class="container">
+
+        {% with messages = get_flashed_messages(category_filter=["leadssuccess"]) %}{% if messages %}{% for message in messages %}
+        <div class="flash-message" style="padding:15px;background:rgba(16,185,129,0.08);border-left:4px solid #10b981;font-family:var(--font-body);color:var(--primary-color);display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;border-radius:4px;">
+            <span style="color:#10b981;font-size:1.2rem;">✓</span> {{ message }}
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        {% with messages = get_flashed_messages(category_filter=["leadserror"]) %}{% if messages %}{% for message in messages %}
+        <div class="flash-message" style="padding:15px;background:rgba(139,0,0,0.04);border-left:4px solid rgba(139,0,0,0.5);font-family:var(--font-body);color:#8b0000;display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;border-radius:4px;">
+            <span style="font-size:1.2rem;">⚠</span> {{ message }}
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="search-bar">
+                <span class="search-icon">🔍</span>
+                <input type="text" placeholder="Search contacts by name, phone, email, company..." id="contactSearch">
+            </div>
+            <div class="btn-group">
+                <div class="export-dropdown">
+                    <button class="btn-action outline export-trigger">📤 Export ▾</button>
+                    <div class="export-menu">
+                        <div class="export-menu-inner">
+                            <a href="{{ url_for('contacts.export_contacts', format='csv') }}">📄 Export CSV</a>
+                            <a href="{{ url_for('contacts.export_contacts', format='excel') }}">📊 Export Excel</a>
+                        </div>
+                    </div>
+                </div>
+                <a href="{{ url_for('contacts.add_contact') }}" class="btn-action gold" style="text-decoration:none;">➕ Add Contact</a>
+                <a href="{{ url_for('contacts.bulk_upload_contacts') }}" class="btn-action outline" style="text-decoration:none;">📤 Bulk Upload</a>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar" style="display:flex;gap:1.5rem;align-items:center;margin-bottom:2rem;background:#fff;padding:1.25rem 1.5rem;border-radius:12px;border:1px solid rgba(13,27,42,0.1);box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+            <div style="display:flex;align-items:center;gap:8px;color:var(--primary-color);font-weight:700;font-size:0.9rem;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">
+                <span style="font-size:1.2rem;">⚡</span> Filters
+            </div>
+            <div style="display:flex;gap:12px;align-items:center;flex:1;flex-wrap:wrap;">
+                <select id="sourceFilter" class="form-control" style="padding:0.7rem 1rem;height:auto;font-size:0.9rem;border-radius:8px;border:1px solid rgba(13,27,42,0.15);background:#f8fafc;cursor:pointer;flex:1;max-width:180px;">
+                    <option value="">All Sources</option>
+                    <option value="Website">Website</option>
+                    <option value="Google">Google</option>
+                    <option value="Social Media">Social Media</option>
+                    <option value="Referral">Referral</option>
+                    <option value="Walk-in">Walk-in</option>
+                    <option value="Other">Other</option>
+                </select>
+                <select id="assigneeFilter" class="form-control" style="padding:0.7rem 1rem;height:auto;font-size:0.9rem;border-radius:8px;border:1px solid rgba(13,27,42,0.15);background:#f8fafc;cursor:pointer;flex:1;max-width:200px;">
+                    <option value="">All Owners</option>
+                    <option value="Unassigned">Unassigned</option>
+                    {% for emp in employees %}<option value="{{ emp.name }}">{{ emp.name }}</option>{% endfor %}
+                </select>
+                <select id="statusFilter" class="form-control" style="padding:0.7rem 1rem;height:auto;font-size:0.9rem;border-radius:8px;border:1px solid rgba(13,27,42,0.15);background:#f8fafc;cursor:pointer;flex:1;max-width:200px;">
+                    <option value="">All Statuses</option>
+                    <option value="Contact">Contact</option>
+                    <option value="Follow Up">Follow Up</option>
+                    <option value="Not Interested">Not Interested</option>
+                    <option value="Do Not Call">Do Not Call</option>
+                    <option value="Lead">Lead</option>
+                    <option value="Customer">Customer</option>
+                </select>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:0.85rem;color:#64748b;font-weight:600;">Total: <strong id="contactCount">{{ contacts|length }}</strong></span>
+                <button onclick="window.location.reload()" class="action-pill edit-pill" style="padding:0.6rem 1.2rem;display:flex;align-items:center;gap:6px;background:#fff;">🔄 Reset</button>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card" style="overflow-x:auto;">
+            <table class="customer-table" id="contactsTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Contact</th>
+                        <th>Company</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Owner</th>
+                        <th>Source</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="contactsBody">
+                    {% for contact in contacts %}
+                    <tr class="contact-row"
+                        data-name="{{ contact.name | lower }}"
+                        data-phone="{{ contact.phone_number | lower }}"
+                        data-email="{{ (contact.email or '') | lower }}"
+                        data-company="{{ (contact.company or '') | lower }}"
+                        data-source="{{ contact.source.value if contact.source else '' }}"
+                        data-status="{{ contact.status.value if contact.status else '' }}"
+                        data-owner="{{ (contact.assignee.name if contact.assignee else 'Unassigned') }}">
+                        <td style="color:#94a3b8;font-size:0.82rem;font-weight:600;">{{ loop.index }}</td>
+                        <td>
+                            <div class="contact-name-cell">
+                                <div class="avatar-circle">{{ contact.first_name[0] | upper }}</div>
+                                <div>
+                                    <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="name" style="text-decoration:none;">{{ contact.name }}</a>
+                                    {% if contact.designation %}<div class="designation">{{ contact.designation }}</div>{% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td style="font-size:0.88rem;color:#475569;">{{ contact.company or '—' }}</td>
+                        <td>
+                            <div class="info-line"><span>📞</span> {{ contact.phone_number }}</div>
+                            {% if contact.whatsapp_number %}<div class="info-line" style="margin-top:2px;"><span>💬</span> <small>{{ contact.whatsapp_number }}</small></div>{% endif %}
+                        </td>
+                        <td style="font-size:0.88rem;color:#475569;">{{ contact.email or '—' }}</td>
+                        <td>
+                            {% set sv = contact.status.value if contact.status else 'Contact' %}
+                            {% if sv == 'Contact' %}<span class="status-badge status-contact">Contact</span>
+                            {% elif sv == 'Follow Up' %}<span class="status-badge status-follow-up">Follow Up</span>
+                            {% elif sv == 'Not Interested' %}<span class="status-badge status-not-interested">Not Interested</span>
+                            {% elif sv == 'Do Not Call' %}<span class="status-badge status-do-not-call">Do Not Call</span>
+                            {% elif sv == 'Lead' %}<span class="status-badge status-lead">Lead</span>
+                            {% elif sv == 'Customer' %}<span class="status-badge status-customer">Customer</span>
+                            {% else %}<span class="status-badge status-contact">{{ sv }}</span>{% endif %}
+                        </td>
+                        <td style="font-size:0.88rem;">
+                            {% if contact.assignee %}
+                                <span style="display:flex;align-items:center;gap:6px;"><span style="width:24px;height:24px;border-radius:50%;background:rgba(212,175,55,0.15);color:var(--accent-gold);display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">{{ contact.assignee.name[0] }}</span>{{ contact.assignee.name }}</span>
+                            {% else %}<span style="color:#94a3b8;">Unassigned</span>{% endif %}
+                        </td>
+                        <td><span style="background:rgba(13,27,42,0.06);padding:4px 10px;border-radius:6px;font-size:0.78rem;font-weight:600;color:var(--primary-color);">{{ contact.source.value if contact.source else '—' }}</span></td>
+                        <td style="font-size:0.82rem;color:#94a3b8;">{{ contact.created_at.strftime('%d %b %Y') if contact.created_at else '—' }}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="action-pill" style="background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;text-decoration:none;">👁 View</a>
+                                <a href="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" class="action-pill edit-pill" style="text-decoration:none;">✏️ Edit</a>
+                                {% if contact.status.value != 'Lead' and contact.status.value != 'Customer' %}
+                                <button class="action-pill convert-pill" style="border:none;cursor:pointer;background:var(--accent-gold);color:#fff;" onclick="window.location='{{ url_for('contacts.view_contact', contact_id=contact.id) }}'">🚀 Convert</button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="10" style="text-align:center;padding:3rem;color:#94a3b8;">No contacts found. <a href="{{ url_for('contacts.add_contact') }}" style="color:var(--accent-gold);">Add your first contact</a></td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </main>
+
+    <script>
+        // Search
+        const searchInput = document.getElementById('contactSearch');
+        const sourceFilter = document.getElementById('sourceFilter');
+        const assigneeFilter = document.getElementById('assigneeFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        const countEl = document.getElementById('contactCount');
+
+        function filterTable() {
+            const q = searchInput.value.toLowerCase();
+            const src = sourceFilter.value.toLowerCase();
+            const asgn = assigneeFilter.value.toLowerCase();
+            const stat = statusFilter.value.toLowerCase();
+            let visible = 0;
+            document.querySelectorAll('.contact-row').forEach(row => {
+                const matchQ = !q || row.dataset.name.includes(q) || row.dataset.phone.includes(q) || row.dataset.email.includes(q) || row.dataset.company.includes(q);
+                const matchSrc = !src || row.dataset.source.toLowerCase() === src;
+                const matchAsgn = !asgn || row.dataset.owner.toLowerCase() === asgn;
+                const matchStat = !stat || row.dataset.status.toLowerCase() === stat;
+                const show = matchQ && matchSrc && matchAsgn && matchStat;
+                row.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+            if (countEl) countEl.textContent = visible;
+        }
+
+        searchInput.addEventListener('input', filterTable);
+        sourceFilter.addEventListener('change', filterTable);
+        assigneeFilter.addEventListener('change', filterTable);
+        statusFilter.addEventListener('change', filterTable);
+
+        // Export dropdown
+        document.querySelectorAll('.export-trigger').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                btn.nextElementSibling.classList.toggle('show');
+            });
+        });
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.export-menu').forEach(m => m.classList.remove('show'));
+        });
+    </script>
+</body>
+</html>

@@ -12,6 +12,7 @@
         <nav class="dash-menu">
             <a href="{{ url_for('home_page') }}" {% if request.endpoint == 'home_page' %}class="active"{% endif %}>Dashboard</a>
             <a href="{{ url_for('customers.customers_list') }}" {% if request.blueprint == 'customers' %}class="active"{% endif %}>Customers</a>
+
             <div class="dropdown">
                 <a href="#" {% if request.blueprint == 'leads' %}class="active"{% endif %}>Leads ▾</a>
                 <div class="dropdown-content">
@@ -41,9 +42,10 @@
             <a href="{{ url_for('products.products_list') }}" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
             
             <div class="dropdown">
-                <a href="#" {% if request.blueprint == 'employees' %}class="active"{% endif %}>Settings ▾</a>
+                <a href="#" {% if request.blueprint == 'employees' or request.blueprint == 'contacts' %}class="active"{% endif %}>Settings ▾</a>
                 <div class="dropdown-content">
                     <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                    <a href="{{ url_for('contacts.contacts_list') }}">Contacts</a>
                 </div>
             </div>
         </nav>
@@ -161,4 +163,17 @@
 
         setInterval(checkNotifications, 10000);
     })();
+
+    // Auto-dismiss Flash Messages globally across the app
+    document.addEventListener('DOMContentLoaded', function() {
+        const flashMessages = document.querySelectorAll('.flash-message, div[style*="border-left:4px solid"], div[style*="border-left: 4px solid"]');
+        flashMessages.forEach(msg => {
+            msg.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            setTimeout(() => {
+                msg.style.opacity = '0';
+                msg.style.transform = 'translateY(-10px)';
+                setTimeout(() => msg.remove(), 500);
+            }, 3000);
+        });
+    });
 </script>
