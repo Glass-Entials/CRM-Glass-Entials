@@ -75,10 +75,7 @@
                                 <span style="color: inherit;">📄 {{ doc.original_name }}</span>
                                 <a href="#" onclick="openPreviewModal('{{ url_for('documents.view_document', doc_id=doc.id, filename=doc.original_name) }}', '{{ url_for('documents.download_document', doc_id=doc.id) }}', '{{ doc.original_name }}'); return false;" style="color: var(--primary-color); text-decoration: none; font-size: 1.1rem; margin-left: auto;" title="Preview Document">👁️</a>
                                 <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" target="_blank" style="color: var(--accent-gold); text-decoration: none; font-weight: 600; font-size: 1.1rem; margin-left: 5px;" title="Download Document">⬇️</a>
-                                <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');" style="margin: 0; margin-left: 5px; display: flex;">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" style="background: none; border: none; color: #dc2626; font-size: 1.1rem; cursor: pointer; padding: 0;" title="Delete Document">🗑️</button>
-                                </form>
+                                <button type="button" onclick="submitDeleteDoc('{{ url_for('documents.delete_document', doc_id=doc.id) }}')" style="background: none; border: none; color: #dc2626; font-size: 1.1rem; cursor: pointer; padding: 0; margin-left: 5px;" title="Delete Document">🗑️</button>
                             </div>
                             {% endfor %}
                         </div>
@@ -150,6 +147,10 @@
         </div>
 
     </main>
+
+    <form id="deleteDocForm" method="POST" style="display: none;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    </form>
     <!-- Document Preview Modal -->
     <div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;">
         <div style="width: 80%; height: 80%; background: #fff; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;">
@@ -162,6 +163,14 @@
     </div>
 
     <script>
+        function submitDeleteDoc(actionUrl) {
+            if (confirm('Delete this document?')) {
+                var form = document.getElementById('deleteDocForm');
+                form.action = actionUrl;
+                form.submit();
+            }
+        }
+
         function openPreviewModal(viewUrl, downloadUrl, filename) {
             let ext = filename.split('.').pop().toLowerCase();
             let contentHtml = '';
