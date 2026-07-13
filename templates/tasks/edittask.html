@@ -26,11 +26,21 @@
                 <h2 style="font-family: var(--font-heading); color: var(--primary-color); margin: 0; font-size: 1.8rem;">Edit Task</h2>
             </div>
 
-            {% with messages = get_flashed_messages(category_filter=["taskerror"]) %}
+            {% with messages = get_flashed_messages(category_filter=["taskerror", "error"]) %}
             {% if messages %}
             {% for message in messages %}
             <div class="flash-message" style="padding: 15px; background-color: rgba(139, 0, 0, 0.04); border-left: 4px solid rgba(139, 0, 0, 0.5); color: #8b0000; margin-bottom: 1.5rem; border-radius: 4px;">
                 ⚠ {{ message }}
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            {% with messages = get_flashed_messages(category_filter=["tasksuccess", "success"]) %}
+            {% if messages %}
+            {% for message in messages %}
+            <div class="flash-message" style="padding: 15px; background-color: #f0fdf4; border-left: 4px solid #16a34a; color: #16a34a; margin-bottom: 1.5rem; border-radius: 4px;">
+                ✅ {{ message }}
             </div>
             {% endfor %}
             {% endif %}

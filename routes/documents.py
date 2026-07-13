@@ -204,16 +204,17 @@ def delete_document(doc_id):
         if os.path.exists(file_path):
             os.remove(file_path)
 
-        entity_type = doc.entity_type
-        entity_id = doc.entity_id
+        # Determine entity type and ID for logging if needed
+        is_lead_doc = doc.lead_id is not None
+        lead_entity_id = doc.lead_id
         original_name = doc.original_name
 
         db.session.delete(doc)
 
-        if entity_type == "lead":
+        if is_lead_doc:
             from utils.lead_log import log_lead_event
             log_lead_event(
-                entity_id, 
+                lead_entity_id, 
                 "document_deleted", 
                 f"{current_user.employee.name if current_user.employee else 'System'} deleted a document: {original_name}", 
                 "🗑️", 
@@ -222,10 +223,11 @@ def delete_document(doc_id):
             )
 
         db.session.commit()
-        flash("Document deleted.", "success")
+        flash("Document deleted successfully.", "success")
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error: {str(e)}", exc_info=True)
-        flash("An error occurred. Please try again.", "error")
+        current_app.logger.error(f"Error deleting document: {str(e)}", exc_info=True)
+        flash("An error occurred while deleting the document. Please try again.", "error")
 
-    return redirect(safe_redirect_target(request.referrer, url_for("home_page")))
+    next_url = request.form.get("next") or request.referrer
+    return redirect(safe_redirect_target(next_url, url_for("home_page")))
