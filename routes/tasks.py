@@ -107,22 +107,21 @@ def add_task():
                 "task_added", "task", new_task.title, org_id, actor_id, new_task.id
             )
 
-            # Handle file upload if present
+            # Handle file uploads if present (supports multiple)
             if "file" in request.files:
-                file = request.files["file"]
-                if file and file.filename != "":
-                    from utils.documents import handle_file_upload
-
-                    handle_file_upload(
-                        file=file,
-                        entity_type="task",
-                        entity_id=new_task.id,
-                        organization_id=org_id,
-                        uploader_id=(
-                            current_user.employee.id if current_user.employee else None
-                        ),
-                        description=f"Attached during task creation: {new_task.title}",
-                    )
+                from utils.documents import handle_file_upload
+                for file in request.files.getlist("file"):
+                    if file and file.filename != "":
+                        handle_file_upload(
+                            file=file,
+                            entity_type="task",
+                            entity_id=new_task.id,
+                            organization_id=org_id,
+                            uploader_id=(
+                                current_user.employee.id if current_user.employee else None
+                            ),
+                            description=f"Attached during task creation: {new_task.title}",
+                        )
 
             db.session.commit()
             flash("Task created successfully!", "tasksuccess")
