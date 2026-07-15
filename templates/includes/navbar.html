@@ -102,7 +102,7 @@
 <!-- Real-time notifications container -->
 <div id="realtime-toast-container"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
 <script>
     // Real-Time Socket.IO Notification System
     (function() {
