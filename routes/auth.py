@@ -25,7 +25,7 @@ from model import (
     LeadActivity,
     Customer,
 )
-from utils.security import safe_redirect_target
+from utils.security import safe_redirect_target, is_safe_redirect
 from utils.extensions import limiter
 from urllib.parse import urlparse, urljoin
 
@@ -318,8 +318,8 @@ def mark_notification_read(id):
     notification.is_read = True
     db.session.commit()
 
-    if notification.link:
-        return redirect(safe_redirect_target(notification.link, url_for("auth.notifications")))
+    if notification.link and is_safe_redirect(notification.link):
+        return redirect(notification.link)
 
     return redirect(url_for("auth.notifications"))
 
