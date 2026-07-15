@@ -1,6 +1,8 @@
 from model import db, Notification
 from datetime import datetime
 from utils.extensions import socketio
+from sqlalchemy import event
+
 
 class NotificationService:
     @staticmethod
@@ -18,27 +20,34 @@ class NotificationService:
             created_at=datetime.utcnow(),
         )
         db.session.add(notification)
-        
-        # We need to flush so the notification gets an ID before emitting
-        db.session.flush()
 
-        # Emit to the specific user's room
+        # Emit the real-time event ONLY after the DB commit succeeds.
+        # Emitting before commit was the bug: if the session flushed but commit
+        # hadn't happened yet, a page refresh / socket reconnect could cause
+        # duplicate delivery or the uncommitted record to persist unexpectedly.
         room = f"org_{organization_id}_user_{recipient_id}"
-        socketio.emit('new_notification', {
-            'id': notification.id,
-            'title': notification.title,
-            'message': notification.message,
-            'link': notification.link,
+        payload = {
+            'title': title,
+            'message': message,
+            'link': link,
             'created_at': notification.created_at.isoformat() + "Z"
-        }, room=room)
+        }
+
+        @event.listens_for(db.session, "after_commit", once=True)
+        def _emit_after_commit(session):
+            payload['id'] = notification.id
+            socketio.emit('new_notification', payload, room=room)
 
         return notification
+
 
 def create_notification(
     recipient_id, title, message, link=None, sender_id=None, organization_id=None
 ):
     """
-    Legacy wrapper. Creates a new notification for a user and emits it via SocketIO.
+    Creates a new notification for a user.
+    The real-time Socket.IO event is emitted AFTER the enclosing
+    db.session.commit() succeeds — never on flush or page load.
     """
     return NotificationService.send(
         recipient_id=recipient_id,
