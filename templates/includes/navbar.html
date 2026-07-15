@@ -120,13 +120,36 @@
             }
         }
 
-        // Connect Socket
-        const socket = io();
+        // Connect Socket with explicit, stable configuration
+        // Start with polling for the handshake (always works through proxies),
+        // then the engine upgrades to WebSocket automatically.
+        const socket = io({
+            transports: ['polling', 'websocket'],  // polling first ensures handshake works
+            upgrade: true,                          // then upgrade to WS
+            rememberUpgrade: false,                 // don't skip polling on reconnect
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000,
+        });
 
         socket.on('connect', () => {
-            console.log('Connected to real-time notification service.');
-            // Send join event with user info securely using Flask-Login session data
+            console.log('✅ Socket.IO connected:', socket.id, '— transport:', socket.io.engine.transport.name);
+            // Send join event to subscribe to the user's notification room
             socket.emit('join', {});
+        });
+
+        socket.io.engine.on('upgrade', (transport) => {
+            console.log('⚡ Socket.IO upgraded to:', transport.name);
+        });
+
+        socket.on('disconnect', (reason) => {
+            console.warn('⚠️ Socket.IO disconnected:', reason);
+        });
+
+        socket.on('connect_error', (err) => {
+            console.error('❌ Socket.IO connection error:', err.message, err);
         });
 
         socket.on('new_notification', (data) => {

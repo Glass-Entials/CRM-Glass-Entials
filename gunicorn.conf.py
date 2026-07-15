@@ -8,10 +8,17 @@ import os
 bind = os.environ.get("GUNICORN_BIND", "0.0.0.0:8000")
 
 # ─── Workers ───────────────────────────────────────────────────────────────────
-# Formula: (2 x CPU cores) + 1
-workers = int(os.environ.get("GUNICORN_WORKERS", multiprocessing.cpu_count() * 2 + 1))
+# CRITICAL for Socket.IO + Eventlet:
+# With no Redis message queue, Socket.IO sessions are stored in-process.
+# Multiple workers each have their own isolated session store, causing
+# HTTP 400 "Unknown session" when a different worker handles a polling request.
+# Eventlet handles massive concurrency within a SINGLE process via green threads.
+# Only increase workers if SOCKETIO_MESSAGE_QUEUE (Redis) is configured.
+import os as _os, multiprocessing as _mp
+_has_redis_queue = bool(_os.environ.get("SOCKETIO_MESSAGE_QUEUE"))
+workers = int(_os.environ.get("GUNICORN_WORKERS", _mp.cpu_count() * 2 + 1 if _has_redis_queue else 1))
 worker_class = "eventlet"
-threads = int(os.environ.get("GUNICORN_THREADS", 1)) # Eventlet is single-threaded async per worker
+threads = 1  # Eventlet is single-threaded async per worker — threading is irrelevant
 
 # ─── Timeouts ──────────────────────────────────────────────────────────────────
 timeout = int(os.environ.get("GUNICORN_TIMEOUT", 120))

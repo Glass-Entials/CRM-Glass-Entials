@@ -9,6 +9,7 @@ limiter = Limiter(
     default_limits=["1000 per day", "300 per hour"]
 )
 
-# Initialize SocketIO, allowing cross-origin for potential external API usage
-# In production, we connect to Redis so multiple workers can emit messages across processes.
-socketio = SocketIO(cors_allowed_origins="*", message_queue=os.environ.get("REDIS_URL", "memory://"))
+# SocketIO instance — do NOT pass message_queue or async_mode here.
+# These are configured in init_app() to avoid eventlet monkey-patch conflicts.
+# If REDIS_URL is set in production, pass it via SOCKETIO_MESSAGE_QUEUE env var.
+socketio = SocketIO()

@@ -61,6 +61,8 @@ csp = {
     'font-src': ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
     'img-src': ["'self'", "data:", "blob:", "https://images.unsplash.com"],
     'media-src': ["'self'", "data:", "https://assets.mixkit.co"],
+    # Explicitly allow WebSocket connections (ws: and wss:) for Socket.IO
+    'connect-src': ["'self'", "ws:", "wss:"],
     'frame-ancestors': ["'self'"]
 }
 
@@ -74,8 +76,20 @@ from utils.extensions import limiter, socketio
 # Initialize Limiter
 limiter.init_app(app)
 
-# Initialize SocketIO
-socketio.init_app(app, async_mode="eventlet", message_queue=None) # We will use eventlet directly
+# Initialize SocketIO with eventlet async mode.
+# CRITICAL: Do NOT pass message_queue here unless Redis is configured.
+# With message_queue=None (default), all sessions stay in-process which
+# requires workers=1 in gunicorn.conf.py. If Redis is available, set
+# SOCKETIO_MESSAGE_QUEUE env var and pass it here to enable multi-worker support.
+_socketio_queue = os.environ.get("SOCKETIO_MESSAGE_QUEUE") or None
+socketio.init_app(
+    app,
+    async_mode="eventlet",
+    cors_allowed_origins="*",
+    message_queue=_socketio_queue,
+    logger=True,
+    engineio_logger=True,
+)
 
 from flask_socketio import join_room
 @socketio.on('join')
