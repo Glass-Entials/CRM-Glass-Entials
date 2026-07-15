@@ -323,6 +323,19 @@ def mark_notification_read(id):
 
     return redirect(url_for("auth.notifications"))
 
+@auth_bp.route("/notifications/mark-read-ajax/<int:id>", methods=["POST"])
+@login_required
+def mark_notification_read_ajax(id):
+    from model import Notification
+
+    notification = Notification.query.get_or_404(id)
+    if notification.recipient_id != current_user.employee.id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    notification.is_read = True
+    db.session.commit()
+    return jsonify({"success": True}), 200
+
 
 @auth_bp.route("/notifications/mark-all-read")
 @login_required
@@ -337,6 +350,22 @@ def mark_all_notifications_read():
     db.session.commit()
     flash("All notifications marked as read.", "success")
     return redirect(url_for("auth.notifications"))
+
+
+@auth_bp.route("/notifications/delete/<int:id>", methods=["POST"])
+@login_required
+def delete_notification(id):
+    from model import Notification
+
+    notification = Notification.query.get_or_404(id)
+
+    # Security check
+    if notification.recipient_id != current_user.employee.id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    db.session.delete(notification)
+    db.session.commit()
+    return jsonify({"success": True}), 200
 
 
 @auth_bp.route("/change-password", methods=["GET", "POST"])

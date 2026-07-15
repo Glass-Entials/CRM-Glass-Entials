@@ -1803,7 +1803,7 @@ class Contact(db.Model):
 
     @property
     def status_display(self):
-        return self.status.value if self.status else ""
+        return self.status.value if self.status else "" 
 
     def __repr__(self):
         return f"<Contact {self.name}>"

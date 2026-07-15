@@ -7,6 +7,49 @@ import requests
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
+@api_bp.route("/notifications/recent", methods=["GET"])
+@login_required
+def recent_notifications():
+    from model import Notification
+    from datetime import datetime
+
+    if not current_user.employee:
+        return jsonify({"notifications": []}), 200
+
+    notifs = (
+        Notification.query.filter_by(
+            recipient_id=current_user.employee.id,
+            organization_id=current_user.organization_id,
+        )
+        .order_by(Notification.created_at.desc())
+        .limit(5)
+        .all()
+    )
+
+    results = []
+    for n in notifs:
+        diff = datetime.utcnow() - n.created_at
+        seconds = diff.total_seconds()
+        if seconds < 60:
+            time_ago = "Just now"
+        elif seconds < 3600:
+            time_ago = f"{int(seconds // 60)} mins ago"
+        elif seconds < 86400:
+            time_ago = f"{int(seconds // 3600)} hours ago"
+        else:
+            time_ago = n.created_at.strftime("%d %b")
+
+        results.append({
+            "id": n.id,
+            "title": n.title,
+            "message": n.message,
+            "link": n.link,
+            "is_read": n.is_read,
+            "time_ago": time_ago,
+        })
+
+    return jsonify({"notifications": results}), 200
+
 
 def get_sandbox_token(api_key, api_secret):
     """

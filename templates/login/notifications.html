@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Notifications - GlassEntials{% endblock %}
+{% block title %}Notification Center - GlassEntials{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -14,14 +14,62 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 2rem;
+        margin-bottom: 1.5rem;
     }
 
     .notifications-header h1 {
-        font-size: 2rem;
+        font-size: 2.2rem;
         color: var(--primary-color);
         font-weight: 800;
         margin: 0;
+    }
+
+    /* Controls Bar: Tabs & Search */
+    .notif-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        background: #fff;
+        padding: 10px 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+        border: 1px solid rgba(13,27,42,0.05);
+    }
+
+    .notif-tabs {
+        display: flex;
+        gap: 15px;
+    }
+
+    .notif-tab {
+        background: none;
+        border: none;
+        padding: 8px 16px;
+        font-weight: 600;
+        color: var(--text-muted);
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.3s;
+    }
+
+    .notif-tab.active {
+        background: rgba(212, 175, 55, 0.1);
+        color: var(--accent-gold);
+    }
+
+    .notif-search {
+        padding: 8px 16px;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        outline: none;
+        width: 250px;
+        font-size: 0.9rem;
+        transition: border-color 0.3s;
+    }
+
+    .notif-search:focus {
+        border-color: var(--accent-gold);
     }
 
     .notification-list {
@@ -33,7 +81,7 @@
     .notification-card {
         background: #fff;
         padding: 1.5rem;
-        border-radius: 16px;
+        border-radius: 12px;
         box-shadow: 0 4px 15px rgba(13, 27, 42, 0.04);
         border: 1px solid rgba(13, 27, 42, 0.05);
         display: flex;
@@ -50,9 +98,9 @@
     }
 
     .notification-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 30px rgba(13, 27, 42, 0.1);
-        border-color: rgba(212, 175, 55, 0.3);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(13, 27, 42, 0.08);
+        border-color: rgba(212, 175, 55, 0.2);
     }
 
     .notification-icon {
@@ -70,6 +118,7 @@
 
     .notification-content {
         flex-grow: 1;
+        cursor: pointer;
     }
 
     .notification-content h3 {
@@ -94,6 +143,34 @@
         letter-spacing: 0.05em;
         margin-top: 8px;
         display: block;
+    }
+
+    .notif-actions {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 10px;
+    }
+
+    .notif-action-btn {
+        background: none;
+        border: none;
+        color: #94a3b8;
+        cursor: pointer;
+        font-size: 1.2rem;
+        transition: color 0.2s;
+        padding: 5px;
+        border-radius: 5px;
+    }
+
+    .notif-action-btn:hover {
+        color: var(--primary-color);
+        background: #f1f5f9;
+    }
+
+    .notif-action-btn.delete:hover {
+        color: #ef4444;
+        background: #fee2e2;
     }
 
     .empty-state {
@@ -137,17 +214,28 @@
 {% endblock %}
 
 {% block content %}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <div class="notifications-container">
     <div class="notifications-header">
-        <h1>Notifications</h1>
+        <h1>Notification Center</h1>
         {% if notifications %}
         <a href="{{ url_for('auth.mark_all_notifications_read') }}" class="mark-all-btn">Mark all as read</a>
         {% endif %}
     </div>
 
-    <div class="notification-list">
+    <div class="notif-controls">
+        <div class="notif-tabs">
+            <button class="notif-tab active" onclick="filterNotifs('all', this)">All</button>
+            <button class="notif-tab" onclick="filterNotifs('unread', this)">Unread</button>
+        </div>
+        <div>
+            <input type="text" id="notifSearch" class="notif-search" placeholder="Search notifications..." onkeyup="searchNotifs()">
+        </div>
+    </div>
+
+    <div class="notification-list" id="notifList">
         {% for notification in notifications %}
-        <a href="{{ url_for('auth.mark_notification_read', id=notification.id) }}" class="notification-card {% if not notification.is_read %}unread{% endif %}">
+        <div class="notification-card {% if not notification.is_read %}unread{% endif %}" data-id="{{ notification.id }}" data-read="{% if notification.is_read %}true{% else %}false{% endif %}">
             <div class="notification-icon">
                 {% if 'task' in notification.title|lower %}📋
                 {% elif 'lead' in notification.title|lower %}🎯
@@ -155,14 +243,24 @@
                 {% elif 'project' in notification.title|lower %}🏗️
                 {% else %}🔔{% endif %}
             </div>
-            <div class="notification-content">
-                <h3>{{ notification.title }}</h3>
-                <p>{{ notification.message }}</p>
+            <div class="notification-content" onclick="window.location.href='{{ url_for('auth.mark_notification_read', id=notification.id) }}'">
+                <h3 class="notif-title">{{ notification.title }}</h3>
+                <p class="notif-desc">{{ notification.message }}</p>
                 <span class="notification-time">{{ time_ago(notification.created_at) }}</span>
             </div>
-        </a>
+            <div class="notif-actions">
+                {% if not notification.is_read %}
+                <button class="notif-action-btn" title="Mark as Read" onclick="markAsRead(event, {{ notification.id }}, this)">
+                    ✔️
+                </button>
+                {% endif %}
+                <button class="notif-action-btn delete" title="Delete Notification" onclick="deleteNotif(event, {{ notification.id }}, this)">
+                    🗑️
+                </button>
+            </div>
+        </div>
         {% else %}
-        <div class="empty-state">
+        <div class="empty-state" id="emptyState">
             <span class="icon">📭</span>
             <h2>No notifications yet</h2>
             <p>You're all caught up! New notifications will appear here.</p>
@@ -170,4 +268,134 @@
         {% endfor %}
     </div>
 </div>
+
+<script>
+    let currentFilter = 'all';
+
+    function filterNotifs(filter, btn) {
+        currentFilter = filter;
+        document.querySelectorAll('.notif-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyFilters();
+    }
+
+    function searchNotifs() {
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const query = document.getElementById('notifSearch').value.toLowerCase();
+        const cards = document.querySelectorAll('.notification-card');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const isRead = card.getAttribute('data-read') === 'true';
+            const title = card.querySelector('.notif-title').textContent.toLowerCase();
+            const desc = card.querySelector('.notif-desc').textContent.toLowerCase();
+
+            let show = true;
+
+            // Apply Tab Filter
+            if (currentFilter === 'unread' && isRead) {
+                show = false;
+            }
+
+            // Apply Search Filter
+            if (query && !title.includes(query) && !desc.includes(query)) {
+                show = false;
+            }
+
+            if (show) {
+                card.style.display = 'flex';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        const emptyState = document.getElementById('emptyState');
+        if (visibleCount === 0 && cards.length > 0) {
+            if (!emptyState) {
+                const es = document.createElement('div');
+                es.className = 'empty-state';
+                es.id = 'emptyState';
+                es.innerHTML = `<span class="icon">🔍</span><h2>No matching notifications</h2><p>Try adjusting your search or filters.</p>`;
+                document.getElementById('notifList').appendChild(es);
+            } else {
+                emptyState.style.display = 'block';
+            }
+        } else if (emptyState) {
+            emptyState.style.display = 'none';
+        }
+    }
+
+    function markAsRead(e, id, btn) {
+        e.stopPropagation();
+        const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '{{ csrf_token() }}';
+
+        fetch(`/auth/notifications/mark-read-ajax/${id}`, { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(() => {
+            const card = btn.closest('.notification-card');
+            card.classList.remove('unread');
+            card.setAttribute('data-read', 'true');
+            btn.remove();
+            applyFilters();
+            
+            // Optionally update navbar badge if it exists
+            const badge = document.getElementById('nav-notif-badge');
+            if (badge) {
+                let count = parseInt(badge.textContent) - 1;
+                if (count <= 0) {
+                    badge.style.display = 'none';
+                } else {
+                    badge.textContent = count;
+                }
+            }
+        });
+    }
+
+    function deleteNotif(e, id, btn) {
+        e.stopPropagation();
+        if(!confirm('Delete this notification?')) return;
+
+        const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '{{ csrf_token() }}';
+
+        fetch(`/auth/notifications/delete/${id}`, { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const card = btn.closest('.notification-card');
+                const wasUnread = card.classList.contains('unread');
+                card.remove();
+                applyFilters();
+
+                if (wasUnread) {
+                    const badge = document.getElementById('nav-notif-badge');
+                    if (badge) {
+                        let count = parseInt(badge.textContent) - 1;
+                        if (count <= 0) {
+                            badge.style.display = 'none';
+                        } else {
+                            badge.textContent = count;
+                        }
+                    }
+                }
+            } else {
+                alert('Failed to delete notification.');
+            }
+        });
+    }
+</script>
 {% endblock %}

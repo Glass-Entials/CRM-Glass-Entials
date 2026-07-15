@@ -60,6 +60,7 @@ csp = {
     'style-src': ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
     'font-src': ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
     'img-src': ["'self'", "data:", "blob:", "https://images.unsplash.com"],
+    'media-src': ["'self'", "data:", "https://assets.mixkit.co"],
     'frame-ancestors': ["'self'"]
 }
 
@@ -68,10 +69,20 @@ Talisman(app, content_security_policy=csp, force_https=force_https_enabled, stri
 if force_https_enabled:
     app.config['PREFERRED_URL_SCHEME'] = 'https'
 
-from utils.extensions import limiter
+from utils.extensions import limiter, socketio
 
 # Initialize Limiter
 limiter.init_app(app)
+
+# Initialize SocketIO
+socketio.init_app(app, async_mode="eventlet", message_queue=None) # We will use eventlet directly
+
+from flask_socketio import join_room
+@socketio.on('join')
+def on_join(data):
+    if current_user.is_authenticated and current_user.employee:
+        room = f"org_{current_user.organization_id}_user_{current_user.employee.id}"
+        join_room(room)
 
 @app.route("/health")
 @csrf.exempt
@@ -459,4 +470,4 @@ def register():
 if __name__ == "__main__":
     # Use environment variable for debug mode, default to False for production safety
     debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
-    app.run(debug=debug_mode)
+    socketio.run(app, debug=debug_mode)

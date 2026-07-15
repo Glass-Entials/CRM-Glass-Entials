@@ -10,8 +10,8 @@ bind = os.environ.get("GUNICORN_BIND", "0.0.0.0:8000")
 # ─── Workers ───────────────────────────────────────────────────────────────────
 # Formula: (2 x CPU cores) + 1
 workers = int(os.environ.get("GUNICORN_WORKERS", multiprocessing.cpu_count() * 2 + 1))
-worker_class = "sync"
-threads = int(os.environ.get("GUNICORN_THREADS", 2))
+worker_class = "eventlet"
+threads = int(os.environ.get("GUNICORN_THREADS", 1)) # Eventlet is single-threaded async per worker
 
 # ─── Timeouts ──────────────────────────────────────────────────────────────────
 timeout = int(os.environ.get("GUNICORN_TIMEOUT", 120))
@@ -33,8 +33,8 @@ limit_request_field_size = 8192
 proc_name = "glassentials_crm"
 
 # ─── Preload App ───────────────────────────────────────────────────────────────
-# Saves memory via copy-on-write; DB connections are re-created per worker
-preload_app = True
+# Eventlet monkey-patching clashes with preload_app. Set to False.
+preload_app = False
 
 # ─── Worker Lifecycle Hooks ────────────────────────────────────────────────────
 def on_starting(server):

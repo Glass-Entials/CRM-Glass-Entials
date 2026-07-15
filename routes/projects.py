@@ -82,7 +82,6 @@ def add_project():
             organization_id=org_id,
             created_by=current_user.employee.id,
         )
-
         try:
             db.session.add(new_project)
             db.session.flush()
