@@ -301,7 +301,10 @@ def update_task_status(task_id):
 @login_required
 def view_task(task_id):
     org_id = current_user.organization_id
-    task = Task.query.filter_by(id=task_id, organization_id=org_id).first_or_404()
+    task = Task.query.filter_by(id=task_id, organization_id=org_id).first()
+    if not task:
+        flash("This task has been deleted or no longer exists.", "taskinfo")
+        return redirect(url_for("tasks.tasks_list"))
     
     # Fetch activities newest-first, excluding soft-deleted, paginated
     page = request.args.get("act_page", 1, type=int)
