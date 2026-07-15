@@ -128,9 +128,9 @@
             upgrade: true,                          // then upgrade to WS
             rememberUpgrade: false,                 // don't skip polling on reconnect
             reconnection: true,
-            reconnectionAttempts: Infinity,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
+            reconnectionAttempts: 10,               // cap retries — Infinity causes 503 on rapid refresh
+            reconnectionDelay: 2000,
+            reconnectionDelayMax: 10000,
             timeout: 20000,
         });
 
@@ -153,6 +153,8 @@
         });
 
         socket.on('new_notification', (data) => {
+            console.log('[Notif] Received new_notification event:', data);
+
             // Update badge count
             currentCount += 1;
             const badge = document.getElementById('nav-notif-badge');
@@ -160,17 +162,41 @@
             badge.textContent = currentCount > 99 ? '99+' : currentCount;
 
             // Play sound
-            notifSound.play().catch(e => console.log('Audio play blocked:', e));
+            notifSound.play().catch(e => console.log('[Notif] Audio blocked:', e));
 
             // Desktop Push Notification
             if ("Notification" in window && Notification.permission === "granted") {
-                const browserNotif = new Notification(data.title, {
+                console.log('[Notif] Permission granted, attempting desktop notification...');
+                const iconUrl = "{{ url_for('static', filename='img/logo.png', _external=True) }}";
+                const notifOptions = {
                     body: data.message,
-                    icon: "{{ url_for('static', filename='img/logo.png', _external=True) }}"
-                });
-                browserNotif.onclick = function() {
-                    window.location.href = data.link ? data.link : notificationUrl;
+                    icon: iconUrl,
+                    tag: 'crm-notif-' + (data.id || Date.now()),
+                    renotify: true,
                 };
+                // Primary: ServiceWorker API
+                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.ready.then(reg => {
+                        console.log('[Notif] Showing via ServiceWorker...');
+                        reg.showNotification(data.title, notifOptions)
+                           .then(() => console.log('[Notif] ServiceWorker notification shown.'))
+                           .catch(e => console.error('[Notif] SW showNotification failed:', e));
+                    });
+                } else {
+                    // Fallback: direct constructor
+                    try {
+                        console.log('[Notif] Showing via new Notification()...');
+                        const n = new Notification(data.title, notifOptions);
+                        n.onclick = () => {
+                            window.focus();
+                            window.location.href = data.link ? data.link : notificationUrl;
+                        };
+                    } catch(e) {
+                        console.error('[Notif] new Notification() failed:', e);
+                    }
+                }
+            } else {
+                console.warn('[Notif] Desktop notification blocked. Permission:', Notification.permission);
             }
 
             // In-app Toast
@@ -227,6 +253,12 @@
                 setTimeout(() => toast.remove(), 400);
             }, 6000);
         }
+
+        // Clean up socket on page unload — prevents stale connections from
+        // exhausting the single eventlet worker and causing 503s.
+        window.addEventListener('beforeunload', () => {
+            socket.disconnect();
+        });
 
     })();
 
