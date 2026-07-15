@@ -16,7 +16,9 @@ bind = os.environ.get("GUNICORN_BIND", "0.0.0.0:8000")
 # Only increase workers if SOCKETIO_MESSAGE_QUEUE (Redis) is configured.
 import os as _os, multiprocessing as _mp
 _has_redis_queue = bool(_os.environ.get("SOCKETIO_MESSAGE_QUEUE"))
-workers = int(_os.environ.get("GUNICORN_WORKERS", _mp.cpu_count() * 2 + 1 if _has_redis_queue else 1))
+# FORCE workers to 1 if no Redis queue, even if GUNICORN_WORKERS is set in env.
+# Multiple workers without Redis = "Invalid transport for session" on WebSocket upgrade.
+workers = int(_os.environ.get("GUNICORN_WORKERS", _mp.cpu_count() * 2 + 1 if _has_redis_queue else 1)) if _has_redis_queue else 1
 worker_class = "eventlet"
 threads = 1  # Eventlet is single-threaded async per worker — threading is irrelevant
 
