@@ -236,7 +236,7 @@
                     ✏ Edit Profile
                 </a>
                 <form action="{{ url_for('leads.delete_lead', lead_id=lead.id) }}" method="POST" style="display: inline;"
-                    onsubmit="return confirm('Permanently delete this lead?');">
+                    onsubmit="initiateDeleteLead(event, this);">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
                     <button type="submit" class="btn-action dark" style="background: #dc3545; color: white;">🗑
@@ -1108,6 +1108,40 @@
                 if (tab === 'documents' && urlParams.get('upload') === 'true') {
                     document.getElementById('docUploadModal').style.display = 'flex';
                 }
+            }
+        }
+    </script>
+
+    <!-- Custom Delete Lead Modal -->
+    <div id="deleteLeadModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;">
+            <div style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;">⚠️</div>
+            <h3 style="margin-bottom: 1rem; color: var(--primary-color); font-size: 1.3rem;">Delete Lead?</h3>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.5;">Are you sure you want to permanently delete this lead? This action cannot be undone.</p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button type="button" class="btn-action outline" onclick="closeDeleteLeadModal()">Cancel</button>
+                <button type="button" class="btn-action" style="background: #ef4444; color: white;" onclick="executeDeleteLead()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pendingDeleteForm = null;
+
+        function initiateDeleteLead(e, formElement) {
+            e.preventDefault();
+            pendingDeleteForm = formElement;
+            document.getElementById('deleteLeadModal').style.display = 'flex';
+        }
+
+        function closeDeleteLeadModal() {
+            document.getElementById('deleteLeadModal').style.display = 'none';
+            pendingDeleteForm = null;
+        }
+
+        function executeDeleteLead() {
+            if (pendingDeleteForm) {
+                pendingDeleteForm.submit();
             }
         }
     </script>
