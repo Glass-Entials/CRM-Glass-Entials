@@ -269,6 +269,19 @@
     </div>
 </div>
 
+<!-- Custom Delete Modal -->
+<div id="deleteNotifModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;">
+        <div style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;">⚠️</div>
+        <h3 style="margin-bottom: 1rem; color: var(--primary-color); font-size: 1.3rem;">Delete Notification?</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.5;">Are you sure you want to delete this notification? This action cannot be undone.</p>
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <button type="button" class="btn-action outline" onclick="closeDeleteModal()">Cancel</button>
+            <button type="button" class="btn-action" style="background: #ef4444; color: white;" onclick="confirmDeleteNotif()">Delete</button>
+        </div>
+    </div>
+</div>
+
 <script>
     let currentFilter = 'all';
 
@@ -360,9 +373,28 @@
         });
     }
 
+    let pendingDeleteId = null;
+    let pendingDeleteBtn = null;
+
     function deleteNotif(e, id, btn) {
         e.stopPropagation();
-        if(!confirm('Delete this notification?')) return;
+        pendingDeleteId = id;
+        pendingDeleteBtn = btn;
+        document.getElementById('deleteNotifModal').style.display = 'flex';
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteNotifModal').style.display = 'none';
+        pendingDeleteId = null;
+        pendingDeleteBtn = null;
+    }
+
+    function confirmDeleteNotif() {
+        if (!pendingDeleteId) return;
+        
+        const id = pendingDeleteId;
+        const btn = pendingDeleteBtn;
+        closeDeleteModal();
 
         const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '{{ csrf_token() }}';
 
