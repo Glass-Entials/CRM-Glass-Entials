@@ -103,7 +103,7 @@
             </div>
             <div class="action-bar">
                 <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" class="btn-action gold" style="text-decoration: none;">✏ Edit Task</a>
-                <form action="{{ url_for('tasks.delete_task', task_id=task.id) }}" method="POST" onsubmit="return confirm('Delete this task permanently?');" style="margin: 0;">
+                <form action="{{ url_for('tasks.delete_task', task_id=task.id) }}" method="POST" onsubmit="openConfirmModal(event, this, 'Delete this task permanently?')" style="margin: 0;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="btn-action" style="background: rgba(220,53,69,0.08); color: #dc3545; border: 1px solid rgba(220,53,69,0.2); cursor: pointer;">🗑 Delete</button>
                 </form>
@@ -305,7 +305,7 @@
                                     <div style="display: flex; gap: 12px; justify-content: flex-end; align-items: center;">
                                         <a href="#" onclick="openPreviewModal('{{ url_for('documents.view_document', doc_id=doc.id, filename=doc.original_name) }}', '{{ url_for('documents.download_document', doc_id=doc.id) }}', '{{ doc.original_name }}'); return false;" style="text-decoration: none; font-size: 1.1rem; color: var(--primary-color);" title="Preview Document">👁️</a>
                                         <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="text-decoration: none; font-size: 1.1rem;" title="Download Document">📥</a>
-                                        <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Delete this document?');" style="margin: 0;">
+                                        <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="openConfirmModal(event, this, 'Delete this document?')" style="margin: 0;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 1.1rem;" title="Delete Document">🗑️</button>
                                         </form>
@@ -394,7 +394,7 @@
                                         {% if is_manager or (current_user.employee and act.employee_id == current_user.employee.id) %}
                                         <div style="display: flex; gap: 8px;">
                                             <button onclick="editActivity({{ act.id }}, '{{ act.message|escape }}', '{{ act.next_follow_up_datetime.strftime('%Y-%m-%dT%H:%M') if act.next_follow_up_datetime else '' }}')" style="background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 0.9rem;">✏️</button>
-                                            <form action="{{ url_for('tasks.delete_task_activity', activity_id=act.id) }}" method="POST" onsubmit="return confirm('Remove this activity?');" style="margin: 0;">
+                                            <form action="{{ url_for('tasks.delete_task_activity', activity_id=act.id) }}" method="POST" onsubmit="openConfirmModal(event, this, 'Remove this activity?')" style="margin: 0;">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                                 <button type="submit" style="background: none; border: none; cursor: pointer; color: #dc3545; font-size: 0.9rem;">🗑️</button>
                                             </form>
@@ -601,6 +601,35 @@
         }
     </script>
 </body>
+
+<!-- Shared Confirm Modal -->
+<div id="confirmModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:20000;justify-content:center;align-items:center;">
+    <div style="background:white;padding:2rem;border-radius:12px;width:400px;max-width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.2);text-align:center;">
+        <div style="font-size:3rem;color:#ef4444;margin-bottom:1rem;">⚠️</div>
+        <h3 id="confirmModalTitle" style="margin-bottom:1rem;color:var(--primary-color);font-size:1.3rem;"></h3>
+        <p style="color:var(--text-muted);margin-bottom:1.5rem;font-size:0.95rem;line-height:1.5;">This action cannot be undone.</p>
+        <div style="display:flex;gap:1rem;justify-content:center;">
+            <button type="button" class="btn-action outline" onclick="closeConfirmModal()">Cancel</button>
+            <button type="button" class="btn-action" style="background:#ef4444;color:white;" onclick="executeConfirm()">Confirm</button>
+        </div>
+    </div>
+</div>
+<script>
+    let _pendingForm = null;
+    function openConfirmModal(e, form, msg) {
+        e.preventDefault();
+        _pendingForm = form;
+        document.getElementById('confirmModalTitle').textContent = msg;
+        document.getElementById('confirmModal').style.display = 'flex';
+    }
+    function closeConfirmModal() {
+        document.getElementById('confirmModal').style.display = 'none';
+        _pendingForm = null;
+    }
+    function executeConfirm() {
+        if (_pendingForm) { _pendingForm.submit(); }
+    }
+</script>
 </html>
 
 

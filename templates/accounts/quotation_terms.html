@@ -49,7 +49,7 @@
             <h4>{{ tg.name }} {% if tg.is_default %}<span class="badge-sm badge-sys">Default</span>{% endif %}</h4>
             <span class="text-xs text-muted">{{ tg.terms|length }} terms</span>
           </div>
-          <form method="POST" action="{{ url_for('quotation_settings.delete_term_group', group_id=tg.id) }}" onsubmit="return confirm('Delete this group entirely?');">
+          <form method="POST" action="{{ url_for('quotation_settings.delete_term_group', group_id=tg.id) }}" onsubmit="openConfirmModal(event, this, \'Delete this group entirely?\')">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button type="submit" class="btn-icon-sm text-danger" title="Delete Group">🗑</button>
           </form>
@@ -80,7 +80,7 @@
               <h4 class="qt-term-title">{{ t.term_title }}</h4>
               <div class="qt-term-actions">
                 <button class="btn-icon-sm" title="Edit" onclick="editTerm({{ t.id }}, '{{ t.term_title|escape }}', `{{ t.term_body|escape }}`)">✏</button>
-                <form method="POST" action="{{ url_for('quotation_settings.delete_term', term_id=t.id) }}" style="display:inline" onsubmit="return confirm('Delete this term?')">
+                <form method="POST" action="{{ url_for('quotation_settings.delete_term', term_id=t.id) }}" style="display:inline" onsubmit="openConfirmModal(event, this, \'Delete this term?\')">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <button type="submit" class="btn-icon-sm text-danger" title="Delete">✕</button>
                 </form>
@@ -233,6 +233,49 @@ document.querySelectorAll('.qt-terms-list').forEach(list => {
 });
 </script>
 
+
+
+<!-- Shared Confirm Modal -->
+<div id="confirmModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:20000;justify-content:center;align-items:center;">
+    <div style="background:white;padding:2rem;border-radius:12px;width:400px;max-width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.2);text-align:center;">
+        <div style="font-size:3rem;color:#ef4444;margin-bottom:1rem;">⚠️</div>
+        <h3 id="confirmModalTitle" style="margin-bottom:1rem;color:var(--primary-color);font-size:1.3rem;"></h3>
+        <p style="color:var(--text-muted);margin-bottom:1.5rem;font-size:0.95rem;line-height:1.5;">This action cannot be undone.</p>
+        <div style="display:flex;gap:1rem;justify-content:center;">
+            <button type="button" class="btn-action outline" onclick="closeConfirmModal()">Cancel</button>
+            <button type="button" class="btn-action" style="background:#ef4444;color:white;" onclick="executeConfirm()">Confirm</button>
+        </div>
+    </div>
+</div>
+<script>
+    let _pendingForm = null;
+    let _pendingUrl = null;
+    let _pendingCallback = null;
+    function openConfirmModal(e, form, msg, url=null, callback=null) {
+        if(e) e.preventDefault();
+        _pendingForm = form;
+        _pendingUrl = url;
+        _pendingCallback = callback;
+        document.getElementById('confirmModalTitle').textContent = msg;
+        document.getElementById('confirmModal').style.display = 'flex';
+    }
+    function closeConfirmModal() {
+        document.getElementById('confirmModal').style.display = 'none';
+        _pendingForm = null;
+        _pendingUrl = null;
+        _pendingCallback = null;
+    }
+    function executeConfirm() {
+        if (_pendingCallback) {
+            closeConfirmModal();
+            _pendingCallback();
+        } else if (_pendingUrl) {
+            window.location.href = _pendingUrl;
+        } else if (_pendingForm) {
+            _pendingForm.submit();
+        }
+    }
+</script>
 
 </body>
 </html>
