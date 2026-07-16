@@ -189,7 +189,7 @@
                                             <span class="icon">✏️</span> Edit Details
                                         </a>
                                         <form action="/delete-customer/{{ customer.id }}" method="POST"
-                                            onsubmit="return confirm('Are you sure you want to delete this customer?');">
+                                            onsubmit="initiateDelete(event, this);">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <button type="submit" class="delete-action">
                                                 <span class="icon">🗑</span> Delete
@@ -260,7 +260,39 @@
         </div>
     </main>
 
+    <!-- Custom Delete Customer Modal -->
+    <div id="deleteCustomerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;">
+            <div style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;">⚠️</div>
+            <h3 style="margin-bottom: 1rem; color: var(--primary-color); font-size: 1.3rem;">Delete Customer?</h3>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.5;">Are you sure you want to delete this customer? This action cannot be undone.</p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button type="button" class="btn-action outline" onclick="closeDeleteCustomerModal()">Cancel</button>
+                <button type="button" class="btn-action" style="background: #ef4444; color: white;" onclick="executeDeleteCustomer()">Delete</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        let pendingDeleteForm = null;
+
+        function initiateDelete(e, formElement) {
+            e.preventDefault();
+            pendingDeleteForm = formElement;
+            document.getElementById('deleteCustomerModal').style.display = 'flex';
+        }
+
+        function closeDeleteCustomerModal() {
+            document.getElementById('deleteCustomerModal').style.display = 'none';
+            pendingDeleteForm = null;
+        }
+
+        function executeDeleteCustomer() {
+            if (pendingDeleteForm) {
+                pendingDeleteForm.submit();
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const searchInput = document.getElementById('customerSearch');
             const cityFilter = document.getElementById('cityFilter');
