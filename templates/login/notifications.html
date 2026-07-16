@@ -424,10 +424,34 @@
                         }
                     }
                 }
+                
+                showDynamicFlash('Notification deleted successfully.', 'success');
             } else {
-                alert('Failed to delete notification.');
+                showDynamicFlash('Failed to delete notification.', 'error');
             }
+        })
+        .catch(err => {
+            showDynamicFlash('An error occurred while deleting.', 'error');
         });
+    }
+
+    function showDynamicFlash(message, type) {
+        const container = document.querySelector('.flash-messages-container');
+        if (!container) return;
+
+        const flash = document.createElement('div');
+        const bgClass = type === 'success' ? 'bg-success' : 'bg-error';
+        flash.className = `flash-message ${type} ${bgClass}`;
+        flash.style.cssText = 'padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; font-size: 14px; animation: slideIn 0.3s ease-out; color: white;';
+        flash.textContent = message;
+        
+        container.appendChild(flash);
+        
+        setTimeout(() => {
+            flash.style.transition = 'opacity 0.5s ease';
+            flash.style.opacity = '0';
+            setTimeout(() => flash.remove(), 500);
+        }, 3000);
     }
 </script>
 {% endblock %}
