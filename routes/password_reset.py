@@ -155,7 +155,7 @@ def _validate_new_password(password: str, confirm: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 @password_reset_bp.route("/forgot-password", methods=["GET", "POST"])
-@limiter.limit("5 per minute; 10 per hour")
+@limiter.limit("5 per minute; 50 per hour")
 def forgot_password():
     if current_user.is_authenticated:
         return redirect(url_for("home_page"))
