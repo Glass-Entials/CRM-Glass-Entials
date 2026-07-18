@@ -1872,3 +1872,28 @@ class ContactDocument(db.Model):
     )
     contact = db.relationship("Contact", backref=db.backref("documents", cascade="all, delete-orphan"))
 
+
+# ---------------------------------------------------------------------------
+# Password Reset Token — Forgot Password Module
+# ---------------------------------------------------------------------------
+
+class PasswordResetToken(db.Model):
+    """Cryptographically secure, single-use, time-limited reset tokens."""
+
+    __tablename__ = "password_reset_token"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    token      = db.Column(db.String(128), unique=True, nullable=False, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used       = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    user = db.relationship("User", backref=db.backref("reset_tokens", cascade="all, delete-orphan"))
+
+    def is_valid(self):
+        """Returns True only if token has not been used and has not expired."""
+        return not self.used and datetime.utcnow() < self.expires_at
+
+    def __repr__(self):
+        return f"<PasswordResetToken user_id={self.user_id} used={self.used}>"

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invalid Reset Link | GlassEntials Staff Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .status-card {
+            text-align: center;
+            padding: 1rem 0 0.5rem;
+        }
+        .status-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(239,68,68,0.08);
+            border: 2px solid rgba(239,68,68,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin: 0 auto 1.5rem;
+            animation: popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;
+        }
+        @keyframes popIn {
+            0%   { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .status-card h2 {
+            font-family: var(--font-heading);
+            color: var(--primary-color);
+            font-size: 1.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .status-card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+        .reason-badge {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+        .reason-expired  { background: rgba(251,191,36,0.12); color: #b45309; border: 1px solid rgba(251,191,36,0.35); }
+        .reason-used     { background: rgba(59,130,246,0.08); color: #1d4ed8; border: 1px solid rgba(59,130,246,0.25); }
+        .reason-invalid  { background: rgba(239,68,68,0.08);  color: #b91c1c; border: 1px solid rgba(239,68,68,0.25); }
+        .action-links {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+    </style>
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-header">
+            <div class="logo">
+                <a href="/auth/login" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+                </a>
+                <span class="crm-badge">Staff</span>
+            </div>
+        </div>
+
+        <div class="status-card">
+            <div class="status-icon">
+                {% if reason == 'expired' %}⏰{% elif reason == 'used' %}🔒{% else %}🔗{% endif %}
+            </div>
+
+            {% if reason == 'expired' %}
+                <span class="reason-badge reason-expired">Link Expired</span>
+                <h2>Reset Link Expired</h2>
+                <p>This password reset link is no longer valid. Reset links expire after 15 minutes for your security. Please request a new one.</p>
+            {% elif reason == 'used' %}
+                <span class="reason-badge reason-used">Already Used</span>
+                <h2>Link Already Used</h2>
+                <p>This password reset link has already been used. Each link can only be used once. If you need to reset your password again, please request a new link.</p>
+            {% else %}
+                <span class="reason-badge reason-invalid">Invalid Link</span>
+                <h2>Invalid Reset Link</h2>
+                <p>This password reset link is invalid or does not exist. It may have been copied incorrectly or tampered with. Please request a new one.</p>
+            {% endif %}
+
+            <div class="action-links">
+                <a href="{{ url_for('password_reset.forgot_password') }}" class="auth-btn" style="display:block;text-decoration:none;text-align:center;">
+                    Request a New Link
+                </a>
+                <a href="{{ url_for('auth.login') }}" style="font-size:0.875rem;color:var(--text-muted);text-decoration:none;">
+                    ← Back to Login
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

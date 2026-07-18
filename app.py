@@ -32,12 +32,10 @@ from routes.quotation_settings import quotation_settings_bp
 from routes.products import products_bp
 from routes.documents import documents_bp
 from routes.contacts import contacts_bp
+from routes.password_reset import password_reset_bp
 
 from dotenv import load_dotenv
 load_dotenv()
-
-import os
-print("SECRET:", os.getenv("SECRET_KEY"))
 
 app = Flask(__name__, template_folder="templates",static_folder="static")
 app.config.from_object(Config)
@@ -197,6 +195,7 @@ app.register_blueprint(quotation_settings_bp)
 app.register_blueprint(products_bp)
 app.register_blueprint(documents_bp)
 app.register_blueprint(contacts_bp)
+app.register_blueprint(password_reset_bp)
 
 
 @login_manager.user_loader
