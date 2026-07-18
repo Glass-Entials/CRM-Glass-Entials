@@ -162,20 +162,24 @@ def forgot_password():
 
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
-
-        # Always return generic response — never disclose email existence
         if email:
             user = User.query.filter(
                 db.func.lower(User.email) == email
             ).first()
+            
             if user:
                 try:
                     token = _create_token(user)
                     _send_reset_email(user, token)
+                    flash("A password reset link has been sent to your email.", "resetinfo")
                 except Exception as exc:
                     logger.error(f"[PasswordReset] Failed to issue/send token: {exc}")
-
-        flash(GENERIC_RESPONSE, "resetinfo")
+                    flash("An error occurred while sending the email. Please try again.", "reseterror")
+            else:
+                flash("No account is associated with this email address.", "reseterror")
+        else:
+            flash("Please enter a valid email address.", "reseterror")
+            
         return redirect(url_for("password_reset.forgot_password"))
 
     return render_template("login/forgot_password.html")
