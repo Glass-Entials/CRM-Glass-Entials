@@ -34,6 +34,7 @@ from routes.documents import documents_bp
 from routes.contacts import contacts_bp
 from routes.password_reset import password_reset_bp
 from routes.google_auth import google_auth_bp
+from routes.microsoft_auth import microsoft_auth_bp
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -61,7 +62,7 @@ csp = {
     'img-src': ["'self'", "data:", "blob:", "https://images.unsplash.com", "https://lh3.googleusercontent.com"],
     'media-src': ["'self'", "data:", "https://assets.mixkit.co"],
     # Explicitly allow WebSocket connections (ws: and wss:) for Socket.IO
-    'connect-src': ["'self'", "ws:", "wss:", "https://accounts.google.com", "https://oauth2.googleapis.com"],
+    'connect-src': ["'self'", "ws:", "wss:", "https://accounts.google.com", "https://oauth2.googleapis.com", "https://login.microsoftonline.com", "https://graph.microsoft.com"],
     'frame-ancestors': ["'self'"]
 }
 
@@ -197,6 +198,7 @@ app.register_blueprint(documents_bp)
 app.register_blueprint(contacts_bp)
 app.register_blueprint(password_reset_bp)
 app.register_blueprint(google_auth_bp)
+app.register_blueprint(microsoft_auth_bp)
 
 
 @login_manager.user_loader

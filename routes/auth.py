@@ -28,7 +28,7 @@ from model import (
 from utils.security import safe_redirect_target, is_safe_redirect
 from utils.extensions import limiter
 from urllib.parse import urlparse, urljoin
-from services.oauth_service import google_is_configured
+from services.oauth_service import google_is_configured, microsoft_is_configured
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -67,7 +67,11 @@ def login():
         else:
             flash("Invalid email or password.", "loginerror")
             return redirect(url_for("auth.login"))
-    return render_template("login/login.html", google_enabled=google_is_configured())
+    return render_template(
+        "login/login.html",
+        google_enabled=google_is_configured(),
+        microsoft_enabled=microsoft_is_configured(),
+    )
 
 
 @auth_bp.route("/logout", methods=["POST"])
