@@ -63,14 +63,26 @@
                             <td>{{ emp.email }}</td>
                             <td>{{ emp.phone_number }}</td>
                             <td>{{ emp.position }}</td>
-                            <td><span class="status-badge status-active">Active</span></td>
+                            <td>
+                                {% if emp.user and not emp.user.is_active %}
+                                <span class="status-badge" style="background-color: rgba(239,68,68,0.1); color: #ef4444;">Pending</span>
+                                {% else %}
+                                <span class="status-badge status-active">Active</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 <div class="action-buttons">
+                                    {% if emp.user and not emp.user.is_active %}
+                                    <form action="/approve-employee/{{ emp.id }}" method="POST" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="action-pill view-pill" style="background-color: #10b981; color: white; border: none; cursor: pointer;">✅ Approve</button>
+                                    </form>
+                                    {% endif %}
                                     <a href="/view-employee/{{ emp.id }}" class="action-pill view-pill" style="background-color: var(--accent-gold); color: white;">👁 View</a>
                                     <a href="/edit-employee/{{ emp.id }}" class="action-pill edit-pill">✏ Edit</a>
                                     <form action="/delete-employee/{{ emp.id }}" method="POST" style="display: inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                        <button type="submit" class="action-pill delete-pill" onclick="openConfirmModal(event, null, \'Are you sure you want to delete this employee?\', this.href)">🗑 Delete</button>
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="button" class="action-pill delete-pill" style="border:none; cursor:pointer;" onclick="openConfirmModal(event, this.form, 'Are you sure you want to delete this employee?')">🗑 Delete</button>
                                     </form>
                                 </div>
                             </td>

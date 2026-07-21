@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Sign-Up | GlassEntials Staff Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .welcome-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(212,175,55,0.08);
+            border: 1px solid rgba(212,175,55,0.3);
+            border-radius: 10px;
+            padding: 0.9rem 1.2rem;
+            margin-bottom: 1.75rem;
+            font-size: 0.9rem;
+            color: var(--primary-color);
+        }
+        .welcome-badge .avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--accent-gold);
+            color: #fff;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .welcome-badge .info .name { font-weight: 700; }
+        .welcome-badge .info .email { font-size: 0.8rem; color: var(--text-muted); }
+
+        .org-options {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .org-option-card {
+            flex: 1;
+            border: 2px solid rgba(13,27,42,0.12);
+            border-radius: 10px;
+            padding: 1.2rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .org-option-card:hover {
+            border-color: var(--accent-gold);
+            background: rgba(212,175,55,0.04);
+        }
+        .org-option-card.selected {
+            border-color: var(--accent-gold);
+            background: rgba(212,175,55,0.08);
+        }
+        .org-option-card input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .org-option-card .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .org-option-card .label { font-weight: 700; font-size: 0.9rem; color: var(--primary-color); }
+        .org-option-card .desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+        .dynamic-field { display: none; }
+        .flash-oautherror {
+            background: rgba(239,68,68,0.06);
+            border: 1px solid rgba(239,68,68,0.25);
+            border-radius: 8px;
+            padding: 0.9rem 1.2rem;
+            font-size: 0.875rem;
+            color: #b91c1c;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: slideDownFade 0.5s ease forwards;
+        }
+        @keyframes slideDownFade {
+            0%  { opacity: 0; transform: translateY(-10px); }
+            100%{ opacity: 1; transform: translateY(0); }
+        }
+        .role-field { margin-top: 1rem; }
+    </style>
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-header">
+            <div class="logo">
+                <a href="/auth/login" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+                </a>
+                <span class="crm-badge">Staff</span>
+            </div>
+            <h2>One Last Step</h2>
+            <p>How would you like to continue with GlassEntials?</p>
+        </div>
+
+        {% with messages = get_flashed_messages(category_filter=["oautherror"]) %}
+          {% if messages %}
+            {% for msg in messages %}
+            <div class="flash-oautherror">⚠️ {{ msg }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- Signed-in Google profile badge -->
+        <div class="welcome-badge">
+            <div class="avatar">{{ profile.display_name[0].upper() }}</div>
+            <div class="info">
+                <div class="name">{{ profile.display_name }}</div>
+                <div class="email">{{ profile.email }}</div>
+            </div>
+        </div>
+
+        <form action="{{ url_for('google_auth.onboard') }}" method="POST" id="onboardForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="org_option" id="org_option_input" value="">
+
+            <!-- Choice cards -->
+            <div class="org-options">
+                <div class="org-option-card" id="card-create" onclick="selectOption('create')">
+                    <input type="radio" name="_org_radio" value="create">
+                    <div class="icon">🏢</div>
+                    <div class="label">Create Organization</div>
+                    <div class="desc">Start fresh as Admin</div>
+                </div>
+                <div class="org-option-card" id="card-join" onclick="selectOption('join')">
+                    <input type="radio" name="_org_radio" value="join">
+                    <div class="icon">🤝</div>
+                    <div class="label">Join Organization</div>
+                    <div class="desc">Use invite code</div>
+                </div>
+            </div>
+
+            <!-- Create org field -->
+            <div class="form-group dynamic-field" id="field-org-name">
+                <label for="org_name">Organization Name</label>
+                <input type="text" id="org_name" name="org_name" class="form-control" placeholder="e.g. GlassEntials Pvt. Ltd.">
+            </div>
+
+            <!-- Join org fields -->
+            <div class="dynamic-field" id="field-org-code">
+                <div class="form-group">
+                    <label for="org_code">Organization Code</label>
+                    <input type="text" id="org_code" name="org_code" class="form-control" placeholder="Enter the 8-character unique code" style="text-transform: uppercase; letter-spacing: 0.1em;">
+                </div>
+                <div class="form-group role-field">
+                    <label for="role">Your Role / Department</label>
+                    <select id="role" name="role" class="form-control">
+                        <option value="employee" selected>Sales &amp; Relations / Staff</option>
+                        <option value="manager">Management</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="auth-btn" id="submitBtn" disabled>Continue →</button>
+        </form>
+
+        <div class="auth-footer">
+            <p><a href="{{ url_for('auth.login') }}">← Back to Login</a></p>
+        </div>
+    </div>
+
+    <script>
+        function selectOption(val) {
+            document.getElementById('org_option_input').value = val;
+
+            // Toggle cards
+            document.getElementById('card-create').classList.toggle('selected', val === 'create');
+            document.getElementById('card-join').classList.toggle('selected', val === 'join');
+
+            // Toggle fields
+            document.getElementById('field-org-name').style.display = val === 'create' ? 'block' : 'none';
+            document.getElementById('field-org-code').style.display = val === 'join'   ? 'block' : 'none';
+
+            // Set required
+            document.getElementById('org_name').required = val === 'create';
+            document.getElementById('org_code').required = val === 'join';
+
+            document.getElementById('submitBtn').disabled = false;
+        }
+
+        // Auto-uppercase org code
+        document.getElementById('org_code').addEventListener('input', function () {
+            this.value = this.value.toUpperCase();
+        });
+
+        // Prevent double submit
+        document.getElementById('onboardForm').addEventListener('submit', function () {
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Setting up…';
+        });
+    </script>
+</body>
+</html>

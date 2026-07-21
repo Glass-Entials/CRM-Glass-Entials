@@ -204,6 +204,11 @@ class User(db.Model, UserMixin):
         default=UserRole.EMPLOYEE,
     )
     must_change_password = db.Column(db.Boolean, server_default=db.text("0"), default=False)
+    is_active = db.Column(db.Boolean, server_default=db.text("1"), default=True)
+
+    # OAuth SSO fields — supports Google, Microsoft, Facebook, etc.
+    oauth_provider    = db.Column(db.String(32), nullable=True)   # e.g. 'google'
+    oauth_provider_id = db.Column(db.String(256), nullable=True)  # provider's unique user ID
 
     # Multi-tenant field
     organization_id = db.Column(

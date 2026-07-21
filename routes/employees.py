@@ -122,6 +122,24 @@ def edit_employee(employee_id):
     return render_template("employee/editemployee.html", employee=employee)
 
 
+@employees_bp.route("/approve-employee/<int:employee_id>", methods=["POST"])
+@login_required
+@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+def approve_employee(employee_id):
+    employee = Employee.query.filter_by(
+        id=employee_id, organization_id=current_user.organization_id
+    ).first_or_404()
+    
+    if employee.user:
+        employee.user.is_active = True
+        db.session.commit()
+        flash(f"{employee.name}'s account has been approved and activated.", "employeesuccess")
+    else:
+        flash("Could not find associated user account.", "employeeerror")
+        
+    return redirect(url_for("employees.employee_list"))
+
+
 @employees_bp.route("/delete-employee/<int:employee_id>", methods=["POST"])
 @login_required
 @require_roles(UserRole.ADMIN)

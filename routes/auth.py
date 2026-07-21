@@ -28,6 +28,7 @@ from model import (
 from utils.security import safe_redirect_target, is_safe_redirect
 from utils.extensions import limiter
 from urllib.parse import urlparse, urljoin
+from services.oauth_service import google_is_configured
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -55,6 +56,10 @@ def login():
 
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password, password):
+            if not getattr(user, 'is_active', True):
+                flash("Your account is pending administrator approval.", "loginerror")
+                return redirect(url_for("auth.login"))
+
             login_user(user)
             flash("Login successful!", "loginsuccess")
             next_page = request.args.get("next")
@@ -62,7 +67,7 @@ def login():
         else:
             flash("Invalid email or password.", "loginerror")
             return redirect(url_for("auth.login"))
-    return render_template("login/login.html")
+    return render_template("login/login.html", google_enabled=google_is_configured())
 
 
 @auth_bp.route("/logout", methods=["POST"])

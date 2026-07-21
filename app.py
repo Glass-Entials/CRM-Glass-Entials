@@ -33,6 +33,7 @@ from routes.products import products_bp
 from routes.documents import documents_bp
 from routes.contacts import contacts_bp
 from routes.password_reset import password_reset_bp
+from routes.google_auth import google_auth_bp
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -57,10 +58,10 @@ csp = {
     'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://code.jquery.com"],
     'style-src': ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
     'font-src': ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
-    'img-src': ["'self'", "data:", "blob:", "https://images.unsplash.com"],
+    'img-src': ["'self'", "data:", "blob:", "https://images.unsplash.com", "https://lh3.googleusercontent.com"],
     'media-src': ["'self'", "data:", "https://assets.mixkit.co"],
     # Explicitly allow WebSocket connections (ws: and wss:) for Socket.IO
-    'connect-src': ["'self'", "ws:", "wss:"],
+    'connect-src': ["'self'", "ws:", "wss:", "https://accounts.google.com", "https://oauth2.googleapis.com"],
     'frame-ancestors': ["'self'"]
 }
 
@@ -196,6 +197,7 @@ app.register_blueprint(products_bp)
 app.register_blueprint(documents_bp)
 app.register_blueprint(contacts_bp)
 app.register_blueprint(password_reset_bp)
+app.register_blueprint(google_auth_bp)
 
 
 @login_manager.user_loader
