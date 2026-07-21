@@ -138,6 +138,16 @@
             _pendingForm.submit();
         }
     }
+
+    // Auto fade out flash messages
+    setTimeout(() => {
+        document.querySelectorAll('.flash-toast').forEach(el => {
+            el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            el.style.opacity = '0';
+            el.style.transform = 'translateX(100%)';
+            setTimeout(() => el.remove(), 500);
+        });
+    }, 4000); // 4 seconds
 </script>
 
 </body>
