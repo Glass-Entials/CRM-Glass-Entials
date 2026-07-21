@@ -83,7 +83,6 @@ limiter.init_app(app)
 _socketio_queue = os.environ.get("SOCKETIO_MESSAGE_QUEUE") or None
 socketio.init_app(
     app,
-    async_mode="eventlet",
     cors_allowed_origins="*",
     message_queue=_socketio_queue,
     logger=True,
