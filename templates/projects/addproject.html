@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -49,12 +49,12 @@
                         
                         <div class="form-group">
                             <label>Customer</label>
-                            <select name="customer_id" class="form-control">
-                                <option value="none">None</option>
-                                {% for cus in customers %}
-                                    <option value="{{ cus.id }}" {% if pre_selected_customer_id == cus.id %}selected{% endif %}>{{ cus.name }} ({{ cus.company if cus.company else 'N/A' }})</option>
-                                {% endfor %}
-                            </select>
+                            <div style="position: relative;">
+                                <input type="hidden" name="customer_id" id="customer_id" value="{{ pre_selected_customer_id if pre_selected_customer_id else 'none' }}">
+                                <input type="text" id="customer_search" class="form-control" placeholder="Search customer..." autocomplete="off">
+                                <ul id="customer_dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 250px; overflow-y: auto; z-index: 1000; list-style: none; padding: 0; margin: 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                </ul>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -113,6 +113,106 @@
             </div>
         </div>
     </main>
+
+    <script>
+        const customers = [
+            {% for cus in customers %}
+            { id: "{{ cus.id }}", name: "{{ cus.name | replace('\"', '\\\"') }}", company: "{{ (cus.company if cus.company else 'N/A') | replace('\"', '\\\"') }}" }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        const searchInput = document.getElementById('customer_search');
+        const hiddenInput = document.getElementById('customer_id');
+        const dropdown = document.getElementById('customer_dropdown');
+        const addCustomerUrl = "{{ url_for('customers.add_customer') }}";
+
+        // Initialize pre-selected customer if any
+        const preSelectedId = hiddenInput.value;
+        if (preSelectedId && preSelectedId !== 'none') {
+            const selectedCust = customers.find(c => c.id == preSelectedId);
+            if (selectedCust) {
+                searchInput.value = `${selectedCust.name} (${selectedCust.company})`;
+            }
+        } else {
+            searchInput.value = 'None';
+        }
+
+        function renderDropdown(searchTerm = '') {
+            dropdown.innerHTML = '';
+            
+            // Add "None" option
+            const noneLi = document.createElement('li');
+            noneLi.textContent = 'None';
+            noneLi.style.cssText = 'padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; transition: background 0.2s;';
+            noneLi.onmouseover = () => noneLi.style.background = '#f9f9f9';
+            noneLi.onmouseout = () => noneLi.style.background = 'white';
+            noneLi.onclick = () => {
+                hiddenInput.value = 'none';
+                searchInput.value = 'None';
+                dropdown.style.display = 'none';
+            };
+            dropdown.appendChild(noneLi);
+
+            // Filter customers
+            const filtered = customers.filter(c => {
+                const searchStr = `${c.name} ${c.company}`.toLowerCase();
+                return searchStr.includes(searchTerm.toLowerCase());
+            });
+
+            // Add filtered customer options
+            filtered.forEach(c => {
+                const li = document.createElement('li');
+                li.textContent = `${c.name} (${c.company})`;
+                li.style.cssText = 'padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; transition: background 0.2s;';
+                li.onmouseover = () => li.style.background = '#f9f9f9';
+                li.onmouseout = () => li.style.background = 'white';
+                li.onclick = () => {
+                    hiddenInput.value = c.id;
+                    searchInput.value = `${c.name} (${c.company})`;
+                    dropdown.style.display = 'none';
+                };
+                dropdown.appendChild(li);
+            });
+
+            // Add "Create new customer" option
+            if (searchTerm.trim() !== '' && searchTerm.trim().toLowerCase() !== 'none') {
+                const createLi = document.createElement('li');
+                createLi.innerHTML = `<span style="color: var(--accent-gold); font-weight: 600;">+ Create new customer with name "${searchTerm}"</span>`;
+                createLi.style.cssText = 'padding: 10px 15px; cursor: pointer; transition: background 0.2s; background: #fffdfa;';
+                createLi.onmouseover = () => createLi.style.background = '#f2ecd8';
+                createLi.onmouseout = () => createLi.style.background = '#fffdfa';
+                createLi.onclick = () => {
+                    window.location.href = `${addCustomerUrl}?prefill_name=${encodeURIComponent(searchTerm)}`;
+                };
+                dropdown.appendChild(createLi);
+            }
+        }
+
+        searchInput.addEventListener('focus', () => {
+            if (searchInput.value === 'None') searchInput.value = '';
+            renderDropdown(searchInput.value);
+            dropdown.style.display = 'block';
+        });
+
+        searchInput.addEventListener('input', (e) => {
+            renderDropdown(e.target.value);
+            dropdown.style.display = 'block';
+        });
+
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (e.target !== searchInput && e.target !== dropdown) {
+                dropdown.style.display = 'none';
+                // Reset search text if no customer is matched
+                if (hiddenInput.value === 'none') {
+                    searchInput.value = 'None';
+                } else {
+                    const sel = customers.find(c => c.id == hiddenInput.value);
+                    if (sel) searchInput.value = `${sel.name} (${sel.company})`;
+                }
+            }
+        });
+    </script>
 </body>
 </html>
 

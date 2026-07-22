@@ -252,7 +252,8 @@ def add_customer():
     employees = Employee.query.filter_by(
         organization_id=current_user.organization_id, is_deleted=False
     ).all()
-    return render_template("customer/addcustomer.html", employees=employees)
+    prefill_name = request.args.get("prefill_name", "")
+    return render_template("customer/addcustomer.html", employees=employees, prefill_name=prefill_name)
 
 
 @customers_bp.route("/edit-customer/<int:customer_id>", methods=["GET", "POST"])

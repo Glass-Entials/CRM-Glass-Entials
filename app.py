@@ -82,12 +82,15 @@ limiter.init_app(app)
 # requires workers=1 in gunicorn.conf.py. If Redis is available, set
 # SOCKETIO_MESSAGE_QUEUE env var and pass it here to enable multi-worker support.
 _socketio_queue = os.environ.get("SOCKETIO_MESSAGE_QUEUE") or None
+_async_mode = "threading" if __name__ == "__main__" else None
+
 socketio.init_app(
     app,
     cors_allowed_origins="*",
     message_queue=_socketio_queue,
     logger=True,
     engineio_logger=True,
+    async_mode=_async_mode
 )
 
 from flask_socketio import join_room
@@ -486,4 +489,4 @@ def register():
 if __name__ == "__main__":
     # Use environment variable for debug mode, default to False for production safety
     debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
-    socketio.run(app, debug=debug_mode)
+    app.run(debug=debug_mode, port=5000)
