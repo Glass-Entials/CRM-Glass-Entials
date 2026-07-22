@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP | GlassEntials Staff Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .otp-inputs {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 1.5rem 0;
+        }
+        .otp-digit {
+            width: 52px;
+            height: 58px;
+            text-align: center;
+            font-size: 1.6rem;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            color: var(--primary-color);
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            background: #f8fafc;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            outline: none;
+        }
+        .otp-digit:focus {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+            background: #fff;
+        }
+        .resend-link {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 1rem;
+        }
+        .resend-link a {
+            color: var(--accent-gold);
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .resend-link a:hover { text-decoration: underline; }
+        .timer-text {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-header">
+            <div class="logo">
+                <a href="/auth/login" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+                </a>
+                <span class="crm-badge">Staff</span>
+            </div>
+            <h2>🔐 Verify Your Identity</h2>
+            <p>A 6-digit code has been sent to <strong>{{ masked_email }}</strong></p>
+        </div>
+
+        {% with messages = get_flashed_messages(category_filter=["otperror"], with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash-message flash-error" style="margin-bottom: 1rem;">⚠ {{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('auth.verify_otp') }}" method="POST" id="otpForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="user_id" value="{{ user_id }}">
+            <!-- Hidden real OTP field that gets filled by JS -->
+            <input type="hidden" name="otp" id="otpHidden">
+
+            <div class="otp-inputs">
+                <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="d1" autofocus>
+                <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="d2">
+                <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="d3">
+                <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="d4">
+                <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="d5">
+                <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" id="d6">
+            </div>
+
+            <div class="timer-text" id="timerText">Code expires in <span id="countdown">10:00</span></div>
+
+            <button type="submit" class="auth-btn" id="verifyBtn">Verify & Login</button>
+        </form>
+
+        <div class="resend-link">
+            Didn't get the code? <a href="{{ url_for('auth.resend_otp', user_id=user_id) }}">Resend OTP</a>
+        </div>
+
+        <div class="auth-footer" style="margin-top: 1.5rem;">
+            <a href="{{ url_for('auth.login') }}">← Back to Login</a>
+        </div>
+    </div>
+
+    <script>
+        const digits = ['d1','d2','d3','d4','d5','d6'];
+
+        digits.forEach((id, i) => {
+            const el = document.getElementById(id);
+            el.addEventListener('input', () => {
+                el.value = el.value.replace(/[^0-9]/g, '');
+                if (el.value && i < 5) document.getElementById(digits[i+1]).focus();
+                fillHidden();
+            });
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !el.value && i > 0) {
+                    document.getElementById(digits[i-1]).focus();
+                }
+            });
+            el.addEventListener('paste', (e) => {
+                const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+                if (paste.length === 6) {
+                    digits.forEach((did, di) => {
+                        document.getElementById(did).value = paste[di] || '';
+                    });
+                    document.getElementById('d6').focus();
+                    fillHidden();
+                }
+                e.preventDefault();
+            });
+        });
+
+        function fillHidden() {
+            document.getElementById('otpHidden').value = digits.map(id => document.getElementById(id).value).join('');
+        }
+
+        document.getElementById('otpForm').addEventListener('submit', function(e) {
+            fillHidden();
+            const otp = document.getElementById('otpHidden').value;
+            if (otp.length < 6) {
+                e.preventDefault();
+                alert('Please enter all 6 digits.');
+                return;
+            }
+            document.getElementById('verifyBtn').disabled = true;
+            document.getElementById('verifyBtn').textContent = 'Verifying…';
+        });
+
+        // Countdown timer (10 min = 600 seconds)
+        let secs = 600;
+        const countdownEl = document.getElementById('countdown');
+        const timerInterval = setInterval(() => {
+            secs--;
+            if (secs <= 0) {
+                clearInterval(timerInterval);
+                countdownEl.textContent = 'Expired';
+                document.getElementById('timerText').style.color = '#ef4444';
+                document.getElementById('verifyBtn').disabled = true;
+                return;
+            }
+            const m = Math.floor(secs / 60).toString().padStart(2, '0');
+            const s = (secs % 60).toString().padStart(2, '0');
+            countdownEl.textContent = `${m}:${s}`;
+        }, 1000);
+    </script>
+</body>
+</html>

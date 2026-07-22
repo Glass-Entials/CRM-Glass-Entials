@@ -1,4 +1,7 @@
 import os
+import secrets
+import random
+from datetime import datetime, timedelta
 from flask import (
     abort,
     Blueprint,
@@ -27,10 +30,18 @@ from model import (
 )
 from utils.security import safe_redirect_target, is_safe_redirect
 from utils.extensions import limiter
+from utils.email_service import send_html_email
 from urllib.parse import urlparse, urljoin
 from services.oauth_service import google_is_configured, microsoft_is_configured
 
 auth_bp = Blueprint("auth", __name__)
+
+
+@auth_bp.route("/settings", methods=["GET"])
+@login_required
+def settings():
+    """Global user settings page."""
+    return render_template("settings/index.html")
 
 
 def allowed_file(filename):
@@ -60,6 +71,16 @@ def login():
                 flash("Your account is pending administrator approval.", "loginerror")
                 return redirect(url_for("auth.login"))
 
+            # 2FA check
+            if getattr(user, 'two_fa_enabled', False):
+                otp = "{:06d}".format(random.SystemRandom().randint(0, 999999))
+                user.two_fa_otp = otp
+                user.two_fa_otp_expires = datetime.utcnow() + timedelta(minutes=10)
+                db.session.commit()
+                _send_otp_email(user, otp)
+                masked = user.email[:2] + "****" + user.email[user.email.index('@'):]
+                return redirect(url_for("auth.verify_otp", user_id=user.id))
+
             login_user(user)
             flash("Login successful!", "loginsuccess")
             next_page = request.args.get("next")
@@ -72,6 +93,84 @@ def login():
         google_enabled=google_is_configured(),
         microsoft_enabled=microsoft_is_configured(),
     )
+
+
+def _send_otp_email(user, otp):
+    """Send 2FA OTP email to the user."""
+    from flask import render_template as rt
+    import datetime as dt
+    html = rt("email/2fa_otp_email.html",
+               username=user.username,
+               otp=otp,
+               year=dt.datetime.now().year)
+    send_html_email(
+        to_email=user.email,
+        subject="Your GlassEntials Login Code",
+        html_body=html,
+        text_body=f"Your one-time login code is: {otp}. It expires in 10 minutes."
+    )
+
+
+@auth_bp.route("/verify-otp", methods=["GET", "POST"])
+@limiter.limit("20 per minute")
+def verify_otp():
+    user_id = request.args.get("user_id") or request.form.get("user_id")
+    if not user_id:
+        return redirect(url_for("auth.login"))
+
+    user = db.session.get(User, int(user_id))
+    if not user:
+        return redirect(url_for("auth.login"))
+
+    masked = user.email[:2] + "****" + user.email[user.email.index('@'):]
+
+    if request.method == "POST":
+        entered_otp = request.form.get("otp", "").strip()
+        now = datetime.utcnow()
+
+        if (user.two_fa_otp and
+                user.two_fa_otp == entered_otp and
+                user.two_fa_otp_expires and
+                user.two_fa_otp_expires > now):
+            # OTP valid — clear it and log in
+            user.two_fa_otp = None
+            user.two_fa_otp_expires = None
+            db.session.commit()
+            login_user(user)
+            flash("Login successful!", "loginsuccess")
+            return redirect(url_for("home_page"))
+        elif user.two_fa_otp_expires and user.two_fa_otp_expires <= now:
+            flash("Your code has expired. Please request a new one.", "otperror")
+        else:
+            flash("Invalid code. Please try again.", "otperror")
+        return redirect(url_for("auth.verify_otp", user_id=user_id))
+
+    return render_template("login/verify_otp.html", user_id=user_id, masked_email=masked)
+
+
+@auth_bp.route("/resend-otp/<int:user_id>", methods=["GET"])
+@limiter.limit("5 per minute")
+def resend_otp(user_id):
+    user = db.session.get(User, user_id)
+    if not user or not getattr(user, 'two_fa_enabled', False):
+        return redirect(url_for("auth.login"))
+    otp = "{:06d}".format(random.SystemRandom().randint(0, 999999))
+    user.two_fa_otp = otp
+    user.two_fa_otp_expires = datetime.utcnow() + timedelta(minutes=10)
+    db.session.commit()
+    _send_otp_email(user, otp)
+    flash("A new code has been sent to your email.", "otpinfo")
+    return redirect(url_for("auth.verify_otp", user_id=user_id))
+
+
+@auth_bp.route("/toggle-2fa", methods=["POST"])
+@login_required
+def toggle_2fa():
+    current_user.two_fa_enabled = not getattr(current_user, 'two_fa_enabled', False)
+    db.session.commit()
+    state = "enabled" if current_user.two_fa_enabled else "disabled"
+    flash(f"Two-Factor Authentication has been {state}.", "success")
+    return redirect(url_for("auth.settings"))
 
 
 @auth_bp.route("/logout", methods=["POST"])

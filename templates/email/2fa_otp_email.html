@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Login OTP | GlassEntials CRM</title>
+<style>
+  body { margin: 0; padding: 0; background: #f4f6f8; font-family: 'Segoe UI', Arial, sans-serif; }
+  .wrapper { max-width: 520px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+  .header { background: #0d1b2a; padding: 32px 40px; text-align: center; }
+  .header img { height: 40px; }
+  .header h1 { color: #d4af37; margin: 12px 0 0 0; font-size: 1.2rem; letter-spacing: 0.5px; }
+  .body { padding: 36px 40px; }
+  .body p { color: #444; font-size: 0.95rem; line-height: 1.7; margin: 0 0 1rem 0; }
+  .otp-box { background: #f8f9fa; border: 2px dashed #d4af37; border-radius: 10px; padding: 20px; text-align: center; margin: 1.5rem 0; }
+  .otp-code { font-size: 2.5rem; font-weight: 700; letter-spacing: 8px; color: #0d1b2a; font-family: 'Courier New', monospace; }
+  .otp-expires { font-size: 0.85rem; color: #888; margin-top: 6px; }
+  .warning { background: rgba(239,68,68,0.06); border-left: 3px solid #ef4444; padding: 10px 14px; border-radius: 4px; font-size: 0.85rem; color: #991b1b; margin-top: 1rem; }
+  .footer { background: #f8f8f8; border-top: 1px solid #e2e8f0; padding: 20px 40px; text-align: center; font-size: 0.8rem; color: #aaa; }
+  .footer strong { color: #0d1b2a; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="header">
+    <h1>🔐 Two-Factor Authentication</h1>
+  </div>
+  <div class="body">
+    <p>Hello <strong>{{ username }}</strong>,</p>
+    <p>You are attempting to log in to the <strong>GlassEntials CRM</strong>. Use the one-time code below to complete your login:</p>
+    <div class="otp-box">
+      <div class="otp-code">{{ otp }}</div>
+      <div class="otp-expires">Expires in <strong>10 minutes</strong></div>
+    </div>
+    <p>Enter this code on the login verification page. Do not share this code with anyone.</p>
+    <div class="warning">
+      ⚠️ If you did not attempt to log in, please change your password immediately and contact your administrator.
+    </div>
+  </div>
+  <div class="footer">
+    &copy; {{ year }} <strong>GlassEntials CRM</strong>. This is an automated security email.
+  </div>
+</div>
+</body>
+</html>

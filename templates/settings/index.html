@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings | GlassEntials CRM</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3\">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3\">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .settings-sidebar a:hover {
+            background: rgba(13, 27, 42, 0.05);
+        }
+        
+        .settings-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(13, 27, 42, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .settings-card:hover {
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .badge-preview {
+            font-size: 0.7rem;
+            background: rgba(212, 175, 55, 0.15);
+            color: #92740a;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .toggle-switch-disabled {
+            width: 48px;
+            height: 26px;
+            background: #e2e8f0;
+            border-radius: 14px;
+            position: relative;
+            opacity: 0.6;
+            cursor: not-allowed;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch-disabled::after {
+            content: '';
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+
+<body class="dashboard-page" style="background-color: #f8fafc;">
+
+    <!-- Top Navbar -->
+    {% include 'includes/navbar.html' %}
+
+    <main class="container" style="display: flex; gap: 3rem; margin: 2.5rem auto 0 auto; max-width: 1200px; padding: 0 2rem;">
+        <!-- Sidebar -->
+        <aside class="settings-sidebar" style="width: 260px; flex-shrink: 0;">
+            <h2 style="font-size: 1.75rem; color: var(--primary-color); margin-bottom: 2rem; font-family: var(--font-heading);">Settings</h2>
+            <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+                <li>
+                    <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; background: rgba(212, 175, 55, 0.1); color: var(--primary-color); font-weight: 600; text-decoration: none; border: 1px solid rgba(212, 175, 55, 0.2);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-gold);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                        Security
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <section style="flex: 1;">
+            <h3 style="font-size: 1.35rem; color: var(--primary-color); margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(13, 27, 42, 0.1); font-family: var(--font-body); font-weight: 700;">Security Options</h3>
+
+            {% with messages = get_flashed_messages(category_filter=["success"]) %}
+            {% if messages %}{% for msg in messages %}
+            <div id="settingsFlash" style="padding: 12px 16px; border-radius: 9px; background: rgba(16,185,129,0.08); border-left: 4px solid #10b981; color: #065f46; font-size: 0.9rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">✓ {{ msg }}</div>
+            {% endfor %}{% endif %}{% endwith %}
+            
+            <!-- Card 1: 2FA -->
+            <div class="settings-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem;">
+                    <div>
+                        <h4 style="font-size: 1.15rem; color: var(--primary-color); margin: 0 0 0.5rem 0; display: flex; align-items: center; gap: 12px; font-weight: 700;">
+                            Two-Factor Authentication (2FA)
+                            {% if current_user.two_fa_enabled %}
+                            <span style="font-size: 0.7rem; background: rgba(16,185,129,0.12); color: #065f46; padding: 4px 10px; border-radius: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Enabled</span>
+                            {% else %}
+                            <span style="font-size: 0.7rem; background: rgba(100,116,139,0.1); color: #475569; padding: 4px 10px; border-radius: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Disabled</span>
+                            {% endif %}
+                        </h4>
+                        <p style="color: #64748b; font-size: 0.95rem; margin: 0 0 1.25rem 0; line-height: 1.5;">Adds an extra layer of security to your account. When enabled, you will be asked for a 6-digit code sent to your email each time you log in.</p>
+                        <form action="{{ url_for('auth.toggle_2fa') }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            {% if current_user.two_fa_enabled %}
+                            <button type="submit" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(239,68,68,0.08); color: #b91c1c; border: 1px solid rgba(239,68,68,0.25); padding: 10px 22px; border-radius: 8px; font-family: var(--font-body); font-size: 0.92rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(239,68,68,0.15)'" onmouseout="this.style.background='rgba(239,68,68,0.08)'">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                                Disable 2FA
+                            </button>
+                            {% else %}
+                            <button type="submit" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(16,185,129,0.08); color: #065f46; border: 1px solid rgba(16,185,129,0.3); padding: 10px 22px; border-radius: 8px; font-family: var(--font-body); font-size: 0.92rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(16,185,129,0.15)'" onmouseout="this.style.background='rgba(16,185,129,0.08)'">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                                Enable 2FA
+                            </button>
+                            {% endif %}
+                        </form>
+                    </div>
+                    <!-- Visual indicator -->
+                    <div style="width: 48px; height: 26px; background: {% if current_user.two_fa_enabled %}#10b981{% else %}#e2e8f0{% endif %}; border-radius: 14px; position: relative; flex-shrink: 0; transition: background 0.3s ease; cursor: default;">
+                        <div style="width: 22px; height: 22px; background: white; border-radius: 50%; position: absolute; top: 2px; {% if current_user.two_fa_enabled %}right: 2px;{% else %}left: 2px;{% endif %} box-shadow: 0 2px 5px rgba(0,0,0,0.15); transition: all 0.3s ease;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: Password -->
+            <div class="settings-card">
+                <h4 style="font-size: 1.15rem; color: var(--primary-color); margin: 0 0 0.5rem 0; display: flex; align-items: center; gap: 12px; font-weight: 700;">
+                    Change Password
+                </h4>
+                <p style="color: #64748b; font-size: 0.95rem; margin: 0 0 1.5rem 0; line-height: 1.5;">Update your account password securely. You will be redirected to the password change portal.</p>
+                
+                <div>
+                    <a href="{{ url_for('auth.change_password') }}" style="display: inline-flex; align-items: center; gap: 8px; background: var(--primary-color); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem; transition: background 0.2s ease;" onmouseover="this.style.background='#1a3050'" onmouseout="this.style.background='var(--primary-color)'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                        Change Password
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+</body>
+</html>

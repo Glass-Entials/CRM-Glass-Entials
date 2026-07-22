@@ -210,6 +210,11 @@ class User(db.Model, UserMixin):
     oauth_provider    = db.Column(db.String(32), nullable=True)   # e.g. 'google'
     oauth_provider_id = db.Column(db.String(256), nullable=True)  # provider's unique user ID
 
+    # Two-Factor Authentication (email OTP)
+    two_fa_enabled     = db.Column(db.Boolean, server_default=db.text("0"), default=False)
+    two_fa_otp         = db.Column(db.String(6), nullable=True)
+    two_fa_otp_expires = db.Column(db.DateTime, nullable=True)
+
     # Multi-tenant field
     organization_id = db.Column(
         db.Integer, db.ForeignKey("organization.id"), nullable=True, index=True
