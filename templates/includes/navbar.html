@@ -31,10 +31,41 @@
             </div>
 
             <div class="dropdown">
-                <a href="#" {% if request.blueprint == 'accounts' or request.blueprint == 'quotations' or request.blueprint == 'expenses' %}class="active"{% endif %}>Accounts ▾</a>
+                <a href="#" {% if request.blueprint == 'accounts' or request.blueprint == 'quotations' or request.blueprint == 'expenses' or request.blueprint == 'payments' %}class="active"{% endif %}>Finance ▾</a>
                 <div class="dropdown-content">
-                    <a href="{{ url_for('accounts.invoice_list') }}">Invoice</a>
-                    <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                    <!-- Hover Flyout Sales Menu -->
+                    <style>
+                        .nested-dropdown-hover:hover .nested-content {
+                            display: block !important;
+                            animation: fadeInRight 0.2s ease forwards;
+                        }
+                        @keyframes fadeInRight {
+                            from { opacity: 0; transform: translateX(-10px); }
+                            to { opacity: 1; transform: translateX(0); }
+                        }
+                    </style>
+                    <div class="nested-dropdown-hover" style="position: relative; border-bottom: 1px solid rgba(13, 27, 42, 0.04);">
+                        <a href="#" style="border-bottom: none !important; width: 100%;">
+                            Sales
+                            <span style="font-size: 0.8em; color: var(--text-muted); margin-left: auto;">▶</span>
+                        </a>
+                        <div class="nested-content" style="display: none; position: absolute; left: 100%; top: -5px; min-width: 180px; background-color: white; box-shadow: 0 10px 30px rgba(13, 27, 42, 0.1); border-radius: 12px; border: 1px solid rgba(13, 27, 42, 0.08); overflow: hidden; z-index: 1000;">
+                            <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                            <a href="{{ url_for('accounts.invoice_list') }}">Invoices</a>
+                        </div>
+                    </div>
+                    
+                    <!-- Payments submenu -->
+                    <div class="nested-dropdown-hover" style="position: relative; border-bottom: 1px solid rgba(13, 27, 42, 0.04);">
+                        <a href="{{ url_for('payments.due_payments') }}" style="border-bottom: none !important; width: 100%;">
+                            Payments
+                            <span style="font-size: 0.8em; color: var(--text-muted); margin-left: auto;">▶</span>
+                        </a>
+                        <div class="nested-content" style="display: none; position: absolute; left: 100%; top: -5px; min-width: 180px; background-color: white; box-shadow: 0 10px 30px rgba(13, 27, 42, 0.1); border-radius: 12px; border: 1px solid rgba(13, 27, 42, 0.08); overflow: hidden; z-index: 1000;">
+                            <a href="{{ url_for('payments.due_payments') }}">Due Payments</a>
+                            <a href="{{ url_for('payments.received_payments') }}">Received Payments</a>
+                        </div>
+                    </div>
                     <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
                 </div>
             </div>

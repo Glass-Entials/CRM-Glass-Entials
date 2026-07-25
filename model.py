@@ -163,6 +163,30 @@ class ExpenseStatus(Enum):
     PAID = "Paid"
 
 
+# ---------------------------------------------------------------------------
+# Payment Module Enums
+# ---------------------------------------------------------------------------
+
+class PaymentStatus(Enum):
+    PENDING  = "Pending"
+    RECEIVED = "Received"
+    # Future: PARTIAL = "Partial" | OVERDUE = "Overdue" | CANCELLED = "Cancelled"
+
+
+class PaymentPriority(Enum):
+    LOW    = "Low"
+    MEDIUM = "Medium"
+    HIGH   = "High"
+
+
+class PaymentMode(Enum):
+    CASH         = "Cash"
+    UPI          = "UPI"
+    BANK_TRANSFER = "Bank Transfer"
+    CHEQUE       = "Cheque"
+    CARD         = "Card"
+
+
 class Organization(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -1907,3 +1931,125 @@ class PasswordResetToken(db.Model):
 
     def __repr__(self):
         return f"<PasswordResetToken user_id={self.user_id} used={self.used}>"
+
+
+# ---------------------------------------------------------------------------
+# Payment Module — Phase 1
+# Architecture is future-ready for invoice_id integration (Phase 2)
+# ---------------------------------------------------------------------------
+
+class Payment(db.Model):
+    __tablename__ = "payment"
+
+    id                    = db.Column(db.Integer, primary_key=True)
+    payment_number        = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    customer_name         = db.Column(db.String(120), nullable=False)
+    company_name          = db.Column(db.String(120), nullable=True)
+    mobile                = db.Column(db.String(20), nullable=False)
+    email                 = db.Column(db.String(120), nullable=True)
+    amount                = db.Column(db.Numeric(12, 2), nullable=False)
+    due_date              = db.Column(db.Date, nullable=False)
+    priority              = db.Column(
+        db.Enum(PaymentPriority, values_callable=lambda x: [e.value for e in x]),
+        default=PaymentPriority.MEDIUM,
+        server_default=db.text("'Medium'"),
+    )
+    status                = db.Column(
+        db.Enum(PaymentStatus, values_callable=lambda x: [e.value for e in x]),
+        default=PaymentStatus.PENDING,
+        server_default=db.text("'Pending'"),
+        index=True,
+    )
+    notes                 = db.Column(db.Text, nullable=True)
+
+    # Received payment details (filled when marked as received)
+    payment_mode          = db.Column(
+        db.Enum(PaymentMode, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+    )
+    transaction_reference = db.Column(db.String(100), nullable=True)
+    received_date         = db.Column(db.Date, nullable=True)
+    received_remarks      = db.Column(db.Text, nullable=True)
+
+    # FK: Future invoice integration (Phase 2)
+    invoice_id            = db.Column(db.Integer, nullable=True)  # Will become FK to Invoice
+
+    # Multi-tenant
+    organization_id       = db.Column(
+        db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
+    )
+
+    # Assigned employee
+    assigned_to           = db.Column(
+        db.Integer, db.ForeignKey("employee.id"), nullable=True, index=True
+    )
+    # Received by employee
+    received_by           = db.Column(
+        db.Integer, db.ForeignKey("employee.id"), nullable=True
+    )
+    # Created by user
+    created_by            = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=True
+    )
+
+    created_at            = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at            = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+    )
+    is_deleted            = db.Column(db.Boolean, default=False)
+
+    # Relationships
+    assigned_employee     = db.relationship("Employee", foreign_keys=[assigned_to], backref="assigned_payments")
+    received_employee     = db.relationship("Employee", foreign_keys=[received_by], backref="received_payments")
+    creator               = db.relationship("User", foreign_keys=[created_by], backref="created_payments")
+    remarks               = db.relationship(
+        "PaymentRemark", back_populates="payment", cascade="all, delete-orphan",
+        order_by="PaymentRemark.created_at.desc()"
+    )
+    documents             = db.relationship(
+        "PaymentDocument", back_populates="payment", cascade="all, delete-orphan",
+        order_by="PaymentDocument.uploaded_at.desc()"
+    )
+
+    def __repr__(self):
+        return f"<Payment {self.payment_number} - {self.customer_name} - {self.status}>"
+
+
+class PaymentRemark(db.Model):
+    __tablename__ = "payment_remark"
+
+    id          = db.Column(db.Integer, primary_key=True)
+    payment_id  = db.Column(
+        db.Integer, db.ForeignKey("payment.id"), nullable=False, index=True
+    )
+    remark      = db.Column(db.Text, nullable=False)
+    created_by  = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at  = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    # Future: next_followup_date = db.Column(db.Date, nullable=True)
+
+    payment     = db.relationship("Payment", back_populates="remarks")
+    creator     = db.relationship("User", foreign_keys=[created_by], backref="payment_remarks")
+
+    def __repr__(self):
+        return f"<PaymentRemark payment_id={self.payment_id}>"
+
+
+class PaymentDocument(db.Model):
+    __tablename__ = "payment_document"
+
+    id              = db.Column(db.Integer, primary_key=True)
+    payment_id      = db.Column(db.Integer, db.ForeignKey("payment.id"), nullable=False, index=True)
+    filename        = db.Column(db.String(255), nullable=False)
+    original_name   = db.Column(db.String(255), nullable=False)
+    file_type       = db.Column(db.String(50), nullable=True)
+    uploaded_at     = db.Column(db.DateTime, default=db.func.current_timestamp())
+    uploaded_by     = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+
+    payment         = db.relationship("Payment", back_populates="documents")
+    uploader        = db.relationship("User", foreign_keys=[uploaded_by], backref="uploaded_payment_docs")
+
+    def __repr__(self):
+        return f"<PaymentDocument {self.original_name} for Payment {self.payment_id}>"

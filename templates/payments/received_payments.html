@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Received Payments | GlassEntials CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        :root { --gold: #d4af37; --navy: #0d1b2a; }
+        .page-wrap { max-width: 1500px; margin: 0 auto; padding: 2.5rem 2rem; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .page-title { font-size: 1.6rem; font-weight: 700; color: var(--navy); }
+        .page-title span { color: var(--gold); }
+        .tab-links { display: flex; gap: 8px; }
+        .tab-link { padding: 9px 18px; border-radius: 9px; font-size: 0.88rem; font-weight: 600; text-decoration: none; color: #64748b; background: #f1f5f9; transition: all 0.2s; }
+        .tab-link.active { background: var(--navy); color: #fff; }
+        .tab-link:hover:not(.active) { background: #e2e8f0; color: var(--navy); }
+
+        /* Summary Cards */
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; margin-bottom: 2rem; }
+        .summary-card { background: #fff; border-radius: 14px; padding: 1.4rem 1.6rem; box-shadow: 0 4px 20px rgba(0,0,0,0.04); border: 1px solid rgba(13,27,42,0.06); display: flex; align-items: center; gap: 1rem; }
+        .summary-card .icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+        .summary-card .info .label { font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .summary-card .info .value { font-size: 1.5rem; font-weight: 700; color: var(--navy); margin-top: 2px; }
+        .icon-gold  { background: rgba(212,175,55,0.1);  color: #b8962e; }
+        .icon-blue  { background: rgba(59,130,246,0.1);  color: #2563eb; }
+        .icon-green { background: rgba(16,185,129,0.1);  color: #059669; }
+        .icon-purple { background: rgba(139,92,246,0.1); color: #7c3aed; }
+
+        /* Filter Bar */
+        .filter-bar { background: #fff; border-radius: 14px; padding: 1.2rem 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 140px; }
+        .filter-group label { font-size: 0.78rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+        .filter-control { padding: 9px 13px; border: 1px solid rgba(13,27,42,0.12); border-radius: 9px; font-size: 0.88rem; background: #f8fafc; outline: none; transition: border-color 0.2s; }
+        .filter-control:focus { border-color: var(--gold); }
+        .btn-filter { padding: 9px 18px; border-radius: 9px; font-size: 0.88rem; font-weight: 600; cursor: pointer; border: none; }
+        .btn-apply  { background: var(--navy); color: #fff; }
+
+        /* Table */
+        .table-card { background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); overflow: hidden; border: 1px solid rgba(13,27,42,0.06); }
+        .table-card table { width: 100%; border-collapse: collapse; }
+        .table-card th { background: #f8fafc; padding: 1rem 1.2rem; text-align: left; font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(13,27,42,0.07); white-space: nowrap; }
+        .table-card td { padding: 1rem 1.2rem; font-size: 0.88rem; color: var(--navy); border-bottom: 1px solid rgba(13,27,42,0.04); vertical-align: middle; }
+        .table-card tr:last-child td { border-bottom: none; }
+        .table-card tr:hover td { background: #fafbfc; }
+
+        /* Badges */
+        .badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+        .badge-received { background: rgba(16,185,129,0.12); color: #065f46; }
+        .badge-mode { background: rgba(59,130,246,0.1); color: #1d4ed8; }
+
+        /* Receipt number */
+        .receipt-no { font-family: 'Courier New', monospace; font-size: 0.82rem; font-weight: 700; color: #059669; background: rgba(16,185,129,0.08); padding: 3px 8px; border-radius: 6px; }
+
+        /* Action */
+        .btn-view { display: inline-flex; align-items: center; gap: 5px; background: rgba(13,27,42,0.06); color: var(--navy); border-radius: 8px; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; text-decoration: none; transition: all 0.2s; }
+        .btn-view:hover { background: rgba(13,27,42,0.1); }
+
+        .empty-state { text-align: center; padding: 4rem 2rem; color: #94a3b8; }
+        .empty-state i { font-size: 3rem; margin-bottom: 1rem; display: block; }
+    </style>
+</head>
+<body class="dashboard-page">
+{% include 'includes/navbar.html' %}
+
+<div class="page-wrap">
+    <div class="page-header">
+        <div class="page-title">Received <span>Payments</span></div>
+        <div class="tab-links">
+            <a href="{{ url_for('payments.due_payments') }}" class="tab-link"><i class="bi bi-hourglass-split"></i> Due Payments</a>
+            <a href="{{ url_for('payments.received_payments') }}" class="tab-link active"><i class="bi bi-check-circle"></i> Received Payments</a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="icon icon-gold"><i class="bi bi-sun"></i></div>
+            <div class="info">
+                <div class="label">Today's Collection</div>
+                <div class="value">₹{{ "{:,.0f}".format(today_total) }}</div>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="icon icon-blue"><i class="bi bi-calendar-month"></i></div>
+            <div class="info">
+                <div class="label">This Month</div>
+                <div class="value">₹{{ "{:,.0f}".format(month_total) }}</div>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="icon icon-green"><i class="bi bi-currency-rupee"></i></div>
+            <div class="info">
+                <div class="label">Total Received</div>
+                <div class="value">₹{{ "{:,.0f}".format(grand_total) }}</div>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="icon icon-purple"><i class="bi bi-receipt-cutoff"></i></div>
+            <div class="info">
+                <div class="label">Total Transactions</div>
+                <div class="value">{{ total_transactions }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="GET" action="">
+        <div class="filter-bar">
+            <div class="filter-group" style="flex: 2;">
+                <label>Search</label>
+                <input class="filter-control" name="search" placeholder="Customer, reference, payment #..." value="{{ filters.search }}">
+            </div>
+            <div class="filter-group">
+                <label>Payment Mode</label>
+                <select class="filter-control" name="payment_mode">
+                    <option value="">All Modes</option>
+                    {% for mode, label in payment_modes %}
+                    <option value="{{ mode }}" {% if filters.payment_mode == mode %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Employee</label>
+                <select class="filter-control" name="employee_id">
+                    <option value="">All Employees</option>
+                    {% for emp in employees %}
+                    <option value="{{ emp.id }}" {% if filters.employee_id == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>From Date</label>
+                <input type="date" class="filter-control" name="date_from" value="{{ filters.date_from }}">
+            </div>
+            <div class="filter-group">
+                <label>To Date</label>
+                <input type="date" class="filter-control" name="date_to" value="{{ filters.date_to }}">
+            </div>
+            <div style="display: flex; gap: 8px; align-items: flex-end; padding-bottom: 1px;">
+                <button type="submit" class="btn-filter btn-apply">Apply</button>
+                <a href="{{ url_for('payments.received_payments') }}" style="padding: 9px 14px; border-radius: 9px; font-size: 0.88rem; font-weight: 600; background: #f1f5f9; color: #475569; text-decoration: none;">Clear</a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Table -->
+    <div class="table-card">
+        {% if payments %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Receipt No</th>
+                    <th>Payment #</th>
+                    <th>Customer</th>
+                    <th>Company</th>
+                    <th>Amount</th>
+                    <th>Payment Mode</th>
+                    <th>Transaction Ref</th>
+                    <th>Received Date</th>
+                    <th>Received By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in payments %}
+                <tr>
+                    <td><span class="receipt-no">RCP-{{ "%05d"|format(p.id) }}</span></td>
+                    <td><strong>{{ p.payment_number }}</strong></td>
+                    <td>{{ p.customer_name }}</td>
+                    <td>{{ p.company_name or '—' }}</td>
+                    <td><strong>₹{{ "{:,.0f}".format(p.amount) }}</strong></td>
+                    <td>
+                        {% if p.payment_mode %}
+                        <span class="badge badge-mode">{{ p.payment_mode.value }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="font-family: monospace; font-size: 0.82rem;">{{ p.transaction_reference or '—' }}</td>
+                    <td>{{ p.received_date.strftime('%d %b %Y') if p.received_date else '—' }}</td>
+                    <td>{{ p.received_employee.name if p.received_employee else '—' }}</td>
+                    <td>
+                        <a href="{{ url_for('payments.view_payment', payment_id=p.id) }}" class="btn-view">
+                            <i class="bi bi-eye"></i> View
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <strong>No received payments found.</strong>
+            <p style="margin-top: 0.5rem; font-size: 0.9rem;">Received payments will appear here once dues are marked as received.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>

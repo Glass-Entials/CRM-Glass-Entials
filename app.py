@@ -35,6 +35,7 @@ from routes.contacts import contacts_bp
 from routes.password_reset import password_reset_bp
 from routes.google_auth import google_auth_bp
 from routes.microsoft_auth import microsoft_auth_bp
+from routes.payments import payments_bp
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -202,6 +203,7 @@ app.register_blueprint(contacts_bp)
 app.register_blueprint(password_reset_bp)
 app.register_blueprint(google_auth_bp)
 app.register_blueprint(microsoft_auth_bp)
+app.register_blueprint(payments_bp)
 
 
 @login_manager.user_loader

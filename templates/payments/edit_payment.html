@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Payment | GlassEntials CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        :root { --gold: #d4af37; --navy: #0d1b2a; }
+        .page-wrap { max-width: 860px; margin: 0 auto; padding: 2.5rem 2rem; }
+        .back-link { display: inline-flex; align-items: center; gap: 8px; color: #64748b; text-decoration: none; font-size: 0.88rem; font-weight: 600; margin-bottom: 1.5rem; }
+        .back-link:hover { color: var(--navy); }
+        .form-card { background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); padding: 2.5rem; border: 1px solid rgba(13,27,42,0.06); }
+        .form-card-title { font-size: 1.4rem; font-weight: 700; color: var(--navy); margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(13,27,42,0.08); display: flex; justify-content: space-between; align-items: center; }
+        .form-card-title span { color: var(--gold); }
+        .form-section-label { font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.6px; margin: 1.5rem 0 1rem; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 0; }
+        .form-group label { font-size: 0.82rem; font-weight: 600; color: #475569; }
+        .form-group label .req { color: #ef4444; margin-left: 3px; }
+        .form-control { padding: 11px 14px; border: 1px solid rgba(13,27,42,0.14); border-radius: 10px; font-size: 0.9rem; background: #f8fafc; outline: none; transition: border-color 0.2s, box-shadow 0.2s; font-family: inherit; width: 100%; box-sizing: border-box; }
+        .form-control:focus { border-color: var(--gold); background: #fff; box-shadow: 0 0 0 3px rgba(212,175,55,0.1); }
+        textarea.form-control { resize: vertical; min-height: 90px; }
+        .priority-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+        .priority-option input { display: none; }
+        .priority-option label { display: flex; align-items: center; justify-content: center; padding: 10px; border-radius: 10px; border: 2px solid rgba(13,27,42,0.1); cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s; text-align: center; }
+        .priority-option input:checked + label { border-color: var(--navy); background: var(--navy); color: #fff; }
+        .priority-option.low   input:checked + label { border-color: #64748b; background: #64748b; }
+        .priority-option.medium input:checked + label { border-color: #d97706; background: #d97706; }
+        .priority-option.high  input:checked + label { border-color: #dc2626; background: #dc2626; }
+        .form-actions { display: flex; gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(13,27,42,0.07); }
+        .btn-submit { background: var(--navy); color: #fff; border: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-cancel-link { background: #f1f5f9; color: #475569; border: none; padding: 12px 22px; border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+        .gap-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+        .badge-num { background: rgba(212,175,55,0.1); color: #b8962e; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; }
+    </style>
+</head>
+<body class="dashboard-page">
+{% include 'includes/navbar.html' %}
+
+<div class="page-wrap">
+    <a href="{{ url_for('payments.due_payments') }}" class="back-link">
+        <i class="bi bi-arrow-left"></i> Back to Due Payments
+    </a>
+
+    <div class="form-card">
+        <div class="form-card-title">
+            Edit <span>Payment</span>
+            <span class="badge-num">{{ payment.payment_number }}</span>
+        </div>
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-section-label">Customer Information</div>
+            <div class="gap-row" style="margin-bottom: 1.2rem;">
+                <div class="form-group">
+                    <label>Customer Name <span class="req">*</span></label>
+                    <input type="text" name="customer_name" class="form-control" value="{{ payment.customer_name }}" required>
+                </div>
+                <div class="form-group">
+                    <label>Company Name</label>
+                    <input type="text" name="company_name" class="form-control" value="{{ payment.company_name or '' }}">
+                </div>
+            </div>
+            <div class="gap-row" style="margin-bottom: 1.2rem;">
+                <div class="form-group">
+                    <label>Mobile Number <span class="req">*</span></label>
+                    <input type="tel" name="mobile" class="form-control" value="{{ payment.mobile }}" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" class="form-control" value="{{ payment.email or '' }}">
+                </div>
+            </div>
+
+            <div class="form-section-label">Payment Details</div>
+            <div class="gap-row" style="margin-bottom: 1.2rem;">
+                <div class="form-group">
+                    <label>Amount (₹) <span class="req">*</span></label>
+                    <input type="number" name="amount" class="form-control" value="{{ payment.amount }}" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Due Date <span class="req">*</span></label>
+                    <input type="date" name="due_date" class="form-control" value="{{ payment.due_date.isoformat() }}" required>
+                </div>
+            </div>
+            <div class="gap-row" style="margin-bottom: 1.2rem;">
+                <div class="form-group">
+                    <label>Assign Employee</label>
+                    <select name="assigned_to" class="form-control">
+                        <option value="">Unassigned</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.id }}" {% if payment.assigned_to == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Priority</label>
+                    <div class="priority-group">
+                        {% for p in priorities %}
+                        <div class="priority-option {{ p.value.lower() }}">
+                            <input type="radio" name="priority" id="pri_{{ p.value }}" value="{{ p.value }}" {% if payment.priority and payment.priority.value == p.value %}checked{% endif %}>
+                            <label for="pri_{{ p.value }}">{{ p.value }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section-label">Additional Info</div>
+            <div class="gap-row" style="margin-bottom: 1.2rem;">
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea name="notes" class="form-control" placeholder="Any additional context...">{{ payment.notes or '' }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Add More Attachments</label>
+                    <input type="file" name="documents" class="form-control" multiple accept=".png,.jpg,.jpeg,.pdf,.doc,.docx,.xls,.xlsx" style="padding-top:8px; padding-bottom:8px;">
+                    
+                    {% if payment.documents %}
+                    <div style="margin-top: 10px; font-size: 0.85rem;">
+                        <strong>Current Attachments:</strong>
+                        <ul style="margin: 5px 0 0 20px; padding: 0; color: #475569;">
+                            {% for doc in payment.documents %}
+                            <li>{{ doc.original_name }} ({{ doc.uploaded_at.strftime('%d %b %Y') }})</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-submit"><i class="bi bi-check-lg"></i> Save Changes</button>
+                <a href="{{ url_for('payments.due_payments') }}" class="btn-cancel-link"><i class="bi bi-x-lg"></i> Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

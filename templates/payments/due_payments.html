@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Due Payments | GlassEntials CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        :root { --gold: #d4af37; --navy: #0d1b2a; }
+        .page-wrap { max-width: 1500px; margin: 0 auto; padding: 2.5rem 2rem; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .page-title { font-size: 1.6rem; font-weight: 700; color: var(--navy); }
+        .page-title span { color: var(--gold); }
+        .btn-primary-crm { background: var(--navy); color: #fff; border: none; padding: 10px 22px; border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s ease; }
+        .btn-primary-crm:hover { background: #1a2d42; color: #fff; transform: translateY(-1px); }
+
+        /* Summary Cards */
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; margin-bottom: 2rem; }
+        .summary-card { background: #fff; border-radius: 14px; padding: 1.4rem 1.6rem; box-shadow: 0 4px 20px rgba(0,0,0,0.04); border: 1px solid rgba(13,27,42,0.06); display: flex; align-items: center; gap: 1rem; }
+        .summary-card .icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+        .summary-card .info .label { font-size: 0.78rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .summary-card .info .value { font-size: 1.5rem; font-weight: 700; color: var(--navy); margin-top: 2px; }
+        .icon-gold  { background: rgba(212,175,55,0.1);  color: #b8962e; }
+        .icon-blue  { background: rgba(59,130,246,0.1);  color: #2563eb; }
+        .icon-green { background: rgba(16,185,129,0.1);  color: #059669; }
+        .icon-red   { background: rgba(239,68,68,0.1);   color: #dc2626; }
+
+        /* Filter Bar */
+        .filter-bar { background: #fff; border-radius: 14px; padding: 1.2rem 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 150px; }
+        .filter-group label { font-size: 0.78rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+        .filter-control { padding: 9px 13px; border: 1px solid rgba(13,27,42,0.12); border-radius: 9px; font-size: 0.88rem; background: #f8fafc; outline: none; transition: border-color 0.2s; }
+        .filter-control:focus { border-color: var(--gold); }
+        .btn-filter { padding: 9px 18px; border-radius: 9px; font-size: 0.88rem; font-weight: 600; cursor: pointer; border: none; }
+        .btn-apply  { background: var(--navy); color: #fff; }
+        .btn-clear  { background: #f1f5f9; color: #475569; }
+
+        /* Table */
+        .table-card { background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); overflow: hidden; border: 1px solid rgba(13,27,42,0.06); }
+        .table-card table { width: 100%; border-collapse: collapse; }
+        .table-card th { background: #f8fafc; padding: 1rem 1.2rem; text-align: left; font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(13,27,42,0.07); white-space: nowrap; }
+        .table-card td { padding: 1rem 1.2rem; font-size: 0.88rem; color: var(--navy); border-bottom: 1px solid rgba(13,27,42,0.04); vertical-align: middle; }
+        .table-card tr:last-child td { border-bottom: none; }
+        .table-card tr:hover td { background: #fafbfc; }
+
+        /* Badges */
+        .badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+        .badge-pending  { background: rgba(234,179,8,0.12);  color: #92400e; }
+        .badge-received { background: rgba(16,185,129,0.12); color: #065f46; }
+        .badge-high   { background: rgba(239,68,68,0.1);   color: #991b1b; }
+        .badge-medium { background: rgba(234,179,8,0.1);   color: #78350f; }
+        .badge-low    { background: rgba(100,116,139,0.1); color: #334155; }
+        .badge-overdue { background: rgba(239,68,68,0.12); color: #991b1b; }
+
+        /* Action buttons */
+        .action-cell { display: flex; gap: 6px; align-items: center; }
+        .btn-action { border: none; border-radius: 8px; padding: 6px 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; transition: all 0.2s; }
+        .btn-view    { background: rgba(13,27,42,0.06);  color: var(--navy); }
+        .btn-edit    { background: rgba(59,130,246,0.1); color: #2563eb; }
+        .btn-remark  { background: rgba(212,175,55,0.1); color: #b8962e; }
+        .btn-receive { background: rgba(16,185,129,0.1); color: #059669; }
+        .btn-action:hover { filter: brightness(0.92); transform: translateY(-1px); }
+
+        /* Flash */
+        .flash-pay { padding: 12px 18px; border-radius: 10px; margin-bottom: 1rem; font-weight: 600; font-size: 0.9rem; }
+        .flash-success { background: rgba(16,185,129,0.1); border-left: 4px solid #10b981; color: #065f46; }
+        .flash-error   { background: rgba(239,68,68,0.08); border-left: 4px solid #ef4444; color: #991b1b; }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 9999; align-items: center; justify-content: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background: #fff; border-radius: 16px; padding: 2rem; max-width: 520px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.18); }
+        .modal-title { font-size: 1.1rem; font-weight: 700; color: var(--navy); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 1rem; }
+        .form-group label { font-size: 0.8rem; font-weight: 600; color: #475569; text-transform: uppercase; }
+        .form-control { padding: 10px 13px; border: 1px solid rgba(13,27,42,0.15); border-radius: 9px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+        .form-control:focus { border-color: var(--gold); }
+        .btn-confirm { background: #10b981; color: #fff; border: none; padding: 11px 24px; border-radius: 10px; font-weight: 700; font-size: 0.95rem; cursor: pointer; width: 100%; margin-top: 0.5rem; }
+        .btn-cancel  { background: #f1f5f9; color: #475569; border: none; padding: 11px 24px; border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer; margin-top: 0.5rem; }
+        .modal-actions { display: flex; gap: 0.75rem; }
+        .modal-actions .btn-confirm, .modal-actions .btn-cancel { flex: 1; }
+
+        /* Remark Modal */
+        .remark-textarea { width: 100%; padding: 10px 13px; border: 1px solid rgba(13,27,42,0.15); border-radius: 9px; font-size: 0.9rem; resize: vertical; min-height: 100px; outline: none; font-family: inherit; }
+        .empty-state { text-align: center; padding: 4rem 2rem; color: #94a3b8; }
+        .empty-state i { font-size: 3rem; margin-bottom: 1rem; display: block; }
+    </style>
+</head>
+<body class="dashboard-page">
+{% include 'includes/navbar.html' %}
+
+<div class="page-wrap">
+    <div class="page-header">
+        <div class="page-title">Due <span>Payments</span></div>
+        <a href="{{ url_for('payments.add_payment') }}" class="btn-primary-crm">
+            <i class="bi bi-plus-lg"></i> Add Due Payment
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(category_filter=["paymentsuccess","paymenterror"], with_categories=true) %}
+    {% if messages %}{% for cat, msg in messages %}
+    <div class="flash-pay {% if cat == 'paymentsuccess' %}flash-success{% else %}flash-error{% endif %}">{{ msg }}</div>
+    {% endfor %}{% endif %}{% endwith %}
+
+    <!-- Summary Cards -->
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="icon icon-gold"><i class="bi bi-currency-rupee"></i></div>
+            <div class="info">
+                <div class="label">Total Due Amount</div>
+                <div class="value">₹{{ "{:,.0f}".format(total_due_amount) }}</div>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="icon icon-blue"><i class="bi bi-receipt"></i></div>
+            <div class="info">
+                <div class="label">Total Due Payments</div>
+                <div class="value">{{ total_due_count }}</div>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="icon icon-green"><i class="bi bi-person-check"></i></div>
+            <div class="info">
+                <div class="label">Assigned</div>
+                <div class="value">{{ assigned_count }}</div>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="icon icon-red"><i class="bi bi-exclamation-triangle"></i></div>
+            <div class="info">
+                <div class="label">Overdue</div>
+                <div class="value">{{ overdue_count }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="GET" action="">
+        <div class="filter-bar">
+            <div class="filter-group" style="flex: 2;">
+                <label>Search</label>
+                <input class="filter-control" name="search" placeholder="Customer, mobile, payment #..." value="{{ filters.search }}">
+            </div>
+            <div class="filter-group">
+                <label>Assigned Employee</label>
+                <select class="filter-control" name="employee_id">
+                    <option value="">All Employees</option>
+                    {% for emp in employees %}
+                    <option value="{{ emp.id }}" {% if filters.employee_id == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Due From</label>
+                <input type="date" class="filter-control" name="date_from" value="{{ filters.date_from }}">
+            </div>
+            <div class="filter-group">
+                <label>Due To</label>
+                <input type="date" class="filter-control" name="date_to" value="{{ filters.date_to }}">
+            </div>
+            <div style="display: flex; gap: 8px; align-items: flex-end; padding-bottom: 1px;">
+                <button type="submit" class="btn-filter btn-apply">Apply</button>
+                <a href="{{ url_for('payments.due_payments') }}" class="btn-filter btn-clear" style="text-decoration:none; padding: 9px 14px; border-radius: 9px; font-size: 0.88rem; font-weight: 600; background: #f1f5f9; color: #475569;">Clear</a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Table -->
+    <div class="table-card">
+        {% if payments %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Payment #</th>
+                    <th>Customer</th>
+                    <th>Company</th>
+                    <th>Mobile</th>
+                    <th>Amount</th>
+                    <th>Due Date</th>
+                    <th>Priority</th>
+                    <th>Assigned To</th>
+                    <th>Created By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in payments %}
+                <tr>
+                    <td><strong>{{ p.payment_number }}</strong></td>
+                    <td>{{ p.customer_name }}</td>
+                    <td>{{ p.company_name or '—' }}</td>
+                    <td>{{ p.mobile }}</td>
+                    <td><strong>₹{{ "{:,.0f}".format(p.amount) }}</strong></td>
+                    <td>
+                        {% if p.due_date < today %}
+                        <span class="badge badge-overdue"><i class="bi bi-exclamation-circle me-1"></i>{{ p.due_date.strftime('%d %b %Y') }}</span>
+                        {% else %}
+                        {{ p.due_date.strftime('%d %b %Y') }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ p.priority.value.lower() }}">{{ p.priority.value }}</span>
+                    </td>
+                    <td>{{ p.assigned_employee.name if p.assigned_employee else '—' }}</td>
+                    <td>{{ p.creator.username if p.creator else '—' }}</td>
+                    <td>
+                        <div class="action-cell">
+                            <a href="{{ url_for('payments.view_payment', payment_id=p.id) }}" class="btn-action btn-view" title="View"><i class="bi bi-eye"></i></a>
+                            <a href="{{ url_for('payments.edit_payment', payment_id=p.id) }}" class="btn-action btn-edit" title="Edit"><i class="bi bi-pencil"></i></a>
+                            <button class="btn-action btn-remark" title="Add Remark" onclick="openRemarkModal({{ p.id }})"><i class="bi bi-chat-left-text"></i></button>
+                            <button class="btn-action btn-receive" title="Mark as Received" onclick="openReceiveModal({{ p.id }}, '{{ p.payment_number }}', {{ p.amount }})"><i class="bi bi-check-circle"></i></button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <strong>No due payments found.</strong>
+            <p style="margin-top: 0.5rem; font-size: 0.9rem;">All caught up! Add a new due payment to get started.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Mark as Received Modal -->
+<div class="modal-overlay" id="receiveModal">
+    <div class="modal-box">
+        <div class="modal-title"><i class="bi bi-check-circle-fill" style="color:#10b981;"></i> Mark as Received</div>
+        <form method="POST" id="receiveForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Amount Received (₹)</label>
+                    <input type="number" name="amount_received" id="receiveAmount" class="form-control" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Received Date</label>
+                    <input type="date" name="received_date" class="form-control" value="{{ today.isoformat() }}" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Payment Mode</label>
+                <select name="payment_mode" class="form-control" required>
+                    <option value="">Select Mode</option>
+                    {% for mode, label in payment_modes %}
+                    <option value="{{ mode }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Transaction Reference</label>
+                <input type="text" name="transaction_reference" class="form-control" placeholder="UTR / Cheque No / Reference">
+            </div>
+            <div class="form-group">
+                <label>Remarks</label>
+                <textarea name="received_remarks" class="remark-textarea" placeholder="Optional remarks..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeReceiveModal()">Cancel</button>
+                <button type="submit" class="btn-confirm"><i class="bi bi-check-lg"></i> Confirm Payment</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Remark Modal -->
+<div class="modal-overlay" id="remarkModal">
+    <div class="modal-box" style="max-width: 440px;">
+        <div class="modal-title"><i class="bi bi-chat-left-text-fill" style="color: var(--gold);"></i> Add Follow-up Remark</div>
+        <form method="POST" id="remarkForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label>Remark</label>
+                <textarea name="remark" class="remark-textarea" placeholder="Enter your follow-up note..." required></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeRemarkModal()">Cancel</button>
+                <button type="submit" class="btn-confirm" style="background: var(--navy);"><i class="bi bi-save"></i> Save Remark</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openReceiveModal(paymentId, paymentNum, amount) {
+    document.getElementById('receiveForm').action = `/payments/mark-received/${paymentId}`;
+    document.getElementById('receiveAmount').value = amount;
+    document.getElementById('receiveModal').classList.add('active');
+}
+function closeReceiveModal() {
+    document.getElementById('receiveModal').classList.remove('active');
+}
+function openRemarkModal(paymentId) {
+    document.getElementById('remarkForm').action = `/payments/remark/${paymentId}`;
+    document.getElementById('remarkModal').classList.add('active');
+}
+function closeRemarkModal() {
+    document.getElementById('remarkModal').classList.remove('active');
+}
+// Close on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', function(e) {
+        if (e.target === this) this.classList.remove('active');
+    });
+});
+</script>
+</body>
+</html>
