@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, jsonify
 from flask_login import login_required, current_user
-from model import db, Task, Employee, Project, Lead, TaskStatus, DailyTask, UserRole, TaskActivity, TaskActivityType, CallResult
+from model import db, Task, Employee, Project, Lead, TaskStatus, DailyTask, UserRole, TaskActivity, TaskActivityType, CallResult, TaskFollowupRequest, TaskFollowupResponse, TaskFollowupPriority, TaskFollowupStatus
 from utils.activity import log_activity
 from utils.notifications import create_notification
 from utils.security import tenant_record_id
@@ -685,3 +685,141 @@ def delete_task_activity(activity_id):
         flash("Failed to remove activity.", "taskerror")
 
     return redirect(url_for("tasks.view_task", task_id=task_id))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# REQUEST FOLLOW-UP
+# ─────────────────────────────────────────────────────────────────────────────
+
+@tasks_bp.route("/task/<int:task_id>/request-followup", methods=["POST"])
+@login_required
+def request_followup(task_id):
+    org_id = current_user.organization_id
+    task = Task.query.filter_by(id=task_id, organization_id=org_id).first_or_404()
+
+    if not task.assigned_to:
+        return jsonify({"success": False, "error": "Task has no assigned employee."}), 400
+
+    requester_emp = current_user.employee
+    if not requester_emp:
+        return jsonify({"success": False, "error": "You must be an employee to request a follow-up."}), 403
+
+    message = request.form.get("message", "").strip()
+    priority_val = request.form.get("priority", "Normal")
+
+    if not message:
+        return jsonify({"success": False, "error": "Message is required."}), 400
+
+    try:
+        priority = TaskFollowupPriority(priority_val)
+    except ValueError:
+        priority = TaskFollowupPriority.NORMAL
+
+    try:
+        followup = TaskFollowupRequest(
+            task_id=task.id,
+            requested_by=requester_emp.id,
+            requested_to=task.assigned_to,
+            message=message,
+            priority=priority,
+            status=TaskFollowupStatus.PENDING,
+        )
+        db.session.add(followup)
+        db.session.flush()
+
+        # Notify the assigned employee
+        create_notification(
+            recipient_id=task.assigned_to,
+            title="📢 Follow-up Requested",
+            message=f"{requester_emp.name} requested a progress update for Task #{task.id}: {task.title}",
+            link=url_for("tasks.view_task", task_id=task.id),
+            sender_id=requester_emp.id,
+            organization_id=org_id,
+        )
+
+        db.session.commit()
+        return jsonify({"success": True, "message": "Follow-up request sent."})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error requesting follow-up: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SUBMIT FOLLOW-UP RESPONSE
+# ─────────────────────────────────────────────────────────────────────────────
+
+@tasks_bp.route("/task/followup/<int:request_id>/respond", methods=["POST"])
+@login_required
+def respond_followup(request_id):
+    import os, uuid
+    from werkzeug.utils import secure_filename
+
+    org_id = current_user.organization_id
+    followup_request = TaskFollowupRequest.query.join(Task).filter(
+        TaskFollowupRequest.id == request_id,
+        Task.organization_id == org_id
+    ).first_or_404()
+
+    emp = current_user.employee
+    if not emp:
+        return jsonify({"success": False, "error": "You must have an employee profile to respond."}), 403
+        
+    is_admin_or_mgr = current_user.role.value in ['admin', 'manager']
+    if not (is_admin_or_mgr or emp.id == followup_request.requested_to or emp.id == followup_request.requested_by):
+        return jsonify({"success": False, "error": f"Not authorized to respond. role={current_user.role.value}"}), 403
+
+    remark = request.form.get("remark", "").strip()
+    progress = request.form.get("progress_percentage", 0)
+    current_status_val = request.form.get("current_status", "").strip()
+
+    if not remark:
+        return jsonify({"success": False, "error": "Remark is required."}), 400
+
+    attachment_path = None
+    file = request.files.get("attachment")
+    if file and file.filename:
+        ext = file.filename.rsplit(".", 1)[-1].lower()
+        allowed = {"png", "jpg", "jpeg", "pdf", "doc", "docx", "xls", "xlsx"}
+        if ext in allowed:
+            unique_name = f"{uuid.uuid4().hex}.{ext}"
+            upload_dir = os.path.join(current_app.root_path, "static", "uploads", "followups")
+            os.makedirs(upload_dir, exist_ok=True)
+            file.save(os.path.join(upload_dir, unique_name))
+            attachment_path = unique_name
+
+    try:
+        current_status = TaskStatus(current_status_val) if current_status_val else None
+    except ValueError:
+        current_status = None
+
+    try:
+        response = TaskFollowupResponse(
+            request_id=followup_request.id,
+            progress_percentage=int(progress),
+            current_status=current_status,
+            remark=remark,
+            attachment_path=attachment_path,
+            responded_by=emp.id,
+        )
+        followup_request.status = TaskFollowupStatus.RESPONDED
+        db.session.add(response)
+        db.session.flush()
+
+        # Notify the requester (manager)
+        task = followup_request.task
+        create_notification(
+            recipient_id=followup_request.requested_by,
+            title="✅ Follow-up Responded",
+            message=f"{emp.name} submitted a follow-up update for Task #{task.id}: {task.title}",
+            link=url_for("tasks.view_task", task_id=task.id),
+            sender_id=emp.id,
+            organization_id=org_id,
+        )
+
+        db.session.commit()
+        return jsonify({"success": True, "message": "Follow-up response submitted."})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error responding follow-up: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500

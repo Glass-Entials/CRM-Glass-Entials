@@ -115,6 +115,16 @@ class TaskStatus(Enum):
     CANCELLED = "Cancelled"
 
 
+class TaskFollowupPriority(Enum):
+    NORMAL = "Normal"
+    URGENT = "Urgent"
+
+
+class TaskFollowupStatus(Enum):
+    PENDING = "Pending"
+    RESPONDED = "Responded"
+
+
 class TaskActivityType(Enum):
     CALL = "Call"
     WHATSAPP = "WhatsApp"
@@ -750,6 +760,50 @@ class Task(db.Model):
 
     def __repr__(self):
         return f"<Task {self.title}>"
+
+
+class TaskFollowupRequest(db.Model):
+    __tablename__ = "task_followup_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=False, index=True)
+    requested_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=False)
+    requested_to = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    priority = db.Column(
+        db.Enum(TaskFollowupPriority, values_callable=lambda x: [e.value for e in x]),
+        default=TaskFollowupPriority.NORMAL
+    )
+    status = db.Column(
+        db.Enum(TaskFollowupStatus, values_callable=lambda x: [e.value for e in x]),
+        default=TaskFollowupStatus.PENDING
+    )
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    # Relationships
+    task = db.relationship("Task", backref=db.backref("followup_requests", lazy="dynamic", cascade="all, delete-orphan"))
+    requester = db.relationship("Employee", foreign_keys=[requested_by])
+    assignee = db.relationship("Employee", foreign_keys=[requested_to])
+
+
+class TaskFollowupResponse(db.Model):
+    __tablename__ = "task_followup_responses"
+
+    id = db.Column(db.Integer, primary_key=True)
+    request_id = db.Column(db.Integer, db.ForeignKey("task_followup_requests.id"), nullable=False, index=True)
+    progress_percentage = db.Column(db.Integer, nullable=False, default=0)
+    current_status = db.Column(
+        db.Enum(TaskStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=True
+    )
+    remark = db.Column(db.Text, nullable=False)
+    attachment_path = db.Column(db.String(255), nullable=True)
+    responded_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=False)
+    responded_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    # Relationships
+    request = db.relationship("TaskFollowupRequest", backref=db.backref("responses", lazy="dynamic", cascade="all, delete-orphan"))
+    responder = db.relationship("Employee", foreign_keys=[responded_by])
 
 
 class DailyTask(db.Model):

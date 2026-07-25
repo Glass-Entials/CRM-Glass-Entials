@@ -197,6 +197,11 @@
                                                 <span class="icon">🗑</span> Delete
                                             </button>
                                         </form>
+                                        {% if task.assigned_to %}
+                                        <a href="#" onclick="openFollowupModal({{ task.id }}, '{{ task.title|e }}', '{{ task.assignee.name if task.assignee else '' }}'); return false;">
+                                            <span class="icon">📢</span> Request Follow-up
+                                        </a>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </td>
@@ -338,6 +343,119 @@
     </script>
 </body>
 </html>
+
+<!-- ============================================================ -->
+<!-- REQUEST FOLLOW-UP MODAL -->
+<!-- ============================================================ -->
+<div id="followupModal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(13,27,42,0.55); backdrop-filter:blur(4px); justify-content:center; align-items:center;">
+    <div style="background:#fff; border-radius:16px; padding:2rem; width:100%; max-width:520px; box-shadow:0 20px 60px rgba(0,0,0,0.2); animation: slideUp 0.25s ease;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+            <h5 style="margin:0; font-weight:700; color:var(--primary-color);">📢 Request Follow-up</h5>
+            <button onclick="closeFollowupModal()" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#64748b; line-height:1;">&times;</button>
+        </div>
+        <div style="display:grid; gap:1rem;">
+            <div>
+                <label style="font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-bottom:4px;">Employee</label>
+                <input type="text" id="fu_employee" readonly style="width:100%; padding:0.65rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; color:#475569; font-size:0.9rem;">
+            </div>
+            <div>
+                <label style="font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-bottom:4px;">Task</label>
+                <input type="text" id="fu_task" readonly style="width:100%; padding:0.65rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; color:#475569; font-size:0.9rem;">
+            </div>
+            <div>
+                <label style="font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-bottom:4px;">Message</label>
+                <textarea id="fu_message" rows="3" style="width:100%; padding:0.65rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem; resize:vertical;">Please provide the latest progress update for this task.</textarea>
+            </div>
+            <div>
+                <label style="font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-bottom:4px;">Priority</label>
+                <select id="fu_priority" style="width:100%; padding:0.65rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem; background:#f8fafc;">
+                    <option value="Normal">Normal</option>
+                    <option value="Urgent">🚨 Urgent</option>
+                </select>
+            </div>
+        </div>
+        <div id="fu_error" style="display:none; color:#e53e3e; font-size:0.85rem; margin-top:0.75rem;"></div>
+        <div style="margin-top:1.5rem; display:flex; justify-content:flex-end; gap:10px;">
+            <button onclick="closeFollowupModal()" style="padding:0.7rem 1.4rem; border:1px solid #e2e8f0; border-radius:8px; background:#fff; cursor:pointer; font-size:0.9rem;">Cancel</button>
+            <button onclick="submitFollowup()" id="fu_send_btn" style="padding:0.7rem 1.8rem; border:none; border-radius:8px; background:var(--primary-color); color:#fff; cursor:pointer; font-size:0.9rem; font-weight:600;">Send Request</button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes slideUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+</style>
+
+<script>
+let _fuTaskId = null;
+
+function openFollowupModal(taskId, taskTitle, employeeName) {
+    _fuTaskId = taskId;
+    document.getElementById('fu_task').value = taskTitle;
+    document.getElementById('fu_employee').value = employeeName;
+    document.getElementById('fu_message').value = 'Please provide the latest progress update for this task.';
+    document.getElementById('fu_priority').value = 'Normal';
+    document.getElementById('fu_error').style.display = 'none';
+    const modal = document.getElementById('followupModal');
+    modal.style.display = 'flex';
+}
+
+function closeFollowupModal() {
+    document.getElementById('followupModal').style.display = 'none';
+    _fuTaskId = null;
+}
+
+async function submitFollowup() {
+    if (!_fuTaskId) return;
+    const message = document.getElementById('fu_message').value.trim();
+    const priority = document.getElementById('fu_priority').value;
+    const errEl = document.getElementById('fu_error');
+    const btn = document.getElementById('fu_send_btn');
+
+    if (!message) {
+        errEl.textContent = 'Message is required.';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    errEl.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('message', message);
+    formData.append('priority', priority);
+    formData.append('csrf_token', '{{ csrf_token() }}');
+
+    try {
+        const res = await fetch(`/task/${_fuTaskId}/request-followup`, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+            closeFollowupModal();
+            // Show a simple toast
+            const toast = document.createElement('div');
+            toast.textContent = '✅ Follow-up request sent!';
+            toast.style.cssText = 'position:fixed;bottom:2rem;right:2rem;background:#0d1b2a;color:#fff;padding:0.8rem 1.5rem;border-radius:10px;font-size:0.9rem;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,0.2);';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3500);
+        } else {
+            errEl.textContent = data.error || 'Failed to send request.';
+            errEl.style.display = 'block';
+        }
+    } catch(e) {
+        errEl.textContent = 'Network error. Please try again.';
+        errEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send Request';
+    }
+}
+
+// Close modal on backdrop click
+document.getElementById('followupModal').addEventListener('click', function(e) {
+    if (e.target === this) closeFollowupModal();
+});
+</script>
 
 
 

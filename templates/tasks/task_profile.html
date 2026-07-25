@@ -347,8 +347,163 @@
             </div>
         </div>
 
+        <!-- ============================================================ -->
+        <!-- FOLLOW-UP REQUEST SECTION (Employee View) -->
+        <!-- ============================================================ -->
+        {% set pending_followups = task.followup_requests.filter_by(status='Pending').all() %}
+        {% if pending_followups %}
+        <div style="margin-top: 1.5rem;">
+            {% for fu in pending_followups %}
+            {% set is_target = current_user.employee and current_user.employee.id == fu.requested_to %}
+            <div style="padding: 1.5rem 2rem; border-radius: 14px; border: 2px solid {% if fu.priority.value == 'Urgent' %}#ef4444{% else %}rgba(212,175,55,0.5){% endif %}; background: {% if fu.priority.value == 'Urgent' %}rgba(239,68,68,0.05){% else %}rgba(212,175,55,0.06){% endif %}; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem;">
+                        <span style="font-size: 1.1rem;">📢</span>
+                        <span style="font-weight: 700; color: var(--primary-color); font-size: 1rem;">Follow-up Requested{% if fu.priority.value == 'Urgent' %} <span style="color:#ef4444; font-size:0.8rem; font-weight:700; background:rgba(239,68,68,0.1); padding:2px 8px; border-radius:20px;">🚨 URGENT</span>{% endif %}</span>
+                    </div>
+                    <div style="font-size:0.85rem; color:#64748b; display:grid; gap:2px;">
+                        <span><strong>Requested By:</strong> {{ fu.requester.name }}</span>
+                        <span><strong>Date:</strong> {{ fu.created_at.strftime('%d %b %Y, %I:%M %p') }}</span>
+                        <span><strong>Message:</strong> {{ fu.message }}</span>
+                    </div>
+                </div>
+                <button onclick="openRespondModal({{ fu.id }})" style="padding:0.65rem 1.5rem; border:none; border-radius:9px; background:var(--primary-color); color:#fff; font-weight:700; cursor:pointer; font-size:0.9rem; white-space:nowrap; flex-shrink:0;">
+                    ✍️ Reply
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Responded Follow-ups -->
+        {% set responded_followups = task.followup_requests.filter_by(status='Responded').all() %}
+        {% if responded_followups %}
+        <div class="panel" style="padding:2rem; margin-top:1.5rem;">
+            <h3 style="font-family:var(--font-heading); color:var(--primary-color); font-size:1.2rem; margin:0 0 1.2rem 0; border-bottom:1px solid rgba(13,27,42,0.08); padding-bottom:0.8rem;">✅ Completed Follow-ups ({{ responded_followups|length }})</h3>
+            <div style="display:flex; flex-direction:column; gap:1.2rem;">
+            {% for fu in responded_followups %}
+                {% set last_response = fu.responses.order_by('responded_at desc').first() %}
+                <div style="border:1px solid rgba(13,27,42,0.08); border-radius:10px; overflow:hidden;">
+                    <div style="padding:0.9rem 1.2rem; background:#f8fafc; border-bottom:1px solid rgba(13,27,42,0.06); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                        <span style="font-size:0.85rem; font-weight:700; color:var(--primary-color);">Requested by {{ fu.requester.name }} &bull; {{ fu.created_at.strftime('%d %b %Y') }}</span>
+                        <span style="font-size:0.75rem; padding:3px 10px; border-radius:20px; background:#d1fae5; color:#065f46; font-weight:700;">Responded</span>
+                    </div>
+                    {% if last_response %}
+                    <div style="padding:1rem 1.2rem; display:grid; gap:0.5rem;">
+                        <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
+                            <div><span style="font-size:0.75rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">Progress</span><div style="font-size:1.1rem; font-weight:700; color:var(--primary-color);">{{ last_response.progress_percentage }}%</div></div>
+                            {% if last_response.current_status %}<div><span style="font-size:0.75rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">Status</span><div style="font-size:0.9rem; font-weight:600; color:var(--primary-color);">{{ last_response.current_status.value }}</div></div>{% endif %}
+                            <div><span style="font-size:0.75rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">Responded By</span><div style="font-size:0.9rem; font-weight:600;">{{ last_response.responder.name }}</div></div>
+                        </div>
+                        <div style="font-size:0.88rem; color:#475569; background:#f1f5f9; padding:0.7rem 1rem; border-radius:8px; line-height:1.6;">{{ last_response.remark }}</div>
+                        {% if last_response.attachment_path %}
+                        <a href="{{ url_for('static', filename='uploads/followups/' ~ last_response.attachment_path) }}" target="_blank" style="font-size:0.82rem; color:var(--primary-color); font-weight:600; text-decoration:none;">📎 View Attachment</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ============================================================ -->
+        <!-- SUBMIT FOLLOW-UP RESPONSE MODAL -->
+        <!-- ============================================================ -->
+        <div id="respondModal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(13,27,42,0.55); backdrop-filter:blur(4px); justify-content:center; align-items:center;">
+            <div style="background:#fff; border-radius:16px; padding:2rem; width:100%; max-width:560px; box-shadow:0 20px 60px rgba(0,0,0,0.2); max-height:90vh; overflow-y:auto;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <h5 style="margin:0; font-weight:700; color:var(--primary-color);">✍️ Submit Follow-up Update</h5>
+                    <button onclick="closeRespondModal()" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#64748b;">&times;</button>
+                </div>
+                <div style="display:grid; gap:1rem;">
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-bottom:4px;">Progress Percentage</label>
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <input type="range" id="resp_progress" min="0" max="100" value="0" oninput="document.getElementById('resp_progress_val').textContent=this.value+'%'" style="flex:1;">
+                            <span id="resp_progress_val" style="font-weight:700; color:var(--primary-color); min-width:45px; text-align:right;">0%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-bottom:4px;">Current Status</label>
+                        <select id="resp_status" style="width:100%; padding:0.65rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem; background:#f8fafc;">
+                            <option value="">-- Select Status --</option>
+                            <option>Pending</option>
+                            <option>In Progress</option>
+                            <option>Completed</option>
+                            <option>Cancelled</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-bottom:4px;">Follow-up Remark *</label>
+                        <textarea id="resp_remark" rows="4" placeholder="Describe the current progress, blockers, or next steps..." style="width:100%; padding:0.65rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem; resize:vertical;"></textarea>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-bottom:4px;">Attachment (Optional)</label>
+                        <input type="file" id="resp_attachment" accept=".png,.jpg,.jpeg,.pdf,.doc,.docx,.xls,.xlsx" style="width:100%; padding:0.5rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.88rem;">
+                    </div>
+                </div>
+                <div id="resp_error" style="display:none; color:#e53e3e; font-size:0.85rem; margin-top:0.75rem;"></div>
+                <div style="margin-top:1.5rem; display:flex; justify-content:flex-end; gap:10px;">
+                    <button onclick="closeRespondModal()" style="padding:0.7rem 1.4rem; border:1px solid #e2e8f0; border-radius:8px; background:#fff; cursor:pointer; font-size:0.9rem;">Cancel</button>
+                    <button onclick="submitResponse()" id="resp_submit_btn" style="padding:0.7rem 1.8rem; border:none; border-radius:8px; background:var(--primary-color); color:#fff; cursor:pointer; font-size:0.9rem; font-weight:600;">Submit Update</button>
+                </div>
+            </div>
+        </div>
+        <script>
+        let _respondRequestId = null;
+        function openRespondModal(requestId) {
+            _respondRequestId = requestId;
+            document.getElementById('resp_remark').value = '';
+            document.getElementById('resp_progress').value = 0;
+            document.getElementById('resp_progress_val').textContent = '0%';
+            document.getElementById('resp_status').value = '';
+            document.getElementById('resp_error').style.display = 'none';
+            document.getElementById('respondModal').style.display = 'flex';
+        }
+        function closeRespondModal() {
+            document.getElementById('respondModal').style.display = 'none';
+            _respondRequestId = null;
+        }
+        async function submitResponse() {
+            if (!_respondRequestId) return;
+            const remark = document.getElementById('resp_remark').value.trim();
+            const errEl = document.getElementById('resp_error');
+            const btn = document.getElementById('resp_submit_btn');
+            if (!remark) {
+                errEl.textContent = 'Remark is required.'; errEl.style.display = 'block'; return;
+            }
+            btn.disabled = true; btn.textContent = 'Submitting...'; errEl.style.display = 'none';
+            const formData = new FormData();
+            formData.append('remark', remark);
+            formData.append('progress_percentage', document.getElementById('resp_progress').value);
+            formData.append('current_status', document.getElementById('resp_status').value);
+            formData.append('csrf_token', '{{ csrf_token() }}');
+            const fileInput = document.getElementById('resp_attachment');
+            if (fileInput.files[0]) formData.append('attachment', fileInput.files[0]);
+            try {
+                const res = await fetch(`/task/followup/${_respondRequestId}/respond`, { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    closeRespondModal();
+                    window.location.reload();
+                } else {
+                    errEl.textContent = data.error || 'Failed to submit.'; errEl.style.display = 'block';
+                }
+            } catch(e) {
+                errEl.textContent = 'Network error. Please try again.'; errEl.style.display = 'block';
+            } finally {
+                btn.disabled = false; btn.textContent = 'Submit Update';
+            }
+        }
+        document.getElementById('respondModal').addEventListener('click', function(e) {
+            if (e.target === this) closeRespondModal();
+        });
+        </script>
+
         <!-- Activity Timeline (Full Width) -->
         <div class="panel" style="padding: 2rem; margin-top: 1.5rem; position: relative;">
+
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
                         <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0;">Activity Timeline</h3>
                         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
