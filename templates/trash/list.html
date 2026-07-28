@@ -82,12 +82,10 @@
                                 ↺ Restore
                             </button>
                         </form>
-                        <form action="{{ url_for('trash.delete_item', module=record.module_name, record_id=record.id) }}" method="POST" style="display:inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="action-pill" style="border: 1px solid #dc3545; color: #dc3545; background: transparent;" title="Permanently Delete" onclick="return confirm('Permanently delete this item? This cannot be undone.');">
-                                🗑 Delete
-                            </button>
-                        </form>
+                        <button type="button" class="action-pill" style="border: 1px solid #dc3545; color: #dc3545; background: transparent;" title="Permanently Delete"
+                            onclick="openDeleteModal('{{ record.module_name }}', {{ record.id }}, '{{ url_for('trash.delete_item', module=record.module_name, record_id=record.id) }}')">
+                            🗑 Delete
+                        </button>
                     </td>
                 </tr>
                 {% else %}
@@ -106,95 +104,194 @@
     </div>
 </div>
 
-<!-- Pagination -->
-<div class="pagination">
-    {% if pagination.has_prev %}
-    <a href="{{ url_for('trash.trash_list', module=current_module, page=pagination.prev_num, search=search) }}" class="btn btn-secondary">&laquo; Prev</a>
-    {% endif %}
-    
-    <span class="page-info">Page {{ pagination.page }} of {{ pagination.pages or 1 }}</span>
-    
-    {% if pagination.has_next %}
-    <a href="{{ url_for('trash.trash_list', module=current_module, page=pagination.next_num, search=search) }}" class="btn btn-secondary">Next &raquo;</a>
-    {% endif %}
+<!-- ═══════════════════════════════════════════════════════════════
+     Enterprise Delete Confirmation Modal
+════════════════════════════════════════════════════════════════ -->
+<div id="deleteConfirmModal" style="
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(13, 27, 42, 0.55); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+" onclick="if(event.target===this) closeDeleteModal()">
+
+    <div style="
+        background: #fff; border-radius: 20px; padding: 2.5rem; max-width: 500px; width: 92%;
+        box-shadow: 0 25px 80px rgba(13,27,42,0.2); animation: modalSlideIn 0.3s cubic-bezier(0.16,1,0.3,1);
+        position: relative;
+    ">
+        <!-- Warning Icon -->
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <div style="
+                width: 72px; height: 72px; background: rgba(220,53,69,0.08);
+                border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+                animation: warnPulse 1.5s ease-in-out infinite;
+            ">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#dc3545" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+        </div>
+
+        <h3 style="text-align:center; font-size:1.35rem; font-weight:800; color: var(--primary-color); margin:0 0 0.4rem;">⚠ Permanently Delete Record</h3>
+        <p style="text-align:center; color:#64748b; font-size:0.9rem; margin-bottom:1.5rem;">
+            This record is connected with other business data.<br>
+            <strong>The following records will also be permanently deleted.</strong>
+        </p>
+
+        <div id="modalRecordName" style="
+            text-align:center; font-size:1.1rem; font-weight:700; color:var(--primary-color);
+            margin-bottom: 1rem; padding: 0.6rem 1rem;
+            background: rgba(13,27,42,0.04); border-radius: 8px;
+        "></div>
+
+        <div id="modalDepsContainer" style="margin-bottom:1.5rem;"></div>
+
+        <div id="modalNoDepsMsg" style="
+            display:none; text-align:center; color:#64748b; font-size:0.9rem;
+            padding: 0.8rem; background:rgba(220,53,69,0.04); border-radius:8px; margin-bottom:1.5rem;
+        ">
+            No related records found. This record will be permanently deleted.
+        </div>
+
+        <p style="text-align:center; font-size:0.8rem; color:#dc3545; font-weight:600; margin-bottom:1.5rem;">
+            ⛔ This action cannot be undone.
+        </p>
+
+        <div style="display:flex; gap:12px; justify-content:center;">
+            <button onclick="closeDeleteModal()" style="
+                padding: 0.75rem 1.8rem; border-radius: 10px; border: 1.5px solid rgba(13,27,42,0.2);
+                font-family: var(--font-body); font-weight: 600; font-size: 0.9rem;
+                background: #fff; color: var(--primary-color); cursor: pointer;
+                transition: all 0.2s ease;
+            " onmouseover="this.style.background='rgba(13,27,42,0.04)'" onmouseout="this.style.background='#fff'">
+                Cancel
+            </button>
+            <form id="deleteConfirmForm" method="POST" style="margin:0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" id="deleteConfirmBtn" style="
+                    padding: 0.75rem 1.8rem; border-radius: 10px; border: none;
+                    font-family: var(--font-body); font-weight: 700; font-size: 0.9rem;
+                    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+                    color: #fff; cursor: pointer;
+                    box-shadow: 0 4px 15px rgba(220,53,69,0.35);
+                    transition: all 0.2s ease;
+                " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+                    🗑 Delete Everything
+                </button>
+            </form>
+        </div>
+    </div>
 </div>
 
 <script>
+const SCAN_URL = '{{ url_for("trash.scan_dependencies") }}';
+let _activeDeleteModal = false;
+
+function openDeleteModal(module, recordId, deleteUrl) {
+    const modal = document.getElementById('deleteConfirmModal');
+    const nameEl = document.getElementById('modalRecordName');
+    const depsEl = document.getElementById('modalDepsContainer');
+    const noDepsEl = document.getElementById('modalNoDepsMsg');
+    const form = document.getElementById('deleteConfirmForm');
+    const btn = document.getElementById('deleteConfirmBtn');
+
+    // Reset
+    nameEl.textContent = 'Loading...';
+    depsEl.innerHTML = '';
+    noDepsEl.style.display = 'none';
+    form.action = deleteUrl;
+    btn.disabled = true;
+    btn.textContent = '🔍 Scanning...';
+    modal.style.display = 'flex';
+    _activeDeleteModal = true;
+
+    fetch(`${SCAN_URL}?module=${module}&record_id=${recordId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                nameEl.textContent = 'Error scanning dependencies';
+                btn.textContent = '🗑 Delete Everything';
+                btn.disabled = false;
+                return;
+            }
+
+            nameEl.textContent = `${module.charAt(0).toUpperCase() + module.slice(1)} — ${data.record_name}`;
+
+            if (data.has_dependencies) {
+                const deps = data.dependencies;
+                let html = '<div style="display:flex; flex-direction:column; gap:8px;">';
+                for (const [label, count] of Object.entries(deps)) {
+                    html += `
+                        <div style="
+                            display:flex; justify-content:space-between; align-items:center;
+                            padding: 0.6rem 1rem; background: rgba(220,53,69,0.05);
+                            border-radius: 8px; border-left: 3px solid #dc3545;
+                        ">
+                            <span style="font-size:0.9rem; color:var(--primary-color); font-weight:600;">${label}</span>
+                            <span style="
+                                background: #dc3545; color:#fff;
+                                font-size:0.78rem; font-weight:700;
+                                padding: 2px 10px; border-radius: 20px;
+                            ">${count}</span>
+                        </div>`;
+                }
+                html += '</div>';
+                depsEl.innerHTML = html;
+            } else {
+                noDepsEl.style.display = 'block';
+            }
+
+            btn.textContent = '🗑 Delete Everything';
+            btn.disabled = false;
+        })
+        .catch(() => {
+            nameEl.textContent = 'Unable to scan — proceed with caution';
+            btn.textContent = '🗑 Delete Everything';
+            btn.disabled = false;
+        });
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteConfirmModal').style.display = 'none';
+    _activeDeleteModal = false;
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && _activeDeleteModal) closeDeleteModal(); });
+
 function toggleSelectAll() {
     const isChecked = document.getElementById('selectAll').checked;
-    const checkboxes = document.querySelectorAll('.record-select');
-    checkboxes.forEach(cb => cb.checked = isChecked);
+    document.querySelectorAll('.record-select').forEach(cb => cb.checked = isChecked);
 }
 
 function bulkAction(action) {
     const selectedValues = Array.from(document.querySelectorAll('.record-select:checked')).map(cb => cb.value);
-    
-    if (selectedValues.length === 0) {
-        alert("Please select at least one item.");
-        return;
-    }
-    
-    const msg = action === 'restore' 
-        ? "Are you sure you want to restore the selected items?"
-        : "Are you sure you want to permanently delete the selected items? This cannot be undone.";
-        
-    if (confirm(msg)) {
-        fetch('{{ url_for("trash.bulk_action") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                action: action,
-                module: '{{ current_module }}',
-                record_ids: selectedValues
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                window.location.reload();
-            } else {
-                alert("Error: " + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert("An error occurred.");
-        });
-    }
+    if (selectedValues.length === 0) { alert('Please select at least one item.'); return; }
+    const msg = action === 'restore'
+        ? 'Are you sure you want to restore the selected items?'
+        : 'Are you sure you want to permanently delete the selected items? This cannot be undone.';
+    if (!confirm(msg)) return;
+    fetch('{{ url_for("trash.bulk_action") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+        body: JSON.stringify({ action, module: '{{ current_module }}', record_ids: selectedValues })
+    }).then(r => r.json()).then(data => {
+        if (data.success) { window.location.reload(); }
+        else { alert('Error: ' + data.message); }
+    }).catch(() => alert('An error occurred.'));
 }
 </script>
 
 <style>
-.controls-section {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 20px;
+@keyframes modalSlideIn {
+    from { opacity: 0; transform: translateY(30px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-.filter-form {
-    display: flex;
-    gap: 10px;
-}
-.actions {
-    display: flex;
-    gap: 10px;
-}
-.btn-icon.danger {
-    color: var(--danger-color, #dc3545);
-}
-.btn-icon.danger:hover {
-    background-color: rgba(220, 53, 69, 0.1);
-}
-.btn-primary {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color-dark) 100%);
-    color: white;
-}
-.btn-danger {
-    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-    color: white;
+@keyframes warnPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220,53,69,0.25); }
+    50%       { box-shadow: 0 0 0 12px rgba(220,53,69,0); }
 }
 </style>
 </main>
 {% endblock %}
+

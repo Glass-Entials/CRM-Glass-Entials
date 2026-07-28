@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_required, current_user
 from model import UserRole, db
 from utils.security import require_roles
-from utils.trash import get_trashed_records, restore_record, permanently_delete_record, TRASH_MODELS
+from utils.trash import get_trashed_records, restore_record, permanently_delete_record, TRASH_MODELS, TrashManager
 
 trash_bp = Blueprint("trash", __name__, url_prefix="/workplace/trash")
 
@@ -109,4 +109,24 @@ def bulk_action():
     return jsonify({
         "success": True, 
         "message": f"Successfully processed {success_count} out of {len(record_ids)} records."
+    })
+
+@trash_bp.route("/scan-dependencies", methods=["GET"])
+@login_required
+@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+def scan_dependencies():
+    module = request.args.get("module")
+    record_id = request.args.get("record_id", type=int)
+    org_id = current_user.organization_id
+
+    if not module or not record_id or module not in TRASH_MODELS:
+        return jsonify({"success": False, "message": "Invalid request"}), 400
+
+    name_display, deps = TrashManager.scan_dependencies(module, record_id, org_id)
+    return jsonify({
+        "success": True,
+        "record_name": name_display,
+        "module": module,
+        "dependencies": deps,
+        "has_dependencies": bool(deps),
     })
