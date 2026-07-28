@@ -10,20 +10,22 @@
 <main class="container">
 
 <div class="top-bar">
-    <div class="search-bar">
-        <span class="search-icon">🔍</span>
-        <form method="GET" style="width: 100%; display: flex; gap: 10px; align-items: center;">
-            <select name="module" onchange="this.form.submit()" style="padding: 0.9rem 1rem; border: 1px solid rgba(13, 27, 42, 0.15); border-radius: 8px; font-family: var(--font-body); font-size: 0.95rem; background: #fff; outline: none; cursor: pointer;">
-                {% for mod in modules %}
-                <option value="{{ mod }}" {% if current_module == mod %}selected{% endif %}>
-                    {{ mod.capitalize() }}
-                </option>
-                {% endfor %}
-            </select>
-            <input type="text" name="search" placeholder="Search {{ current_module }}..." value="{{ search }}" style="flex: 1; padding: 0.9rem 1rem 0.9rem 1rem; border: 1px solid rgba(13, 27, 42, 0.15); border-radius: 8px; font-family: var(--font-body); font-size: 0.95rem; background: #fff; outline: none;">
-            <button type="submit" class="btn-action gold">Search</button>
-        </form>
-    </div>
+    <form method="GET" style="display: flex; gap: 10px; align-items: center; flex: 1; max-width: 800px;">
+        <select name="module" onchange="this.form.submit()" style="padding: 0.9rem 1rem; border: 1px solid rgba(13, 27, 42, 0.15); border-radius: 8px; font-family: var(--font-body); font-size: 0.95rem; background: #fff; outline: none; cursor: pointer;">
+            {% for mod in modules %}
+            <option value="{{ mod }}" {% if current_module == mod %}selected{% endif %}>
+                {{ mod.capitalize() }}
+            </option>
+            {% endfor %}
+        </select>
+        
+        <div class="search-bar" style="flex: 1; margin: 0; max-width: none;">
+            <span class="search-icon">🔍</span>
+            <input type="text" name="search" placeholder="Search {{ current_module }}..." value="{{ search }}" style="width: 100%; padding: 0.9rem 1rem 0.9rem 2.8rem; border: 1px solid rgba(13, 27, 42, 0.15); border-radius: 8px; font-family: var(--font-body); font-size: 0.95rem; background: #fff; outline: none;">
+        </div>
+        
+        <button type="submit" class="btn-action gold">Search</button>
+    </form>
     
     <div class="btn-group">
         <button type="button" class="btn-action outline" onclick="bulkAction('restore')">
