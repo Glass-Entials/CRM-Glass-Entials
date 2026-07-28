@@ -2,6 +2,18 @@ from datetime import datetime
 from model import db, Customer, Lead, Contact, Project, Task, Employee
 from utils.activity import log_activity
 
+class MockPagination:
+    def __init__(self, items, page, per_page, total):
+        self.items = items
+        self.page = page
+        self.per_page = per_page
+        self.total = total
+        self.pages = max(1, (total + per_page - 1) // per_page)
+        self.has_prev = page > 1
+        self.has_next = page < self.pages
+        self.prev_num = page - 1
+        self.next_num = page + 1
+
 TRASH_MODELS = {
     "customers": Customer,
     "leads": Lead,
@@ -11,6 +23,36 @@ TRASH_MODELS = {
 }
 
 def get_trashed_records(module_name, org_id, page=1, per_page=30, search=None):
+    if module_name == "all":
+        all_records = []
+        for mod_name, model in TRASH_MODELS.items():
+            query = model.query.filter_by(organization_id=org_id, is_deleted=True)
+            if search:
+                if hasattr(model, 'name'):
+                    query = query.filter(model.name.ilike(f"%{search}%"))
+                elif hasattr(model, 'title'):
+                    query = query.filter(model.title.ilike(f"%{search}%"))
+                elif mod_name == "contacts":
+                    query = query.filter(
+                        (model.first_name.ilike(f"%{search}%")) |
+                        (model.last_name.ilike(f"%{search}%"))
+                    )
+            
+            records = query.all()
+            for r in records:
+                r.module_name = mod_name
+            all_records.extend(records)
+            
+        # Sort manually by deleted_at desc
+        all_records.sort(key=lambda x: x.deleted_at or datetime.min, reverse=True)
+        
+        # Paginate
+        total = len(all_records)
+        start = (page - 1) * per_page
+        end = start + per_page
+        items = all_records[start:end]
+        return MockPagination(items, page, per_page, total)
+        
     model = TRASH_MODELS.get(module_name)
     if not model:
         return None
@@ -28,7 +70,11 @@ def get_trashed_records(module_name, org_id, page=1, per_page=30, search=None):
                 (model.last_name.ilike(f"%{search}%"))
             )
             
-    return query.order_by(model.deleted_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    # Add module_name to single module queries too for consistency in frontend
+    pagination = query.order_by(model.deleted_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    for item in pagination.items:
+        item.module_name = module_name
+    return pagination
 
 def restore_record(module_name, record_id, org_id, actor_id):
     model = TRASH_MODELS.get(module_name)

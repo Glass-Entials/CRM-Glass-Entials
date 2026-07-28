@@ -12,6 +12,7 @@
 <div class="top-bar">
     <form method="GET" style="display: flex; gap: 10px; align-items: center; flex: 1; max-width: 800px;">
         <select name="module" onchange="this.form.submit()" style="padding: 0.9rem 1rem; border: 1px solid rgba(13, 27, 42, 0.15); border-radius: 8px; font-family: var(--font-body); font-size: 0.95rem; background: #fff; outline: none; cursor: pointer;">
+            <option value="all" {% if current_module == 'all' %}selected{% endif %}>All Modules</option>
             {% for mod in modules %}
             <option value="{{ mod }}" {% if current_module == mod %}selected{% endif %}>
                 {{ mod.capitalize() }}
@@ -44,6 +45,7 @@
                 <tr>
                     <th width="40" style="padding-left: 15px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
                     <th>ID</th>
+                    {% if current_module == 'all' %}<th>Module</th>{% endif %}
                     <th>Name / Title</th>
                     <th>Deleted By</th>
                     <th>Deleted At</th>
@@ -53,10 +55,13 @@
             <tbody>
                 {% for record in records %}
                 <tr>
-                    <td style="padding-left: 15px;"><input type="checkbox" class="record-select" value="{{ record.id }}"></td>
+                    <td style="padding-left: 15px;"><input type="checkbox" class="record-select" value="{{ record.module_name }}:{{ record.id }}"></td>
                     <td>#{{ record.id }}</td>
+                    {% if current_module == 'all' %}
+                    <td><span style="background: rgba(13, 27, 42, 0.05); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; text-transform: uppercase;">{{ record.module_name }}</span></td>
+                    {% endif %}
                     <td>
-                        {% if current_module == 'contacts' %}
+                        {% if record.module_name == 'contacts' %}
                             {{ record.first_name }} {{ record.last_name or '' }}
                         {% else %}
                             {{ record.name or record.title }}
@@ -71,13 +76,13 @@
                     </td>
                     <td>{{ record.deleted_at.strftime('%Y-%m-%d %H:%M') if record.deleted_at else 'Unknown' }}</td>
                     <td class="action-buttons">
-                        <form action="{{ url_for('trash.restore_item', module=current_module, record_id=record.id) }}" method="POST" style="display:inline;">
+                        <form action="{{ url_for('trash.restore_item', module=record.module_name, record_id=record.id) }}" method="POST" style="display:inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="action-pill" style="border: 1px solid var(--accent-gold); color: var(--accent-gold); background: transparent;" title="Restore" onclick="return confirm('Restore this item?');">
                                 ↺ Restore
                             </button>
                         </form>
-                        <form action="{{ url_for('trash.delete_item', module=current_module, record_id=record.id) }}" method="POST" style="display:inline;">
+                        <form action="{{ url_for('trash.delete_item', module=record.module_name, record_id=record.id) }}" method="POST" style="display:inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="action-pill" style="border: 1px solid #dc3545; color: #dc3545; background: transparent;" title="Permanently Delete" onclick="return confirm('Permanently delete this item? This cannot be undone.');">
                                 🗑 Delete
@@ -122,9 +127,9 @@ function toggleSelectAll() {
 }
 
 function bulkAction(action) {
-    const selectedIds = Array.from(document.querySelectorAll('.record-select:checked')).map(cb => parseInt(cb.value));
+    const selectedValues = Array.from(document.querySelectorAll('.record-select:checked')).map(cb => cb.value);
     
-    if (selectedIds.length === 0) {
+    if (selectedValues.length === 0) {
         alert("Please select at least one item.");
         return;
     }
@@ -143,7 +148,7 @@ function bulkAction(action) {
             body: JSON.stringify({
                 action: action,
                 module: '{{ current_module }}',
-                record_ids: selectedIds
+                record_ids: selectedValues
             })
         })
         .then(response => response.json())
