@@ -143,6 +143,26 @@ class TrashManager:
         return getattr(record, "name", None) or getattr(record, "title", None) or f"#{record.id}"
 
     @staticmethod
+    def _get_direct_query(model_cls, direct_fk, module_name, record_id):
+        """Safely build a query for direct children, handling polymorphic models."""
+        # Special polymorphic mapping for ActivityLog
+        if model_cls.__name__ == 'ActivityLog':
+            entity_type_map = {
+                "leads": "lead", "customers": "customer", "contacts": "contact", 
+                "projects": "project", "tasks": "task"
+            }
+            etype = entity_type_map.get(module_name)
+            if etype and hasattr(model_cls, "entity_type") and hasattr(model_cls, "entity_id"):
+                return model_cls.query.filter_by(entity_type=etype, entity_id=record_id)
+            return None
+            
+        # Standard foreign key validation
+        if direct_fk and hasattr(model_cls, direct_fk):
+            return model_cls.query.filter(getattr(model_cls, direct_fk) == record_id)
+            
+        return None
+
+    @staticmethod
     def scan_dependencies(module_name, record_id, org_id):
         """
         Returns (display_name: str, deps: dict {label: count})
@@ -163,10 +183,10 @@ class TrashManager:
         for entry in dep_list:
             model_cls, fk_field, direct_fk, label, is_through = entry
             if not is_through:
-                ids = [r.id for r in model_cls.query.filter(
-                    getattr(model_cls, direct_fk) == record_id
-                ).with_entities(model_cls.id).all()]
-                intermediate_ids[label] = ids
+                q = TrashManager._get_direct_query(model_cls, direct_fk, module_name, record_id)
+                if q is not None:
+                    ids = [r.id for r in q.with_entities(model_cls.id).all()]
+                    intermediate_ids[label] = ids
 
         deps = {}
         for entry in dep_list:
@@ -174,7 +194,7 @@ class TrashManager:
             if is_through:
                 parent_label = _THROUGH_PARENT_MAP.get(fk_field)
                 parent_ids = intermediate_ids.get(parent_label, [])
-                if parent_ids:
+                if parent_ids and hasattr(model_cls, fk_field):
                     count = model_cls.query.filter(
                         getattr(model_cls, fk_field).in_(parent_ids)
                     ).count()
@@ -209,20 +229,20 @@ class TrashManager:
             for entry in dep_list:
                 model_cls, fk_field, direct_fk, label, is_through = entry
                 if not is_through:
-                    ids = [r.id for r in model_cls.query.filter(
-                        getattr(model_cls, direct_fk) == record_id
-                    ).with_entities(model_cls.id).all()]
-                    intermediate_ids[label] = ids
+                    q = TrashManager._get_direct_query(model_cls, direct_fk, module_name, record_id)
+                    if q is not None:
+                        ids = [r.id for r in q.with_entities(model_cls.id).all()]
+                        intermediate_ids[label] = ids
 
             children_deleted = {}
 
-            # Phase 2: delete through-children first
+            # Phase 2: delete through-children first (e.g. QuotationItem via Quotation)
             for entry in dep_list:
                 model_cls, fk_field, direct_fk, label, is_through = entry
                 if is_through:
                     parent_label = _THROUGH_PARENT_MAP.get(fk_field)
                     parent_ids = intermediate_ids.get(parent_label, [])
-                    if parent_ids:
+                    if parent_ids and hasattr(model_cls, fk_field):
                         count = model_cls.query.filter(
                             getattr(model_cls, fk_field).in_(parent_ids)
                         ).delete(synchronize_session=False)
@@ -233,11 +253,11 @@ class TrashManager:
             for entry in dep_list:
                 model_cls, fk_field, direct_fk, label, is_through = entry
                 if not is_through:
-                    count = model_cls.query.filter(
-                        getattr(model_cls, direct_fk) == record_id
-                    ).delete(synchronize_session=False)
-                    if count:
-                        children_deleted[label] = count
+                    q = TrashManager._get_direct_query(model_cls, direct_fk, module_name, record_id)
+                    if q is not None:
+                        count = q.delete(synchronize_session=False)
+                        if count:
+                            children_deleted[label] = count
 
             # Phase 4: delete parent
             db.session.delete(record)
@@ -260,11 +280,11 @@ class TrashManager:
 
             return True, f"{name_display} and all related data permanently deleted.", children_deleted
 
-        except Exception:
+        except Exception as e:
             db.session.rollback()
-            import traceback
-            traceback.print_exc()
-            return False, "Unable to delete record because an unexpected error occurred.", {}
+            import logging
+            logging.error(f"Permanent delete failed for {module_name} ID {record_id}: {str(e)}", exc_info=True)
+            return False, "Unable to prepare this record for permanent deletion. Please try again later.", {}
 
     @staticmethod
     def restore(module_name, record_id, org_id, actor_id):
