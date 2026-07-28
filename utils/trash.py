@@ -59,72 +59,97 @@ _THROUGH_PARENT_MAP = {
 }
 
 
+from enum import IntEnum
+
+class DeletePriority(IntEnum):
+    # Priorities ensure deletion in correct order as requested:
+    # Activities -> Notes -> Tasks -> Files -> Contacts -> Parent Record
+    THROUGH_CHILD = 5   # Must go first
+    ACTIVITY = 10
+    NOTE = 20
+    SYSTEM_LOG = 25
+    TASK = 30
+    FILE = 40
+    CONTACT = 50
+    TRANSACTION = 60
+    OTHER = 90
+
+class DependencyRegistry:
+    _registry = {}
+
+    @classmethod
+    def register(cls, module, model_cls, fk_field, direct_fk, label, is_through=False, priority=DeletePriority.OTHER):
+        if module not in cls._registry:
+            cls._registry[module] = []
+        cls._registry[module].append({
+            "model_cls": model_cls,
+            "fk_field": fk_field,
+            "direct_fk": direct_fk,
+            "label": label,
+            "is_through": is_through,
+            "priority": priority
+        })
+
+    @classmethod
+    def get_dependencies(cls, module):
+        deps = cls._registry.get(module, [])
+        return sorted(deps, key=lambda x: x["priority"])
+
 # ---------------------------------------------------------------------------
-# Dependency Map per module
-# Tuple: (Model, fk_field, direct_fk_to_parent, display_label, is_through)
-# is_through=True  -> child of an intermediate parent (e.g. QuotationItem)
-# is_through=False -> direct FK to the record being deleted
-# Order matters: through-children are deleted before their direct parents
-# ---------------------------------------------------------------------------
-DEPENDENCY_MAP = {
-    "leads": [
-        # through-children (deleted first via parent IDs)
-        (QuotationAttachment,       "quotation_id", None,          "Quotation Attachments",   True),
-        (QuotationSignature,        "quotation_id", None,          "Quotation Signatures",    True),
-        (QuotationTaxSummary,       "quotation_id", None,          "Quotation Tax Summaries", True),
-        (QuotationTermLink,         "quotation_id", None,          "Quotation Term Links",    True),
-        (QuotationCustomFieldValue, "quotation_id", None,          "Quotation Fields",        True),
-        (QuotationItem,             "quotation_id", None,          "Quotation Items",         True),
-        # direct children
-        (Quotation,                 "lead_id",      "lead_id",     "Quotations",              False),
-        (LeadActivity,              "lead_id",      "lead_id",     "Activities",              False),
-        (LeadComment,               "lead_id",      "lead_id",     "Comments",                False),
-        (LeadSystemLog,             "lead_id",      "lead_id",     "System Logs",             False),
-        (LeadFollowUp,              "lead_id",      "lead_id",     "Follow-ups",              False),
-        (ActivityLog,               "lead_id",      "lead_id",     "Audit Logs",              False),
-        (CRMDocument,               "lead_id",      "lead_id",     "Documents",               False),
-    ],
-    "customers": [
-        (QuotationAttachment,       "quotation_id", None,          "Quotation Attachments",   True),
-        (QuotationSignature,        "quotation_id", None,          "Quotation Signatures",    True),
-        (QuotationTaxSummary,       "quotation_id", None,          "Quotation Tax Summaries", True),
-        (QuotationTermLink,         "quotation_id", None,          "Quotation Term Links",    True),
-        (QuotationCustomFieldValue, "quotation_id", None,          "Quotation Fields",        True),
-        (QuotationItem,             "quotation_id", None,          "Quotation Items",         True),
-        (Quotation,                 "customer_id",  "customer_id", "Quotations",              False),
-        (PaymentDocument,           "payment_id",   None,          "Payment Documents",       True),
-        (PaymentRemark,             "payment_id",   None,          "Payment Remarks",         True),
-        (Payment,                   "customer_id",  "customer_id", "Payments",                False),
-        (InvoiceItem,               "invoice_id",   None,          "Invoice Items",           True),
-        (Invoice,                   "customer_id",  "customer_id", "Invoices",                False),
-        (CustomerDocument,          "customer_id",  "customer_id", "Documents",               False),
-        (ActivityLog,               "customer_id",  "customer_id", "Audit Logs",              False),
-    ],
-    "contacts": [
-        (ContactActivity,           "contact_id",   "contact_id",  "Activities",              False),
-        (ContactNote,               "contact_id",   "contact_id",  "Notes",                   False),
-        (ContactSystemLog,          "contact_id",   "contact_id",  "System Logs",             False),
-        (ContactDocument,           "contact_id",   "contact_id",  "Documents",               False),
-    ],
-    "projects": [
-        (QuotationAttachment,       "quotation_id", None,          "Quotation Attachments",   True),
-        (QuotationSignature,        "quotation_id", None,          "Quotation Signatures",    True),
-        (QuotationTaxSummary,       "quotation_id", None,          "Quotation Tax Summaries", True),
-        (QuotationTermLink,         "quotation_id", None,          "Quotation Term Links",    True),
-        (QuotationCustomFieldValue, "quotation_id", None,          "Quotation Fields",        True),
-        (QuotationItem,             "quotation_id", None,          "Quotation Items",         True),
-        (Quotation,                 "project_id",   "project_id",  "Quotations",              False),
-        (InvoiceItem,               "invoice_id",   None,          "Invoice Items",           True),
-        (Invoice,                   "project_id",   "project_id",  "Invoices",                False),
-        (ActivityLog,               "project_id",   "project_id",  "Audit Logs",              False),
-    ],
-    "tasks": [
-        (TaskFollowupResponse,      "request_id",   None,          "Followup Responses",      True),
-        (TaskFollowupRequest,       "task_id",       "task_id",     "Followup Requests",       False),
-        (TaskActivity,              "task_id",       "task_id",     "Activities",              False),
-        (ActivityLog,               "task_id",       "task_id",     "Audit Logs",              False),
-    ],
-}
+# Register Leads
+DependencyRegistry.register("leads", QuotationAttachment, "quotation_id", None, "Quotation Attachments", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("leads", QuotationSignature, "quotation_id", None, "Quotation Signatures", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("leads", QuotationTaxSummary, "quotation_id", None, "Quotation Tax Summaries", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("leads", QuotationTermLink, "quotation_id", None, "Quotation Term Links", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("leads", QuotationCustomFieldValue, "quotation_id", None, "Quotation Fields", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("leads", QuotationItem, "quotation_id", None, "Quotation Items", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("leads", LeadActivity, "lead_id", "lead_id", "Activities", False, DeletePriority.ACTIVITY)
+DependencyRegistry.register("leads", ActivityLog, "lead_id", "lead_id", "Audit Logs", False, DeletePriority.ACTIVITY)
+DependencyRegistry.register("leads", LeadComment, "lead_id", "lead_id", "Comments", False, DeletePriority.NOTE)
+DependencyRegistry.register("leads", LeadSystemLog, "lead_id", "lead_id", "System Logs", False, DeletePriority.SYSTEM_LOG)
+DependencyRegistry.register("leads", LeadFollowUp, "lead_id", "lead_id", "Follow-ups", False, DeletePriority.TASK)
+DependencyRegistry.register("leads", CRMDocument, "lead_id", "lead_id", "Documents", False, DeletePriority.FILE)
+DependencyRegistry.register("leads", Quotation, "lead_id", "lead_id", "Quotations", False, DeletePriority.TRANSACTION)
+
+# Register Customers
+DependencyRegistry.register("customers", QuotationAttachment, "quotation_id", None, "Quotation Attachments", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("customers", QuotationSignature, "quotation_id", None, "Quotation Signatures", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("customers", QuotationTaxSummary, "quotation_id", None, "Quotation Tax Summaries", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("customers", QuotationTermLink, "quotation_id", None, "Quotation Term Links", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("customers", QuotationCustomFieldValue, "quotation_id", None, "Quotation Fields", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("customers", QuotationItem, "quotation_id", None, "Quotation Items", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("customers", PaymentDocument, "payment_id", None, "Payment Documents", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("customers", PaymentRemark, "payment_id", None, "Payment Remarks", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("customers", InvoiceItem, "invoice_id", None, "Invoice Items", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("customers", ActivityLog, "customer_id", "customer_id", "Audit Logs", False, DeletePriority.ACTIVITY)
+DependencyRegistry.register("customers", CustomerDocument, "customer_id", "customer_id", "Documents", False, DeletePriority.FILE)
+DependencyRegistry.register("customers", Quotation, "customer_id", "customer_id", "Quotations", False, DeletePriority.TRANSACTION)
+DependencyRegistry.register("customers", Payment, "customer_id", "customer_id", "Payments", False, DeletePriority.TRANSACTION)
+DependencyRegistry.register("customers", Invoice, "customer_id", "customer_id", "Invoices", False, DeletePriority.TRANSACTION)
+
+# Register Contacts
+DependencyRegistry.register("contacts", ContactActivity, "contact_id", "contact_id", "Activities", False, DeletePriority.ACTIVITY)
+DependencyRegistry.register("contacts", ContactNote, "contact_id", "contact_id", "Notes", False, DeletePriority.NOTE)
+DependencyRegistry.register("contacts", ContactSystemLog, "contact_id", "contact_id", "System Logs", False, DeletePriority.SYSTEM_LOG)
+DependencyRegistry.register("contacts", ContactDocument, "contact_id", "contact_id", "Documents", False, DeletePriority.FILE)
+
+# Register Projects
+DependencyRegistry.register("projects", QuotationAttachment, "quotation_id", None, "Quotation Attachments", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("projects", QuotationSignature, "quotation_id", None, "Quotation Signatures", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("projects", QuotationTaxSummary, "quotation_id", None, "Quotation Tax Summaries", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("projects", QuotationTermLink, "quotation_id", None, "Quotation Term Links", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("projects", QuotationCustomFieldValue, "quotation_id", None, "Quotation Fields", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("projects", QuotationItem, "quotation_id", None, "Quotation Items", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("projects", InvoiceItem, "invoice_id", None, "Invoice Items", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("projects", ActivityLog, "project_id", "project_id", "Audit Logs", False, DeletePriority.ACTIVITY)
+DependencyRegistry.register("projects", Quotation, "project_id", "project_id", "Quotations", False, DeletePriority.TRANSACTION)
+DependencyRegistry.register("projects", Invoice, "project_id", "project_id", "Invoices", False, DeletePriority.TRANSACTION)
+
+# Register Tasks
+DependencyRegistry.register("tasks", TaskFollowupResponse, "request_id", None, "Followup Responses", True, DeletePriority.THROUGH_CHILD)
+DependencyRegistry.register("tasks", TaskActivity, "task_id", "task_id", "Activities", False, DeletePriority.ACTIVITY)
+DependencyRegistry.register("tasks", ActivityLog, "task_id", "task_id", "Audit Logs", False, DeletePriority.ACTIVITY)
+DependencyRegistry.register("tasks", TaskFollowupRequest, "task_id", "task_id", "Followup Requests", False, DeletePriority.TASK)
 
 
 # ---------------------------------------------------------------------------
@@ -176,34 +201,32 @@ class TrashManager:
             return "", {}
 
         name_display = TrashManager._record_display_name(module_name, record)
-        dep_list = DEPENDENCY_MAP.get(module_name, [])
+        dep_list = DependencyRegistry.get_dependencies(module_name)
 
         # Collect direct child IDs first (needed to query through-children)
         intermediate_ids = {}
         for entry in dep_list:
-            model_cls, fk_field, direct_fk, label, is_through = entry
-            if not is_through:
-                q = TrashManager._get_direct_query(model_cls, direct_fk, module_name, record_id)
+            if not entry["is_through"]:
+                q = TrashManager._get_direct_query(entry["model_cls"], entry["direct_fk"], module_name, record_id)
                 if q is not None:
-                    ids = [r.id for r in q.with_entities(model_cls.id).all()]
-                    intermediate_ids[label] = ids
+                    ids = [r.id for r in q.with_entities(entry["model_cls"].id).all()]
+                    intermediate_ids[entry["label"]] = ids
 
         deps = {}
         for entry in dep_list:
-            model_cls, fk_field, direct_fk, label, is_through = entry
-            if is_through:
-                parent_label = _THROUGH_PARENT_MAP.get(fk_field)
+            if entry["is_through"]:
+                parent_label = _THROUGH_PARENT_MAP.get(entry["fk_field"])
                 parent_ids = intermediate_ids.get(parent_label, [])
-                if parent_ids and hasattr(model_cls, fk_field):
-                    count = model_cls.query.filter(
-                        getattr(model_cls, fk_field).in_(parent_ids)
+                if parent_ids and hasattr(entry["model_cls"], entry["fk_field"]):
+                    count = entry["model_cls"].query.filter(
+                        getattr(entry["model_cls"], entry["fk_field"]).in_(parent_ids)
                     ).count()
                     if count:
-                        deps[label] = deps.get(label, 0) + count
+                        deps[entry["label"]] = deps.get(entry["label"], 0) + count
             else:
-                ids = intermediate_ids.get(label, [])
+                ids = intermediate_ids.get(entry["label"], [])
                 if ids:
-                    deps[label] = len(ids)
+                    deps[entry["label"]] = len(ids)
 
         return name_display, deps
 
@@ -221,43 +244,41 @@ class TrashManager:
             return False, "Record not found or not in trash", {}
 
         name_display = TrashManager._record_display_name(module_name, record)
-        dep_list = DEPENDENCY_MAP.get(module_name, [])
+        dep_list = DependencyRegistry.get_dependencies(module_name)
 
         try:
             # Phase 1: collect intermediate parent IDs
             intermediate_ids = {}
             for entry in dep_list:
-                model_cls, fk_field, direct_fk, label, is_through = entry
-                if not is_through:
-                    q = TrashManager._get_direct_query(model_cls, direct_fk, module_name, record_id)
+                if not entry["is_through"]:
+                    q = TrashManager._get_direct_query(entry["model_cls"], entry["direct_fk"], module_name, record_id)
                     if q is not None:
-                        ids = [r.id for r in q.with_entities(model_cls.id).all()]
-                        intermediate_ids[label] = ids
+                        ids = [r.id for r in q.with_entities(entry["model_cls"].id).all()]
+                        intermediate_ids[entry["label"]] = ids
 
             children_deleted = {}
 
             # Phase 2: delete through-children first (e.g. QuotationItem via Quotation)
             for entry in dep_list:
-                model_cls, fk_field, direct_fk, label, is_through = entry
-                if is_through:
-                    parent_label = _THROUGH_PARENT_MAP.get(fk_field)
+                if entry["is_through"]:
+                    parent_label = _THROUGH_PARENT_MAP.get(entry["fk_field"])
                     parent_ids = intermediate_ids.get(parent_label, [])
-                    if parent_ids and hasattr(model_cls, fk_field):
-                        count = model_cls.query.filter(
-                            getattr(model_cls, fk_field).in_(parent_ids)
+                    if parent_ids and hasattr(entry["model_cls"], entry["fk_field"]):
+                        count = entry["model_cls"].query.filter(
+                            getattr(entry["model_cls"], entry["fk_field"]).in_(parent_ids)
                         ).delete(synchronize_session=False)
                         if count:
-                            children_deleted[label] = children_deleted.get(label, 0) + count
+                            children_deleted[entry["label"]] = children_deleted.get(entry["label"], 0) + count
 
             # Phase 3: delete direct children
             for entry in dep_list:
-                model_cls, fk_field, direct_fk, label, is_through = entry
-                if not is_through:
-                    q = TrashManager._get_direct_query(model_cls, direct_fk, module_name, record_id)
+                if not entry["is_through"]:
+                    q = TrashManager._get_direct_query(entry["model_cls"], entry["direct_fk"], module_name, record_id)
                     if q is not None:
                         count = q.delete(synchronize_session=False)
                         if count:
-                            children_deleted[label] = count
+                            children_deleted[entry["label"]] = count
+
 
             # Phase 4: delete parent
             db.session.delete(record)
