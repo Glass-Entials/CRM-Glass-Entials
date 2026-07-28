@@ -12,18 +12,21 @@ MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 
 def role_value(user):
     role = getattr(user, "role", None)
-    return getattr(role, "value", role)
+    val = getattr(role, "value", role)
+    return str(val).lower() if val else None
 
 
 def require_roles(*roles):
-    allowed = {getattr(role, "value", role) for role in roles}
+    allowed = {str(getattr(role, "value", role)).lower() for role in roles}
 
     def decorator(view):
         @wraps(view)
         def wrapped(*args, **kwargs):
             if not current_user.is_authenticated:
                 abort(401)
-            if role_value(current_user) not in allowed:
+            u_role = role_value(current_user)
+            if u_role not in allowed:
+                current_app.logger.error(f"403 ERROR: User {current_user.username} has role '{u_role}', but allowed roles are {allowed}")
                 abort(403)
             return view(*args, **kwargs)
 

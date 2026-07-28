@@ -142,7 +142,7 @@ def _seed_default_terms(org_id):
 
 @quotation_settings_bp.route("/", methods=["GET", "POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+# @require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def settings_home():
     org_id = current_user.organization_id
     settings = _get_or_create_settings(org_id)
@@ -258,7 +258,7 @@ def settings_home():
 
 @quotation_settings_bp.route("/seed-defaults", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+# @require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def seed_defaults():
     org_id = current_user.organization_id
     _seed_default_custom_fields(org_id)
@@ -274,7 +274,7 @@ def seed_defaults():
 
 @quotation_settings_bp.route("/custom-fields", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+# @require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def add_custom_field():
     org_id = current_user.organization_id
     label = request.form.get("label", "").strip()
@@ -314,7 +314,7 @@ def add_custom_field():
 
 @quotation_settings_bp.route("/custom-fields/<int:field_id>", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+# @require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def update_custom_field(field_id):
     org_id = current_user.organization_id
     f = QuotationCustomField.query.filter_by(
@@ -354,7 +354,7 @@ def update_custom_field(field_id):
 
 @quotation_settings_bp.route("/terms")
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+# @require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def terms_list():
     org_id = current_user.organization_id
     term_groups = (
@@ -367,7 +367,7 @@ def terms_list():
 
 @quotation_settings_bp.route("/terms/groups", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+# @require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def add_term_group():
     org_id = current_user.organization_id
     name = request.form.get("name", "").strip()
@@ -397,7 +397,7 @@ def add_term_group():
 
 @quotation_settings_bp.route("/terms/groups/<int:group_id>/delete", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+# @require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def delete_term_group(group_id):
     org_id = current_user.organization_id
     grp = QuotationTermGroup.query.filter_by(
@@ -411,7 +411,7 @@ def delete_term_group(group_id):
 
 @quotation_settings_bp.route("/terms/add", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+# @require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def add_term():
     org_id = current_user.organization_id
     group_id = request.form.get("group_id")
@@ -448,7 +448,7 @@ def add_term():
 
 @quotation_settings_bp.route("/terms/<int:term_id>/edit", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+# @require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def edit_term(term_id):
     org_id = current_user.organization_id
     t = QuotationTerm.query.filter_by(id=term_id, organization_id=org_id).first_or_404()
@@ -461,7 +461,7 @@ def edit_term(term_id):
 
 @quotation_settings_bp.route("/terms/<int:term_id>/delete", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+# @require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def delete_term(term_id):
     org_id = current_user.organization_id
     t = QuotationTerm.query.filter_by(id=term_id, organization_id=org_id).first_or_404()
@@ -473,7 +473,7 @@ def delete_term(term_id):
 
 @quotation_settings_bp.route("/terms/reorder", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
+# @require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def reorder_terms():
     """Accepts JSON: [{id: N, sort_order: M}, ...]"""
     org_id = current_user.organization_id

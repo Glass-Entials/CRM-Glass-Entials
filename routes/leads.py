@@ -349,6 +349,8 @@ def delete_lead(lead_id):
         id=lead_id, organization_id=current_user.organization_id
     ).first_or_404()
     lead.is_deleted = True
+    lead.deleted_at = datetime.utcnow()
+    lead.deleted_by = current_user.employee.id
     log_activity(
         "lead_deleted",
         "lead",
@@ -433,7 +435,7 @@ def convert_lead(lead_id):
                 (Customer.email == lead.email)
                 | (Customer.phone_number == lead.phone_number)
             )
-            .filter_by(organization_id=current_user.organization_id, is_deleted=False)
+            .filter_by(organization_id=current_user.organization_id)
             .first()
         )
     else:
@@ -441,11 +443,18 @@ def convert_lead(lead_id):
             Customer.query.filter(
                 (Customer.phone_number == lead.phone_number)
             )
-            .filter_by(organization_id=current_user.organization_id, is_deleted=False)
+            .filter_by(organization_id=current_user.organization_id)
             .first()
         )
+        
     if existing:
-        flash("Customer already exists with this email/phone.", "leadserror")
+        if existing.is_deleted:
+            flash(
+                f"This customer already exists in the Trash. <a href='{url_for('trash.trash_list', module='customers', search=existing.phone_number)}'>Click here to restore it</a> before converting this lead.", 
+                "leadserror"
+            )
+        else:
+            flash("Customer already exists with this email/phone.", "leadserror")
         return redirect(url_for("leads.leads_list"))
 
     try:

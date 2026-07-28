@@ -347,6 +347,8 @@ def delete_customer(customer_id):
         id=customer_id, organization_id=current_user.organization_id
     ).first_or_404()
     customer.is_deleted = True
+    customer.deleted_at = datetime.utcnow()
+    customer.deleted_by = current_user.employee.id
     log_activity(
         "customer_deleted",
         "customer",

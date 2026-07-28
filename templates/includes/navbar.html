@@ -73,10 +73,13 @@
             <a href="{{ url_for('products.products_list') }}" {% if request.blueprint == 'products' %}class="active"{% endif %}>Products</a>
             
             <div class="dropdown">
-                <a href="#" {% if request.blueprint == 'employees' or request.blueprint == 'contacts' %}class="active"{% endif %}>Workplace ▾</a>
+                <a href="#" {% if request.blueprint == 'employees' or request.blueprint == 'contacts' or request.blueprint == 'trash' %}class="active"{% endif %}>Workplace ▾</a>
                 <div class="dropdown-content">
                     <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
                     <a href="{{ url_for('contacts.contacts_list') }}">Contacts</a>
+                    {% if current_user.role.value == 'admin' %}
+                    <a href="{{ url_for('trash.trash_list') }}">Trash</a>
+                    {% endif %}
                 </div>
             </div>
         </nav>

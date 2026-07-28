@@ -13,7 +13,6 @@ from email.utils import formatdate, make_msgid
 
 logger = logging.getLogger(__name__)
 
-
 def _get_smtp_config():
     return {
         "host":     os.environ.get("MAIL_SERVER", "smtp.gmail.com"),

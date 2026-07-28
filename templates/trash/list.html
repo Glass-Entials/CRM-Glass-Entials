@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Trash - {{ current_module.capitalize() }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+{% endblock %}
+
+{% block content %}
+<main class="container">
+
+<div class="top-bar">
+    <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <form method="GET" style="width: 100%; display: flex; gap: 10px; align-items: center;">
+            <select name="module" onchange="this.form.submit()" style="padding: 0.9rem 1rem; border: 1px solid rgba(13, 27, 42, 0.15); border-radius: 8px; font-family: var(--font-body); font-size: 0.95rem; background: #fff; outline: none; cursor: pointer;">
+                {% for mod in modules %}
+                <option value="{{ mod }}" {% if current_module == mod %}selected{% endif %}>
+                    {{ mod.capitalize() }}
+                </option>
+                {% endfor %}
+            </select>
+            <input type="text" name="search" placeholder="Search {{ current_module }}..." value="{{ search }}" style="flex: 1; padding: 0.9rem 1rem 0.9rem 1rem; border: 1px solid rgba(13, 27, 42, 0.15); border-radius: 8px; font-family: var(--font-body); font-size: 0.95rem; background: #fff; outline: none;">
+            <button type="submit" class="btn-action gold">Search</button>
+        </form>
+    </div>
+    
+    <div class="btn-group">
+        <button type="button" class="btn-action outline" onclick="bulkAction('restore')">
+            ↺ Restore Selected
+        </button>
+        <button type="button" class="btn-action outline" style="border-color: #dc3545; color: #dc3545;" onclick="bulkAction('delete')">
+            🗑 Delete Selected
+        </button>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="table-responsive">
+        <table class="customer-table" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th width="40" style="padding-left: 15px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+                    <th>ID</th>
+                    <th>Name / Title</th>
+                    <th>Deleted By</th>
+                    <th>Deleted At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                <tr>
+                    <td style="padding-left: 15px;"><input type="checkbox" class="record-select" value="{{ record.id }}"></td>
+                    <td>#{{ record.id }}</td>
+                    <td>
+                        {% if current_module == 'contacts' %}
+                            {{ record.first_name }} {{ record.last_name or '' }}
+                        {% else %}
+                            {{ record.name or record.title }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if record.deleted_by %}
+                            User #{{ record.deleted_by }}
+                        {% else %}
+                            System
+                        {% endif %}
+                    </td>
+                    <td>{{ record.deleted_at.strftime('%Y-%m-%d %H:%M') if record.deleted_at else 'Unknown' }}</td>
+                    <td class="action-buttons">
+                        <form action="{{ url_for('trash.restore_item', module=current_module, record_id=record.id) }}" method="POST" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="action-pill" style="border: 1px solid var(--accent-gold); color: var(--accent-gold); background: transparent;" title="Restore" onclick="return confirm('Restore this item?');">
+                                ↺ Restore
+                            </button>
+                        </form>
+                        <form action="{{ url_for('trash.delete_item', module=current_module, record_id=record.id) }}" method="POST" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="action-pill" style="border: 1px solid #dc3545; color: #dc3545; background: transparent;" title="Permanently Delete" onclick="return confirm('Permanently delete this item? This cannot be undone.');">
+                                🗑 Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 5rem 2.5rem; color: var(--text-muted); font-weight: normal; border: none;">
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
+                            <div style="font-size: 3.5rem; opacity: 0.15; filter: grayscale(1);">🗑</div>
+                            <h3 style="font-weight: 700; font-size: 1.25rem; color: var(--primary-color); margin: 0;">No trashed {{ current_module }} found</h3>
+                            <p style="margin: 0; opacity: 0.7; max-width: 300px;">The trash for this module is currently empty.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination -->
+<div class="pagination">
+    {% if pagination.has_prev %}
+    <a href="{{ url_for('trash.trash_list', module=current_module, page=pagination.prev_num, search=search) }}" class="btn btn-secondary">&laquo; Prev</a>
+    {% endif %}
+    
+    <span class="page-info">Page {{ pagination.page }} of {{ pagination.pages or 1 }}</span>
+    
+    {% if pagination.has_next %}
+    <a href="{{ url_for('trash.trash_list', module=current_module, page=pagination.next_num, search=search) }}" class="btn btn-secondary">Next &raquo;</a>
+    {% endif %}
+</div>
+
+<script>
+function toggleSelectAll() {
+    const isChecked = document.getElementById('selectAll').checked;
+    const checkboxes = document.querySelectorAll('.record-select');
+    checkboxes.forEach(cb => cb.checked = isChecked);
+}
+
+function bulkAction(action) {
+    const selectedIds = Array.from(document.querySelectorAll('.record-select:checked')).map(cb => parseInt(cb.value));
+    
+    if (selectedIds.length === 0) {
+        alert("Please select at least one item.");
+        return;
+    }
+    
+    const msg = action === 'restore' 
+        ? "Are you sure you want to restore the selected items?"
+        : "Are you sure you want to permanently delete the selected items? This cannot be undone.";
+        
+    if (confirm(msg)) {
+        fetch('{{ url_for("trash.bulk_action") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                action: action,
+                module: '{{ current_module }}',
+                record_ids: selectedIds
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert("Error: " + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("An error occurred.");
+        });
+    }
+}
+</script>
+
+<style>
+.controls-section {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+.filter-form {
+    display: flex;
+    gap: 10px;
+}
+.actions {
+    display: flex;
+    gap: 10px;
+}
+.btn-icon.danger {
+    color: var(--danger-color, #dc3545);
+}
+.btn-icon.danger:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color-dark) 100%);
+    color: white;
+}
+.btn-danger {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+}
+</style>
+</main>
+{% endblock %}

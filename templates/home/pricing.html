@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing | Glassentials CRM — Simple & Transparent Plans</title>
+    <meta name="description" content="Choose the perfect Glassentials CRM plan for your business. Transparent pricing with Starter, Professional, Business, and Enterprise plans. Start your free trial today.">
+    <meta name="keywords" content="Glassentials CRM pricing, CRM plans, business software pricing, SaaS CRM">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3\">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pricing.css') }}?v=1">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+</head>
+
+<body>
+    <!-- Navbar -->
+    <header class="navbar fade-in">
+        <div class="logo">
+            <a href="/" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+            </a>
+            <span class="crm-badge">CRM</span>
+        </div>
+        <nav class="nav-links">
+            <a href="{{ url_for('home') }}">Home</a>
+            <a href="{{ url_for('about') }}">About Us</a>
+            <a href="{{ url_for('pricing_page') }}" class="nav-active">Pricing</a>
+            <a href="{{ url_for('auth.login') }}">Login</a>
+            <a href="{{ url_for('auth.register') }}" class="btn-outline">Get Started</a>
+        </nav>
+        <!-- Mobile menu toggle -->
+        <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+            <span></span><span></span><span></span>
+        </button>
+    </header>
+
+    <main>
+        <!-- ══════════════════════════════════════
+             HERO SECTION
+        ══════════════════════════════════════ -->
+        <section class="pricing-hero">
+            <div class="pricing-hero-bg"></div>
+            <div class="pricing-hero-content fade-in">
+                <span class="eyebrow">Transparent Pricing</span>
+                <h1>Simple &amp; Transparent <em>Pricing</em></h1>
+                <p>Choose the perfect plan for your business. Upgrade anytime as your business grows.</p>
+                <div class="cta-group">
+                    <a href="{{ url_for('auth.register') }}" class="btn-primary">Start Free Trial</a>
+                    <a href="mailto:sales@glassentials.com" class="btn-text">Contact Sales &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════
+             BILLING TOGGLE
+        ══════════════════════════════════════ -->
+        <section class="billing-toggle-section fade-up">
+            <div class="billing-toggle-wrapper">
+                <span class="toggle-label" id="label-monthly">Monthly</span>
+                <label class="toggle-switch" for="billingToggle">
+                    <input type="checkbox" id="billingToggle">
+                    <span class="toggle-track"></span>
+                </label>
+                <span class="toggle-label" id="label-yearly">Yearly</span>
+                <span class="yearly-badge" id="yearlyBadge">Save up to 17%</span>
+            </div>
+        </section>
+
+        <!-- GST Disclaimer -->
+        <p class="gst-note fade-up">All prices are exclusive of 18% GST. GST will be added at checkout as per applicable government regulations.</p>
+
+        <!-- ══════════════════════════════════════
+             PRICING CARDS
+        ══════════════════════════════════════ -->
+        <section class="pricing-cards-section">
+            <div class="pricing-grid">
+
+                <!-- Starter -->
+                <div class="pricing-card fade-up delay-1">
+                    <div class="plan-header">
+                        <h3 class="plan-name">Starter</h3>
+                        <p class="plan-desc">Perfect for small teams getting started</p>
+                    </div>
+                    <div class="plan-price">
+                        <div class="price-monthly">
+                            <span class="price-currency">₹</span>
+                            <span class="price-amount">600</span>
+                            <div class="price-period-large">Per User / Month</div>
+                            <div class="price-min-users">Minimum 5 Users</div>
+                            <div class="price-billed-as">Billed as ₹2,999/month <span class="price-gst-inline">+ 18% GST</span></div>
+                        </div>
+                        <div class="price-yearly" style="display:none;">
+                            <span class="price-currency">₹</span>
+                            <span class="price-amount">600</span>
+                            <div class="price-period-large">Per User / Month</div>
+                            <div class="price-min-users">Minimum 5 Users</div>
+                            <div class="price-billed-as">(Billed Annually ₹29,999) <span class="price-gst-inline">+ 18% GST</span></div>
+                            <div class="price-savings">Save ₹6,000/year</div>
+                        </div>
+                    </div>
+                    <p class="plan-users" style="display:none;">
+                        <!-- Hidden as minimum users is in pricing block now -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                        Up to 5 Users
+                    </p>
+                    <ul class="plan-features">
+                        <li><span class="check-icon">✓</span> Customer Management</li>
+                        <li><span class="check-icon">✓</span> Lead Management</li>
+                        <li><span class="check-icon">✓</span> Task Management</li>
+                        <li><span class="check-icon">✓</span> Sales Pipeline</li>
+                        <li><span class="check-icon">✓</span> Dashboard</li>
+                        <li><span class="check-icon">✓</span> Email Support</li>
+                    </ul>
+                    <a href="{{ url_for('auth.register') }}" class="plan-cta">Start Free Trial</a>
+                </div>
+
+                <!-- Professional (Popular) -->
+                <div class="pricing-card pricing-card--popular fade-up delay-2">
+                    <div class="popular-badge">⭐ Most Popular</div>
+                    <div class="plan-header">
+                        <h3 class="plan-name">Professional</h3>
+                        <p class="plan-desc">For growing teams that need more power</p>
+                    </div>
+                    <div class="plan-price">
+                        <div class="price-monthly">
+                            <span class="price-currency">₹</span>
+                            <span class="price-amount">300</span>
+                            <div class="price-period-large">Per User / Month</div>
+                            <div class="price-min-users">Minimum 20 Users</div>
+                            <div class="price-billed-as">Billed as ₹5,999/month <span class="price-gst-inline">+ 18% GST</span></div>
+                        </div>
+                        <div class="price-yearly" style="display:none;">
+                            <span class="price-currency">₹</span>
+                            <span class="price-amount">300</span>
+                            <div class="price-period-large">Per User / Month</div>
+                            <div class="price-min-users">Minimum 20 Users</div>
+                            <div class="price-billed-as">(Billed Annually ₹59,999) <span class="price-gst-inline">+ 18% GST</span></div>
+                            <div class="price-savings">Save ₹12,000/year</div>
+                        </div>
+                    </div>
+                    <p class="plan-users" style="display:none;">
+                        <!-- Hidden as minimum users is in pricing block now -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                        Up to 20 Users
+                    </p>
+                    <ul class="plan-features">
+                        <li><span class="check-icon">✓</span> Everything in Starter</li>
+                        <li><span class="check-icon">✓</span> Team Management</li>
+                        <li><span class="check-icon">✓</span> Reports &amp; Analytics</li>
+                        <li><span class="check-icon">✓</span> Notifications</li>
+                        <li><span class="check-icon">✓</span> Role Based Access</li>
+                        <li><span class="check-icon">✓</span> Priority Support</li>
+                    </ul>
+                    <a href="{{ url_for('auth.register') }}" class="plan-cta plan-cta--primary">Start Free Trial</a>
+                </div>
+
+                <!-- Business -->
+                <div class="pricing-card fade-up delay-3">
+                    <div class="plan-header">
+                        <h3 class="plan-name">Business</h3>
+                        <p class="plan-desc">For established businesses scaling up</p>
+                    </div>
+                    <div class="plan-price">
+                        <div class="price-monthly">
+                            <span class="price-currency">₹</span>
+                            <span class="price-amount">200</span>
+                            <div class="price-period-large">Per User / Month</div>
+                            <div class="price-min-users">Minimum 50 Users</div>
+                            <div class="price-billed-as">Billed as ₹9,999/month <span class="price-gst-inline">+ 18% GST</span></div>
+                        </div>
+                        <div class="price-yearly" style="display:none;">
+                            <span class="price-currency">₹</span>
+                            <span class="price-amount">200</span>
+                            <div class="price-period-large">Per User / Month</div>
+                            <div class="price-min-users">Minimum 50 Users</div>
+                            <div class="price-billed-as">(Billed Annually ₹99,999) <span class="price-gst-inline">+ 18% GST</span></div>
+                            <div class="price-savings">Save ₹20,000/year</div>
+                        </div>
+                    </div>
+                    <p class="plan-users" style="display:none;">
+                        <!-- Hidden as minimum users is in pricing block now -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                        Up to 50 Users
+                    </p>
+                    <ul class="plan-features">
+                        <li><span class="check-icon">✓</span> Everything in Professional</li>
+                        <li><span class="check-icon">✓</span> Advanced Reports</li>
+                        <li><span class="check-icon">✓</span> API Access</li>
+                        <li><span class="check-icon">✓</span> Custom Workflows</li>
+                        <li><span class="check-icon">✓</span> Integrations</li>
+                        <li><span class="check-icon">✓</span> Priority Support</li>
+                    </ul>
+                    <a href="{{ url_for('auth.register') }}" class="plan-cta">Start Free Trial</a>
+                </div>
+
+                <!-- Enterprise -->
+                <div class="pricing-card pricing-card--enterprise fade-up delay-4">
+                    <div class="plan-header">
+                        <h3 class="plan-name">Enterprise</h3>
+                        <p class="plan-desc">Custom solutions for large organizations</p>
+                    </div>
+                    <div class="plan-price" style="padding-bottom: 2rem;">
+                        <div class="price-monthly">
+                            <span class="price-custom-tag" style="margin-top:0;">Custom Pricing</span>
+                            <div class="price-min-users" style="color: rgba(255,255,255,0.9); margin-top: 1rem;">Unlimited Users</div>
+                            <div class="price-billed-as" style="color: rgba(255,255,255,0.7); visibility: hidden;">Spacer</div>
+                        </div>
+                        <div class="price-yearly" style="display:none;">
+                            <span class="price-custom-tag" style="margin-top:0;">Custom Pricing</span>
+                            <div class="price-min-users" style="color: rgba(255,255,255,0.9); margin-top: 1rem;">Unlimited Users</div>
+                            <div class="price-billed-as" style="color: rgba(255,255,255,0.7); visibility: hidden;">Spacer</div>
+                        </div>
+                    </div>
+                    <p class="plan-users" style="display:none;">
+                        <!-- Hidden as minimum users is in pricing block now -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                        Unlimited Users
+                    </p>
+                    <ul class="plan-features">
+                        <li><span class="check-icon">✓</span> Everything in Business</li>
+                        <li><span class="check-icon">✓</span> Dedicated Account Manager</li>
+                        <li><span class="check-icon">✓</span> Custom Integrations</li>
+                        <li><span class="check-icon">✓</span> SLA Support</li>
+                        <li><span class="check-icon">✓</span> Enterprise Security</li>
+                        <li><span class="check-icon">✓</span> Unlimited Users</li>
+                    </ul>
+                    <a href="mailto:sales@glassentials.com" class="plan-cta plan-cta--enterprise">Contact Sales</a>
+                </div>
+
+            </div>
+            
+            <div class="pricing-transparency-note fade-up">
+                <p><em>*Prices shown are approximate per-user costs based on the minimum number of users included in each plan. Billing is charged per plan, not per individual user.</em></p>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════
+             FEATURE COMPARISON TABLE
+        ══════════════════════════════════════ -->
+        <section class="comparison-section fade-up">
+            <div class="section-header">
+                <span class="eyebrow">Full Breakdown</span>
+                <h2>Feature Comparison</h2>
+                <p>See exactly what's included in every plan</p>
+            </div>
+            <div class="comparison-table-wrapper">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th class="feature-col">Feature</th>
+                            <th>Starter</th>
+                            <th class="col-popular">Professional</th>
+                            <th>Business</th>
+                            <th>Enterprise</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="feature-col">Customer Management</td>
+                            <td><span class="check-cell">✓</span></td>
+                            <td class="col-popular"><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-col">Lead Management</td>
+                            <td><span class="check-cell">✓</span></td>
+                            <td class="col-popular"><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-col">Task Management</td>
+                            <td><span class="check-cell">✓</span></td>
+                            <td class="col-popular"><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-col">Sales Pipeline</td>
+                            <td><span class="check-cell">✓</span></td>
+                            <td class="col-popular"><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-col">Reports</td>
+                            <td><span class="cross-cell">—</span></td>
+                            <td class="col-popular"><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-col">Analytics</td>
+                            <td><span class="cross-cell">—</span></td>
+                            <td class="col-popular"><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-col">Notifications</td>
+                            <td><span class="cross-cell">—</span></td>
+                            <td class="col-popular"><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-col">API Access</td>
+                            <td><span class="cross-cell">—</span></td>
+                            <td class="col-popular"><span class="cross-cell">—</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-col">Priority Support</td>
+                            <td><span class="cross-cell">—</span></td>
+                            <td class="col-popular"><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-col">Custom Integrations</td>
+                            <td><span class="cross-cell">—</span></td>
+                            <td class="col-popular"><span class="cross-cell">—</span></td>
+                            <td><span class="cross-cell">—</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-col">Unlimited Users</td>
+                            <td><span class="cross-cell">—</span></td>
+                            <td class="col-popular"><span class="cross-cell">—</span></td>
+                            <td><span class="cross-cell">—</span></td>
+                            <td><span class="check-cell">✓</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════
+             FAQ SECTION
+        ══════════════════════════════════════ -->
+        <section class="faq-section">
+            <div class="section-header fade-up">
+                <span class="eyebrow">Got Questions?</span>
+                <h2>Frequently Asked Questions</h2>
+                <p>Everything you need to know about Glassentials CRM pricing</p>
+            </div>
+
+            <div class="faq-grid fade-up">
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">
+                        <span>What is included in the free trial?</span>
+                        <span class="faq-icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Your free trial includes full access to the Professional plan for 14 days — no credit card required. You'll have access to customer management, lead tracking, task management, reports, analytics, and priority support to experience the full power of Glassentials CRM.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">
+                        <span>Can I upgrade later?</span>
+                        <span class="faq-icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Absolutely! You can upgrade your plan at any time directly from your account settings. The upgrade takes effect immediately and you'll only be billed the prorated difference for the remaining billing period.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">
+                        <span>Can I cancel anytime?</span>
+                        <span class="faq-icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Yes, you can cancel your subscription at any time with no cancellation fees. Your access will continue until the end of your current billing period. We believe in keeping our customers because of value, not contracts.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">
+                        <span>Is my data secure?</span>
+                        <span class="faq-icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Your data security is our top priority. We use industry-standard AES-256 encryption, daily automated backups, and maintain 99.9% uptime. Enterprise customers receive additional security features including custom data residency options and dedicated security reviews.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">
+                        <span>Do you provide customer support?</span>
+                        <span class="faq-icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>All plans include email support. Professional and above plans get priority support with faster response times. Enterprise customers receive a dedicated account manager and 24/7 SLA-backed support. We're committed to your success at every step.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">
+                        <span>Do you offer onboarding?</span>
+                        <span class="faq-icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Yes! All plans include access to our comprehensive documentation and video tutorials. Professional plan users receive guided onboarding sessions. Business and Enterprise customers receive personalized onboarding with our customer success team to ensure a smooth launch.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════
+             FINAL CTA SECTION
+        ══════════════════════════════════════ -->
+        <section class="pricing-cta-section fade-up">
+            <div class="pricing-cta-card">
+                <div class="cta-glow"></div>
+                <span class="eyebrow" style="color: var(--accent-gold);">Get Started Today</span>
+                <h2>Ready to grow your <em>business?</em></h2>
+                <p>Start your free trial today and experience the power of Glassentials CRM.</p>
+                <div class="cta-group">
+                    <a href="{{ url_for('auth.register') }}" class="btn-primary">Start Free Trial</a>
+                    <a href="mailto:sales@glassentials.com" class="btn-cta-outline">Contact Sales</a>
+                </div>
+                <p class="cta-note">No credit card required · 14-day free trial · Cancel anytime</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer fade-in delay-2">
+        <div class="footer-content">
+            <div class="logo">
+                <a href="/" class="logo-link">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo" style="filter: brightness(0) invert(1);">
+                </a>
+            </div>
+            <div class="footer-links">
+                <a href="{{ url_for('pricing_page') }}">Pricing</a>
+                <a href="{{ url_for('about') }}">About</a>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Help Desk</a>
+            </div>
+            <p>&copy; 2026 GlassEntials CRM. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // ── Billing Toggle ──────────────────────────────
+        const toggle = document.getElementById('billingToggle');
+        const monthlyPrices = document.querySelectorAll('.price-monthly');
+        const yearlyPrices = document.querySelectorAll('.price-yearly');
+        const labelMonthly = document.getElementById('label-monthly');
+        const labelYearly = document.getElementById('label-yearly');
+        const yearlyBadge = document.getElementById('yearlyBadge');
+
+        toggle.addEventListener('change', function () {
+            if (this.checked) {
+                // Show yearly
+                monthlyPrices.forEach(el => el.style.display = 'none');
+                yearlyPrices.forEach(el => el.style.display = 'block');
+                labelYearly.style.fontWeight = '700';
+                labelYearly.style.color = 'var(--primary-color)';
+                labelMonthly.style.fontWeight = '400';
+                labelMonthly.style.color = 'var(--text-muted)';
+                yearlyBadge.classList.add('yearly-badge--active');
+            } else {
+                // Show monthly
+                monthlyPrices.forEach(el => el.style.display = 'block');
+                yearlyPrices.forEach(el => el.style.display = 'none');
+                labelMonthly.style.fontWeight = '700';
+                labelMonthly.style.color = 'var(--primary-color)';
+                labelYearly.style.fontWeight = '400';
+                labelYearly.style.color = 'var(--text-muted)';
+                yearlyBadge.classList.remove('yearly-badge--active');
+            }
+        });
+
+        // ── FAQ Accordion ───────────────────────────────
+        document.querySelectorAll('.faq-question').forEach(button => {
+            button.addEventListener('click', function () {
+                const item = this.closest('.faq-item');
+                const answer = item.querySelector('.faq-answer');
+                const icon = this.querySelector('.faq-icon');
+                const isOpen = item.classList.contains('faq-open');
+
+                // Close all
+                document.querySelectorAll('.faq-item.faq-open').forEach(openItem => {
+                    openItem.classList.remove('faq-open');
+                    openItem.querySelector('.faq-answer').style.maxHeight = null;
+                    openItem.querySelector('.faq-icon').textContent = '+';
+                    openItem.querySelector('.faq-question').setAttribute('aria-expanded', 'false');
+                });
+
+                // Open clicked (if it was closed)
+                if (!isOpen) {
+                    item.classList.add('faq-open');
+                    answer.style.maxHeight = answer.scrollHeight + 'px';
+                    icon.textContent = '−';
+                    this.setAttribute('aria-expanded', 'true');
+                }
+            });
+        });
+
+        // ── Mobile Menu ─────────────────────────────────
+        const mobileToggle = document.getElementById('mobileMenuToggle');
+        const navLinks = document.querySelector('.nav-links');
+        mobileToggle.addEventListener('click', function () {
+            navLinks.classList.toggle('nav-open');
+            this.classList.toggle('menu-active');
+        });
+
+        // ── Scroll Animations ───────────────────────────
+        document.addEventListener('DOMContentLoaded', () => {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            document.querySelectorAll('.fade-up, .fade-in').forEach(el => observer.observe(el));
+        });
+    </script>
+</body>
+
+</html>

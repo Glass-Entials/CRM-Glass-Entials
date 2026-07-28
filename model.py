@@ -293,6 +293,8 @@ class Employee(db.Model):
         onupdate=db.func.current_timestamp(),
     )
     is_deleted = db.Column(db.Boolean, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
 
     # Relationship to User
     user = db.relationship("User", back_populates="employee")
@@ -343,6 +345,8 @@ class Lead(db.Model):
         onupdate=db.func.current_timestamp(),
     )
     is_deleted = db.Column(db.Boolean, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
 
     # Foreign Keys
     contact_id = db.Column(
@@ -447,6 +451,8 @@ class Customer(db.Model):
         onupdate=db.func.current_timestamp(),
     )
     is_deleted = db.Column(db.Boolean, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
 
     # Foreign Keys
     assigned_to = db.Column(
@@ -706,6 +712,9 @@ class Task(db.Model):
         default=db.func.current_timestamp(),
         onupdate=db.func.current_timestamp(),
     )
+    is_deleted = db.Column(db.Boolean, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
 
     # Multi-tenant field
     organization_id = db.Column(
@@ -891,6 +900,8 @@ class Project(db.Model):
         onupdate=db.func.current_timestamp(),
     )
     is_deleted = db.Column(db.Boolean, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
 
     # Foreign Keys
     assigned_to = db.Column(
@@ -1859,6 +1870,8 @@ class Contact(db.Model):
         onupdate=db.func.current_timestamp(),
     )
     is_deleted = db.Column(db.Boolean, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
 
     # Foreign Keys
     assigned_to = db.Column(

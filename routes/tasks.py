@@ -259,7 +259,11 @@ def delete_task(task_id):
     try:
         actor_id = current_user.employee.id if current_user.employee else None
         log_activity("task_deleted", "task", task.title, org_id, actor_id, task.id)
-        db.session.delete(task)
+        
+        task.is_deleted = True
+        task.deleted_at = datetime.utcnow()
+        task.deleted_by = current_user.employee.id if current_user.employee else None
+        
         db.session.commit()
         flash("Task deleted.", "tasksuccess")
     except Exception as e:

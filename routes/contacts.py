@@ -319,6 +319,8 @@ def delete_contact(contact_id):
         id=contact_id, organization_id=current_user.organization_id
     ).first_or_404()
     contact.is_deleted = True
+    contact.deleted_at = datetime.utcnow()
+    contact.deleted_by = current_user.employee.id
     log_activity(
         "contact_deleted",
         "contact",

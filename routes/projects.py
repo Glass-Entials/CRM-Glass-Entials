@@ -250,6 +250,8 @@ def delete_project(project_id):
         id=project_id, organization_id=org_id, is_deleted=False
     ).first_or_404()
     project.is_deleted = True
+    project.deleted_at = datetime.utcnow()
+    project.deleted_by = current_user.employee.id
     try:
         log_activity(
             "project_deleted",
