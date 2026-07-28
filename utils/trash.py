@@ -109,6 +109,8 @@ DependencyRegistry.register("leads", LeadComment, "lead_id", "lead_id", "Comment
 DependencyRegistry.register("leads", LeadSystemLog, "lead_id", "lead_id", "System Logs", False, DeletePriority.SYSTEM_LOG)
 DependencyRegistry.register("leads", LeadFollowUp, "lead_id", "lead_id", "Follow-ups", False, DeletePriority.TASK)
 DependencyRegistry.register("leads", CRMDocument, "lead_id", "lead_id", "Documents", False, DeletePriority.FILE)
+DependencyRegistry.register("leads", Task, "lead_id", "lead_id", "Tasks", False, DeletePriority.TASK)
+DependencyRegistry.register("leads", Contact, "lead_id", "lead_id", "Contacts", False, DeletePriority.CONTACT)
 DependencyRegistry.register("leads", Quotation, "lead_id", "lead_id", "Quotations", False, DeletePriority.TRANSACTION)
 
 # Register Customers
@@ -247,37 +249,49 @@ class TrashManager:
         dep_list = DependencyRegistry.get_dependencies(module_name)
 
         try:
+            import logging
+            logging.info(f"--- START PERMANENT DELETE: {module_name} #{record_id} ({name_display}) ---")
+            
             # Phase 1: collect intermediate parent IDs
             intermediate_ids = {}
+            logging.info(">>> Phase 1: Collecting IDs")
             for entry in dep_list:
                 if not entry["is_through"]:
                     q = TrashManager._get_direct_query(entry["model_cls"], entry["direct_fk"], module_name, record_id)
                     if q is not None:
                         ids = [r.id for r in q.with_entities(entry["model_cls"].id).all()]
                         intermediate_ids[entry["label"]] = ids
+                        logging.info(f"  [Scan] {entry['model_cls'].__name__} ({entry['label']}): found {len(ids)} record(s) -> IDs: {ids}")
 
             children_deleted = {}
 
             # Phase 2: delete through-children first (e.g. QuotationItem via Quotation)
+            logging.info(">>> Phase 2: Deleting Through Children")
             for entry in dep_list:
                 if entry["is_through"]:
                     parent_label = _THROUGH_PARENT_MAP.get(entry["fk_field"])
                     parent_ids = intermediate_ids.get(parent_label, [])
                     if parent_ids and hasattr(entry["model_cls"], entry["fk_field"]):
-                        count = entry["model_cls"].query.filter(
+                        q = entry["model_cls"].query.filter(
                             getattr(entry["model_cls"], entry["fk_field"]).in_(parent_ids)
-                        ).delete(synchronize_session=False)
+                        )
+                        matched = q.count()
+                        count = q.delete(synchronize_session=False)
                         if count:
                             children_deleted[entry["label"]] = children_deleted.get(entry["label"], 0) + count
+                        logging.info(f"  [Delete Through] {entry['model_cls'].__name__} ({entry['label']}) via parents {parent_ids}: {count}/{matched} deleted.")
 
             # Phase 3: delete direct children
+            logging.info(">>> Phase 3: Deleting Direct Children (in priority order)")
             for entry in dep_list:
                 if not entry["is_through"]:
                     q = TrashManager._get_direct_query(entry["model_cls"], entry["direct_fk"], module_name, record_id)
                     if q is not None:
+                        matched = q.count()
                         count = q.delete(synchronize_session=False)
                         if count:
                             children_deleted[entry["label"]] = count
+                        logging.info(f"  [Delete Direct] {entry['model_cls'].__name__} ({entry['label']}) Priority:{entry['priority']}: {count}/{matched} deleted.")
 
 
             # Phase 4: delete parent
