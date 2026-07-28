@@ -77,7 +77,7 @@
                 <div class="dropdown-content">
                     <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
                     <a href="{{ url_for('contacts.contacts_list') }}">Contacts</a>
-                    {% if current_user.role.value == 'admin' %}
+                    {% if current_user.role.value in ['admin', 'manager'] %}
                     <a href="{{ url_for('trash.trash_list') }}">Trash</a>
                     {% endif %}
                 </div>

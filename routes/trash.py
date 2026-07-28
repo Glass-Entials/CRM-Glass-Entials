@@ -8,7 +8,7 @@ trash_bp = Blueprint("trash", __name__, url_prefix="/workplace/trash")
 
 @trash_bp.route("/")
 @login_required
-@require_roles(UserRole.ADMIN)
+@require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def trash_list():
     org_id = current_user.organization_id
     module = request.args.get("module", "customers")
@@ -33,7 +33,7 @@ def trash_list():
 
 @trash_bp.route("/restore/<string:module>/<int:record_id>", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN)
+@require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def restore_item(module, record_id):
     org_id = current_user.organization_id
     actor_id = current_user.employee.id if current_user.employee else None
@@ -48,7 +48,7 @@ def restore_item(module, record_id):
 
 @trash_bp.route("/delete/<string:module>/<int:record_id>", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN)
+@require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def delete_item(module, record_id):
     org_id = current_user.organization_id
     actor_id = current_user.employee.id if current_user.employee else None
@@ -63,7 +63,7 @@ def delete_item(module, record_id):
 
 @trash_bp.route("/bulk-action", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN)
+@require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def bulk_action():
     org_id = current_user.organization_id
     actor_id = current_user.employee.id if current_user.employee else None
