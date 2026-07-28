@@ -281,6 +281,22 @@ class TrashManager:
                             children_deleted[entry["label"]] = children_deleted.get(entry["label"], 0) + count
                         logging.info(f"  [Delete Through] {entry['model_cls'].__name__} ({entry['label']}) via parents {parent_ids}: {count}/{matched} deleted.")
 
+            # Phase 2.5: Break circular FK references before child deletion
+            # Lead has lead.contact_id -> contact.id (circular with contact.lead_id -> lead.id)
+            # We must NULL out lead.contact_id before we can delete any Contact rows.
+            logging.info(">>> Phase 2.5: Breaking Circular FK References")
+            CIRCULAR_NULLIFIERS = {
+                # module -> list of (own_column_to_null,)
+                # Whenever deleting a Lead, NULL its contact_id first so Contact rows can be deleted
+                "leads": ["contact_id"],
+            }
+            for col in CIRCULAR_NULLIFIERS.get(module_name, []):
+                if hasattr(record, col) and getattr(record, col) is not None:
+                    old_val = getattr(record, col)
+                    setattr(record, col, None)
+                    db.session.flush()   # write UPDATE lead SET contact_id=NULL immediately
+                    logging.info(f"  [Circular NULL] {model.__name__}.{col} set NULL (was {old_val})")
+
             # Phase 3: delete direct children
             logging.info(">>> Phase 3: Deleting Direct Children (in priority order)")
             for entry in dep_list:
@@ -292,7 +308,6 @@ class TrashManager:
                         if count:
                             children_deleted[entry["label"]] = count
                         logging.info(f"  [Delete Direct] {entry['model_cls'].__name__} ({entry['label']}) Priority:{entry['priority']}: {count}/{matched} deleted.")
-
 
             # Phase 4: delete parent
             db.session.delete(record)
