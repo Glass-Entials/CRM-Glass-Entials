@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Work Log | GlassEntials Staff Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <style>
+        .profile-header {background:#fff;padding:2.5rem;border-radius:16px;box-shadow:0 5px 25px rgba(0,0,0,0.02);border:1px solid rgba(13,27,42,0.05);display:flex;justify-content:space-between;align-items:center;margin-bottom:2.5rem;border-top:6px solid #3b82f6;}
+        .profile-name {font-size:2rem;margin:0;color:var(--primary-color);font-family:var(--font-heading);font-weight:800;}
+        .profile-subtitle {color:var(--text-muted);font-size:1rem;margin-top:8px;}
+        .profile-card {background:#fff;padding:3rem;border-radius:16px;border:1px solid rgba(13,27,42,0.05);box-shadow:0 15px 45px rgba(13,27,42,0.05);}
+        .card-header {display:flex;align-items:center;gap:15px;margin-bottom:2.5rem;padding-bottom:1.25rem;border-bottom:2px solid rgba(13,27,42,0.05);}
+        .card-icon {font-size:1.8rem;background:rgba(59,130,246,0.1);width:50px;height:50px;display:flex;align-items:center;justify-content:center;border-radius:12px;}
+        .card-title {font-family:var(--font-heading);font-size:1.4rem;color:var(--primary-color);margin:0;font-weight:700;}
+        .log-form-grid {display:grid;grid-template-columns:repeat(2,1fr);gap:2rem;}
+        .form-group {display:flex;flex-direction:column;gap:10px;}
+        .form-group.full-width {grid-column:1/-1;}
+        .form-group label {font-weight:700;color:var(--primary-color);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.08em;}
+        .form-control {width:100%;padding:1.1rem 1.4rem;border:1.5px solid rgba(13,27,42,0.1);border-radius:10px;font-size:1rem;background:#fdfdfd;transition:all 0.3s;font-family:var(--font-body);}
+        .form-control:focus {border-color:#3b82f6;background:#fff;box-shadow:0 0 0 5px rgba(59,130,246,0.1);outline:none;}
+        textarea.form-control {min-height:220px;line-height:1.6;resize:vertical;}
+        .helper-text {font-size:0.8rem;color:var(--text-muted);margin:4px 0 0;font-style:italic;}
+        .submit-section {margin-top:3.5rem;display:flex;justify-content:flex-end;align-items:center;gap:2rem;border-top:1px solid rgba(13,27,42,0.05);padding-top:2.5rem;}
+        .cancel-btn {color:#64748b;text-decoration:none;font-weight:700;font-size:0.95rem;transition:color 0.3s;}
+        .cancel-btn:hover {color:var(--primary-color);}
+        .btn-save {background:#3b82f6;color:#fff;padding:1.1rem 3.5rem;border:none;border-radius:10px;font-size:1.1rem;font-weight:700;cursor:pointer;font-family:var(--font-body);transition:all 0.3s;}
+        .btn-save:hover {background:#2563eb;transform:translateY(-2px);box-shadow:0 8px 20px rgba(59,130,246,0.3);}
+        .attached-docs {margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+        .doc-chip {display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#f1f5f9;border-radius:20px;color:#475569;font-size:0.82rem;border:1px solid #e2e8f0;}
+        .doc-chip a {color:#3b82f6;text-decoration:none;font-weight:600;}
+        .doc-chip a:hover {text-decoration:underline;}
+    </style>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+</head>
+<body class="dashboard-page">
+    {% include 'includes/navbar.html' %}
+    <main class="container">
+        <div class="profile-header">
+            <div class="profile-info-main">
+                <h1 class="profile-name">✏️ Edit Work Log</h1>
+                <p class="profile-subtitle">Updating entry for <strong>{{ task.date.strftime('%d %b %Y') }}</strong> — {{ task.employee.name }}.</p>
+            </div>
+            <div class="header-actions">
+                <a href="{{ url_for('tasks.daily_tasks_list') }}" class="btn-action outline" style="text-decoration:none;padding:0.8rem 1.5rem;">← Back to History</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(category_filter=["taskerror"]) %}
+        {% if messages %}{% for message in messages %}
+        <div style="padding:18px;background:rgba(220,38,38,0.05);border-left:5px solid #dc2626;color:#dc2626;margin-bottom:2.5rem;border-radius:8px;font-weight:500;">
+            ⚠️ {{ message }}
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        <section class="profile-card">
+            <div class="card-header">
+                <div class="card-icon">✏️</div>
+                <h2 class="card-title">Update Work Log Details</h2>
+            </div>
+            <form action="{{ url_for('tasks.edit_daily_task', task_id=task.id) }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="log-form-grid">
+
+                    <div class="form-group">
+                        <label for="date">Working Date <span style="color:#dc2626;">*</span></label>
+                        <input type="date" id="date" name="date" class="form-control" value="{{ task.date.strftime('%Y-%m-%d') }}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hours_spent">Time Invested (Hours)</label>
+                        <input type="number" step="0.5" id="hours_spent" name="hours_spent" class="form-control"
+                               value="{{ task.hours_spent or '' }}" placeholder="e.g. 8.0">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="work_category">Activity Category <span style="color:#dc2626;">*</span></label>
+                        <select id="work_category" name="work_category" class="form-control" required>
+                            <option value="General"         {% if task.work_category == 'General' %}selected{% endif %}>General/Administration</option>
+                            <option value="Client Meeting"  {% if task.work_category == 'Client Meeting' %}selected{% endif %}>Client Meeting/Consultation</option>
+                            <option value="Site Visit"      {% if task.work_category == 'Site Visit' %}selected{% endif %}>Site Visit/Measurement</option>
+                            <option value="Fabrication"     {% if task.work_category == 'Fabrication' %}selected{% endif %}>Fabrication/Production</option>
+                            <option value="Installation"    {% if task.work_category == 'Installation' %}selected{% endif %}>Site Installation</option>
+                            <option value="Design"          {% if task.work_category == 'Design' %}selected{% endif %}>Design/Drafting</option>
+                            <option value="Quotation"       {% if task.work_category == 'Quotation' %}selected{% endif %}>Quotation/Estimation</option>
+                            <option value="Other"           {% if task.work_category == 'Other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="project_id">Associated Project</label>
+                        <select id="project_id" name="project_id" class="form-control">
+                            <option value="none">-- Select Project (Optional) --</option>
+                            {% for project in projects %}
+                            <option value="{{ project.id }}" {% if task.project_id == project.id %}selected{% endif %}>{{ project.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="description">Tasks Accomplished <span style="color:#dc2626;">*</span></label>
+                        <textarea id="description" name="description" class="form-control" required>{{ task.task_description }}</textarea>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="file">Add New Attachment (Optional)</label>
+                        <input type="file" id="file" name="file" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx">
+                        <p class="helper-text">A new file will be appended to existing attachments.</p>
+                        {% if task.documents.count() > 0 %}
+                        <div class="attached-docs">
+                            <span style="font-size:0.8rem;font-weight:700;color:#64748b;">📎 Current:</span>
+                            {% for doc in task.documents %}
+                            <span class="doc-chip">
+                                <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" target="_blank">
+                                    {{ doc.original_name[:22] + '...' if doc.original_name|length > 22 else doc.original_name }}
+                                </a>
+                            </span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="submit-section">
+                    <a href="{{ url_for('tasks.daily_tasks_list') }}" class="cancel-btn">Discard Changes</a>
+                    <button type="submit" class="btn-save">💾 Save Changes</button>
+                </div>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

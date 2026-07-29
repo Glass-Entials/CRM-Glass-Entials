@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -316,6 +316,7 @@
                             <th>Activities & Descriptions</th>
                             <th>Time Spent</th>
                             <th>Logged At</th>
+                            <th style="text-align:center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -365,6 +366,28 @@
                             <td style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">
                                 {{ task.created_at.strftime('%H:%M • %d %b') }}
                             </td>
+                            <td style="white-space:nowrap;text-align:center;">
+                                <div style="display:inline-flex;gap:6px;align-items:center;">
+                                    <!-- View -->
+                                    <button onclick="openViewModal({{ task.id }})"
+                                        title="View Details"
+                                        style="background:rgba(59,130,246,0.1);color:#3b82f6;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:1rem;display:inline-flex;align-items:center;justify-content:center;transition:all 0.2s;"
+                                        onmouseover="this.style.background='#3b82f6';this.style.color='#fff';"
+                                        onmouseout="this.style.background='rgba(59,130,246,0.1)';this.style.color='#3b82f6';">👁️</button>
+                                    <!-- Edit -->
+                                    <a href="{{ url_for('tasks.edit_daily_task', task_id=task.id) }}"
+                                        title="Edit"
+                                        style="background:rgba(212,175,55,0.1);color:#8a6a00;width:34px;height:34px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:1rem;text-decoration:none;transition:all 0.2s;"
+                                        onmouseover="this.style.background='#d4af37';this.style.color='#fff';"
+                                        onmouseout="this.style.background='rgba(212,175,55,0.1)';this.style.color='#8a6a00';">✏️</a>
+                                    <!-- Delete -->
+                                    <button onclick="confirmDelete({{ task.id }}, '{{ task.date.strftime('%d %b %Y') }}')"
+                                        title="Delete"
+                                        style="background:rgba(220,38,38,0.08);color:#dc2626;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:1rem;display:inline-flex;align-items:center;justify-content:center;transition:all 0.2s;"
+                                        onmouseover="this.style.background='#dc2626';this.style.color='#fff';"
+                                        onmouseout="this.style.background='rgba(220,38,38,0.08)';this.style.color='#dc2626';">🗑️</button>
+                                </div>
+                            </td>
                         </tr>
                         {% else %}
                         <tr>
@@ -383,5 +406,141 @@
             </div>
         </div>
     </main>
+
+    <!-- ══ VIEW DETAIL MODAL ══ -->
+    <div id="viewModal" style="display:none;position:fixed;inset:0;background:rgba(13,27,42,0.55);z-index:9999;backdrop-filter:blur(6px);align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:20px;max-width:600px;width:94%;max-height:90vh;overflow-y:auto;box-shadow:0 30px 80px rgba(0,0,0,0.2);">
+            <!-- Header -->
+            <div style="padding:2rem 2.5rem 1.5rem;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <h3 style="margin:0;font-size:1.4rem;color:var(--primary-color);font-family:var(--font-heading);">📋 Work Log Details</h3>
+                    <p id="vm-subtitle" style="margin:6px 0 0;color:var(--text-muted);font-size:0.9rem;"></p>
+                </div>
+                <button onclick="closeViewModal()" style="background:none;border:none;font-size:1.6rem;cursor:pointer;color:#94a3b8;line-height:1;">×</button>
+            </div>
+            <!-- Body -->
+            <div style="padding:2rem 2.5rem;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+                    <div>
+                        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:4px;">Employee</div>
+                        <div id="vm-employee" style="font-weight:600;color:var(--primary-color);"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:4px;">Date</div>
+                        <div id="vm-date" style="font-weight:600;color:var(--primary-color);"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:4px;">Category</div>
+                        <div id="vm-category" style="font-weight:600;"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:4px;">Project</div>
+                        <div id="vm-project" style="font-weight:600;"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:4px;">Hours Spent</div>
+                        <div id="vm-hours" style="font-size:1.5rem;font-weight:800;color:var(--accent-gold);"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:4px;">Logged At</div>
+                        <div id="vm-created" style="font-weight:600;color:var(--primary-color);"></div>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:8px;">Work Description</div>
+                    <div id="vm-desc" style="background:#f8fafc;border-radius:10px;padding:1.2rem;line-height:1.7;color:#334155;white-space:pre-wrap;font-size:0.95rem;"></div>
+                </div>
+                <div id="vm-docs-section" style="margin-top:1.5rem;display:none;">
+                    <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:8px;">📎 Attachments</div>
+                    <div id="vm-docs" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+                </div>
+            </div>
+            <div style="padding:1.5rem 2.5rem;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;">
+                <button onclick="closeViewModal()" style="background:var(--primary-color);color:#fff;border:none;padding:0.8rem 2.5rem;border-radius:10px;font-weight:700;cursor:pointer;font-family:var(--font-body);font-size:0.95rem;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ DELETE CONFIRM MODAL ══ -->
+    <div id="deleteModal" style="display:none;position:fixed;inset:0;background:rgba(220,38,38,0.12);z-index:9999;backdrop-filter:blur(6px);align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:16px;max-width:420px;width:90%;padding:2.5rem;box-shadow:0 20px 60px rgba(220,38,38,0.15);">
+            <div style="text-align:center;margin-bottom:1.5rem;">
+                <div style="font-size:3rem;margin-bottom:12px;">🗑️</div>
+                <h3 style="margin:0;font-size:1.3rem;color:#dc2626;">Delete Work Log?</h3>
+                <p id="dm-text" style="margin:10px 0 0;color:#64748b;font-size:0.95rem;"></p>
+            </div>
+            <p style="text-align:center;font-size:0.85rem;color:#94a3b8;margin-bottom:2rem;">⛔ This action cannot be undone.</p>
+            <div style="display:flex;gap:12px;">
+                <button onclick="closeDeleteModal()" style="flex:1;background:#f1f5f9;color:#475569;border:none;padding:0.9rem;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.95rem;">Cancel</button>
+                <form id="deleteForm" method="POST" style="flex:1;margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" style="width:100%;background:#dc2626;color:#fff;border:none;padding:0.9rem;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.95rem;">Yes, Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ── View Modal ──
+    function openViewModal(taskId) {
+        const modal = document.getElementById('viewModal');
+        modal.style.display = 'flex';
+        // loading state
+        document.getElementById('vm-subtitle').textContent = 'Loading...';
+        document.getElementById('vm-employee').textContent = '...';
+        document.getElementById('vm-date').textContent = '...';
+        document.getElementById('vm-category').textContent = '...';
+        document.getElementById('vm-project').textContent = '...';
+        document.getElementById('vm-hours').textContent = '...';
+        document.getElementById('vm-created').textContent = '...';
+        document.getElementById('vm-desc').textContent = '...';
+
+        fetch(`/daily-task/${taskId}/view`)
+            .then(r => r.json())
+            .then(d => {
+                if (d.error) { closeViewModal(); alert(d.error); return; }
+                document.getElementById('vm-subtitle').textContent = `Entry #${d.id}`;
+                document.getElementById('vm-employee').textContent = d.employee;
+                document.getElementById('vm-date').textContent = d.date;
+                document.getElementById('vm-category').innerHTML = `<span style="background:rgba(212,175,55,0.1);color:#8a6a00;padding:4px 12px;border-radius:20px;font-size:0.85rem;font-weight:700;">${d.work_category}</span>`;
+                document.getElementById('vm-project').textContent = d.project || '—';
+                document.getElementById('vm-hours').textContent = (d.hours_spent || 0) + ' HRS';
+                document.getElementById('vm-created').textContent = d.created_at;
+                document.getElementById('vm-desc').textContent = d.task_description;
+                const docsSection = document.getElementById('vm-docs-section');
+                const docsDiv = document.getElementById('vm-docs');
+                if (d.documents && d.documents.length > 0) {
+                    docsDiv.innerHTML = d.documents.map(doc =>
+                        `<a href="${doc.url}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#f1f5f9;border-radius:20px;color:#3b82f6;text-decoration:none;font-size:0.82rem;font-weight:600;border:1px solid #e2e8f0;">📎 ${doc.name.length > 20 ? doc.name.substring(0,20)+'...' : doc.name}</a>`
+                    ).join('');
+                    docsSection.style.display = 'block';
+                } else {
+                    docsSection.style.display = 'none';
+                }
+            })
+            .catch(() => { closeViewModal(); alert('Failed to load details.'); });
+    }
+    function closeViewModal() {
+        document.getElementById('viewModal').style.display = 'none';
+    }
+
+    // ── Delete Modal ──
+    function confirmDelete(taskId, dateStr) {
+        document.getElementById('dm-text').textContent = `Work log for "${dateStr}" will be permanently deleted.`;
+        document.getElementById('deleteForm').action = `/daily-task/${taskId}/delete`;
+        document.getElementById('deleteModal').style.display = 'flex';
+    }
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').style.display = 'none';
+    }
+
+    // Close modals on backdrop click
+    document.getElementById('viewModal').addEventListener('click', function(e) {
+        if (e.target === this) closeViewModal();
+    });
+    document.getElementById('deleteModal').addEventListener('click', function(e) {
+        if (e.target === this) closeDeleteModal();
+    });
+    </script>
 </body>
 </html>

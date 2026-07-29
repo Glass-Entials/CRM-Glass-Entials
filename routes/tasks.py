@@ -474,6 +474,102 @@ def add_daily_task():
     )
 
 
+
+
+# ===========================================================
+#  DAILY TASK - EDIT / VIEW / DELETE
+# ===========================================================
+
+@tasks_bp.route("/daily-task/<int:task_id>/view")
+@login_required
+def view_daily_task(task_id):
+    org_id = current_user.organization_id
+    task = DailyTask.query.filter_by(id=task_id, organization_id=org_id).first_or_404()
+    if current_user.role.value not in ["admin", "manager"]:
+        emp = Employee.query.filter_by(user_id=current_user.id).first()
+        if not emp or task.employee_id != emp.id:
+            return jsonify({"error": "Access denied"}), 403
+    docs = []
+    for d in task.documents:
+        docs.append({"id": d.id, "name": d.original_name, "url": url_for("documents.download_document", doc_id=d.id)})
+    return jsonify({
+        "id": task.id,
+        "date": task.date.strftime("%d %b %Y"),
+        "employee": task.employee.name,
+        "work_category": task.work_category,
+        "project": task.project.name if task.project else None,
+        "task_description": task.task_description,
+        "hours_spent": task.hours_spent,
+        "created_at": task.created_at.strftime("%d %b %Y, %H:%M"),
+        "documents": docs,
+    })
+
+
+@tasks_bp.route("/daily-task/<int:task_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_daily_task(task_id):
+    org_id = current_user.organization_id
+    task = DailyTask.query.filter_by(id=task_id, organization_id=org_id).first_or_404()
+    if current_user.role.value not in ["admin", "manager"]:
+        emp = Employee.query.filter_by(user_id=current_user.id).first()
+        if not emp or task.employee_id != emp.id:
+            flash("You can only edit your own work logs.", "taskerror")
+            return redirect(url_for("tasks.daily_tasks_list"))
+    if request.method == "POST":
+        date_str = request.form.get("date")
+        description = request.form.get("description", "").strip()
+        hours = request.form.get("hours_spent")
+        project_id = request.form.get("project_id")
+        work_category = request.form.get("work_category", "General")
+        if not description:
+            flash("Task description is required.", "taskerror")
+            return redirect(url_for("tasks.edit_daily_task", task_id=task_id))
+        try:
+            if date_str:
+                task.date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            task.task_description = description
+            task.hours_spent = float(hours) if hours else None
+            task.work_category = work_category
+            task.project_id = tenant_record_id(Project, project_id, org_id, is_deleted=False)
+            if "file" in request.files:
+                file = request.files["file"]
+                if file and file.filename != "":
+                    from utils.documents import handle_file_upload
+                    handle_file_upload(file=file, entity_type="daily_task", entity_id=task.id,
+                        organization_id=org_id,
+                        uploader_id=(current_user.employee.id if current_user.employee else None),
+                        description=f"Updated attachment: {task.date}")
+            db.session.commit()
+            flash("Work log updated successfully!", "tasksuccess")
+            return redirect(url_for("tasks.daily_tasks_list"))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Edit daily task error: {str(e)}", exc_info=True)
+            flash("An error occurred. Please try again.", "taskerror")
+            return redirect(url_for("tasks.edit_daily_task", task_id=task_id))
+    projects = Project.query.filter_by(organization_id=org_id, is_deleted=False).all()
+    return render_template("tasks/edit_daily_task.html", task=task, projects=projects)
+
+
+@tasks_bp.route("/daily-task/<int:task_id>/delete", methods=["POST"])
+@login_required
+def delete_daily_task(task_id):
+    org_id = current_user.organization_id
+    task = DailyTask.query.filter_by(id=task_id, organization_id=org_id).first_or_404()
+    if current_user.role.value not in ["admin", "manager"]:
+        emp = Employee.query.filter_by(user_id=current_user.id).first()
+        if not emp or task.employee_id != emp.id:
+            flash("You can only delete your own work logs.", "taskerror")
+            return redirect(url_for("tasks.daily_tasks_list"))
+    try:
+        db.session.delete(task)
+        db.session.commit()
+        flash("Work log deleted successfully.", "tasksuccess")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Delete daily task error: {str(e)}", exc_info=True)
+        flash("An error occurred while deleting. Please try again.", "taskerror")
+    return redirect(url_for("tasks.daily_tasks_list"))
 # ═══════════════════════════════════════════════════════════
 #  TASK ACTIVITY TIMELINE ROUTES
 # ═══════════════════════════════════════════════════════════
