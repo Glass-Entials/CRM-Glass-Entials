@@ -18,7 +18,7 @@ import pandas as pd
 from werkzeug.utils import secure_filename
 import uuid
 from datetime import datetime
-from utils.activity import log_activity
+from utils.activity import log_activity, build_changes
 from utils.notifications import create_notification
 from utils.security import tenant_record_id, validate_upload
 
@@ -233,7 +233,7 @@ def add_customer():
                 )
 
             log_activity(
-                "customer_added",
+                "create",
                 "customer",
                 new_customer.name,
                 current_user.organization_id,
@@ -263,6 +263,15 @@ def edit_customer(customer_id):
         id=customer_id, organization_id=current_user.organization_id
     ).first_or_404()
     if request.method == "POST":
+        # ── Snapshot old values BEFORE changes ─────────────────────────
+        old_name        = customer.name
+        old_status      = customer.status
+        old_source      = customer.source
+        old_assignee_id = customer.assigned_to
+        old_assignee_emp = Employee.query.get(old_assignee_id) if old_assignee_id else None
+        old_assignee_name = old_assignee_emp.name if old_assignee_emp else "Unassigned"
+        old_city        = customer.city
+
         customer.name = request.form.get("name", "").strip()
         customer.email = request.form.get("email", "").strip()
         customer.phone_number = re.sub(r"\D", "", request.form.get("phone_number", ""))
@@ -275,21 +284,18 @@ def edit_customer(customer_id):
         status_map = {e.value: e for e in CustomerStatus}
 
         try:
-            # Check if assignment changed
-            old_assignee = customer.assigned_to
-            customer.assigned_to = tenant_record_id(
+            new_assignee_id = tenant_record_id(
                 Employee,
                 assigned_to_id,
                 current_user.organization_id,
                 is_deleted=False,
             )
+            customer.assigned_to = new_assignee_id
 
-            customer.source = source_map.get(
-                request.form.get("source"), LeadSource.OTHER
-            )
-            customer.status = status_map.get(
-                request.form.get("status"), CustomerStatus.NEW
-            )
+            new_source = source_map.get(request.form.get("source"), LeadSource.OTHER)
+            customer.source = new_source
+            new_status = status_map.get(request.form.get("status"), CustomerStatus.NEW)
+            customer.status = new_status
             customer.notes = request.form.get("notes", "").strip()
 
             # GST Fields
@@ -302,9 +308,12 @@ def edit_customer(customer_id):
 
             customer.updated_by = current_user.employee.id
 
-            if customer.assigned_to and customer.assigned_to != old_assignee:
+            new_assignee_emp = Employee.query.get(new_assignee_id) if new_assignee_id else None
+            new_assignee_name = new_assignee_emp.name if new_assignee_emp else "Unassigned"
+
+            if new_assignee_id and new_assignee_id != old_assignee_id:
                 create_notification(
-                    recipient_id=customer.assigned_to,
+                    recipient_id=new_assignee_id,
                     title="Customer Assigned to You",
                     message=f"Customer '{customer.name}' has been assigned to you.",
                     link=url_for("customers.view_customer", customer_id=customer.id),
@@ -312,13 +321,22 @@ def edit_customer(customer_id):
                     organization_id=current_user.organization_id,
                 )
 
+            changes = build_changes([
+                ("Status",      old_status.value  if old_status  else "", new_status.value  if new_status  else ""),
+                ("Source",      old_source.value  if old_source  else "", new_source.value  if new_source  else ""),
+                ("Assigned To", old_assignee_name, new_assignee_name),
+                ("Name",        old_name,          customer.name),
+                ("City",        old_city or "",    customer.city or ""),
+            ])
+
             log_activity(
-                "customer_updated",
+                "update",
                 "customer",
                 customer.name,
                 current_user.organization_id,
                 current_user.employee.id,
                 customer.id,
+                changes=changes,
             )
             db.session.commit()
             flash("Customer updated successfully!", "customersuccess")
@@ -350,7 +368,7 @@ def delete_customer(customer_id):
     customer.deleted_at = datetime.utcnow()
     customer.deleted_by = current_user.employee.id
     log_activity(
-        "customer_deleted",
+        "delete",
         "customer",
         customer.name,
         current_user.organization_id,

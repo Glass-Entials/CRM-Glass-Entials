@@ -31,7 +31,7 @@ from model import (
     TaskStatus,
 )
 from utils.exports import export_to_csv, export_to_excel, export_to_pdf
-from utils.activity import log_activity
+from utils.activity import log_activity, build_changes
 from utils.lead_log import log_lead_event
 from utils.notifications import create_notification
 from utils.security import tenant_record_id
@@ -128,6 +128,15 @@ def add_lead_comment(lead_id):
         db.session.add(c)
         snippet = (text[:60] + "…") if len(text) > 60 else text
         log_lead_event(lead.id, "comment_added", f"{current_user.employee.name} added a comment: \"{snippet}\"", "💬", current_user.employee.id, current_user.organization_id)
+        log_activity(
+            "comment_added",
+            "lead",
+            lead.name,
+            current_user.organization_id,
+            current_user.employee.id,
+            lead.id,
+            comment_text=text,
+        )
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -235,7 +244,7 @@ def add_lead():
 
             log_lead_event(new_lead.id, "lead_created", f"{current_user.employee.name} created the lead.", "🌱", current_user.employee.id, current_user.organization_id)
             log_activity(
-                "lead_added",
+                "create",
                 "lead",
                 new_lead.name,
                 current_user.organization_id,
@@ -264,6 +273,15 @@ def edit_lead(lead_id):
         id=lead_id, organization_id=current_user.organization_id
     ).first_or_404()
     if request.method == "POST":
+        # ── Snapshot old values BEFORE any changes ─────────────────────────
+        old_status = lead.status
+        old_source = lead.source
+        old_assignee_id = lead.assigned_to
+        old_assignee_emp = Employee.query.get(old_assignee_id) if old_assignee_id else None
+        old_assignee_name = old_assignee_emp.name if old_assignee_emp else "Unassigned"
+        old_name = lead.name
+        old_city = lead.city
+
         lead.name = request.form.get("name", "").strip()
         lead.email = request.form.get("email", "").strip() or None
         lead.phone_number = re.sub(r"\D", "", request.form.get("phone", ""))
@@ -272,18 +290,16 @@ def edit_lead(lead_id):
         status_map = {e.value: e for e in LeadStatus}
 
         try:
-            # Check if assignment/status changed before update
-            old_assignee = lead.assigned_to
-            old_status = lead.status
-
-            lead.assigned_to = tenant_record_id(
+            new_assignee_id = tenant_record_id(
                 Employee,
                 assigned_to_id,
                 current_user.organization_id,
                 is_deleted=False,
             )
+            lead.assigned_to = new_assignee_id
 
-            lead.source = source_map.get(request.form.get("source"), LeadSource.OTHER)
+            new_source = source_map.get(request.form.get("source"), LeadSource.OTHER)
+            lead.source = new_source
             new_status = status_map.get(request.form.get("status"), LeadStatus.NEW)
             lead.status = new_status
             lead.company = request.form.get("company", "").strip()
@@ -301,29 +317,42 @@ def edit_lead(lead_id):
 
             lead.updated_by = current_user.employee.id
 
-            if lead.assigned_to and lead.assigned_to != old_assignee:
-                assignee = Employee.query.get(lead.assigned_to)
+            # ── Resolve new assignee name ─────────────────────────────────
+            new_assignee_emp = Employee.query.get(new_assignee_id) if new_assignee_id else None
+            new_assignee_name = new_assignee_emp.name if new_assignee_emp else "Unassigned"
+
+            # ── Notification on reassignment ──────────────────────────────
+            if new_assignee_id and new_assignee_id != old_assignee_id:
                 create_notification(
-                    recipient_id=lead.assigned_to,
+                    recipient_id=new_assignee_id,
                     title="Lead Assigned to You",
                     message=f"Lead '{lead.name}' has been assigned to you.",
                     link=url_for("leads.view_lead", lead_id=lead.id),
                     sender_id=current_user.employee.id,
                     organization_id=current_user.organization_id,
                 )
-                aname = assignee.name if assignee else "someone"
-                log_lead_event(lead.id, "lead_assigned", f"Lead reassigned to {aname} by {current_user.employee.name}.", "👤", current_user.employee.id, current_user.organization_id)
+                log_lead_event(lead.id, "lead_assigned", f"Lead reassigned to {new_assignee_name} by {current_user.employee.name}.", "👤", current_user.employee.id, current_user.organization_id)
 
             if old_status and new_status and old_status != new_status:
                 log_lead_event(lead.id, "status_changed", f"Status changed from {old_status.value} to {new_status.value} by {current_user.employee.name}.", "🔄", current_user.employee.id, current_user.organization_id)
 
+            # ── Build structured change diff ──────────────────────────────
+            changes = build_changes([
+                ("Status",      old_status.value  if old_status  else "", new_status.value  if new_status  else ""),
+                ("Source",      old_source.value  if old_source  else "", new_source.value  if new_source  else ""),
+                ("Assigned To", old_assignee_name, new_assignee_name),
+                ("Name",        old_name,          lead.name),
+                ("City",        old_city or "",    lead.city or ""),
+            ])
+
             log_activity(
-                "lead_updated",
+                "update",
                 "lead",
                 lead.name,
                 current_user.organization_id,
                 current_user.employee.id,
                 lead.id,
+                changes=changes,
             )
             db.session.commit()
             flash("Lead updated!", "leadssuccess")
@@ -352,7 +381,7 @@ def delete_lead(lead_id):
     lead.deleted_at = datetime.utcnow()
     lead.deleted_by = current_user.employee.id
     log_activity(
-        "lead_deleted",
+        "delete",
         "lead",
         lead.name,
         current_user.organization_id,

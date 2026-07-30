@@ -1,29 +1,49 @@
 """
-Utility: log_activity()
-Call this after any significant CRM action to record it in the activity feed.
+utils/activity.py
+Central activity logging utility.
+Captures structured field-level changes and stores them in ActivityLog.meta_data.
 """
 
-from model import db, ActivityLog
+import json
+from datetime import datetime
+from model import db, ActivityLog, Employee
 
-ACTION_META = {
-    # Customers
-    "customer_added": ("👤", "Added new customer", "customer"),
-    "customer_updated": ("✏️", "Updated customer details", "customer"),
-    "customer_deleted": ("🗑", "Deleted customer", "customer"),
-    "document_uploaded": ("📎", "Uploaded document", "document"),
-    "document_deleted": ("🗑", "Deleted document", "document"),
-    # Leads
-    "lead_added": ("🎯", "Added new lead", "lead"),
-    "lead_updated": ("✏️", "Updated lead details", "lead"),
-    "lead_deleted": ("🗑", "Deleted lead", "lead"),
-    # Projects
-    "project_added": ("🏗", "Created new project", "project"),
-    "project_updated": ("✏️", "Updated project", "project"),
-    "project_deleted": ("🗑", "Deleted project", "project"),
+# ─── Human-readable action verbs ──────────────────────────────────────────────
+ACTION_VERB = {
+    "create":          "created",
+    "update":          "updated",
+    "delete":          "deleted",
+    "restore":         "restored",
+    "permanently_delete": "permanently deleted",
+    "comment_added":   "added a comment to",
+    "assigned":        "assigned",
+    "reassigned":      "reassigned",
+    "completed":       "completed",
+    "converted":       "converted",
+    "status_changed":  "changed the status of",
 }
 
-from utils.activity_service import ActivityService
+# ─── Entity URL resolvers ──────────────────────────────────────────────────────
+def _entity_url(entity_type, entity_id):
+    """Return the detail URL for an entity if possible."""
+    try:
+        from flask import url_for
+        routes = {
+            "lead":     ("leads.view_lead",     "lead_id"),
+            "task":     ("tasks.view_task",      "task_id"),
+            "customer": ("customers.view_customer", "customer_id"),
+            "project":  ("projects.view_project", "project_id"),
+            "contact":  ("contacts.view_contact", "contact_id"),
+        }
+        if entity_type in routes and entity_id:
+            route, kwarg = routes[entity_type]
+            return url_for(route, **{kwarg: entity_id})
+    except Exception:
+        pass
+    return None
 
+
+# ─── Core structured logger ───────────────────────────────────────────────────
 def log_activity(
     action: str,
     entity_type: str,
@@ -32,67 +52,140 @@ def log_activity(
     actor_id: int = None,
     entity_id: int = None,
     description: str = None,
-    field_name: str = None,
+    changes: list = None,        # [{"field": "status", "label": "Status", "old": "New", "new": "Qualified"}, ...]
+    comment_text: str = None,    # for comment_added actions
+    field_name: str = None,      # legacy single-field tracking
     old_value=None,
     new_value=None,
-    meta_data=None,
-    related_entity_type=None,
-    related_entity_id=None
+    meta_data: dict = None,
+    related_entity_type: str = None,
+    related_entity_id: int = None,
 ):
     """
-    Record a CRM activity event.
+    Record a CRM activity event with full structured change data.
+    Changes are stored in meta_data.changes as a list of {field, label, old, new}.
     """
+    # ── Map legacy action strings to clean action keys ──────────────────────
+    structured_action = _map_action(action)
+
+    # ── Build meta_data payload ───────────────────────────────────────────────
+    if meta_data is None:
+        meta_data = {}
+
+    if changes:
+        meta_data["changes"] = changes
+
+    if comment_text:
+        meta_data["comment"] = comment_text
+
+    entity_url = _entity_url(entity_type, entity_id)
+    if entity_url:
+        meta_data["entity_url"] = entity_url
+
+    # ── Auto-description for legacy paths that don't pass description ─────────
     if description is None:
-        meta = ACTION_META.get(
-            action, ("⚡", action.replace("_", " ").title(), entity_type)
-        )
-        description = f"{meta[1]}: {entity_name}"
-        
-    # Map old action keys to structured actions
-    structured_action = action
-    if "add" in action or "create" in action:
-        structured_action = "create"
-    elif "update" in action or "edit" in action:
-        structured_action = "update"
-    elif "delete" in action or "remove" in action:
-        structured_action = "delete"
+        verb = ACTION_VERB.get(structured_action, structured_action.replace("_", " "))
+        if structured_action == "comment_added":
+            description = f'Added a comment to {entity_type} "{entity_name}"'
+        else:
+            description = f'{verb.capitalize()} {entity_type} "{entity_name}"'
 
     try:
         from flask_login import current_user
-        if not hasattr(current_user, 'is_authenticated') or not current_user.is_authenticated:
-            # Fallback if no current_user
-            log = ActivityLog(
-                action=structured_action,
-                entity_type=entity_type,
-                entity_id=entity_id,
-                entity_name=entity_name,
-                description=description,
-                actor_id=actor_id,
-                organization_id=org_id,
-                field_name=field_name,
-                old_value=str(old_value) if old_value is not None else None,
-                new_value=str(new_value) if new_value is not None else None,
-                meta_data=meta_data,
-                related_entity_type=related_entity_type,
-                related_entity_id=related_entity_id
+        if hasattr(current_user, "is_authenticated") and current_user.is_authenticated:
+            # Use the authenticated actor
+            resolved_actor_id = (
+                current_user.employee.id
+                if hasattr(current_user, "employee") and current_user.employee
+                else actor_id
             )
-            db.session.add(log)
-            db.session.flush()
+            resolved_org = current_user.organization_id
         else:
-            ActivityService.log(
-                action=structured_action,
-                entity_type=entity_type,
-                entity_id=entity_id,
-                entity_name=entity_name,
-                field_name=field_name,
-                old_value=old_value,
-                new_value=new_value,
-                meta_data=meta_data,
-                related_entity_type=related_entity_type,
-                related_entity_id=related_entity_id,
-                description=description
-            )
-    except Exception as e:
+            resolved_actor_id = actor_id
+            resolved_org = org_id
+
+        # Single-field legacy compat
+        fv_old = str(old_value) if old_value is not None else None
+        fv_new = str(new_value) if new_value is not None else None
+
+        log = ActivityLog(
+            action=structured_action,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            entity_name=entity_name,
+            description=description,
+            actor_id=resolved_actor_id,
+            organization_id=resolved_org,
+            field_name=field_name,
+            old_value=fv_old,
+            new_value=fv_new,
+            meta_data=meta_data if meta_data else None,
+            related_entity_type=related_entity_type,
+            related_entity_id=related_entity_id,
+        )
+        db.session.add(log)
+        db.session.flush()
+
+    except Exception:
         import traceback
         traceback.print_exc()
-        pass  # Never let logging break the main action
+        # Never crash the main request due to logging failure
+
+
+def _map_action(action: str) -> str:
+    """Map legacy raw action strings to clean structured action keys."""
+    if action in ACTION_VERB:
+        return action
+
+    a = action.lower()
+    if any(k in a for k in ("add", "creat", "new")):
+        return "create"
+    if "restor" in a:
+        return "restore"
+    if "permanent" in a:
+        return "permanently_delete"
+    if any(k in a for k in ("delet", "remov")):
+        return "delete"
+    if "comment" in a:
+        return "comment_added"
+    if "complet" in a:
+        return "completed"
+    if "convert" in a:
+        return "converted"
+    if "assign" in a:
+        return "assigned"
+    if any(k in a for k in ("updat", "edit", "chang")):
+        return "update"
+    return action
+
+
+# ─── Diff helper ──────────────────────────────────────────────────────────────
+def build_changes(field_defs: list) -> list:
+    """
+    Build a changes list from (label, old_val, new_val) tuples, skipping unchanged fields.
+
+    Usage:
+        changes = build_changes([
+            ("Status", old_status, new_status),
+            ("Assigned To", old_assignee_name, new_assignee_name),
+        ])
+    """
+    changes = []
+    for item in field_defs:
+        if len(item) == 3:
+            label, old, new = item
+            field = label.lower().replace(" ", "_")
+        else:
+            field, label, old, new = item
+
+        old_str = str(old) if old is not None else ""
+        new_str = str(new) if new is not None else ""
+
+        if old_str != new_str:
+            changes.append({
+                "field":  field,
+                "label":  label,
+                "old":    old_str,
+                "new":    new_str,
+            })
+    return changes

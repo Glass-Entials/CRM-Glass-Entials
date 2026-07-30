@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, jsonify
 from flask_login import login_required, current_user
 from model import db, Task, Employee, Project, Lead, TaskStatus, DailyTask, UserRole, TaskActivity, TaskActivityType, CallResult, TaskFollowupRequest, TaskFollowupResponse, TaskFollowupPriority, TaskFollowupStatus
-from utils.activity import log_activity
+from utils.activity import log_activity, build_changes
 from utils.notifications import create_notification
 from utils.security import tenant_record_id
 from datetime import datetime
@@ -104,7 +104,7 @@ def add_task():
             # Log activity. We use 'task' as entity_type, we can log it on project if it's related to a project too
             actor_id = current_user.employee.id if current_user.employee else None
             log_activity(
-                "task_added", "task", new_task.title, org_id, actor_id, new_task.id
+                "create", "task", new_task.title, org_id, actor_id, new_task.id
             )
 
             # Handle file uploads if present (supports multiple)
@@ -161,6 +161,14 @@ def edit_task(task_id):
     task = Task.query.filter_by(id=task_id, organization_id=org_id).first_or_404()
 
     if request.method == "POST":
+        # ── Snapshot old values BEFORE applying changes ────────────────
+        old_title      = task.title
+        old_status     = task.status
+        old_due_date   = task.due_date
+        old_assignee_id = task.assigned_to
+        old_assignee_emp = Employee.query.get(old_assignee_id) if old_assignee_id else None
+        old_assignee_name = old_assignee_emp.name if old_assignee_emp else "Unassigned"
+
         task.title = request.form.get("title", "").strip()
         task.description = request.form.get("description", "").strip()
 
@@ -176,8 +184,6 @@ def edit_task(task_id):
         )
 
         try:
-            # Check if assignment changed
-            old_assignee = task.assigned_to
             task.assigned_to = new_assigned_id
 
             project_id = request.form.get("project_id")
@@ -190,15 +196,20 @@ def edit_task(task_id):
 
             status_map = {e.value: e for e in TaskStatus}
             new_status_val = request.form.get("status")
+            new_status = old_status
             if new_status_val:
                 can_change_status = False
                 if current_user.employee and current_user.employee.id in (task.created_by, task.assigned_to):
                     can_change_status = True
-                
                 if can_change_status:
-                    task.status = status_map.get(new_status_val, task.status)
+                    new_status = status_map.get(new_status_val, task.status)
+                    task.status = new_status
 
-            if task.assigned_to and task.assigned_to != old_assignee:
+            # ── Resolve new assignee name ────────────────────────────────
+            new_assignee_emp = Employee.query.get(new_assigned_id) if new_assigned_id else None
+            new_assignee_name = new_assignee_emp.name if new_assignee_emp else "Unassigned"
+
+            if task.assigned_to and task.assigned_to != old_assignee_id:
                 create_notification(
                     recipient_id=task.assigned_to,
                     title="Task Assigned to You",
@@ -210,8 +221,18 @@ def edit_task(task_id):
                     organization_id=org_id,
                 )
 
+            # ── Build structured diff ───────────────────────────────────
+            old_due_str = old_due_date.strftime("%d %b %Y") if old_due_date else ""
+            new_due_str = task.due_date.strftime("%d %b %Y") if task.due_date else ""
+
             actor_id = current_user.employee.id if current_user.employee else None
-            log_activity("task_updated", "task", task.title, org_id, actor_id, task.id)
+            changes = build_changes([
+                ("Status",      old_status.value  if old_status  else "", new_status.value  if new_status  else ""),
+                ("Assigned To", old_assignee_name,  new_assignee_name),
+                ("Title",       old_title,           task.title),
+                ("Due Date",    old_due_str,          new_due_str),
+            ])
+            log_activity("update", "task", task.title, org_id, actor_id, task.id, changes=changes)
 
             # Handle file uploads if present (supports multiple)
             if "file" in request.files:

@@ -9,7 +9,7 @@ from model import (
     ProjectWorkType,
     ProjectCategory,
 )
-from utils.activity import log_activity
+from utils.activity import log_activity, build_changes
 from utils.notifications import create_notification
 from utils.security import tenant_record_id
 
@@ -98,7 +98,7 @@ def add_project():
                 )
 
             log_activity(
-                "project_added",
+                "create",
                 "project",
                 new_project.name,
                 org_id,
@@ -157,6 +157,13 @@ def edit_project(project_id):
     ).first_or_404()
 
     if request.method == "POST":
+        # ── Snapshot old values BEFORE changes ─────────────────────────
+        old_status      = project.status
+        old_assignee_id = project.assigned_to
+        old_assignee_emp = Employee.query.get(old_assignee_id) if old_assignee_id else None
+        old_assignee_name = old_assignee_emp.name if old_assignee_emp else "Unassigned"
+        old_name        = project.name
+
         project.name = request.form.get("name", "").strip()
         project.description = request.form.get("description", "").strip()
         assigned_to_id = request.form.get("assigned_to")
@@ -170,15 +177,15 @@ def edit_project(project_id):
         category_map = {e.value: e for e in ProjectCategory}
 
         try:
-            # Check if assignment changed
-            old_assignee = project.assigned_to
-            project.assigned_to = tenant_record_id(
+            new_assignee_id = tenant_record_id(
                 Employee, assigned_to_id, org_id, is_deleted=False
             )
+            project.assigned_to = new_assignee_id
 
-            project.status = status_map.get(
+            new_status = status_map.get(
                 request.form.get("status"), ProjectStatus.PLANNING
             )
+            project.status = new_status
             project.work_type = work_type_map.get(
                 request.form.get("work_type"), ProjectWorkType.GLASS
             )
@@ -187,9 +194,12 @@ def edit_project(project_id):
             )
             project.updated_by = current_user.employee.id
 
-            if project.assigned_to and project.assigned_to != old_assignee:
+            new_assignee_emp = Employee.query.get(new_assignee_id) if new_assignee_id else None
+            new_assignee_name = new_assignee_emp.name if new_assignee_emp else "Unassigned"
+
+            if new_assignee_id and new_assignee_id != old_assignee_id:
                 create_notification(
-                    recipient_id=project.assigned_to,
+                    recipient_id=new_assignee_id,
                     title="Project Assigned to You",
                     message=f"Project '{project.name}' has been assigned to you.",
                     link=url_for("projects.view_project", project_id=project.id),
@@ -197,13 +207,20 @@ def edit_project(project_id):
                     organization_id=org_id,
                 )
 
+            changes = build_changes([
+                ("Status",      old_status.value if old_status else "",   new_status.value if new_status else ""),
+                ("Assigned To", old_assignee_name, new_assignee_name),
+                ("Name",        old_name, project.name),
+            ])
+
             log_activity(
-                "project_updated",
+                "update",
                 "project",
                 project.name,
                 org_id,
                 current_user.employee.id,
                 project.id,
+                changes=changes,
             )
 
             # Handle file upload if present
@@ -254,7 +271,7 @@ def delete_project(project_id):
     project.deleted_by = current_user.employee.id
     try:
         log_activity(
-            "project_deleted",
+            "delete",
             "project",
             project.name,
             org_id,

@@ -27,7 +27,7 @@ from model import (
 )
 import pandas as pd
 from utils.exports import export_to_csv, export_to_excel, export_to_pdf
-from utils.activity import log_activity
+from utils.activity import log_activity, build_changes
 from utils.notifications import create_notification
 from utils.security import tenant_record_id
 
@@ -196,7 +196,7 @@ def add_contact():
 
             log_contact_event(new_contact.id, "contact_created", f"{current_user.employee.name} created the contact.", "🌱", current_user.employee.id, current_user.organization_id)
             log_activity(
-                "contact_added",
+                "create",
                 "contact",
                 new_contact.name,
                 current_user.organization_id,
@@ -226,6 +226,15 @@ def edit_contact(contact_id):
     ).first_or_404()
     
     if request.method == "POST":
+        # ── Snapshot old values BEFORE changes ─────────────────────────
+        old_status      = contact.status
+        old_source      = contact.source
+        old_assignee_id = contact.assigned_to
+        old_assignee_emp = Employee.query.get(old_assignee_id) if old_assignee_id else None
+        old_assignee_name = old_assignee_emp.name if old_assignee_emp else "Unassigned"
+        old_name        = contact.name
+        old_city        = contact.city
+
         contact.first_name = request.form.get("first_name", "").strip()
         contact.last_name = request.form.get("last_name", "").strip()
         contact.email = request.form.get("email", "").strip() or None
@@ -251,17 +260,16 @@ def edit_contact(contact_id):
         status_map = {e.value: e for e in ContactStatus}
 
         try:
-            old_assignee = contact.assigned_to
-            old_status = contact.status
-
-            contact.assigned_to = tenant_record_id(
+            new_assignee_id = tenant_record_id(
                 Employee,
                 assigned_to_id,
                 current_user.organization_id,
                 is_deleted=False,
             )
+            contact.assigned_to = new_assignee_id
 
-            contact.source = source_map.get(request.form.get("source"), LeadSource.OTHER)
+            new_source = source_map.get(request.form.get("source"), LeadSource.OTHER)
+            contact.source = new_source
             new_status = status_map.get(request.form.get("status"), ContactStatus.CONTACT)
             contact.status = new_status
             contact.company = request.form.get("company", "").strip()
@@ -271,29 +279,39 @@ def edit_contact(contact_id):
 
             contact.updated_by = current_user.employee.id
 
-            if contact.assigned_to and contact.assigned_to != old_assignee:
-                assignee = Employee.query.get(contact.assigned_to)
+            new_assignee_emp = Employee.query.get(new_assignee_id) if new_assignee_id else None
+            new_assignee_name = new_assignee_emp.name if new_assignee_emp else "Unassigned"
+
+            if new_assignee_id and new_assignee_id != old_assignee_id:
                 create_notification(
-                    recipient_id=contact.assigned_to,
+                    recipient_id=new_assignee_id,
                     title="Contact Assigned to You",
                     message=f"Contact '{contact.name}' has been assigned to you.",
                     link=url_for("contacts.view_contact", contact_id=contact.id),
                     sender_id=current_user.employee.id,
                     organization_id=current_user.organization_id,
                 )
-                aname = assignee.name if assignee else "someone"
-                log_contact_event(contact.id, "contact_assigned", f"Contact reassigned to {aname} by {current_user.employee.name}.", "👤", current_user.employee.id, current_user.organization_id)
+                log_contact_event(contact.id, "contact_assigned", f"Contact reassigned to {new_assignee_name} by {current_user.employee.name}.", "👤", current_user.employee.id, current_user.organization_id)
 
             if old_status and new_status and old_status != new_status:
                 log_contact_event(contact.id, "status_changed", f"Status changed from {old_status.value} to {new_status.value} by {current_user.employee.name}.", "🔄", current_user.employee.id, current_user.organization_id)
 
+            changes = build_changes([
+                ("Status",      old_status.value  if old_status  else "", new_status.value  if new_status  else ""),
+                ("Source",      old_source.value  if old_source  else "", new_source.value  if new_source  else ""),
+                ("Assigned To", old_assignee_name, new_assignee_name),
+                ("Name",        old_name,          contact.name),
+                ("City",        old_city or "",    contact.city or ""),
+            ])
+
             log_activity(
-                "contact_updated",
+                "update",
                 "contact",
                 contact.name,
                 current_user.organization_id,
                 current_user.employee.id,
                 contact.id,
+                changes=changes,
             )
             db.session.commit()
             flash("Contact updated!", "leadssuccess")
@@ -322,7 +340,7 @@ def delete_contact(contact_id):
     contact.deleted_at = datetime.utcnow()
     contact.deleted_by = current_user.employee.id
     log_activity(
-        "contact_deleted",
+        "delete",
         "contact",
         contact.name,
         current_user.organization_id,
