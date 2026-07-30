@@ -22,6 +22,7 @@ ACTION_META = {
     "project_deleted": ("🗑", "Deleted project", "project"),
 }
 
+from utils.activity_service import ActivityService
 
 def log_activity(
     action: str,
@@ -31,35 +32,67 @@ def log_activity(
     actor_id: int = None,
     entity_id: int = None,
     description: str = None,
+    field_name: str = None,
+    old_value=None,
+    new_value=None,
+    meta_data=None,
+    related_entity_type=None,
+    related_entity_id=None
 ):
     """
     Record a CRM activity event.
-
-    :param action: Short key like 'customer_added', 'project_updated'
-    :param entity_type: 'customer', 'lead', 'project', 'document'
-    :param entity_name: Display name of the record (e.g., customer name)
-    :param org_id: Organization ID (multi-tenant)
-    :param actor_id: Employee ID of who did it
-    :param entity_id: Database ID of the record
-    :param description: Optional override description
     """
     if description is None:
         meta = ACTION_META.get(
             action, ("⚡", action.replace("_", " ").title(), entity_type)
         )
         description = f"{meta[1]}: {entity_name}"
+        
+    # Map old action keys to structured actions
+    structured_action = action
+    if "add" in action or "create" in action:
+        structured_action = "create"
+    elif "update" in action or "edit" in action:
+        structured_action = "update"
+    elif "delete" in action or "remove" in action:
+        structured_action = "delete"
 
     try:
-        log = ActivityLog(
-            action=action,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            entity_name=entity_name,
-            description=description,
-            actor_id=actor_id,
-            organization_id=org_id,
-        )
-        db.session.add(log)
-        db.session.flush()  # Don't commit here; let the caller commit
-    except Exception:
+        from flask_login import current_user
+        if not hasattr(current_user, 'is_authenticated') or not current_user.is_authenticated:
+            # Fallback if no current_user
+            log = ActivityLog(
+                action=structured_action,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                entity_name=entity_name,
+                description=description,
+                actor_id=actor_id,
+                organization_id=org_id,
+                field_name=field_name,
+                old_value=str(old_value) if old_value is not None else None,
+                new_value=str(new_value) if new_value is not None else None,
+                meta_data=meta_data,
+                related_entity_type=related_entity_type,
+                related_entity_id=related_entity_id
+            )
+            db.session.add(log)
+            db.session.flush()
+        else:
+            ActivityService.log(
+                action=structured_action,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                entity_name=entity_name,
+                field_name=field_name,
+                old_value=old_value,
+                new_value=new_value,
+                meta_data=meta_data,
+                related_entity_type=related_entity_type,
+                related_entity_id=related_entity_id,
+                description=description
+            )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         pass  # Never let logging break the main action

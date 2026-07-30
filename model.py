@@ -963,6 +963,14 @@ class ActivityLog(db.Model):
         db.Integer, db.ForeignKey("employee.id"), nullable=True, index=True
     )
 
+    # Detailed change tracking
+    field_name = db.Column(db.String(100), nullable=True)
+    old_value = db.Column(db.Text, nullable=True)
+    new_value = db.Column(db.Text, nullable=True)
+    meta_data = db.Column(db.JSON, nullable=True)  # Named meta_data to avoid SQLAlchemy conflict
+    related_entity_type = db.Column(db.String(50), nullable=True)
+    related_entity_id = db.Column(db.Integer, nullable=True)
+
     # Multi-tenancy
     organization_id = db.Column(
         db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
