@@ -707,10 +707,37 @@ a {
         margin-bottom: 4rem;
     }
     
-    .features, .news-grid, .stats-ribbon {
+    .features, .news-grid, .stats-ribbon, .about-grid {
         grid-template-columns: 1fr;
     }
     
+    .about-preview {
+        padding: 4rem 5%;
+    }
+    
+    .about-text {
+        text-align: center;
+    }
+    
+    .about-image-collage {
+        height: 350px;
+        margin-top: 2rem;
+    }
+    
+    .img-1 {
+        width: 60%;
+        height: 80%;
+        left: 0;
+    }
+    
+    .img-2 {
+        width: 50%;
+        height: 60%;
+        bottom: 0;
+        right: 0;
+        border-width: 4px;
+    }
+
     .tools-list {
         padding: 1rem;
     }
