@@ -312,13 +312,22 @@ def update_task_status(task_id):
     if status_val:
         status_map = {e.value: e for e in TaskStatus}
         if status_val in status_map:
-            task.status = status_map[status_val]
-            try:
-                db.session.commit()
-                return {"success": True, "message": "Status updated"}
-            except Exception as e:
-                db.session.rollback()
-                return {"success": False, "message": str(e)}, 500
+            old_status = task.status
+            new_status = status_map[status_val]
+            if old_status != new_status:
+                task.status = new_status
+                try:
+                    changes = build_changes([
+                        ("Status", old_status.value if old_status else "", new_status.value if new_status else ""),
+                    ])
+                    action = "completed" if new_status.value == "Completed" else "update"
+                    log_activity(action, "task", task.title, org_id, emp_id, task.id, changes=changes)
+                    db.session.commit()
+                    return {"success": True, "message": "Status updated"}
+                except Exception as e:
+                    db.session.rollback()
+                    return {"success": False, "message": str(e)}, 500
+            return {"success": True, "message": "No change"}
     return {"success": False, "message": "Invalid status"}, 400
 
 
@@ -730,6 +739,15 @@ def add_task_activity(task_id):
                     organization_id=org_id,
                 )
 
+        log_activity(
+            "comment_added",
+            "task",
+            task.title,
+            org_id,
+            emp.id,
+            task.id,
+            comment_text=message,
+        )
         db.session.commit()
         flash("Activity logged successfully.", "tasksuccess")
     except Exception as e:

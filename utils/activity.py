@@ -10,17 +10,17 @@ from model import db, ActivityLog, Employee
 
 # ─── Human-readable action verbs ──────────────────────────────────────────────
 ACTION_VERB = {
-    "create":          "created",
-    "update":          "updated",
-    "delete":          "deleted",
-    "restore":         "restored",
+    "create":             "created",
+    "update":             "updated",
+    "delete":             "deleted",
+    "restore":            "restored",
     "permanently_delete": "permanently deleted",
-    "comment_added":   "added a comment to",
-    "assigned":        "assigned",
-    "reassigned":      "reassigned",
-    "completed":       "completed",
-    "converted":       "converted",
-    "status_changed":  "changed the status of",
+    "comment_added":      "added a comment to",
+    "assigned":           "assigned",
+    "reassigned":         "reassigned",
+    "completed":          "completed",
+    "converted":          "converted",
+    "status_changed":     "changed the status of",
 }
 
 # ─── Entity URL resolvers ──────────────────────────────────────────────────────
@@ -29,11 +29,11 @@ def _entity_url(entity_type, entity_id):
     try:
         from flask import url_for
         routes = {
-            "lead":     ("leads.view_lead",     "lead_id"),
-            "task":     ("tasks.view_task",      "task_id"),
+            "lead":     ("leads.view_lead",        "lead_id"),
+            "task":     ("tasks.view_task",         "task_id"),
             "customer": ("customers.view_customer", "customer_id"),
-            "project":  ("projects.view_project", "project_id"),
-            "contact":  ("contacts.view_contact", "contact_id"),
+            "project":  ("projects.view_project",   "project_id"),
+            "contact":  ("contacts.view_contact",   "contact_id"),
         }
         if entity_type in routes and entity_id:
             route, kwarg = routes[entity_type]
@@ -52,7 +52,7 @@ def log_activity(
     actor_id: int = None,
     entity_id: int = None,
     description: str = None,
-    changes: list = None,        # [{"field": "status", "label": "Status", "old": "New", "new": "Qualified"}, ...]
+    changes: list = None,        # [{field, label, old, new}, ...]
     comment_text: str = None,    # for comment_added actions
     field_name: str = None,      # legacy single-field tracking
     old_value=None,
@@ -68,6 +68,21 @@ def log_activity(
     # ── Map legacy action strings to clean action keys ──────────────────────
     structured_action = _map_action(action)
 
+    # ── Prevent No-Op Updates ─────────────────────────────────────────────────
+    if structured_action == "update":
+        has_changes = bool(changes)  # non-empty list
+        has_comment = bool(comment_text)
+        has_legacy = bool(field_name)
+        if not has_changes and not has_comment and not has_legacy:
+            return  # nothing changed — skip logging entirely
+
+    # ── Auto-detect smarter action verb based on what actually changed ────────
+    if structured_action == "update" and changes:
+        fields = {c["field"] for c in changes}
+        # If ONLY the assignee changed → call it "reassigned"
+        if fields == {"assigned_to"}:
+            structured_action = "reassigned"
+
     # ── Build meta_data payload ───────────────────────────────────────────────
     if meta_data is None:
         meta_data = {}
@@ -82,7 +97,7 @@ def log_activity(
     if entity_url:
         meta_data["entity_url"] = entity_url
 
-    # ── Auto-description for legacy paths that don't pass description ─────────
+    # ── Auto-description for logging paths that don't pass description ────────
     if description is None:
         verb = ACTION_VERB.get(structured_action, structured_action.replace("_", " "))
         if structured_action == "comment_added":
@@ -93,7 +108,6 @@ def log_activity(
     try:
         from flask_login import current_user
         if hasattr(current_user, "is_authenticated") and current_user.is_authenticated:
-            # Use the authenticated actor
             resolved_actor_id = (
                 current_user.employee.id
                 if hasattr(current_user, "employee") and current_user.employee
@@ -126,6 +140,29 @@ def log_activity(
         db.session.add(log)
         db.session.flush()
 
+        try:
+            from utils.extensions import socketio
+            from sqlalchemy import event
+
+            # Emit real-time event only after DB commit succeeds
+            room = f"org_{resolved_org}"
+            
+            payload = {
+                'id': log.id,
+                'action': log.action,
+                'entity_type': log.entity_type,
+                'entity_name': log.entity_name,
+                'actor_id': log.actor_id,
+                'created_at': datetime.utcnow().isoformat() + "Z"
+            }
+            
+            @event.listens_for(db.session, "after_commit", once=True)
+            def _emit_activity_after_commit(session):
+                socketio.emit('new_activity', payload, room=room)
+                
+        except ImportError:
+            pass # SocketIO not configured or available
+
     except Exception:
         import traceback
         traceback.print_exc()
@@ -152,6 +189,8 @@ def _map_action(action: str) -> str:
         return "completed"
     if "convert" in a:
         return "converted"
+    if "reassign" in a:
+        return "reassigned"
     if "assign" in a:
         return "assigned"
     if any(k in a for k in ("updat", "edit", "chang")):
