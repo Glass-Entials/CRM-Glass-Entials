@@ -208,20 +208,50 @@
         padding-left: 1rem !important;
     }
 
-    /* User profile — compact on mobile */
+    /* Reorder Navbar for Mobile (Logo -> Profile -> Hamburger) */
+    .dash-nav > div:first-child { order: 1 !important; }
     .user-profile {
-        flex: 0 0 auto !important;
+        flex: 1 !important;
+        order: 2 !important;
         display: flex !important;
         align-items: center !important;
-        gap: 8px !important;
-        order: 2 !important;
+        justify-content: flex-end !important;
+        gap: 6px !important;
     }
+    #mobile-ham-btn {
+        order: 3 !important;
+        margin-left: 5px !important;
+    }
+    
     .welcome-text {
-        display: none !important; /* Hide long name text on mobile */
+        display: block !important;
+        font-size: 0.75rem !important;
+        white-space: nowrap !important;
     }
+    
+    .avatar {
+        width: 30px !important;
+        height: 30px !important;
+    }
+    
+    .notification-bell, .settings-icon {
+        width: 32px !important;
+        height: 32px !important;
+    }
+    .notification-bell svg, .settings-icon svg {
+        width: 16px !important;
+        height: 16px !important;
+    }
+    
     .notification-badge {
         display: flex !important;
+        width: 14px !important;
+        height: 14px !important;
+        font-size: 0.55rem !important;
+        top: -2px !important;
+        right: -2px !important;
     }
+
     /* Compact notification dropdown */
     #notifDropdown {
         width: 300px !important;
