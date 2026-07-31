@@ -35,7 +35,9 @@ body.dashboard-page {
 }
 
 .dash-menu {
+    flex: 2;
     display: flex;
+    justify-content: center;
     gap: 0.1rem;
     align-items: center;
     margin-left: 0;
