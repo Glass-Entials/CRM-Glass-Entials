@@ -1,0 +1,146 @@
+/* ==============================================================
+   Comprehensive Mobile Responsiveness for Glassentials CRM
+   ============================================================== */
+
+@media screen and (max-width: 1024px) {
+    /* Navbar Hamburger & Mobile Menu Logic */
+    .dash-nav {
+        flex-wrap: wrap !important;
+        padding: 0.5rem 5% !important;
+    }
+    .dash-menu {
+        display: none;
+        width: 100%;
+        flex-direction: column;
+        background: #fff;
+        position: absolute;
+        top: 65px;
+        left: 0;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        padding: 1rem 0;
+        z-index: 1000;
+        border-top: 1px solid rgba(13, 27, 42, 0.05);
+    }
+    .dash-menu.active {
+        display: flex;
+    }
+    .dash-menu a {
+        padding: 1rem 2rem !important;
+        border-radius: 0 !important;
+        border-bottom: 1px solid rgba(0,0,0,0.03);
+    }
+    
+    .dash-menu .dropdown-content {
+        position: relative !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: #f8fafc !important;
+        padding-left: 2rem !important;
+        width: 100% !important;
+    }
+    
+    .mobile-menu-btn {
+        display: block !important;
+        background: none;
+        border: none;
+        font-size: 1.8rem;
+        cursor: pointer;
+        color: var(--primary-color);
+        margin-left: auto;
+    }
+    
+    .nav-right {
+        margin-left: 10px;
+    }
+
+    /* Dashboard Grids */
+    .stats-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 1rem !important;
+    }
+    .dash-content {
+        grid-template-columns: 1fr !important;
+        gap: 2rem !important;
+    }
+    
+    /* Quick Actions */
+    .quick-actions {
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+    }
+    .action-btn {
+        flex: 1 1 calc(33.333% - 10px) !important;
+        text-align: center;
+        padding: 1rem !important;
+        min-width: 100px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    /* Deep Mobile Adjustments */
+    .stats-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .action-btn {
+        flex: 1 1 calc(50% - 10px) !important;
+    }
+
+    /* Tables wrapper (Requires HTML wrapper or applying to parent container) */
+    .table-container, .card, .profile-card, section {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .customer-table, table {
+        min-width: 800px !important; 
+    }
+    
+    /* Forms inside cards */
+    .form-grid, .log-form-grid, .settings-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* Headings & Text */
+    h1 { font-size: 2rem !important; }
+    h2 { font-size: 1.6rem !important; }
+    .page-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 1rem !important;
+    }
+    .header-actions {
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    .header-actions a, .header-actions button {
+        width: 100% !important;
+        text-align: center !important;
+    }
+
+    /* Modals */
+    .modal-content, [id$="Modal"] > div {
+        width: 95% !important;
+        padding: 1.5rem !important;
+        margin: 10px auto !important;
+    }
+    .modal-body {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* Ensure mobile menu button is hidden on desktop */
+.mobile-menu-btn {
+    display: none;
+}
+/* Global safeguard against horizontal overflow on mobile */
+@media screen and (max-width: 1024px) {
+    html, body {
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+    }
+}
