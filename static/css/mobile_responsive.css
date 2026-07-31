@@ -36,6 +36,7 @@
         z-index: 9990 !important;
         flex-wrap: nowrap !important;
         gap: 10px !important;
+        width: 100% !important;
     }
 
     /* Logo stays visible */
@@ -46,20 +47,6 @@
         height: 42px !important;
         max-width: 120px !important;
         object-fit: contain !important;
-    }
-
-    /* Hide the center nav column wrapper */
-    .dash-nav > div:nth-child(3) {
-        display: none !important; /* original hamburger column from prev code */
-    }
-
-    /* The nav column (Column 2 in HTML) */
-    .dash-nav > div:nth-child(2) {
-        flex: 0 0 auto !important;
-        order: 3 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-end !important;
     }
 
     /* ── Hamburger Toggle ────────────────────────────── */
