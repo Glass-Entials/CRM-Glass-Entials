@@ -984,3 +984,31 @@ a {
     text-align: right;
     margin-top: 4px;
 }
+/* Fix for mobile about grid layout (must be at the end of file to override previous rules) */
+@media (max-width: 900px) {
+    .about-grid {
+        grid-template-columns: 1fr !important;
+        gap: 2rem !important;
+    }
+    .about-preview {
+        padding: 4rem 5% !important;
+    }
+    .about-text {
+        text-align: center !important;
+    }
+    .about-image-collage {
+        height: 380px !important;
+        margin-top: 1rem !important;
+    }
+    .about-image-collage img.img-1 {
+        width: 65% !important;
+        height: 75% !important;
+        left: 0 !important;
+    }
+    .about-image-collage img.img-2 {
+        width: 55% !important;
+        height: 60% !important;
+        bottom: 0 !important;
+        right: 0 !important;
+    }
+}
