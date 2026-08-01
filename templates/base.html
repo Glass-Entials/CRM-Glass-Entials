@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -19,55 +19,6 @@
 
     {% block extra_css %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile_responsive.css') }}?v=6">
-</head>
-
-<body class="dashboard-page">
-
-    <!-- Top Navbar -->
-    {% include 'includes/navbar.html' %}
-
-    <!-- Flash Messages: generic categories only (success, error, info) -->
-    <!-- Module-specific categories (tasksuccess, customererror, etc.) are handled by their own templates -->
-    <div class="flash-messages-container"
-        style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
-        {% with messages = get_flashed_messages(with_categories=true, category_filter=["success", "error", "info"]) %}
-        {% if messages %}
-        {% for category, message in messages %}
-        <div class="flash-message {{ category }} {% if category == 'success' %}bg-success{% elif category == 'error' %}bg-error{% else %}bg-info{% endif %}"
-            style="padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; font-size: 14px; animation: slideIn 0.3s ease-out; color: white;">
-            {{ message }}
-        </div>
-        {% endfor %}
-        {% endif %}
-        {% endwith %}
-    </div>
-
-
-    <style>
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        .bg-success {
-            background: #10b981;
-        }
-
-        .bg-error {
-            background: #ef4444;
-        }
-
-        .bg-info {
-            background: #3b82f6;
-        }
-    </style>
 </head>
 
 <body class="dashboard-page">
@@ -142,7 +93,7 @@
             btn.classList.toggle('expanded');
             
             if (wrapper.classList.contains('expanded')) {
-                toggleText.textContent = 'Hide Tasks';
+                toggleText.textContent = 'Hide Tasks ▲';
             } else {
                 toggleText.textContent = '+' + count + ' more tasks';
             }
