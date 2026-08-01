@@ -1,4 +1,4 @@
-import os
+﻿import os
 from datetime import datetime
 from flask import Flask, render_template, request, flash, redirect, url_for, send_file
 from model import db, User, Customer, Employee, Lead, Project, Expense
@@ -192,12 +192,12 @@ def format_tasks_filter(s):
     if '\n' in s:
         raw_lines = [line.strip() for line in s.split('\n') if line.strip()]
         for line in raw_lines:
-            line = re.sub(r'^[•\-\*]\s*', '', line)
+            line = re.sub(r'^[â€¢\-\*]\s*', '', line)
             line = re.sub(r'^\d+\.\s*', '', line)
             lines.append(line)
     # 2. Check for bullets
-    elif re.search(r'(?:^|\n|\s)[•\-\*]\s+', s):
-        parts = re.split(r'(?:^|\n|\s)[•\-\*]\s+', s)
+    elif re.search(r'(?:^|\n|\s)[â€¢\-\*]\s+', s):
+        parts = re.split(r'(?:^|\n|\s)[â€¢\-\*]\s+', s)
         lines = [p.strip() for p in parts if p.strip()]
     # 3. Check for numbered list
     elif re.search(r'(?:^|\n|\s)\d+\.\s+', s):
@@ -235,7 +235,7 @@ def format_tasks_filter(s):
         </div>
         <a href="javascript:void(0)" class="saas-task-toggle" onclick="toggleSaaSTasks(this, {len(hidden_lines)})" style="text-decoration: none;">
             <span class="toggle-text">+{len(hidden_lines)} more tasks</span>
-            <span class="toggle-icon">▼</span>
+            <span class="toggle-icon">â–¼</span>
         </a>
     </div>
     '''

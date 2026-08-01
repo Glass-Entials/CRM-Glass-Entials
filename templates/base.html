@@ -140,19 +140,14 @@
         }, 3000);
 
         // Global SaaS Task Expand/Collapse Logic
-        function toggleSaaSTasks(btn, count) {
-            const container = btn.closest('.saas-task-container');
-            const wrapper = container.querySelector('.saas-task-hidden-wrapper');
-            const toggleText = btn.querySelector('.toggle-text');
-            
-            wrapper.classList.toggle('expanded');
-            btn.classList.toggle('expanded');
-            
-            if (wrapper.classList.contains('expanded')) {
-                toggleText.textContent = 'Hide Tasks ▲';
-            } else {
-                toggleText.textContent = '+' + count + ' more tasks';
+        function toggleSaaSTasks(link) {
+            var container = link.closest('.saas-task-container');
+            var extras = container.querySelectorAll('.saas-extra-task');
+            var isHidden = extras[0] && extras[0].style.display === 'none';
+            for (var i = 0; i < extras.length; i++) {
+                extras[i].style.display = isHidden ? 'list-item' : 'none';
             }
+            link.innerHTML = isHidden ? 'Show less &#9652;' : 'Show more &#9662;';
         }
     </script>
 </body>
