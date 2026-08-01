@@ -99,29 +99,19 @@
         .saas-task-hidden-wrapper > ul {
             overflow: hidden;
         }
-        .saas-task-toggle {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: var(--accent-gold, #d4af37);
-            font-size: 0.85rem;
+        .saas-show-more {
+            display: inline-block;
+            margin-top: 5px;
+            color: #b5952f;
+            font-size: 0.82rem;
             font-weight: 600;
             cursor: pointer;
-            align-self: flex-start;
-            margin-top: 4px;
-            transition: color 0.2s;
             text-decoration: none;
+            letter-spacing: 0.02em;
         }
-        .saas-task-toggle:hover {
-            color: #b5952f;
-            text-decoration: none;
-        }
-        .saas-task-toggle .toggle-icon {
-            font-size: 0.7rem;
-            transition: transform 0.3s ease;
-        }
-        .saas-task-toggle.expanded .toggle-icon {
-            transform: rotate(180deg);
+        .saas-show-more:hover {
+            text-decoration: underline;
+            color: #d4af37;
         }
     </style>
 
@@ -139,15 +129,15 @@
             });
         }, 3000);
 
-        // Global SaaS Task Expand/Collapse Logic
-        function toggleSaaSTasks(link) {
+        // SaaS Task Show More / Show Less
+        function saasTasks(link) {
             var container = link.closest('.saas-task-container');
-            var extras = container.querySelectorAll('.saas-extra-task');
-            var isHidden = extras[0] && extras[0].style.display === 'none';
+            var extras = container.querySelectorAll('.saas-extra');
+            var hidden = extras.length > 0 && extras[0].style.display === 'none';
             for (var i = 0; i < extras.length; i++) {
-                extras[i].style.display = isHidden ? 'list-item' : 'none';
+                extras[i].style.display = hidden ? 'list-item' : 'none';
             }
-            link.innerHTML = isHidden ? 'Show less &#9652;' : 'Show more &#9662;';
+            link.textContent = hidden ? 'Show less' : 'Show more';
         }
     </script>
 </body>

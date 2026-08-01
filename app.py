@@ -1,4 +1,4 @@
-﻿import os
+import os
 from datetime import datetime
 from flask import Flask, render_template, request, flash, redirect, url_for, send_file
 from model import db, User, Customer, Employee, Lead, Project, Expense
@@ -184,62 +184,53 @@ def format_tasks_filter(s):
         return ""
     import markupsafe
     import re
-    
+
     s = str(s).strip()
     lines = []
-    
-    # 1. Check for newlines
+
+    # Split by newlines first
     if '\n' in s:
-        raw_lines = [line.strip() for line in s.split('\n') if line.strip()]
-        for line in raw_lines:
-            line = re.sub(r'^[â€¢\-\*]\s*', '', line)
-            line = re.sub(r'^\d+\.\s*', '', line)
-            lines.append(line)
-    # 2. Check for bullets
-    elif re.search(r'(?:^|\n|\s)[â€¢\-\*]\s+', s):
-        parts = re.split(r'(?:^|\n|\s)[â€¢\-\*]\s+', s)
+        raw_lines = [l.strip() for l in s.split('\n') if l.strip()]
+        for l in raw_lines:
+            l = re.sub(r'^[\u2022\-\*]\s*', '', l)
+            l = re.sub(r'^\d+\.\s*', '', l)
+            lines.append(l)
+    # Split by bullet characters
+    elif re.search(r'[\u2022\-\*]\s', s):
+        parts = re.split(r'[\u2022\-\*]\s', s)
         lines = [p.strip() for p in parts if p.strip()]
-    # 3. Check for numbered list
-    elif re.search(r'(?:^|\n|\s)\d+\.\s+', s):
-        parts = re.split(r'(?:^|\n|\s)\d+\.\s+', s)
+    # Split by numbered list
+    elif re.search(r'\d+\.\s', s):
+        parts = re.split(r'\d+\.\s', s)
         lines = [p.strip() for p in parts if p.strip()]
-    # 4. Fallback: split by sentences
+    # Fallback: split by period-space
     else:
-        parts = re.split(r'(?<=\.)\s+', s)
+        parts = re.split(r'\.\s+', s)
         lines = [p.strip() for p in parts if p.strip()]
 
     if not lines:
         return ""
 
-    escaped_lines = [str(markupsafe.escape(line)) for line in lines]
+    escaped_lines = [str(markupsafe.escape(l)) for l in lines]
 
+    # 2 or fewer: show all
     if len(escaped_lines) <= 2:
-        html = '<ul class="saas-task-list">'
-        for line in escaped_lines:
-            html += f'<li>{line}</li>'
-        html += '</ul>'
-        return markupsafe.Markup(html)
-    
-    visible_lines = escaped_lines[:2]
-    hidden_lines = escaped_lines[2:]
-    
-    html = f'''
-    <div class="saas-task-container">
-        <ul class="saas-task-list visible-tasks">
-            {''.join(f'<li>{line}</li>' for line in visible_lines)}
-        </ul>
-        <div class="saas-task-hidden-wrapper">
-            <ul class="saas-task-list hidden-tasks">
-                {''.join(f'<li>{line}</li>' for line in hidden_lines)}
-            </ul>
-        </div>
-        <a href="javascript:void(0)" class="saas-task-toggle" onclick="toggleSaaSTasks(this, {len(hidden_lines)})" style="text-decoration: none;">
-            <span class="toggle-text">+{len(hidden_lines)} more tasks</span>
-            <span class="toggle-icon">â–¼</span>
-        </a>
-    </div>
-    '''
-    return markupsafe.Markup(html)
+        items = ''.join('<li>' + l + '</li>' for l in escaped_lines)
+        return markupsafe.Markup('<ul class="saas-task-list">' + items + '</ul>')
+
+    # Build list: first 2 visible, rest hidden with display:none
+    items = ''
+    for l in escaped_lines[:2]:
+        items += '<li>' + l + '</li>'
+    for l in escaped_lines[2:]:
+        items += '<li class="saas-extra" style="display:none;">' + l + '</li>'
+
+    return markupsafe.Markup(
+        '<div class="saas-task-container">'
+        '<ul class="saas-task-list">' + items + '</ul>'
+        '<a href="javascript:void(0)" class="saas-show-more" onclick="saasTasks(this)">Show more</a>'
+        '</div>'
+    )
 
 
 # Initialize Plugins
