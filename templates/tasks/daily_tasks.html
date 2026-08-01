@@ -349,7 +349,7 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <div class="desc-text">{{ task.task_description }}</div>
+                                <div class="desc-text">{{ task.task_description | format_tasks }}</div>
                                 {% if task.documents.count() > 0 %}
                                 <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
                                     {% for doc in task.documents %}

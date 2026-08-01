@@ -178,6 +178,69 @@ def nl2br_filter(s):
     escaped = markupsafe.escape(s)
     return markupsafe.Markup(escaped.replace("\n", "<br>\n"))
 
+@app.template_filter("format_tasks")
+def format_tasks_filter(s):
+    if not s:
+        return ""
+    import markupsafe
+    import re
+    
+    s = str(s).strip()
+    lines = []
+    
+    # 1. Check for newlines
+    if '\n' in s:
+        raw_lines = [line.strip() for line in s.split('\n') if line.strip()]
+        for line in raw_lines:
+            line = re.sub(r'^[•\-\*]\s*', '', line)
+            line = re.sub(r'^\d+\.\s*', '', line)
+            lines.append(line)
+    # 2. Check for bullets
+    elif re.search(r'(?:^|\n|\s)[•\-\*]\s+', s):
+        parts = re.split(r'(?:^|\n|\s)[•\-\*]\s+', s)
+        lines = [p.strip() for p in parts if p.strip()]
+    # 3. Check for numbered list
+    elif re.search(r'(?:^|\n|\s)\d+\.\s+', s):
+        parts = re.split(r'(?:^|\n|\s)\d+\.\s+', s)
+        lines = [p.strip() for p in parts if p.strip()]
+    # 4. Fallback: split by sentences
+    else:
+        parts = re.split(r'(?<=\.)\s+', s)
+        lines = [p.strip() for p in parts if p.strip()]
+
+    if not lines:
+        return ""
+
+    escaped_lines = [str(markupsafe.escape(line)) for line in lines]
+
+    if len(escaped_lines) <= 2:
+        html = '<ul class="saas-task-list">'
+        for line in escaped_lines:
+            html += f'<li>{line}</li>'
+        html += '</ul>'
+        return markupsafe.Markup(html)
+    
+    visible_lines = escaped_lines[:2]
+    hidden_lines = escaped_lines[2:]
+    
+    html = f'''
+    <div class="saas-task-container">
+        <ul class="saas-task-list visible-tasks">
+            {''.join(f'<li>{line}</li>' for line in visible_lines)}
+        </ul>
+        <div class="saas-task-hidden-wrapper">
+            <ul class="saas-task-list hidden-tasks">
+                {''.join(f'<li>{line}</li>' for line in hidden_lines)}
+            </ul>
+        </div>
+        <button type="button" class="saas-task-toggle" onclick="toggleSaaSTasks(this, {len(hidden_lines)})">
+            <span class="toggle-text">+{len(hidden_lines)} more tasks</span>
+            <span class="toggle-icon">▼</span>
+        </button>
+    </div>
+    '''
+    return markupsafe.Markup(html)
+
 
 # Initialize Plugins
 login_manager = LoginManager()
