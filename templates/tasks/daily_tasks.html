@@ -506,7 +506,7 @@
                 document.getElementById('vm-project').textContent = d.project || '—';
                 document.getElementById('vm-hours').textContent = (d.hours_spent || 0) + ' HRS';
                 document.getElementById('vm-created').textContent = d.created_at;
-                document.getElementById('vm-desc').textContent = d.task_description;
+                document.getElementById('vm-desc').innerHTML = renderTaskBullets(d.task_description);
                 const docsSection = document.getElementById('vm-docs-section');
                 const docsDiv = document.getElementById('vm-docs');
                 if (d.documents && d.documents.length > 0) {
@@ -541,6 +541,63 @@
     document.getElementById('deleteModal').addEventListener('click', function(e) {
         if (e.target === this) closeDeleteModal();
     });
+
+    // ── Convert raw task text into bullet-point HTML with Show more ──
+    function renderTaskBullets(text) {
+        if (!text || !text.trim()) return '<em style="color:#94a3b8;">No description</em>';
+        var lines = [];
+        var t = text.trim();
+
+        if (t.indexOf('\n') !== -1) {
+            // Split by newlines
+            lines = t.split('\n')
+                .map(function(l) { return l.trim().replace(/^[•\-\*]\s*/, '').replace(/^\d+\.\s*/, ''); })
+                .filter(function(l) { return l.length > 0; });
+        } else if (/[•\-\*]\s/.test(t)) {
+            lines = t.split(/[•\-\*]\s/).map(function(l){return l.trim();}).filter(Boolean);
+        } else if (/\d+\.\s/.test(t)) {
+            lines = t.split(/\d+\.\s/).map(function(l){return l.trim();}).filter(Boolean);
+        } else {
+            lines = t.split(/\.\s+/).map(function(l){return l.trim();}).filter(Boolean);
+        }
+
+        if (!lines.length) return '<em style="color:#94a3b8;">No description</em>';
+
+        // Escape HTML
+        function esc(s) {
+            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        if (lines.length <= 2) {
+            return '<ul style="margin:0;padding-left:18px;">' +
+                lines.map(function(l){ return '<li style="margin-bottom:6px;">' + esc(l) + '</li>'; }).join('') +
+                '</ul>';
+        }
+
+        var html = '<div class="saas-task-container"><ul class="saas-task-list" style="margin:0;padding-left:18px;">';
+        lines.forEach(function(l, i) {
+            if (i < 2) {
+                html += '<li style="margin-bottom:6px;">' + esc(l) + '</li>';
+            } else {
+                html += '<li class="saas-extra" style="display:none;margin-bottom:6px;">' + esc(l) + '</li>';
+            }
+        });
+        html += '</ul>';
+        html += '<a href="javascript:void(0)" class="saas-show-more" onclick="saasTasks(this)" style="display:inline-block;margin-top:6px;color:#b5952f;font-size:0.82rem;font-weight:600;text-decoration:none;">Show more</a>';
+        html += '</div>';
+        return html;
+    }
+
+    // ── Show more / Show less toggle ──
+    function saasTasks(link) {
+        var container = link.closest('.saas-task-container');
+        var extras = container.querySelectorAll('.saas-extra');
+        var hidden = extras.length > 0 && extras[0].style.display === 'none';
+        for (var i = 0; i < extras.length; i++) {
+            extras[i].style.display = hidden ? 'list-item' : 'none';
+        }
+        link.textContent = hidden ? 'Show less' : 'Show more';
+    }
     </script>
 </body>
 </html>
