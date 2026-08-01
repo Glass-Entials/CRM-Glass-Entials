@@ -233,10 +233,10 @@ def format_tasks_filter(s):
                 {''.join(f'<li>{line}</li>' for line in hidden_lines)}
             </ul>
         </div>
-        <button type="button" class="saas-task-toggle" onclick="toggleSaaSTasks(this, {len(hidden_lines)})">
+        <a href="javascript:void(0)" class="saas-task-toggle" onclick="toggleSaaSTasks(this, {len(hidden_lines)})" style="text-decoration: none;">
             <span class="toggle-text">+{len(hidden_lines)} more tasks</span>
             <span class="toggle-icon">▼</span>
-        </button>
+        </a>
     </div>
     '''
     return markupsafe.Markup(html)

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -66,6 +66,62 @@
 
         .bg-info {
             background: #3b82f6;
+        }
+
+        /* SaaS Task List Styles */
+        .saas-task-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .saas-task-list {
+            margin: 0;
+            padding: 0 0 0 16px;
+            list-style-type: disc;
+            color: var(--primary-color);
+            line-height: 1.5;
+            text-align: left;
+        }
+        .saas-task-list li {
+            margin-bottom: 4px;
+        }
+        .saas-task-list li:last-child {
+            margin-bottom: 0;
+        }
+        .saas-task-hidden-wrapper {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.3s ease-out;
+        }
+        .saas-task-hidden-wrapper.expanded {
+            grid-template-rows: 1fr;
+        }
+        .saas-task-hidden-wrapper > ul {
+            overflow: hidden;
+        }
+        .saas-task-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--accent-gold, #d4af37);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            align-self: flex-start;
+            margin-top: 4px;
+            transition: color 0.2s;
+            text-decoration: none;
+        }
+        .saas-task-toggle:hover {
+            color: #b5952f;
+            text-decoration: none;
+        }
+        .saas-task-toggle .toggle-icon {
+            font-size: 0.7rem;
+            transition: transform 0.3s ease;
+        }
+        .saas-task-toggle.expanded .toggle-icon {
+            transform: rotate(180deg);
         }
     </style>
 
