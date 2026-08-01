@@ -6,9 +6,16 @@
             <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
         </a>
     </div>
-    <!-- Column 2: Nav menu (always perfectly centered) -->
-    <div style="flex: 2; display: flex; justify-content: center; align-items: center;">
-        <nav class="dash-menu">
+
+    <!-- ☰ Mobile Hamburger Button -->
+    <button id="mobile-ham-btn" aria-label="Toggle navigation">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Column 2: Nav menu -->
+    <nav class="dash-menu">
             <a href="{{ url_for('home_page') }}" {% if request.endpoint=='home_page' %}class="active" {% endif
                 %}>Dashboard</a>
             <a href="{{ url_for('customers.customers_list') }}" {% if request.blueprint=='customers' %}class="active" {%
@@ -101,8 +108,7 @@
                     {% endif %}
                 </div>
             </div>
-        </nav>
-    </div>
+    </nav>
 
     <!-- Column 3: Profile + Bell (right-aligned, flex: 1) -->
     <div class="user-profile"
