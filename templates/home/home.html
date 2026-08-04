@@ -190,13 +190,15 @@
 
     <!-- Stats Cards Grid -->
     <div class="stats-grid">
-        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('customers.customers_list') }}{% if customer_filter and customer_filter != 'Total' %}?status={{ customer_filter|urlencode }}{% endif %}'">
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;"
+            onclick="window.location.href='{{ url_for('customers.customers_list') }}{% if customer_filter and customer_filter != 'Total' %}?status={{ customer_filter|urlencode }}{% endif %}'">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px;">{{ total_customers }}</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ customer_filter }}
                     Customers</p>
 
-                <select onchange="dashboardFilter('customer', this.value)" class="stat-filter-select" onclick="event.stopPropagation()">
+                <select onchange="dashboardFilter('customer', this.value)" class="stat-filter-select"
+                    onclick="event.stopPropagation()">
                     <option value="Total" {% if customer_filter=='Total' %}selected{% endif %}>All Customers</option>
                     <option value="New" {% if customer_filter=='New' %}selected{% endif %}>New</option>
                     <option value="Requirement Understood" {% if customer_filter=='Requirement Understood' %}selected{%
@@ -225,13 +227,15 @@
             </div>
             <div class="stat-icon">👥</div>
         </div>
-        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('projects.projects_list') }}{% if project_filter and project_filter != 'Total' %}?status={{ project_filter|urlencode }}{% endif %}'">
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;"
+            onclick="window.location.href='{{ url_for('projects.projects_list') }}{% if project_filter and project_filter != 'Total' %}?status={{ project_filter|urlencode }}{% endif %}'">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px;">{{ active_projects_count }}</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ project_filter }}
                     Projects</p>
 
-                <select onchange="dashboardFilter('project', this.value)" class="stat-filter-select" onclick="event.stopPropagation()">
+                <select onchange="dashboardFilter('project', this.value)" class="stat-filter-select"
+                    onclick="event.stopPropagation()">
                     <option value="Active" {% if project_filter=='Active' %}selected{% endif %}>Active Projects</option>
                     <option value="Total" {% if project_filter=='Total' %}selected{% endif %}>All Projects</option>
                     <option value="Planning" {% if project_filter=='Planning' %}selected{% endif %}>Planning</option>
@@ -243,12 +247,14 @@
             </div>
             <div class="stat-icon">💼</div>
         </div>
-        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('leads.leads_list') }}{% if lead_filter and lead_filter != 'Total' %}?status={{ lead_filter|urlencode }}{% endif %}'">
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;"
+            onclick="window.location.href='{{ url_for('leads.leads_list') }}{% if lead_filter and lead_filter != 'Total' %}?status={{ lead_filter|urlencode }}{% endif %}'">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px;">{{ total_leads }}</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ lead_filter }} Leads</p>
 
-                <select onchange="dashboardFilter('lead', this.value)" class="stat-filter-select" onclick="event.stopPropagation()">
+                <select onchange="dashboardFilter('lead', this.value)" class="stat-filter-select"
+                    onclick="event.stopPropagation()">
                     <option value="Total" {% if lead_filter=='Total' %}selected{% endif %}>All Leads</option>
                     <option value="New" {% if lead_filter=='New' %}selected{% endif %}>New</option>
                     <option value="Prospect" {% if lead_filter=='Prospect' %}selected{% endif %}>Prospect</option>
@@ -259,12 +265,14 @@
             </div>
             <div class="stat-icon">🎯</div>
         </div>
-        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list') }}{% if task_filter and task_filter != 'Total' %}?status={{ task_filter|urlencode }}{% endif %}'">
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;"
+            onclick="window.location.href='{{ url_for('tasks.tasks_list') }}{% if task_filter and task_filter != 'Total' %}?status={{ task_filter|urlencode }}{% endif %}'">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px;">{{ pending_tasks_count }}</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ task_filter }} Tasks</p>
 
-                <select onchange="dashboardFilter('task', this.value)" class="stat-filter-select" onclick="event.stopPropagation()">
+                <select onchange="dashboardFilter('task', this.value)" class="stat-filter-select"
+                    onclick="event.stopPropagation()">
                     <option value="Pending" {% if task_filter=='Pending' %}selected{% endif %}>Pending Only</option>
                     <option value="Total" {% if task_filter=='Total' %}selected{% endif %}>All Tasks</option>
                     <option value="Completed" {% if task_filter=='Completed' %}selected{% endif %}>Completed</option>
@@ -272,7 +280,8 @@
             </div>
             <div class="stat-icon">🔔</div>
         </div>
-        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;" onclick="window.location.href='{{ url_for('expenses.expenses_list') }}'">
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;"
+            onclick="window.location.href='{{ url_for('expenses.expenses_list') }}'">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px;">₹{{ "{:,.0f}".format(total_Expenses) if total_Expenses is not undefined
                     else '0' }}</h3>
@@ -281,7 +290,8 @@
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                     {% for f in ['Total', 'Approved', 'Rejected', 'Paid'] %}
                     <a href="{{ url_for('home_page', expense_status=f) }}"
-                        class="expense-filter-pill {% if expense_filter == f %}active{% endif %}" onclick="event.stopPropagation()">
+                        class="expense-filter-pill {% if expense_filter == f %}active{% endif %}"
+                        onclick="event.stopPropagation()">
                         {{ f }}
                     </a>
                     {% endfor %}
@@ -289,22 +299,57 @@
             </div>
             <div class="stat-icon">📄</div>
         </div>
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;"
+            onclick="window.location.href='{{ url_for('contacts.contacts_list') }}{% if contact_filter and contact_filter != 'Total' %}?status={{ contact_filter|urlencode }}{% endif %}'">
+            <div class="stat-info">
+                <h3 style="margin-bottom: 2px;">{{ total_contacts }}</h3>
+                <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ contact_filter }}
+                    Contacts</p>
+
+                <select onchange="dashboardFilter('contact', this.value)" class="stat-filter-select"
+                    onclick="event.stopPropagation()">
+                    <option value="Total" {% if contact_filter=='Total' %}selected{% endif %}>All Contacts</option>
+                    <option value="Active" {% if contact_filter=='Active' %}selected{% endif %}>Active</option>
+                    <option value="Inactive" {% if contact_filter=='Inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="stat-icon">👥</div>
+        </div>
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;"
+            onclick="window.location.href='{{ url_for('payments.due_payments') if payment_filter == 'Due' else url_for('payments.received_payments') if payment_filter == 'Received' else url_for('payments.due_payments') }}'">
+            <div class="stat-info">
+                <h3 style="margin-bottom: 2px;">₹{{ "{:,.0f}".format(total_payments) if total_payments is not undefined else '0' }}</h3>
+                <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ payment_filter }} Payments</p>
+
+                <select onchange="dashboardFilter('payment', this.value)" class="stat-filter-select"
+                    onclick="event.stopPropagation()">
+                    <option value="Total" {% if payment_filter=='Total' %}selected{% endif %}>All Payments</option>
+                    <option value="Due" {% if payment_filter=='Due' %}selected{% endif %}>Due Payment</option>
+                    <option value="Received" {% if payment_filter=='Received' %}selected{% endif %}>Received Payment</option>
+                </select>
+            </div>
+            <div class="stat-icon">💰</div>
+        </div>
     </div>
 
     <!-- My Workspace Section -->
     {% if current_user.employee %}
     <div style="margin-top: 2rem; margin-bottom: 2rem;">
-        <h2 style="font-size: 1.5rem; color: var(--primary-color); margin-bottom: 1rem; font-family: var(--font-heading);">My Workspace</h2>
+        <h2
+            style="font-size: 1.5rem; color: var(--primary-color); margin-bottom: 1rem; font-family: var(--font-heading);">
+            My Workspace</h2>
         <div class="stats-grid">
-            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id) }}'">
+            <div class="stat-card" style="cursor: pointer;"
+                onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id) }}'">
                 <div class="stat-info">
                     <h3 style="margin-bottom: 2px;">{{ my_workspace.tasks_assigned }}</h3>
                     <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Tasks Assigned</p>
                 </div>
                 <div class="stat-icon" style="background: #e0e7ff; color: #4f46e5;">📋</div>
             </div>
-            
-            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id, status='Pending') }}'">
+
+            <div class="stat-card" style="cursor: pointer;"
+                onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id, status='Pending') }}'">
                 <div class="stat-info">
                     <h3 style="margin-bottom: 2px;">{{ my_workspace.pending_tasks }}</h3>
                     <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Pending Tasks</p>
@@ -312,7 +357,8 @@
                 <div class="stat-icon" style="background: #fef3c7; color: #d97706;">⏳</div>
             </div>
 
-            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id, status='In Progress') }}'">
+            <div class="stat-card" style="cursor: pointer;"
+                onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id, status='In Progress') }}'">
                 <div class="stat-info">
                     <h3 style="margin-bottom: 2px;">{{ my_workspace.in_progress_tasks }}</h3>
                     <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">In Progress Tasks</p>
@@ -320,7 +366,8 @@
                 <div class="stat-icon" style="background: #e0f2fe; color: #0284c7;">🚧</div>
             </div>
 
-            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id, completed_today='true') }}'">
+            <div class="stat-card" style="cursor: pointer;"
+                onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id, completed_today='true') }}'">
                 <div class="stat-info">
                     <h3 style="margin-bottom: 2px;">{{ my_workspace.completed_today }}</h3>
                     <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Completed Today</p>
@@ -328,7 +375,8 @@
                 <div class="stat-icon" style="background: #dcfce7; color: #16a34a;">✅</div>
             </div>
 
-            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id, overdue='true') }}'">
+            <div class="stat-card" style="cursor: pointer;"
+                onclick="window.location.href='{{ url_for('tasks.tasks_list', assigned_to=current_user.employee.id, overdue='true') }}'">
                 <div class="stat-info">
                     <h3 style="margin-bottom: 2px;">{{ my_workspace.overdue_tasks }}</h3>
                     <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Overdue Tasks</p>
@@ -336,7 +384,8 @@
                 <div class="stat-icon" style="background: #fee2e2; color: #dc2626;">🔴</div>
             </div>
 
-            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('leads.all_follow_ups', assigned_to=current_user.employee.id, due='today') }}'">
+            <div class="stat-card" style="cursor: pointer;"
+                onclick="window.location.href='{{ url_for('leads.all_follow_ups', assigned_to=current_user.employee.id, due='today') }}'">
                 <div class="stat-info">
                     <h3 style="margin-bottom: 2px;">{{ my_workspace.todays_followups }}</h3>
                     <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Today's Follow-ups</p>
@@ -344,7 +393,8 @@
                 <div class="stat-icon" style="background: #f3e8ff; color: #9333ea;">📞</div>
             </div>
 
-            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('leads.leads_list', assigned_to=current_user.employee.id) }}'">
+            <div class="stat-card" style="cursor: pointer;"
+                onclick="window.location.href='{{ url_for('leads.leads_list', assigned_to=current_user.employee.id) }}'">
                 <div class="stat-info">
                     <h3 style="margin-bottom: 2px;">{{ my_workspace.leads_assigned }}</h3>
                     <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Leads Assigned</p>
@@ -352,7 +402,8 @@
                 <div class="stat-icon" style="background: #ffedd5; color: #ea580c;">🎯</div>
             </div>
 
-            <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('projects.projects_list', assigned_to=current_user.employee.id) }}'">
+            <div class="stat-card" style="cursor: pointer;"
+                onclick="window.location.href='{{ url_for('projects.projects_list', assigned_to=current_user.employee.id) }}'">
                 <div class="stat-info">
                     <h3 style="margin-bottom: 2px;">{{ my_workspace.projects_assigned }}</h3>
                     <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Projects Assigned</p>
@@ -533,7 +584,7 @@
                                             </a>
                                             <form action="/delete-lead/{{ lead.id }}" method="POST"
                                                 onsubmit="initiateDeleteLead(event, this);">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                                 <button type="submit" class="delete-action">
                                                     <span class="icon">🗑</span> Delete
                                                 </button>
@@ -732,100 +783,127 @@
 
         <!-- Global Activity Timeline / Audit Trail Panel -->
         <div class="panel">
-            <div class="panel-header" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 1rem;">
+            <div class="panel-header"
+                style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 1rem;">
                 <div>
-                    <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--primary-color); display: flex; align-items: center; gap: 8px; margin: 0;">
+                    <h2
+                        style="font-size: 1.15rem; font-weight: 700; color: var(--primary-color); display: flex; align-items: center; gap: 8px; margin: 0;">
                         <span style="color: var(--accent-gold); font-size: 1.1rem;">⚡</span> Global Activity Timeline
                     </h2>
-                    <p style="color: var(--text-muted); font-size: 0.82rem; margin: 4px 0 0 0;">Audit trail of all actions across your CRM.</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; margin: 4px 0 0 0;">Audit trail of all
+                        actions across your CRM.</p>
                 </div>
-                <a href="#" style="color: var(--accent-gold); font-weight: 600; text-decoration: none; font-size: 0.85rem; white-space: nowrap;">View All →</a>
+                <a href="#"
+                    style="color: var(--accent-gold); font-weight: 600; text-decoration: none; font-size: 0.85rem; white-space: nowrap;">View
+                    All →</a>
             </div>
 
-            <div style="position: relative; padding-left: 18px;">
-                <!-- Vertical timeline line -->
-                <div style="position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, rgba(0,0,0,0.07), transparent);"></div>
+            <div style="max-height: 350px; overflow-y: auto; padding-right: 10px;">
+                <div style="position: relative; padding-left: 18px;">
+                    <!-- Vertical timeline line -->
+                    <div
+                        style="position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, rgba(0,0,0,0.07), transparent);">
+                    </div>
 
                 {% for log in recent_activity %}
                 {# ── Resolve entity detail URL ── #}
                 {% if log.entity_type == 'lead' %}
-                    {% set detail_url = url_for('leads.view_lead', lead_id=log.entity_id) if log.entity_id else '#' %}
+                {% set detail_url = url_for('leads.view_lead', lead_id=log.entity_id) if log.entity_id else '#' %}
                 {% elif log.entity_type == 'task' %}
-                    {% set detail_url = url_for('tasks.view_task', task_id=log.entity_id) if log.entity_id else '#' %}
+                {% set detail_url = url_for('tasks.view_task', task_id=log.entity_id) if log.entity_id else '#' %}
                 {% elif log.entity_type == 'customer' %}
-                    {% set detail_url = url_for('customers.view_customer', customer_id=log.entity_id) if log.entity_id else '#' %}
+                {% set detail_url = url_for('customers.view_customer', customer_id=log.entity_id) if log.entity_id else
+                '#' %}
                 {% elif log.entity_type == 'project' %}
-                    {% set detail_url = url_for('projects.view_project', project_id=log.entity_id) if log.entity_id else '#' %}
+                {% set detail_url = url_for('projects.view_project', project_id=log.entity_id) if log.entity_id else '#'
+                %}
                 {% elif log.entity_type == 'contact' %}
-                    {% set detail_url = url_for('contacts.view_contact', contact_id=log.entity_id) if log.entity_id else '#' %}
+                {% set detail_url = url_for('contacts.view_contact', contact_id=log.entity_id) if log.entity_id else '#'
+                %}
                 {% else %}
-                    {% set detail_url = '#' %}
+                {% set detail_url = '#' %}
                 {% endif %}
 
                 {# ── Resolve action color & verb ── #}
                 {% if log.action in ('create',) %}
-                    {% set dot_color = '#10b981' %}
-                    {% set verb = 'created' %}
-                    {% set verb_color = '#10b981' %}
+                {% set dot_color = '#10b981' %}
+                {% set verb = 'created' %}
+                {% set verb_color = '#10b981' %}
                 {% elif log.action in ('update',) %}
-                    {% set dot_color = '#f59e0b' %}
-                    {% set verb = 'updated' %}
-                    {% set verb_color = '#b45309' %}
+                {% set dot_color = '#f59e0b' %}
+                {% set verb = 'updated' %}
+                {% set verb_color = '#b45309' %}
                 {% elif log.action == 'reassigned' %}
-                    {% set dot_color = '#8b5cf6' %}
-                    {% set verb = 'reassigned' %}
-                    {% set verb_color = '#7c3aed' %}
+                {% set dot_color = '#8b5cf6' %}
+                {% set verb = 'reassigned' %}
+                {% set verb_color = '#7c3aed' %}
                 {% elif log.action in ('delete', 'permanently_delete') %}
-                    {% set dot_color = '#ef4444' %}
-                    {% set verb = 'deleted' if log.action == 'delete' else 'permanently deleted' %}
-                    {% set verb_color = '#ef4444' %}
+                {% set dot_color = '#ef4444' %}
+                {% set verb = 'deleted' if log.action == 'delete' else 'permanently deleted' %}
+                {% set verb_color = '#ef4444' %}
                 {% elif log.action == 'restore' %}
-                    {% set dot_color = '#6366f1' %}
-                    {% set verb = 'restored' %}
-                    {% set verb_color = '#6366f1' %}
+                {% set dot_color = '#6366f1' %}
+                {% set verb = 'restored' %}
+                {% set verb_color = '#6366f1' %}
                 {% elif log.action == 'comment_added' %}
-                    {% set dot_color = '#0ea5e9' %}
-                    {% set verb = 'commented on' %}
-                    {% set verb_color = '#0369a1' %}
+                {% set dot_color = '#0ea5e9' %}
+                {% set verb = 'commented on' %}
+                {% set verb_color = '#0369a1' %}
                 {% elif log.action == 'completed' %}
-                    {% set dot_color = '#10b981' %}
-                    {% set verb = 'completed' %}
-                    {% set verb_color = '#10b981' %}
+                {% set dot_color = '#10b981' %}
+                {% set verb = 'completed' %}
+                {% set verb_color = '#10b981' %}
                 {% elif log.action == 'converted' %}
-                    {% set dot_color = '#8b5cf6' %}
-                    {% set verb = 'converted' %}
-                    {% set verb_color = '#8b5cf6' %}
+                {% set dot_color = '#8b5cf6' %}
+                {% set verb = 'converted' %}
+                {% set verb_color = '#8b5cf6' %}
                 {% else %}
-                    {% set dot_color = '#94a3b8' %}
-                    {% set verb = log.action | replace('_', ' ') %}
-                    {% set verb_color = '#64748b' %}
+                {% set dot_color = '#94a3b8' %}
+                {% set verb = log.action | replace('_', ' ') %}
+                {% set verb_color = '#64748b' %}
                 {% endif %}
 
                 {# ── Entity type badge colors ── #}
-                {% if log.entity_type == 'lead' %}{% set badge_bg = 'rgba(16,185,129,0.1)' %}{% set badge_color = '#059669' %}
-                {% elif log.entity_type == 'task' %}{% set badge_bg = 'rgba(245,158,11,0.1)' %}{% set badge_color = '#b45309' %}
-                {% elif log.entity_type == 'customer' %}{% set badge_bg = 'rgba(99,102,241,0.1)' %}{% set badge_color = '#4f46e5' %}
-                {% elif log.entity_type == 'project' %}{% set badge_bg = 'rgba(14,165,233,0.1)' %}{% set badge_color = '#0369a1' %}
-                {% elif log.entity_type == 'contact' %}{% set badge_bg = 'rgba(236,72,153,0.1)' %}{% set badge_color = '#be185d' %}
+                {% if log.entity_type == 'lead' %}{% set badge_bg = 'rgba(16,185,129,0.1)' %}{% set badge_color =
+                '#059669' %}
+                {% elif log.entity_type == 'task' %}{% set badge_bg = 'rgba(245,158,11,0.1)' %}{% set badge_color =
+                '#b45309' %}
+                {% elif log.entity_type == 'customer' %}{% set badge_bg = 'rgba(99,102,241,0.1)' %}{% set badge_color =
+                '#4f46e5' %}
+                {% elif log.entity_type == 'project' %}{% set badge_bg = 'rgba(14,165,233,0.1)' %}{% set badge_color =
+                '#0369a1' %}
+                {% elif log.entity_type == 'contact' %}{% set badge_bg = 'rgba(236,72,153,0.1)' %}{% set badge_color =
+                '#be185d' %}
                 {% else %}{% set badge_bg = 'rgba(0,0,0,0.05)' %}{% set badge_color = '#64748b' %}{% endif %}
 
                 {# ── Structured changes from meta_data ── #}
                 {% set changes = (log.meta_data or {}).get('changes', []) %}
                 {% set comment = (log.meta_data or {}).get('comment', '') %}
 
-                <div style="display: flex; gap: 14px; margin-bottom: 20px; position: relative; align-items: flex-start;">
+                <div
+                    style="display: flex; gap: 14px; margin-bottom: 20px; position: relative; align-items: flex-start;">
                     <!-- Timeline dot -->
-                    <div style="width: 14px; height: 14px; border-radius: 50%; background: {{ dot_color }}; border: 2.5px solid #fff; box-shadow: 0 0 0 2px {{ dot_color }}22; flex-shrink: 0; margin-top: 4px; position: relative; z-index: 2;"></div>
+                    <div
+                        style="width: 14px; height: 14px; border-radius: 50%; background: {{ dot_color }}; border: 2.5px solid #fff; box-shadow: 0 0 0 2px {{ dot_color }}22; flex-shrink: 0; margin-top: 4px; position: relative; z-index: 2;">
+                    </div>
 
                     <!-- Card: full card is clickable -->
-                    <a href="{{ detail_url }}" style="flex: 1; background: #fff; border: 1px solid #e9edf2; border-radius: 10px; padding: 13px 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); text-decoration: none; color: inherit; display: block; transition: box-shadow 0.18s, border-color 0.18s, transform 0.12s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.10)'; this.style.borderColor='#d4af37'; this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'; this.style.borderColor='#e9edf2'; this.style.transform='none'">
+                    <a href="{{ detail_url }}"
+                        style="flex: 1; background: #fff; border: 1px solid #e9edf2; border-radius: 10px; padding: 13px 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); text-decoration: none; color: inherit; display: block; transition: box-shadow 0.18s, border-color 0.18s, transform 0.12s;"
+                        onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.10)'; this.style.borderColor='#d4af37'; this.style.transform='translateY(-1px)'"
+                        onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'; this.style.borderColor='#e9edf2'; this.style.transform='none'">
 
                         <!-- Row 1: Actor + verb + entity + time -->
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: {% if changes or comment %}10px{% else %}0{% endif %};">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: {% if changes or comment %}10px{% else %}0{% endif %};">
                             <div style="font-size: 0.88rem; line-height: 1.5; color: #1e293b;">
-                                <strong style="color: #0d1b2a; font-weight: 700;">{{ log.actor.name if log.actor else 'System' }}</strong>
-                                <span style="color: {{ verb_color }}; font-weight: 600; margin: 0 3px;">{{ verb }}</span>
-                                <span style="background: {{ badge_bg }}; color: {{ badge_color }}; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; vertical-align: middle; margin-right: 3px;">{{ log.entity_type }}</span>
+                                <strong style="color: #0d1b2a; font-weight: 700;">{{ log.actor.name if log.actor else
+                                    'System' }}</strong>
+                                <span style="color: {{ verb_color }}; font-weight: 600; margin: 0 3px;">{{ verb
+                                    }}</span>
+                                <span
+                                    style="background: {{ badge_bg }}; color: {{ badge_color }}; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; vertical-align: middle; margin-right: 3px;">{{
+                                    log.entity_type }}</span>
                                 <strong style="color: #0d1b2a;">"{{ log.entity_name }}"</strong>
                             </div>
                             <div style="font-size: 0.75rem; color: #94a3b8; white-space: nowrap; padding-top: 2px;">
@@ -835,49 +913,66 @@
 
                         {# ── Structured changes diff ── #}
                         {% if changes %}
-                        <div style="background: #f8fafc; border-radius: 7px; padding: 10px 12px; border: 1px solid #e9edf2;">
+                        <div
+                            style="background: #f8fafc; border-radius: 7px; padding: 10px 12px; border: 1px solid #e9edf2;">
                             {% for ch in changes %}
-                            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; {% if not loop.last %}margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9;{% endif %}">
-                                <span style="color: #64748b; font-weight: 600; min-width: 90px; flex-shrink: 0;">{{ ch.label }}</span>
+                            <div
+                                style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; {% if not loop.last %}margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9;{% endif %}">
+                                <span style="color: #64748b; font-weight: 600; min-width: 90px; flex-shrink: 0;">{{
+                                    ch.label }}</span>
                                 {% if ch.old %}
-                                <span style="background: rgba(239,68,68,0.08); color: #b91c1c; padding: 1px 7px; border-radius: 4px; text-decoration: line-through; font-size: 0.8rem;">{{ ch.old }}</span>
+                                <span
+                                    style="background: rgba(239,68,68,0.08); color: #b91c1c; padding: 1px 7px; border-radius: 4px; text-decoration: line-through; font-size: 0.8rem;">{{
+                                    ch.old }}</span>
                                 <span style="color: #94a3b8;">→</span>
                                 {% endif %}
-                                <span style="background: rgba(16,185,129,0.08); color: #047857; padding: 1px 7px; border-radius: 4px; font-weight: 600; font-size: 0.8rem;">{{ ch.new }}</span>
+                                <span
+                                    style="background: rgba(16,185,129,0.08); color: #047857; padding: 1px 7px; border-radius: 4px; font-weight: 600; font-size: 0.8rem;">{{
+                                    ch.new }}</span>
                             </div>
                             {% endfor %}
                         </div>
 
                         {# ── Legacy single-field change (old system) ── #}
                         {% elif log.field_name %}
-                        <div style="background: #f8fafc; border-radius: 7px; padding: 10px 12px; border: 1px solid #e9edf2; font-size: 0.82rem; display: flex; align-items: center; gap: 8px;">
-                            <span style="color: #64748b; font-weight: 600;">{{ log.field_name | replace('_',' ') | title }}</span>
+                        <div
+                            style="background: #f8fafc; border-radius: 7px; padding: 10px 12px; border: 1px solid #e9edf2; font-size: 0.82rem; display: flex; align-items: center; gap: 8px;">
+                            <span style="color: #64748b; font-weight: 600;">{{ log.field_name | replace('_',' ') | title
+                                }}</span>
                             {% if log.old_value %}
-                            <span style="background: rgba(239,68,68,0.08); color: #b91c1c; padding: 1px 7px; border-radius: 4px; text-decoration: line-through;">{{ log.old_value }}</span>
+                            <span
+                                style="background: rgba(239,68,68,0.08); color: #b91c1c; padding: 1px 7px; border-radius: 4px; text-decoration: line-through;">{{
+                                log.old_value }}</span>
                             <span style="color: #94a3b8;">→</span>
                             {% endif %}
-                            <span style="background: rgba(16,185,129,0.08); color: #047857; padding: 1px 7px; border-radius: 4px; font-weight: 600;">{{ log.new_value }}</span>
+                            <span
+                                style="background: rgba(16,185,129,0.08); color: #047857; padding: 1px 7px; border-radius: 4px; font-weight: 600;">{{
+                                log.new_value }}</span>
                         </div>
 
                         {# ── Comment text ── #}
                         {% elif comment %}
-                        <div style="background: #f0f9ff; border-left: 3px solid #0ea5e9; border-radius: 0 7px 7px 0; padding: 8px 12px; font-size: 0.85rem; color: #0c4a6e; font-style: italic;">
+                        <div
+                            style="background: #f0f9ff; border-left: 3px solid #0ea5e9; border-radius: 0 7px 7px 0; padding: 8px 12px; font-size: 0.85rem; color: #0c4a6e; font-style: italic;">
                             "{{ comment }}"
                         </div>
 
                         {# ── Legacy fallback: only show description if no structured data ── #}
-                        {% elif log.description and log.entity_name and log.description != log.entity_name and log.action not in ('create', 'delete', 'restore') %}
+                        {% elif log.description and log.entity_name and log.description != log.entity_name and
+                        log.action not in ('create', 'delete', 'restore') %}
                         <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 4px;">{{ log.description }}</div>
                         {% endif %}
 
                     </a>
                 </div>
                 {% else %}
-                <div style="padding: 2.5rem 1rem; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 10px; border: 1px dashed #e2e8f0;">
+                <div
+                    style="padding: 2.5rem 1rem; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 10px; border: 1px dashed #e2e8f0;">
                     <div style="font-size: 2rem; margin-bottom: 8px;">📋</div>
                     <p style="margin: 0; font-size: 0.9rem;">No activity recorded yet.</p>
                 </div>
                 {% endfor %}
+                </div>
             </div>
         </div>
     </div>
@@ -885,14 +980,18 @@
 </main>
 
 <!-- Custom Delete Lead Modal -->
-<div id="deleteLeadModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
-    <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;">
+<div id="deleteLeadModal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+    <div
+        style="background: white; padding: 2rem; border-radius: 12px; width: 400px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;">
         <div style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;">⚠️</div>
         <h3 style="margin-bottom: 1rem; color: var(--primary-color); font-size: 1.3rem;">Delete Lead?</h3>
-        <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.5;">Are you sure you want to delete this lead? This action cannot be undone.</p>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.5;">Are you sure
+            you want to delete this lead? This action cannot be undone.</p>
         <div style="display: flex; gap: 1rem; justify-content: center;">
             <button type="button" class="btn-action outline" onclick="closeDeleteLeadModal()">Cancel</button>
-            <button type="button" class="btn-action" style="background: #ef4444; color: white;" onclick="executeDeleteLead()">Delete</button>
+            <button type="button" class="btn-action" style="background: #ef4444; color: white;"
+                onclick="executeDeleteLead()">Delete</button>
         </div>
     </div>
 </div>
@@ -941,18 +1040,18 @@
     if (typeof socket !== 'undefined') {
         socket.on('new_activity', (data) => {
             console.log("New activity received:", data);
-            
+
             let refreshBtn = document.getElementById('activity-refresh-btn');
             if (!refreshBtn) {
                 // Find the header of the Global Activity Timeline
                 const timelines = document.querySelectorAll('.panel-header h2');
                 let targetHeader = null;
                 timelines.forEach(h2 => {
-                    if(h2.innerText.includes('Global Activity Timeline')) {
+                    if (h2.innerText.includes('Global Activity Timeline')) {
                         targetHeader = h2.parentNode.parentNode;
                     }
                 });
-                
+
                 if (targetHeader) {
                     refreshBtn = document.createElement('button');
                     refreshBtn.id = 'activity-refresh-btn';
@@ -968,10 +1067,10 @@
                         { transform: 'scale(1.05)', boxShadow: '0 0 0 5px rgba(212, 175, 55, 0)' },
                         { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(212, 175, 55, 0)' }
                     ], { duration: 1500, iterations: Infinity });
-                    
+
                     refreshBtn.innerHTML = 'New Activity - Click to Refresh';
                     refreshBtn.onclick = () => window.location.reload();
-                    
+
                     const viewAllLink = targetHeader.querySelector('a');
                     if (viewAllLink) {
                         targetHeader.insertBefore(refreshBtn, viewAllLink);

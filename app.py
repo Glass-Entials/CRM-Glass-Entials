@@ -307,7 +307,7 @@ def pricing_page():
 @app.route("/home")
 @login_required
 def home_page():
-    from model import ActivityLog, Project, Task, TaskStatus, ExpenseStatus, DailyTask
+    from model import ActivityLog, Project, Task, TaskStatus, ExpenseStatus, DailyTask, Contact, Payment, PaymentStatus
     from datetime import date
 
     org_id = current_user.organization_id
@@ -496,6 +496,31 @@ def home_page():
         my_workspace["leads_assigned"] = Lead.query.filter_by(organization_id=org_id, is_deleted=False, assigned_to=emp_id).count()
         my_workspace["projects_assigned"] = Project.query.filter_by(organization_id=org_id, is_deleted=False, assigned_to=emp_id).count()
 
+    # --- Contact Metrics ---
+    total_contacts = Contact.query.filter_by(organization_id=org_id, is_deleted=False).count()
+
+    # --- Payment Metrics ---
+    payment_filter = request.args.get("payment_status", "Total")
+    payment_query = Payment.query.filter_by(organization_id=org_id, is_deleted=False)
+    
+    if payment_filter == "Due":
+        payment_query = payment_query.filter(Payment.status == PaymentStatus.PENDING)
+    elif payment_filter == "Received":
+        payment_query = payment_query.filter(Payment.status == PaymentStatus.RECEIVED)
+        
+    # We will display the total amount for the selected filter
+    total_payments_amount = db.session.query(db.func.sum(Payment.amount)).filter(
+        Payment.organization_id == org_id, 
+        Payment.is_deleted == False
+    )
+    if payment_filter == "Due":
+        total_payments_amount = total_payments_amount.filter(Payment.status == PaymentStatus.PENDING)
+    elif payment_filter == "Received":
+        total_payments_amount = total_payments_amount.filter(Payment.status == PaymentStatus.RECEIVED)
+        
+    total_payments = total_payments_amount.scalar() or 0
+
+
 
     return render_template(
         "home/home.html",
@@ -516,6 +541,9 @@ def home_page():
         todays_hours=todays_hours,
         recent_work_logs=recent_work_logs,
         my_workspace=my_workspace,
+        total_contacts=total_contacts,
+        payment_filter=payment_filter,
+        total_payments=total_payments,
     )
 
 
