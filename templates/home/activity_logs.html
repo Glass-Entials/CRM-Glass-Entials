@@ -3,7 +3,7 @@
 {% block title %}Activity Logs | GlassEntials Staff Portal{% endblock %}
 
 {% block content %}
-<div class="dash-container">
+<main class="dash-container">
     <div class="dash-header">
         <div>
             <h1>Global Activity Logs</h1>
@@ -17,10 +17,14 @@
     </div>
 
     <div class="panel" style="margin-top: 1.5rem;">
+
         <div style="position: relative; padding-left: 18px;">
+            <!-- Vertical timeline line -->
             <div style="position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, rgba(0,0,0,0.07), transparent);"></div>
 
             {% for log in pagination.items %}
+
+            {# ── Resolve entity detail URL ── #}
             {% if log.entity_type == 'lead' %}
             {% set detail_url = url_for('leads.view_lead', lead_id=log.entity_id) if log.entity_id else '#' %}
             {% elif log.entity_type == 'task' %}
@@ -35,61 +39,124 @@
             {% set detail_url = '#' %}
             {% endif %}
 
-            {% if log.action == 'create' %}{% set dot_color = '#10b981' %}{% set verb = 'created' %}{% set verb_color = '#10b981' %}
-            {% elif log.action == 'update' %}{% set dot_color = '#f59e0b' %}{% set verb = 'updated' %}{% set verb_color = '#b45309' %}
-            {% elif log.action == 'reassigned' %}{% set dot_color = '#8b5cf6' %}{% set verb = 'reassigned' %}{% set verb_color = '#7c3aed' %}
-            {% elif log.action in ('delete', 'permanently_delete') %}{% set dot_color = '#ef4444' %}{% set verb = 'deleted' if log.action == 'delete' else 'permanently deleted' %}{% set verb_color = '#ef4444' %}
-            {% elif log.action == 'restore' %}{% set dot_color = '#6366f1' %}{% set verb = 'restored' %}{% set verb_color = '#6366f1' %}
-            {% elif log.action == 'comment_added' %}{% set dot_color = '#0ea5e9' %}{% set verb = 'commented on' %}{% set verb_color = '#0369a1' %}
-            {% elif log.action == 'completed' %}{% set dot_color = '#10b981' %}{% set verb = 'completed' %}{% set verb_color = '#10b981' %}
-            {% elif log.action == 'converted' %}{% set dot_color = '#8b5cf6' %}{% set verb = 'converted' %}{% set verb_color = '#8b5cf6' %}
-            {% else %}{% set dot_color = '#94a3b8' %}{% set verb = log.action | replace('_', ' ') %}{% set verb_color = '#64748b' %}
+            {# ── Resolve action color & verb ── #}
+            {% if log.action == 'create' %}
+            {% set dot_color = '#10b981' %}{% set verb = 'created' %}{% set verb_color = '#10b981' %}
+            {% elif log.action == 'update' %}
+            {% set dot_color = '#f59e0b' %}{% set verb = 'updated' %}{% set verb_color = '#b45309' %}
+            {% elif log.action == 'reassigned' %}
+            {% set dot_color = '#8b5cf6' %}{% set verb = 'reassigned' %}{% set verb_color = '#7c3aed' %}
+            {% elif log.action in ('delete', 'permanently_delete') %}
+            {% set dot_color = '#ef4444' %}{% set verb = 'deleted' if log.action == 'delete' else 'permanently deleted' %}{% set verb_color = '#ef4444' %}
+            {% elif log.action == 'restore' %}
+            {% set dot_color = '#6366f1' %}{% set verb = 'restored' %}{% set verb_color = '#6366f1' %}
+            {% elif log.action == 'comment_added' %}
+            {% set dot_color = '#0ea5e9' %}{% set verb = 'commented on' %}{% set verb_color = '#0369a1' %}
+            {% elif log.action == 'completed' %}
+            {% set dot_color = '#10b981' %}{% set verb = 'completed' %}{% set verb_color = '#10b981' %}
+            {% elif log.action == 'converted' %}
+            {% set dot_color = '#8b5cf6' %}{% set verb = 'converted' %}{% set verb_color = '#8b5cf6' %}
+            {% else %}
+            {% set dot_color = '#94a3b8' %}{% set verb = log.action | replace('_', ' ') %}{% set verb_color = '#64748b' %}
             {% endif %}
 
-            <div style="margin-bottom: 20px; position: relative; padding-bottom: 5px;">
-                <div style="position: absolute; left: -16px; top: 3px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.05); background: {{ dot_color }};"></div>
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
-                    <div>
-                        <p style="margin: 0; font-size: 0.9rem; color: var(--primary-color);">
-                            <strong>{{ log.user.first_name if log.user else 'System' }}</strong>
-                            <span style="color: {{ verb_color }};">{{ verb }}</span>
-                            {{ log.entity_type }}
-                            {% if log.entity_id %}
-                            <a href="{{ detail_url }}" style="color: var(--accent-gold); text-decoration: none; font-weight: 600;">#{{ log.entity_id }}</a>
-                            {% endif %}
-                        </p>
-                        {% if log.details %}
-                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">{{ log.details }}</p>
-                        {% endif %}
+            {# ── Entity type badge colors ── #}
+            {% if log.entity_type == 'lead' %}{% set badge_bg = 'rgba(16,185,129,0.1)' %}{% set badge_color = '#059669' %}
+            {% elif log.entity_type == 'task' %}{% set badge_bg = 'rgba(245,158,11,0.1)' %}{% set badge_color = '#b45309' %}
+            {% elif log.entity_type == 'customer' %}{% set badge_bg = 'rgba(99,102,241,0.1)' %}{% set badge_color = '#4f46e5' %}
+            {% elif log.entity_type == 'project' %}{% set badge_bg = 'rgba(14,165,233,0.1)' %}{% set badge_color = '#0369a1' %}
+            {% elif log.entity_type == 'contact' %}{% set badge_bg = 'rgba(236,72,153,0.1)' %}{% set badge_color = '#be185d' %}
+            {% else %}{% set badge_bg = 'rgba(0,0,0,0.05)' %}{% set badge_color = '#64748b' %}{% endif %}
+
+            {# ── Structured changes from meta_data ── #}
+            {% set changes = (log.meta_data or {}).get('changes', []) %}
+            {% set comment = (log.meta_data or {}).get('comment', '') %}
+
+            <div style="display: flex; gap: 14px; margin-bottom: 16px; position: relative; align-items: flex-start;">
+                <!-- Timeline dot -->
+                <div style="width: 14px; height: 14px; border-radius: 50%; background: {{ dot_color }}; border: 2.5px solid #fff; box-shadow: 0 0 0 2px {{ dot_color }}22; flex-shrink: 0; margin-top: 4px; position: relative; z-index: 2;"></div>
+
+                <!-- Card -->
+                <a href="{{ detail_url }}"
+                    style="flex: 1; background: #fff; border: 1px solid #e9edf2; border-radius: 10px; padding: 13px 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); text-decoration: none; color: inherit; display: block; transition: box-shadow 0.18s, border-color 0.18s, transform 0.12s;"
+                    onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.10)'; this.style.borderColor='#d4af37'; this.style.transform='translateY(-1px)'"
+                    onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'; this.style.borderColor='#e9edf2'; this.style.transform='none'">
+
+                    <!-- Row 1: Actor + verb + entity + time -->
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: {% if changes or comment %}10px{% else %}0{% endif %};">
+                        <div style="font-size: 0.88rem; line-height: 1.5; color: #1e293b;">
+                            <strong style="color: #0d1b2a; font-weight: 700;">{{ log.actor.name if log.actor else 'System' }}</strong>
+                            <span style="color: {{ verb_color }}; font-weight: 600; margin: 0 3px;">{{ verb }}</span>
+                            <span style="background: {{ badge_bg }}; color: {{ badge_color }}; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; vertical-align: middle; margin-right: 3px;">{{ log.entity_type }}</span>
+                            <strong style="color: #0d1b2a;">"{{ log.entity_name }}"</strong>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; white-space: nowrap; padding-top: 2px;">
+                            🕒 {{ time_ago(log.created_at) }}
+                        </div>
                     </div>
-                    <span style="font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; font-weight: 500;">
-                        {{ log.created_at.strftime('%d %b %Y, %H:%M') }}
-                    </span>
-                </div>
+
+                    {# ── Structured changes diff ── #}
+                    {% if changes %}
+                    <div style="background: #f8fafc; border-radius: 7px; padding: 10px 12px; border: 1px solid #e9edf2;">
+                        {% for ch in changes %}
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; {% if not loop.last %}margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9;{% endif %}">
+                            <span style="color: #64748b; font-weight: 600; min-width: 90px; flex-shrink: 0;">{{ ch.label }}</span>
+                            {% if ch.old %}
+                            <span style="background: rgba(239,68,68,0.08); color: #b91c1c; padding: 1px 7px; border-radius: 4px; text-decoration: line-through; font-size: 0.8rem;">{{ ch.old }}</span>
+                            <span style="color: #94a3b8;">→</span>
+                            {% endif %}
+                            <span style="background: rgba(16,185,129,0.08); color: #047857; padding: 1px 7px; border-radius: 4px; font-weight: 600; font-size: 0.8rem;">{{ ch.new }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% elif log.field_name %}
+                    <div style="background: #f8fafc; border-radius: 7px; padding: 10px 12px; border: 1px solid #e9edf2; font-size: 0.82rem; display: flex; align-items: center; gap: 8px;">
+                        <span style="color: #64748b; font-weight: 600;">{{ log.field_name | replace('_',' ') | title }}</span>
+                        {% if log.old_value %}
+                        <span style="background: rgba(239,68,68,0.08); color: #b91c1c; padding: 1px 7px; border-radius: 4px; text-decoration: line-through;">{{ log.old_value }}</span>
+                        <span style="color: #94a3b8;">→</span>
+                        {% endif %}
+                        <span style="background: rgba(16,185,129,0.08); color: #047857; padding: 1px 7px; border-radius: 4px; font-weight: 600;">{{ log.new_value }}</span>
+                    </div>
+
+                    {% elif comment %}
+                    <div style="background: #f0f9ff; border-left: 3px solid #0ea5e9; border-radius: 0 7px 7px 0; padding: 8px 12px; font-size: 0.85rem; color: #0c4a6e; font-style: italic;">
+                        "{{ comment }}"
+                    </div>
+
+                    {% elif log.description and log.entity_name and log.description != log.entity_name and log.action not in ('create', 'delete', 'restore') %}
+                    <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 4px;">{{ log.description }}</div>
+                    {% endif %}
+
+                </a>
             </div>
+
             {% else %}
-            <div style="padding: 2rem 0; text-align: center; color: var(--text-muted);">
-                <span style="font-size: 2rem; display: block; margin-bottom: 8px;">📭</span>
+            <div style="padding: 2.5rem 1rem; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 10px; border: 1px dashed #e2e8f0;">
+                <div style="font-size: 2rem; margin-bottom: 8px;">📋</div>
                 <p style="margin: 0; font-size: 0.9rem;">No activity recorded yet.</p>
             </div>
             {% endfor %}
         </div>
 
+        <!-- Pagination -->
         {% if pagination.pages > 1 %}
         <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 1rem;">
             <span style="font-size: 0.85rem; color: var(--text-muted);">
                 Page {{ pagination.page }} of {{ pagination.pages }} &mdash; {{ pagination.total }} total entries
             </span>
-            <div style="display: flex; gap: 5px;">
+            <div style="display: flex; gap: 8px;">
                 {% if pagination.has_prev %}
-                <a href="{{ url_for('activity_logs', page=pagination.prev_num) }}" class="btn-action outline" style="padding: 4px 10px; font-size: 0.8rem; text-decoration: none;">&larr; Prev</a>
+                <a href="{{ url_for('activity_logs', page=pagination.prev_num) }}" class="btn-action outline" style="padding: 5px 14px; font-size: 0.8rem; text-decoration: none;">&larr; Prev</a>
                 {% endif %}
                 {% if pagination.has_next %}
-                <a href="{{ url_for('activity_logs', page=pagination.next_num) }}" class="btn-action outline" style="padding: 4px 10px; font-size: 0.8rem; text-decoration: none;">Next &rarr;</a>
+                <a href="{{ url_for('activity_logs', page=pagination.next_num) }}" class="btn-action gold" style="padding: 5px 14px; font-size: 0.8rem; text-decoration: none;">Next &rarr;</a>
                 {% endif %}
             </div>
         </div>
         {% endif %}
+
     </div>
-</div>
+</main>
 {% endblock %}
