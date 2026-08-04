@@ -799,7 +799,7 @@
                     All →</a>
             </div>
 
-            <div style="flex: 1; overflow-y: auto; padding-right: 10px; min-height: 0;">
+            <div style="flex: 1; overflow-y: auto; overflow-x: hidden; padding-right: 10px; min-height: 0; word-break: break-word;">
                 <div style="position: relative; padding-left: 18px;">
                     <!-- Vertical timeline line -->
                     <div
@@ -918,7 +918,7 @@
                             style="background: #f8fafc; border-radius: 7px; padding: 10px 12px; border: 1px solid #e9edf2;">
                             {% for ch in changes %}
                             <div
-                                style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; {% if not loop.last %}margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9;{% endif %}">
+                                style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.82rem; {% if not loop.last %}margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9;{% endif %}">
                                 <span style="color: #64748b; font-weight: 600; min-width: 90px; flex-shrink: 0;">{{
                                     ch.label }}</span>
                                 {% if ch.old %}
@@ -937,7 +937,7 @@
                         {# ── Legacy single-field change (old system) ── #}
                         {% elif log.field_name %}
                         <div
-                            style="background: #f8fafc; border-radius: 7px; padding: 10px 12px; border: 1px solid #e9edf2; font-size: 0.82rem; display: flex; align-items: center; gap: 8px;">
+                            style="background: #f8fafc; border-radius: 7px; padding: 10px 12px; border: 1px solid #e9edf2; font-size: 0.82rem; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
                             <span style="color: #64748b; font-weight: 600;">{{ log.field_name | replace('_',' ') | title
                                 }}</span>
                             {% if log.old_value %}
