@@ -309,6 +309,16 @@ body.dashboard-page {
     gap: 2rem;
 }
 
+.dash-content > div {
+    min-width: 0;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
