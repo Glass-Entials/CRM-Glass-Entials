@@ -547,6 +547,23 @@ def home_page():
     )
 
 
+@app.route("/activity-logs")
+@login_required
+def activity_logs():
+    from model import ActivityLog
+    
+    org_id = current_user.organization_id
+    page = request.args.get('page', 1, type=int)
+    per_page = 50
+    
+    pagination = ActivityLog.query.filter_by(organization_id=org_id)\
+        .order_by(ActivityLog.created_at.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
+        
+    return render_template("home/activity_logs.html", pagination=pagination)
+
+
+
 # Bulk Upload Templates (Shared Utilities)
 @app.route("/download-template")
 @login_required
