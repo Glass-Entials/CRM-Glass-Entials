@@ -3,323 +3,541 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ project.name }} - Overview</title>
-    <!-- Fonts -->
+    <title>{{ project.name }} · Project</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3\">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3\">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3\">
-    <style>
-        .badge-in-progress { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
-        .badge-cancelled { background: rgba(220, 53, 69, 0.08); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2); }
-        .badge-completed { background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2); }
-        .badge-default { background: rgba(212, 175, 55, 0.15); color: #d4af37; border: 1px solid rgba(212, 175, 55, 0.4); }
-        
-        .task-badge-in-progress { background: rgba(0, 123, 255, 0.08); color: #007bff; border: 1px solid rgba(0, 123, 255, 0.2); }
-        .task-badge-cancelled { background: rgba(220, 53, 69, 0.08); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2); }
-        .task-badge-completed { background: rgba(40, 167, 69, 0.08); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2); }
-        .task-badge-default { background: rgba(255, 193, 7, 0.08); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.2); }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+
+        /* ── Status badges ── */
+        .badge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 14px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+        .badge-in-progress  { background: rgba(16,185,129,.12);  color: #059669; border: 1px solid rgba(16,185,129,.25); }
+        .badge-completed    { background: rgba(40,167,69,.1);   color: #1a7a32; border: 1px solid rgba(40,167,69,.25); }
+        .badge-cancelled    { background: rgba(220,53,69,.08);  color: #b91c1c; border: 1px solid rgba(220,53,69,.2); }
+        .badge-default      { background: rgba(212,175,55,.15); color: #a07d1a; border: 1px solid rgba(212,175,55,.4); }
+        .badge-task-ip      { background: rgba(59,130,246,.1);  color: #1d4ed8; border: 1px solid rgba(59,130,246,.2); }
+        .badge-task-done    { background: rgba(16,185,129,.1);  color: #047857; border: 1px solid rgba(16,185,129,.25); }
+        .badge-task-cancel  { background: rgba(239,68,68,.08);  color: #b91c1c; border: 1px solid rgba(239,68,68,.2); }
+        .badge-task-default { background: rgba(212,175,55,.12); color: #a07d1a; border: 1px solid rgba(212,175,55,.35); }
+
+        /* ── Hero banner ── */
+        .project-hero {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1a2f45 100%);
+            border-radius: 20px;
+            padding: 2.2rem 2.5rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .project-hero::before {
+            content: '';
+            position: absolute;
+            top: -60px; right: -60px;
+            width: 260px; height: 260px;
+            border-radius: 50%;
+            background: rgba(212,175,55,0.08);
+        }
+        .project-hero::after {
+            content: '';
+            position: absolute;
+            bottom: -80px; left: 30%;
+            width: 320px; height: 320px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.03);
+        }
+        .hero-back { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 5px; margin-bottom: 0.6rem; transition: color 0.2s; }
+        .hero-back:hover { color: var(--accent-gold); }
+        .hero-title { font-family: 'Playfair Display', serif; font-size: 2rem; color: #fff; margin: 0 0 0.5rem 0; line-height: 1.2; }
+        .hero-meta { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .hero-meta-item { color: rgba(255,255,255,0.55); font-size: 0.82rem; display: flex; align-items: center; gap: 4px; }
+        .hero-divider { color: rgba(255,255,255,0.2); }
+        .hero-actions { display: flex; gap: 0.75rem; position: relative; z-index: 2; flex-shrink: 0; }
+        .btn-hero-outline {
+            padding: 0.6rem 1.25rem;
+            border: 1.5px solid rgba(255,255,255,0.25);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.07);
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            backdrop-filter: blur(4px);
+        }
+        .btn-hero-outline:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.4); }
+        .btn-hero-gold {
+            padding: 0.6rem 1.25rem;
+            background: var(--accent-gold);
+            border: none;
+            border-radius: 10px;
+            color: var(--primary-color);
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(212,175,55,0.35);
+        }
+        .btn-hero-gold:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(212,175,55,0.5); }
+
+        /* ── Main grid ── */
+        .project-grid {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+        @media (max-width: 900px) { .project-grid { grid-template-columns: 1fr; } }
+
+        /* ── Cards ── */
+        .card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(13,27,42,0.06);
+            border: 1px solid rgba(13,27,42,0.06);
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid rgba(13,27,42,0.06);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-title { font-size: 0.95rem; font-weight: 700; color: var(--primary-color); letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; }
+        .card-title-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }
+        .card-body { padding: 1.5rem; }
+
+        /* ── Info rows ── */
+        .info-row { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.85rem 0; border-bottom: 1px solid rgba(13,27,42,0.05); }
+        .info-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .info-row:first-child { padding-top: 0; }
+        .info-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); font-weight: 600; }
+        .info-value { font-size: 0.92rem; font-weight: 500; color: var(--primary-color); }
+        .info-link { color: var(--accent-gold); text-decoration: none; font-weight: 600; }
+        .info-link:hover { text-decoration: underline; }
+
+        /* ── Avatar ── */
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0; }
+
+        /* ── Description block ── */
+        .desc-block { background: rgba(13,27,42,0.025); border: 1px solid rgba(13,27,42,0.07); border-radius: 10px; padding: 1rem 1.2rem; font-size: 0.88rem; line-height: 1.65; color: #374151; }
+
+        /* ── Task table ── */
+        .task-table { width: 100%; border-collapse: collapse; }
+        .task-table th { padding: 0.75rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; font-weight: 700; border-bottom: 1px solid rgba(13,27,42,0.07); text-align: left; }
+        .task-table td { padding: 0.95rem 1rem; border-bottom: 1px solid rgba(13,27,42,0.04); vertical-align: middle; }
+        .task-table tr:last-child td { border-bottom: none; }
+        .task-table tbody tr { transition: background 0.15s; }
+        .task-table tbody tr:hover { background: rgba(212,175,55,0.04); }
+        .task-name { font-weight: 600; font-size: 0.88rem; color: var(--primary-color); }
+        .task-desc { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* ── Action icon buttons ── */
+        .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px; border: none; background: transparent; cursor: pointer; transition: all 0.18s; color: #94a3b8; text-decoration: none; font-size: 0.85rem; }
+        .icon-btn:hover { background: rgba(212,175,55,0.12); color: var(--accent-gold); }
+        .icon-btn.danger:hover { background: rgba(239,68,68,0.1); color: #ef4444; }
+
+        /* ── File row ── */
+        .file-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; border-radius: 10px; transition: background 0.15s; }
+        .file-row:hover { background: rgba(13,27,42,0.025); }
+        .file-icon { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; background: rgba(212,175,55,0.1); flex-shrink: 0; }
+        .file-name { font-size: 0.85rem; font-weight: 600; color: var(--primary-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+        .file-meta { font-size: 0.73rem; color: var(--text-muted); margin-top: 2px; }
+
+        /* ── Empty state ── */
+        .empty-state { text-align: center; padding: 3rem 2rem; }
+        .empty-icon { font-size: 2.5rem; opacity: 0.15; margin-bottom: 0.75rem; }
+        .empty-text { font-weight: 600; color: var(--text-muted); font-size: 0.9rem; }
+        .empty-sub { font-size: 0.8rem; color: #b0b9c5; margin-top: 0.3rem; }
+
+        /* ── Upload modal ── */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(13,27,42,0.5); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
+        .modal-box { background: #fff; border-radius: 18px; width: 440px; max-width: 95%; box-shadow: 0 20px 60px rgba(13,27,42,0.25); overflow: hidden; animation: modalIn 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+        @keyframes modalIn { from { transform: scale(0.92) translateY(10px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+        .modal-head { padding: 1.5rem 1.75rem; border-bottom: 1px solid rgba(13,27,42,0.07); display: flex; justify-content: space-between; align-items: center; }
+        .modal-head h3 { font-size: 1.05rem; font-weight: 700; color: var(--primary-color); margin: 0; }
+        .modal-close { width: 30px; height: 30px; border: none; background: rgba(13,27,42,0.06); border-radius: 50%; cursor: pointer; font-size: 1rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .modal-close:hover { background: rgba(239,68,68,0.1); color: #ef4444; }
+        .modal-body { padding: 1.5rem 1.75rem; }
+        .modal-footer { padding: 1rem 1.75rem 1.5rem; display: flex; gap: 0.75rem; justify-content: flex-end; }
+        .form-label { display: block; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.4rem; }
+        .form-input { width: 100%; padding: 0.7rem 0.9rem; border: 1.5px solid rgba(13,27,42,0.12); border-radius: 9px; font-size: 0.88rem; font-family: 'Inter', sans-serif; color: var(--primary-color); outline: none; transition: border-color 0.2s; background: #fafbfc; }
+        .form-input:focus { border-color: var(--accent-gold); background: #fff; }
+        .mb-4 { margin-bottom: 1rem; }
+        .btn-sm-outline { padding: 0.55rem 1.1rem; border: 1.5px solid rgba(13,27,42,0.15); border-radius: 9px; background: transparent; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--text-muted); transition: all 0.2s; }
+        .btn-sm-outline:hover { border-color: var(--primary-color); color: var(--primary-color); }
+        .btn-sm-gold { padding: 0.55rem 1.3rem; border: none; border-radius: 9px; background: var(--accent-gold); font-size: 0.85rem; font-weight: 700; cursor: pointer; color: var(--primary-color); transition: all 0.2s; box-shadow: 0 3px 10px rgba(212,175,55,0.3); }
+        .btn-sm-gold:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(212,175,55,0.45); }
+        .btn-sm-danger { padding: 0.55rem 1.1rem; border: none; border-radius: 9px; background: #ef4444; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: #fff; transition: all 0.2s; }
+
+        /* confirm modal */
+        #confirmModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(13,27,42,0.5); z-index:20000; justify-content:center; align-items:center; backdrop-filter:blur(3px); }
+
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .add-task-btn { display: inline-flex; align-items: center; gap: 6px; padding: 0.45rem 1rem; background: var(--primary-color); color: #fff; border-radius: 9px; text-decoration: none; font-size: 0.82rem; font-weight: 700; transition: all 0.2s; }
+        .add-task-btn:hover { background: #1a2f45; }
+        .upload-btn { display: inline-flex; align-items: center; gap: 6px; padding: 0.4rem 0.9rem; background: var(--accent-gold); color: var(--primary-color); border: none; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .upload-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(212,175,55,0.4); }
+    </style>
 </head>
 <body class="dashboard-page">
-
-    <!-- Top Navbar -->
     {% include 'includes/navbar.html' %}
 
     <!-- Flash Messages -->
-    <div id="flash-toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
         {% with msgs = get_flashed_messages(with_categories=true, category_filter=['projectsuccess','projecterror']) %}
         {% for cat, msg in msgs %}
-        <div class="flash-toast" style="padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; font-size: 14px; color: white; animation: slideInRight 0.3s ease-out; background: {% if cat == 'projectsuccess' %}#10b981{% else %}#ef4444{% endif %};">
-            {% if cat == 'projectsuccess' %}✓{% else %}⚠{% endif %} {{ msg }}
+        <div style="padding: 12px 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); font-weight: 600; font-size: 0.87rem; color: white; animation: slideInRight 0.3s ease-out; background: {% if cat == 'projectsuccess' %}#10b981{% else %}#ef4444{% endif %}; display: flex; align-items: center; gap: 8px;">
+            {{ '✓' if cat == 'projectsuccess' else '⚠' }} {{ msg }}
         </div>
         {% endfor %}
         {% endwith %}
     </div>
-    <style>@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }</style>
 
-    <main class="container" style="max-width: 1000px; padding-top: 3rem;">
-        
-        <!-- Top Section -->
-        <div class="top-bar" style="border-bottom: 2px solid rgba(212, 175, 55, 0.2); padding-bottom: 1.5rem; margin-bottom: 2rem;">
-            <div>
-                <a href="{{ url_for('projects.projects_list') }}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem; margin-bottom: 0.5rem; display: inline-block;">← Back to Projects</a>
-                <h1 style="color: var(--primary-color); font-size: 2.2rem; font-family: var(--font-heading); margin-top: 0.2rem;">{{ project.name }}</h1>
-                <p style="color: var(--text-muted); font-size: 1rem; margin-top: 0.3rem;">Created on {{ project.created_at.strftime('%B %d, %Y') if project.created_at else '—' }}</p>
-            </div>
-            
-            <div class="btn-group">
-                <button class="btn-action outline" onclick="document.getElementById('docUploadModal').style.display='flex'">
-                    📤 Upload File
-                </button>
-                <a href="/edit-project/{{ project.id }}" class="btn-action gold" style="text-decoration: none;">✏ Edit Detalis</a>
-            </div>
-        </div>
+    <main class="container" style="max-width: 1100px; padding: 2rem 1.5rem 4rem;">
 
-        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; align-items: start;">
-            <!-- Left Sidebar Column (Overview & Info) -->
-            <div style="display: flex; flex-direction: column; gap: 2rem; min-width: 0;">
-            <!-- Project Overview -->
-            <div class="panel" style="padding: 2.5rem; border-top: 4px solid var(--primary-color);">
-                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 1.2rem; margin-bottom: 2rem;">
-                    <h2 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.5rem; margin: 0; line-height: 1.3;">Project Overview</h2>
-                    <span class="status-badge {% if project.status_display == 'In Progress' %}badge-in-progress{% elif project.status_display == 'Cancelled' %}badge-cancelled{% elif project.status_display == 'Completed' %}badge-completed{% else %}badge-default{% endif %}" style="padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; white-space: nowrap; width: fit-content;">
+        <!-- ══ Hero Banner ══ -->
+        <div class="project-hero">
+            <div style="position: relative; z-index: 2;">
+                <a href="{{ url_for('projects.projects_list') }}" class="hero-back">← Back to Projects</a>
+                <h1 class="hero-title">{{ project.name }}</h1>
+                <div class="hero-meta">
+                    <span class="badge {% if project.status_display == 'In Progress' %}badge-in-progress{% elif project.status_display == 'Cancelled' %}badge-cancelled{% elif project.status_display == 'Completed' %}badge-completed{% else %}badge-default{% endif %}" style="background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); color: #fff; font-size: 0.72rem;">
                         {{ project.status_display }}
                     </span>
-                </div>
-
-                <div style="background: rgba(13, 27, 42, 0.02); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(13, 27, 42, 0.05); margin-bottom: 2rem;">
-                    <h3 style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.5rem;">Description</h3>
-                    <p style="font-size: 1.05rem; line-height: 1.6; color: var(--text-color); margin: 0;">{{ project.description or 'No description provided.' }}</p>
-                </div>
-
-                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-                    <div>
-                        <h3 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.3rem;">Associated Customer</h3>
-                        {% if project.customer %}
-                            <p style="font-size: 1.1rem; font-weight: 500; color: var(--primary-color); margin: 0;"><a href="{{ url_for('customers.view_customer', customer_id=project.customer.id) }}" style="color: var(--accent-gold); text-decoration: none;">{{ project.customer.name }}</a></p>
-                        {% else %}
-                            <p style="font-size: 1.1rem; font-weight: 500; color: var(--text-muted); margin: 0;">None</p>
-                        {% endif %}
-                    </div>
-                    <div>
-                        <h3 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.3rem;">Work Type</h3>
-                        <p style="font-size: 1.1rem; font-weight: 500; margin: 0;">
-                            {% if project.work_type %}
-                                {% if project.work_type.value == 'Glass' %}🪟
-                                {% elif project.work_type.value == 'Hardware' %}🔩
-                                {% elif project.work_type.value == 'Mirror' %}🪞
-                                {% endif %} {{ project.work_type.value }}
-                            {% else %}—{% endif %}
-                        </p>
-                    </div>
-                    <div>
-                        <h3 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.3rem;">Category</h3>
-                        <p style="font-size: 1.1rem; font-weight: 500; margin: 0;">
-                            {{ ('🏢 ' if project.category and project.category.value == 'Commercial' else '🏠 ') if project.category else '' }}{{ project.category.value if project.category else '—' }}
-                        </p>
-                    </div>
+                    <span class="hero-divider">|</span>
+                    <span class="hero-meta-item">🗓 Created {{ project.created_at.strftime('%d %b %Y') if project.created_at else '—' }}</span>
+                    {% if project.assignee %}
+                    <span class="hero-divider">|</span>
+                    <span class="hero-meta-item">👤 {{ project.assignee.name }}</span>
+                    {% endif %}
+                    {% if project.customer %}
+                    <span class="hero-divider">|</span>
+                    <span class="hero-meta-item">🏢 {{ project.customer.name }}</span>
+                    {% endif %}
                 </div>
             </div>
-
-            <!-- Responsibility (Moved to Left Column) -->
-            <div class="panel" style="padding: 2rem;">
-                <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0 0 1.5rem 0; border-bottom: 1px solid rgba(13, 27, 42, 0.1); padding-bottom: 0.8rem;">Responsibility</h3>
-                
-                <div style="margin-bottom: 1.2rem;">
-                    <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Assigned To</span>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1rem;">
-                            {{ project.assignee.name[:1] if project.assignee else '?' }}
-                        </div>
-                        <span style="font-weight: 500; font-size: 1rem;">{{ project.assignee.name if project.assignee else 'Unassigned' }}</span>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 1.2rem;">
-                    <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Created By</span>
-                    <span style="font-weight: 500; font-size: 0.95rem;">{{ project.creator.name if project.creator else 'System' }}</span>
-                </div>
-
-                <div>
-                    <span style="display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem;">Last Updated</span>
-                    <span style="font-weight: 500; font-size: 0.95rem;">{{ project.updated_at.strftime('%B %d, %Y') if project.updated_at else '—' }}</span>
-                </div>
+            <div class="hero-actions">
+                <button class="btn-hero-outline" onclick="document.getElementById('docUploadModal').style.display='flex'">
+                    📤 Upload File
+                </button>
+                <a href="/edit-project/{{ project.id }}" class="btn-hero-gold">✏️ Edit Project</a>
             </div>
         </div>
 
-        <!-- Right Main Column (Tasks & Files) -->
-        <div style="display: flex; flex-direction: column; gap: 2rem; min-width: 0;">
-            <!-- Tasks Section -->
-            <div class="panel" style="padding: 2.5rem;  border-top: 4px solid var(--accent-gold);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                    <h2 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.5rem; margin: 0;">Project Tasks</h2>
-                    <a href="{{ url_for('tasks.add_task', project_id=project.id) }}" class="btn-action gold" style="text-decoration: none; padding: 0.6rem 1.2rem; display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 1.2rem; font-weight: bold;">+</span> New Task
-                    </a>
+        <!-- ══ Main Grid ══ -->
+        <div class="project-grid">
+
+            <!-- LEFT COLUMN -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem; min-width: 0;">
+
+                <!-- Project Details Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(13,27,42,0.06);">📋</div>
+                            Project Details
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding: 1.25rem 1.5rem;">
+                        <!-- Description -->
+                        <div class="mb-4">
+                            <div class="info-label" style="margin-bottom: 0.5rem;">Description</div>
+                            <div class="desc-block">{{ project.description or 'No description provided.' }}</div>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Status</span>
+                            <span>
+                                <span class="badge {% if project.status_display == 'In Progress' %}badge-in-progress{% elif project.status_display == 'Cancelled' %}badge-cancelled{% elif project.status_display == 'Completed' %}badge-completed{% else %}badge-default{% endif %}">
+                                    {{ project.status_display }}
+                                </span>
+                            </span>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Customer</span>
+                            {% if project.customer %}
+                                <a href="{{ url_for('customers.view_customer', customer_id=project.customer.id) }}" class="info-link info-value">{{ project.customer.name }}</a>
+                            {% else %}
+                                <span class="info-value" style="color: var(--text-muted); font-style: italic;">Not linked</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Work Type</span>
+                            <span class="info-value">
+                                {% if project.work_type %}
+                                    {% if project.work_type.value == 'Glass' %}🪟
+                                    {% elif project.work_type.value == 'Hardware' %}🔩
+                                    {% elif project.work_type.value == 'Mirror' %}🪞
+                                    {% endif %} {{ project.work_type.value }}
+                                {% else %}—{% endif %}
+                            </span>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Category</span>
+                            <span class="info-value">
+                                {% if project.category %}
+                                    {{ '🏢' if project.category.value == 'Commercial' else '🏠' }} {{ project.category.value }}
+                                {% else %}—{% endif %}
+                            </span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="customer-table" style="width: 100%; border-collapse: separate; border-spacing: 0;">
-                        <thead>
-                            <tr style="background: rgba(13, 27, 42, 0.03);">
-                                <th style="padding: 1.2rem; text-align: left; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Task</th>
-                                <th style="padding: 1.2rem; text-align: left; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Due Date</th>
-                                <th style="padding: 1.2rem; text-align: left; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Assigned To</th>
-                                <th style="padding: 1.2rem; text-align: left; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Status</th>
-                                <th style="padding: 1.2rem; text-align: right; border-bottom: 2px solid rgba(13, 27, 42, 0.05); font-weight: 600; color: var(--primary-color);">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% set tasks = project.tasks_related.all() %}
-                            {% for task in tasks %}
-                            <tr style="transition: all 0.2s ease;">
-                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05);">
-                                    <div style="font-weight: 600; color: var(--primary-color);">{{ task.title }}</div>
-                                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ task.description or 'No description' }}</div>
-                                </td>
-                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05); font-size: 0.95rem;">
-                                    {{ task.due_date.strftime('%d %b, %Y') if task.due_date else 'No due date' }}
-                                </td>
-                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05);">
-                                    {% if task.assignee %}
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.7rem;">
-                                            {{ task.assignee.name[:1] }}
-                                        </div>
-                                        <span style="font-size: 0.9rem;">{{ task.assignee.name }}</span>
-                                    </div>
-                                    {% else %}
-                                    <span style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">Unassigned</span>
-                                    {% endif %}
-                                </td>
-                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05);">
-                                    <span class="status-badge {% if task.status_display == 'Completed' %}task-badge-completed{% elif task.status_display == 'In Progress' %}task-badge-in-progress{% elif task.status_display == 'Cancelled' %}task-badge-cancelled{% else %}task-badge-default{% endif %}" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 600;">
-                                        {{ task.status_display }}
-                                    </span>
-                                </td>
-                                <td style="padding: 1.2rem; border-bottom: 1px solid rgba(13, 27, 42, 0.05); text-align: right;">
-                                    <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                                        <a href="{{ url_for('tasks.view_task', task_id=task.id) }}" style="padding: 5px; color: var(--text-muted); transition: color 0.2s;" onmouseover="this.style.color='var(--accent-gold)'" onmouseout="this.style.color='var(--text-muted)'">👁</a>
-                                        <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" style="padding: 5px; color: var(--text-muted); transition: color 0.2s;" onmouseover="this.style.color='var(--primary-color)'" onmouseout="this.style.color='var(--text-muted)'">✏️</a>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" style="padding: 3rem; text-align: center; color: var(--text-muted); border-bottom: 1px solid rgba(13, 27, 42, 0.05);">
-                                    <div style="font-size: 2.5rem; opacity: 0.2; margin-bottom: 1rem;">📋</div>
-                                    <div style="font-weight: 500;">No tasks found for this project yet.</div>
-                                    <div style="font-size: 0.9rem; margin-top: 0.5rem;">Click 'New Task' to get started.</div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <!-- Responsibility Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(212,175,55,0.1);">👥</div>
+                            Responsibility
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding: 1.25rem 1.5rem;">
+                        <div class="info-row">
+                            <span class="info-label">Assigned To</span>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                                <div class="avatar">{{ project.assignee.name[:1] if project.assignee else '?' }}</div>
+                                <span class="info-value">{{ project.assignee.name if project.assignee else 'Unassigned' }}</span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Created By</span>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                                <div class="avatar" style="background: #64748b;">{{ project.creator.name[:1] if project.creator else 'S' }}</div>
+                                <span class="info-value">{{ project.creator.name if project.creator else 'System' }}</span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Last Updated</span>
+                            <span class="info-value">{{ project.updated_at.strftime('%d %b %Y, %I:%M %p') if project.updated_at else '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Created On</span>
+                            <span class="info-value">{{ project.created_at.strftime('%d %b %Y') if project.created_at else '—' }}</span>
+                        </div>
+                    </div>
                 </div>
+
             </div>
 
-            <!-- Documents Panel -->
-                <div class="panel" style="padding: 2rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(13, 27, 42, 0.1); padding-bottom: 0.8rem;">
-                        <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0;">Project Files</h3>
-                        <button class="btn-action gold" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="document.getElementById('docUploadModal').style.display='flex'">+ Upload</button>
+            <!-- RIGHT COLUMN -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem; min-width: 0;">
+
+                <!-- Tasks Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(59,130,246,0.1);">✅</div>
+                            Project Tasks
+                        </div>
+                        <a href="{{ url_for('tasks.add_task', project_id=project.id) }}" class="add-task-btn">+ New Task</a>
+                    </div>
+
+                    {% set tasks = project.tasks_related.all() %}
+                    {% if tasks %}
+                    <div style="overflow-x: auto;">
+                        <table class="task-table">
+                            <thead>
+                                <tr>
+                                    <th>Task</th>
+                                    <th>Due Date</th>
+                                    <th>Assigned To</th>
+                                    <th>Status</th>
+                                    <th style="text-align:right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in tasks %}
+                                <tr>
+                                    <td>
+                                        <div class="task-name">{{ task.title }}</div>
+                                        <div class="task-desc">{{ task.description or 'No description' }}</div>
+                                    </td>
+                                    <td style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">
+                                        {{ task.due_date.strftime('%d %b, %Y') if task.due_date else '—' }}
+                                    </td>
+                                    <td>
+                                        {% if task.assignee %}
+                                        <div style="display: flex; align-items: center; gap: 7px;">
+                                            <div class="avatar" style="width: 26px; height: 26px; font-size: 0.72rem;">{{ task.assignee.name[:1] }}</div>
+                                            <span style="font-size: 0.85rem; font-weight: 500;">{{ task.assignee.name }}</span>
+                                        </div>
+                                        {% else %}
+                                        <span style="color: var(--text-muted); font-size: 0.82rem; font-style: italic;">Unassigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if task.status_display == 'Completed' %}badge-task-done{% elif task.status_display == 'In Progress' %}badge-task-ip{% elif task.status_display == 'Cancelled' %}badge-task-cancel{% else %}badge-task-default{% endif %}">
+                                            {{ task.status_display }}
+                                        </span>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <div style="display: flex; gap: 4px; justify-content: flex-end;">
+                                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}" class="icon-btn" title="View">👁</a>
+                                            <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" class="icon-btn" title="Edit">✏️</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">📋</div>
+                        <div class="empty-text">No tasks yet</div>
+                        <div class="empty-sub">Click "New Task" to get started</div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Files Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(16,185,129,0.1);">📁</div>
+                            Project Files
+                        </div>
+                        <button class="upload-btn" onclick="document.getElementById('docUploadModal').style.display='flex'">
+                            ↑ Upload
+                        </button>
                     </div>
 
                     {% set docs = project.documents.all() %}
                     {% if docs %}
-                    <div class="doc-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                    <div class="card-body" style="padding: 0.75rem 1rem;">
                         {% for doc in docs %}
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.8rem; background: rgba(13, 27, 42, 0.02); border-radius: 6px; border: 1px solid rgba(13, 27, 42, 0.05);">
-                            <div style="flex: 1; overflow: hidden;">
-                                <div style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ doc.original_name }}">{{ doc.original_name }}</div>
-                                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ doc.uploaded_at.strftime('%d %b') }} • {{ doc.file_type | upper }}</div>
+                        <div class="file-row">
+                            <div class="file-icon">
+                                {% if doc.file_type in ['pdf'] %}📄
+                                {% elif doc.file_type in ['jpg','jpeg','png','webp'] %}🖼️
+                                {% elif doc.file_type in ['xls','xlsx'] %}📊
+                                {% elif doc.file_type in ['doc','docx'] %}📝
+                                {% else %}📎{% endif %}
                             </div>
-                            <div style="display: flex; gap: 8px; margin-left: 10px;">
-                                <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="text-decoration: none; font-size: 1rem;">📥</a>
-                                <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="openConfirmModal(event, this, \'Delete this document?\')">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                    <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 1rem;">🗑️</button>
+                            <div style="flex: 1; overflow: hidden;">
+                                <div class="file-name" title="{{ doc.original_name }}">{{ doc.original_name }}</div>
+                                <div class="file-meta">{{ doc.uploaded_at.strftime('%d %b %Y') }} · {{ doc.file_type | upper }}</div>
+                            </div>
+                            <div style="display: flex; gap: 4px; flex-shrink: 0;">
+                                <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" class="icon-btn" title="Download">⬇️</a>
+                                <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="openConfirmModal(event, this, 'Delete this file?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="icon-btn danger" title="Delete">🗑</button>
                                 </form>
                             </div>
                         </div>
                         {% endfor %}
                     </div>
                     {% else %}
-                    <div style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.9rem; border: 1px dashed #ddd; border-radius: 8px;">
-                        No project documents yet.
+                    <div class="empty-state">
+                        <div class="empty-icon">📂</div>
+                        <div class="empty-text">No files uploaded</div>
+                        <div class="empty-sub">Upload documents, images, or plans</div>
                     </div>
                     {% endif %}
                 </div>
 
-                            </div>
+            </div>
         </div>
-
-        <!-- Project Document Upload Modal -->
-                <div id="docUploadModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
-                    <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-                        <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Upload Project Document</h3>
-                        <form action="{{ url_for('documents.upload_document') }}" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            <input type="hidden" name="entity_type" value="project">
-                            <input type="hidden" name="entity_id" value="{{ project.id }}">
-                            <div style="margin-bottom: 1.2rem;">
-                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Select File</label>
-                                <input type="file" name="file" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
-                            </div>
-                            <div style="margin-bottom: 1.5rem;">
-                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Description (Optional)</label>
-                                <input type="text" name="description" placeholder="e.g. Site Plan" style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;">
-                            </div>
-                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                                <button type="button" class="btn-action outline" onclick="document.getElementById('docUploadModal').style.display='none'">Cancel</button>
-                                <button type="submit" class="btn-action gold">Upload File</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-            
     </main>
 
-    <script>
-        // Auto-open upload modal if specified in URL
-        window.onload = function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('upload') === 'true') {
-                const modal = document.getElementById('docUploadModal');
-                if (modal) modal.style.display = 'flex';
-            }
-        }
-    </script>
-
-<!-- Shared Confirm Modal -->
-<div id="confirmModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:20000;justify-content:center;align-items:center;">
-    <div style="background:white;padding:2rem;border-radius:12px;width:400px;max-width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.2);text-align:center;">
-        <div style="font-size:3rem;color:#ef4444;margin-bottom:1rem;">⚠️</div>
-        <h3 id="confirmModalTitle" style="margin-bottom:1rem;color:var(--primary-color);font-size:1.3rem;"></h3>
-        <p style="color:var(--text-muted);margin-bottom:1.5rem;font-size:0.95rem;line-height:1.5;">This action cannot be undone.</p>
-        <div style="display:flex;gap:1rem;justify-content:center;">
-            <button type="button" class="btn-action outline" onclick="closeConfirmModal()">Cancel</button>
-            <button type="button" class="btn-action" style="background:#ef4444;color:white;" onclick="executeConfirm()">Confirm</button>
+    <!-- ══ Upload Modal ══ -->
+    <div id="docUploadModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3>📤 Upload Document</h3>
+                <button class="modal-close" onclick="document.getElementById('docUploadModal').style.display='none'">✕</button>
+            </div>
+            <form action="{{ url_for('documents.upload_document') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="entity_type" value="project">
+                <input type="hidden" name="entity_id" value="{{ project.id }}">
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <label class="form-label">Select File(s)</label>
+                        <input type="file" name="file" required multiple class="form-input" style="padding: 0.5rem 0.9rem; cursor: pointer;">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Description <span style="font-weight: 400; text-transform: none; letter-spacing: 0;">(optional)</span></label>
+                        <input type="text" name="description" placeholder="e.g. Site Plan, BOQ…" class="form-input">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-sm-outline" onclick="document.getElementById('docUploadModal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn-sm-gold">Upload File</button>
+                </div>
+            </form>
         </div>
     </div>
-</div>
-<script>
-    let _pendingForm = null;
-    let _pendingUrl = null;
-    let _pendingCallback = null;
-    function openConfirmModal(e, form, msg, url=null, callback=null) {
-        if(e) e.preventDefault();
-        _pendingForm = form;
-        _pendingUrl = url;
-        _pendingCallback = callback;
-        document.getElementById('confirmModalTitle').textContent = msg;
-        document.getElementById('confirmModal').style.display = 'flex';
-    }
-    function closeConfirmModal() {
-        document.getElementById('confirmModal').style.display = 'none';
-        _pendingForm = null;
-        _pendingUrl = null;
-        _pendingCallback = null;
-    }
-    function executeConfirm() {
-        if (_pendingCallback) {
-            closeConfirmModal();
-            _pendingCallback();
-        } else if (_pendingUrl) {
-            window.location.href = _pendingUrl;
-        } else if (_pendingForm) {
-            _pendingForm.submit();
-        }
-    }
-</script>
 
+    <!-- ══ Confirm Delete Modal ══ -->
+    <div id="confirmModal">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3 style="color: #ef4444;">⚠️ Confirm Delete</h3>
+            </div>
+            <div class="modal-body">
+                <p id="confirmModalTitle" style="font-size: 0.95rem; color: var(--primary-color); font-weight: 500; margin-bottom: 0.5rem;"></p>
+                <p style="font-size: 0.83rem; color: var(--text-muted);">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-sm-outline" onclick="closeConfirmModal()">Cancel</button>
+                <button class="btn-sm-danger" onclick="executeConfirm()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-open upload modal
+        window.onload = function() {
+            if (new URLSearchParams(window.location.search).get('upload') === 'true') {
+                document.getElementById('docUploadModal').style.display = 'flex';
+            }
+            setTimeout(() => {
+                document.querySelectorAll('.flash-message').forEach(el => {
+                    el.style.transition = 'opacity 0.5s'; el.style.opacity = '0';
+                    setTimeout(() => el.remove(), 500);
+                });
+            }, 3500);
+        }
+
+        let _pendingForm = null, _pendingUrl = null, _pendingCallback = null;
+        function openConfirmModal(e, form, msg, url=null, callback=null) {
+            if (e) e.preventDefault();
+            _pendingForm = form; _pendingUrl = url; _pendingCallback = callback;
+            document.getElementById('confirmModalTitle').textContent = msg;
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            _pendingForm = null; _pendingUrl = null; _pendingCallback = null;
+        }
+        function executeConfirm() {
+            if (_pendingCallback) { closeConfirmModal(); _pendingCallback(); }
+            else if (_pendingUrl) { window.location.href = _pendingUrl; }
+            else if (_pendingForm) { _pendingForm.submit(); }
+        }
+    </script>
 </body>
 </html>
-
-
-
