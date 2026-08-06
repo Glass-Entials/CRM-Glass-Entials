@@ -296,3 +296,38 @@ def view_project(project_id):
         id=project_id, organization_id=org_id, is_deleted=False
     ).first_or_404()
     return render_template("projects/project_profile.html", project=project)
+
+
+@projects_bp.route("/project/<int:project_id>/update-description", methods=["POST"])
+@login_required
+def update_project_description(project_id):
+    org_id = current_user.organization_id
+    project = Project.query.filter_by(
+        id=project_id, organization_id=org_id, is_deleted=False
+    ).first_or_404()
+    project.description = request.form.get("description", "").strip()
+    try:
+        db.session.commit()
+        flash("Description updated.", "projectsuccess")
+    except Exception:
+        db.session.rollback()
+        flash("Failed to update description.", "projecterror")
+    return redirect(url_for("projects.view_project", project_id=project_id))
+
+
+@projects_bp.route("/project/<int:project_id>/clear-description", methods=["POST"])
+@login_required
+def clear_project_description(project_id):
+    org_id = current_user.organization_id
+    project = Project.query.filter_by(
+        id=project_id, organization_id=org_id, is_deleted=False
+    ).first_or_404()
+    project.description = ""
+    try:
+        db.session.commit()
+        flash("Description cleared.", "projectsuccess")
+    except Exception:
+        db.session.rollback()
+        flash("Failed to clear description.", "projecterror")
+    return redirect(url_for("projects.view_project", project_id=project_id))
+

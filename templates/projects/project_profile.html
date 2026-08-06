@@ -257,11 +257,7 @@
                         </div>
                     </div>
                     <div class="card-body" style="padding: 1.25rem 1.5rem;">
-                        <!-- Description -->
-                        <div class="mb-4">
-                            <div class="info-label" style="margin-bottom: 0.5rem;">Description</div>
-                            <div class="desc-block">{{ project.description or 'No description provided.' }}</div>
-                        </div>
+
 
                         <div class="info-row">
                             <span class="info-label">Status</span>
@@ -342,6 +338,42 @@
 
             <!-- RIGHT COLUMN -->
             <div style="display: flex; flex-direction: column; gap: 1.5rem; min-width: 0;">
+
+                <!-- Description Card -->
+                <div class="card" id="desc-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(139,92,246,0.1);">📝</div>
+                            Description
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="icon-btn" onclick="toggleDescEdit()" title="Edit Description" id="desc-edit-btn">✏️</button>
+                            <form action="{{ url_for('projects.clear_project_description', project_id=project.id) }}" method="POST" onsubmit="openConfirmModal(event, this, 'Clear the project description?')" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="icon-btn danger" title="Clear Description">🗑</button>
+                            </form>
+                        </div>
+                    </div>
+                    <!-- View mode -->
+                    <div id="desc-view" class="card-body" style="padding: 1.25rem 1.5rem;">
+                        {% if project.description %}
+                        <p style="font-size: 0.9rem; line-height: 1.7; color: #374151; margin: 0;">{{ project.description }}</p>
+                        {% else %}
+                        <p style="font-size: 0.88rem; color: var(--text-muted); font-style: italic; margin: 0;">No description provided. Click ✏️ to add one.</p>
+                        {% endif %}
+                    </div>
+                    <!-- Edit mode (hidden by default) -->
+                    <div id="desc-edit" style="display: none; padding: 0 1.5rem 1.5rem;">
+                        <form action="{{ url_for('projects.update_project_description', project_id=project.id) }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <textarea name="description" rows="4" style="width: 100%; padding: 0.75rem 0.9rem; border: 1.5px solid rgba(13,27,42,0.15); border-radius: 10px; font-size: 0.88rem; font-family: 'Inter', sans-serif; resize: vertical; outline: none; transition: border-color 0.2s; line-height: 1.6; box-sizing: border-box;" onfocus="this.style.borderColor='var(--accent-gold)'" onblur="this.style.borderColor='rgba(13,27,42,0.15)'">{{ project.description or '' }}</textarea>
+                            <div style="display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end;">
+                                <button type="button" class="btn-sm-outline" onclick="toggleDescEdit()">Cancel</button>
+                                <button type="submit" class="btn-sm-gold">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
 
                 <!-- Tasks Card -->
                 <div class="card">
@@ -537,6 +569,16 @@
             if (_pendingCallback) { closeConfirmModal(); _pendingCallback(); }
             else if (_pendingUrl) { window.location.href = _pendingUrl; }
             else if (_pendingForm) { _pendingForm.submit(); }
+        }
+        function toggleDescEdit() {
+            const view = document.getElementById('desc-view');
+            const edit = document.getElementById('desc-edit');
+            const btn  = document.getElementById('desc-edit-btn');
+            const editing = edit.style.display === 'none';
+            view.style.display = editing ? 'none' : 'block';
+            edit.style.display = editing ? 'block' : 'none';
+            btn.title = editing ? 'Cancel Edit' : 'Edit Description';
+            if (editing) edit.querySelector('textarea').focus();
         }
     </script>
 </body>
