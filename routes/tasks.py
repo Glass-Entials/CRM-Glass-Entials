@@ -387,6 +387,9 @@ def view_task(task_id):
 def daily_tasks_list():
     org_id = current_user.organization_id
     date_filter = request.args.get("date")
+    if not date_filter:
+        date_filter = datetime.utcnow().strftime("%Y-%m-%d")
+    
     emp_filter = request.args.get("employee_id")
 
     query = DailyTask.query.filter_by(organization_id=org_id)
