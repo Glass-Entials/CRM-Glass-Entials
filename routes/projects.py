@@ -108,20 +108,21 @@ def add_project():
 
             # Handle file upload if present
             if "file" in request.files:
-                file = request.files["file"]
-                if file and file.filename != "":
-                    from utils.documents import handle_file_upload
+                files = request.files.getlist("file")
+                for file in files:
+                    if file and file.filename != "":
+                        from utils.documents import handle_file_upload
 
-                    handle_file_upload(
-                        file=file,
-                        entity_type="project",
-                        entity_id=new_project.id,
-                        organization_id=org_id,
-                        uploader_id=(
-                            current_user.employee.id if current_user.employee else None
-                        ),
-                        description=f"Initial project document: {new_project.name}",
-                    )
+                        handle_file_upload(
+                            file=file,
+                            entity_type="project",
+                            entity_id=new_project.id,
+                            organization_id=org_id,
+                            uploader_id=(
+                                current_user.employee.id if current_user.employee else None
+                            ),
+                            description=f"Initial project document: {new_project.name}",
+                        )
 
             db.session.commit()
             flash("Project created successfully!", "projectsuccess")
@@ -225,20 +226,21 @@ def edit_project(project_id):
 
             # Handle file upload if present
             if "file" in request.files:
-                file = request.files["file"]
-                if file and file.filename != "":
-                    from utils.documents import handle_file_upload
+                files = request.files.getlist("file")
+                for file in files:
+                    if file and file.filename != "":
+                        from utils.documents import handle_file_upload
 
-                    handle_file_upload(
-                        file=file,
-                        entity_type="project",
-                        entity_id=project.id,
-                        organization_id=org_id,
-                        uploader_id=(
-                            current_user.employee.id if current_user.employee else None
-                        ),
-                        description=f"Updated project document: {project.name}",
-                    )
+                        handle_file_upload(
+                            file=file,
+                            entity_type="project",
+                            entity_id=project.id,
+                            organization_id=org_id,
+                            uploader_id=(
+                                current_user.employee.id if current_user.employee else None
+                            ),
+                            description=f"Updated project document: {project.name}",
+                        )
 
             db.session.commit()
             flash("Project updated successfully!", "projectsuccess")
