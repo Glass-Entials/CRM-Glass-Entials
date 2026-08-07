@@ -37,6 +37,7 @@ from routes.google_auth import google_auth_bp
 from routes.microsoft_auth import microsoft_auth_bp
 from routes.payments import payments_bp
 from routes.trash import trash_bp
+from super_admin.routes import super_admin_bp
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -260,6 +261,7 @@ app.register_blueprint(google_auth_bp)
 app.register_blueprint(microsoft_auth_bp)
 app.register_blueprint(payments_bp)
 app.register_blueprint(trash_bp)
+app.register_blueprint(super_admin_bp)
 
 
 @login_manager.user_loader
