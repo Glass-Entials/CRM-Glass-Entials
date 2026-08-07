@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GlassEntials Staff Portal{% endblock %}</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=4">
+
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+
+    {% block extra_css %}{% endblock %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile_responsive.css') }}?v=6">
+</head>
+
+<body class="dashboard-page">
+
+    <!-- Top Navbar -->
+    {% include 'super_admin/includes/navbar.html' %}
+
+    <!-- Flash Messages: generic categories only (success, error, info) -->
+    <!-- Module-specific categories (tasksuccess, customererror, etc.) are handled by their own templates -->
+    <div class="flash-messages-container"
+        style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
+        {% with messages = get_flashed_messages(with_categories=true, category_filter=["success", "error", "info"]) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash-message {{ category }} {% if category == 'success' %}bg-success{% elif category == 'error' %}bg-error{% else %}bg-info{% endif %}"
+            style="padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; font-size: 14px; animation: slideIn 0.3s ease-out; color: white;">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+    </div>
+
+
+    <style>
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .bg-success {
+            background: #10b981;
+        }
+
+        .bg-error {
+            background: #ef4444;
+        }
+
+        .bg-info {
+            background: #3b82f6;
+        }
+
+        /* SaaS Task List Styles */
+        .saas-task-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .saas-task-list {
+            margin: 0;
+            padding: 0 0 0 16px;
+            list-style-type: disc;
+            color: var(--primary-color);
+            line-height: 1.5;
+            text-align: left;
+        }
+        .saas-task-list li {
+            margin-bottom: 4px;
+        }
+        .saas-task-list li:last-child {
+            margin-bottom: 0;
+        }
+        .saas-task-hidden-wrapper {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.3s ease-out;
+        }
+        .saas-task-hidden-wrapper.expanded {
+            grid-template-rows: 1fr;
+        }
+        .saas-task-hidden-wrapper > ul {
+            overflow: hidden;
+        }
+        .saas-show-more {
+            display: inline-block;
+            margin-top: 5px;
+            color: #b5952f;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            letter-spacing: 0.02em;
+        }
+        .saas-show-more:hover {
+            text-decoration: underline;
+            color: #d4af37;
+        }
+    </style>
+
+    {% block content %}{% endblock %}
+
+    {% block extra_js %}{% endblock %}
+
+    <script>
+        // Dismiss flash messages
+        setTimeout(() => {
+            document.querySelectorAll('.flash-message').forEach(el => {
+                el.style.transition = 'opacity 0.5s ease';
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 500);
+            });
+        }, 3000);
+
+        // SaaS Task Show More / Show Less
+        function saasTasks(link) {
+            var container = link.closest('.saas-task-container');
+            var extras = container.querySelectorAll('.saas-extra');
+            var hidden = extras.length > 0 && extras[0].style.display === 'none';
+            for (var i = 0; i < extras.length; i++) {
+                extras[i].style.display = hidden ? 'list-item' : 'none';
+            }
+            link.textContent = hidden ? 'Show less' : 'Show more';
+        }
+    </script>
+</body>
+</html>

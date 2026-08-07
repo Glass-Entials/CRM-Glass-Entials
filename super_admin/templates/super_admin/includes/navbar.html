@@ -1,0 +1,78 @@
+<!-- Top Navbar (Super Admin) -->
+<header class="dash-nav">
+    <!-- Column 1: Logo (left-aligned, flex: 1) -->
+    <div style="flex: 1; display: flex; align-items: center;">
+        <a href="{{ url_for('super_admin.dashboard') }}" class="logo-link">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="GlassEntials Logo" class="site-logo">
+        </a>
+    </div>
+
+    <!-- ☰ Mobile Hamburger Button -->
+    <button id="mobile-ham-btn" aria-label="Toggle navigation">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Column 2: Nav menu -->
+    <nav class="dash-menu">
+        <a href="{{ url_for('super_admin.dashboard') }}" {% if request.endpoint == 'super_admin.dashboard' %}class="active"{% endif %}>Dashboard</a>
+        <a href="{{ url_for('super_admin.organizations') }}" {% if request.endpoint == 'super_admin.organizations' %}class="active"{% endif %}>Organizations</a>
+        <a href="{{ url_for('super_admin.users') }}" {% if request.endpoint == 'super_admin.users' %}class="active"{% endif %}>Users</a>
+        <a href="{{ url_for('super_admin.plans') }}" {% if request.endpoint == 'super_admin.plans' %}class="active"{% endif %}>Plans</a>
+        <a href="{{ url_for('super_admin.modules') }}" {% if request.endpoint == 'super_admin.modules' %}class="active"{% endif %}>Modules</a>
+        <a href="{{ url_for('super_admin.analytics') }}" {% if request.endpoint == 'super_admin.analytics' %}class="active"{% endif %}>Analytics</a>
+        <a href="{{ url_for('super_admin.settings') }}" {% if request.endpoint == 'super_admin.settings' %}class="active"{% endif %}>Settings</a>
+    </nav>
+
+    <!-- Column 3: Profile (right-aligned, flex: 1) -->
+    <div class="user-profile" style="flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+        <span class="welcome-text">Welcome, Super Admin</span>
+
+        <div class="profile-dropdown">
+            <div class="profile-trigger" style="background: var(--accent-gold); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; border:none;">
+                SA
+            </div>
+
+            <div class="profile-dropdown-content">
+                <a href="{{ url_for('super_admin.logout') }}" class="logout-link" style="color: #dc2626 !important; border-bottom: none;">
+                    <span class="icon">🚪</span> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<script>
+    // ── Mobile Hamburger & Accordion ────────────────────────────
+    (function () {
+        var btn = document.getElementById('mobile-ham-btn');
+        var menu = document.querySelector('.dash-menu');
+        if (!btn || !menu) return;
+
+        // Toggle full menu
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            btn.classList.toggle('open');
+            menu.classList.toggle('active');
+        });
+
+        // Close menu when a real link is clicked
+        menu.querySelectorAll('a').forEach(function (link) {
+            link.addEventListener('click', function () {
+                if (window.innerWidth <= 1024) {
+                    menu.classList.remove('active');
+                    btn.classList.remove('open');
+                }
+            });
+        });
+
+        // Close menu on outside click
+        document.addEventListener('click', function (e) {
+            if (window.innerWidth <= 1024 && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+                menu.classList.remove('active');
+                btn.classList.remove('open');
+            }
+        });
+    })();
+</script>
