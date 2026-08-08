@@ -217,6 +217,12 @@ def register():
             org = Organization(name=org_name, unique_code=generate_org_code())
             db.session.add(org)
             db.session.flush()
+            
+            # Generate slug
+            import re
+            base_slug = re.sub(r'[^a-zA-Z0-9]+', '-', org.name.lower()).strip('-')
+            org.slug = f"{base_slug}-{org.id}"
+            db.session.flush()
         else:
             org = Organization.query.filter_by(unique_code=org_code).first()
             if not org:
@@ -265,6 +271,16 @@ def register():
                 organization_id=org.id,
             )
             db.session.add(employee)
+            
+            from model import OrganizationMember, OrgMemberRole
+            member = OrganizationMember(
+                organization_id=org.id,
+                user_id=new_user.id,
+                role=OrgMemberRole.OWNER if org_option == "create" else OrgMemberRole.MEMBER,
+                status="active"
+            )
+            db.session.add(member)
+            
             db.session.commit()
 
             flash("Registration successful!", "registersuccess")

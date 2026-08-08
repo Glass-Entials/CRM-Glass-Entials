@@ -198,19 +198,47 @@ class PaymentMode(Enum):
     CARD         = "Card"
 
 
+class OrganizationStatus(Enum):
+    ACTIVE    = "active"
+    SUSPENDED = "suspended"
+
+
+class OrgMemberRole(Enum):
+    OWNER  = "owner"
+    ADMIN  = "admin"
+    MEMBER = "member"
+
+
 class Organization(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
+    slug = db.Column(db.String(120), unique=True, nullable=True, index=True)
     unique_code = db.Column(db.String(10), unique=True, nullable=False, index=True)
+    status = db.Column(
+        db.Enum(OrganizationStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=OrganizationStatus.ACTIVE,
+        server_default=db.text("'active'"),
+        index=True,
+    )
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+    )
     created_by = db.Column(
         db.Integer, db.ForeignKey("user.id"), nullable=True
     )  # User ID who created it
+    # Legacy field — kept for backwards compat; use status instead for suspend checks
     is_active = db.Column(db.Boolean, default=True)
 
     # Relationships
     users = db.relationship(
         "User", back_populates="organization", foreign_keys="User.organization_id"
+    )
+    members = db.relationship(
+        "OrganizationMember", back_populates="organization", cascade="all, delete-orphan"
     )
     employees = db.relationship("Employee", back_populates="organization")
     leads = db.relationship("Lead", back_populates="organization")
@@ -218,8 +246,49 @@ class Organization(db.Model):
     activities = db.relationship("LeadActivity", back_populates="organization")
     expenses = db.relationship("Expense", back_populates="organization")
 
+    @property
+    def is_suspended(self):
+        return self.status == OrganizationStatus.SUSPENDED
+
+    @property
+    def member_count(self):
+        return len([m for m in self.members if m.status == 'active'])
+
     def __repr__(self):
         return f"<Organization {self.name}>"
+
+
+class OrganizationMember(db.Model):
+    """Many-to-many membership: a user can belong to multiple organizations."""
+    __tablename__ = "organization_member"
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    role = db.Column(
+        db.Enum(OrgMemberRole, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=OrgMemberRole.MEMBER,
+    )
+    status = db.Column(db.String(20), nullable=False, default="active")  # active | removed
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    organization = db.relationship("Organization", back_populates="members")
+    user = db.relationship("User", backref=db.backref("org_memberships", lazy="dynamic"))
+
+    __table_args__ = (
+        db.UniqueConstraint("organization_id", "user_id", name="uq_org_member"),
+        db.Index("ix_org_member_org_user", "organization_id", "user_id"),
+    )
+
+    def __repr__(self):
+        return f"<OrganizationMember user={self.user_id} org={self.organization_id} role={self.role}>"
 
 
 # --- MODELS ---

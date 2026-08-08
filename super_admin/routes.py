@@ -203,7 +203,37 @@ def logout():
 @super_admin_bp.route("/organizations")
 @super_admin_required
 def organizations():
-    return render_template("super_admin/coming_soon.html", page_title="Organizations")
+    from model import Organization, OrganizationStatus, db
+    orgs = Organization.query.order_by(Organization.created_at.desc()).all()
+    return render_template("super_admin/organizations.html", orgs=orgs, OrganizationStatus=OrganizationStatus)
+
+
+@super_admin_bp.route("/organizations/<int:org_id>/suspend", methods=["POST"])
+@super_admin_required
+def suspend_organization(org_id):
+    from model import Organization, OrganizationStatus, db
+    org = db.session.get(Organization, org_id)
+    if not org:
+        flash("Organization not found", "error")
+        return redirect(url_for("super_admin.organizations"))
+    org.status = OrganizationStatus.SUSPENDED
+    db.session.commit()
+    flash(f"Organization '{org.name}' has been suspended.", "success")
+    return redirect(url_for("super_admin.organizations"))
+
+
+@super_admin_bp.route("/organizations/<int:org_id>/activate", methods=["POST"])
+@super_admin_required
+def activate_organization(org_id):
+    from model import Organization, OrganizationStatus, db
+    org = db.session.get(Organization, org_id)
+    if not org:
+        flash("Organization not found", "error")
+        return redirect(url_for("super_admin.organizations"))
+    org.status = OrganizationStatus.ACTIVE
+    db.session.commit()
+    flash(f"Organization '{org.name}' has been activated.", "success")
+    return redirect(url_for("super_admin.organizations"))
 
 
 @super_admin_bp.route("/users")

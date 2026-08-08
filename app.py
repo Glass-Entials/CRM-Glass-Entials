@@ -38,6 +38,7 @@ from routes.microsoft_auth import microsoft_auth_bp
 from routes.payments import payments_bp
 from routes.trash import trash_bp
 from super_admin.routes import super_admin_bp
+from routes.org import org_bp
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -162,10 +163,16 @@ def utility_processor():
             ).count()
         return 0
 
+    from utils.tenant import get_user_orgs, get_active_org
+    user_orgs = get_user_orgs()
+    active_org = get_active_org()
+
     return dict(
         get_profile_pic=get_profile_pic,
         time_ago=time_ago,
         unread_notifications_count=unread_notifications_count,
+        user_orgs=user_orgs,
+        active_org=active_org,
     )
 
 
@@ -262,6 +269,7 @@ app.register_blueprint(microsoft_auth_bp)
 app.register_blueprint(payments_bp)
 app.register_blueprint(trash_bp)
 app.register_blueprint(super_admin_bp)
+app.register_blueprint(org_bp)
 
 
 @login_manager.user_loader
@@ -274,6 +282,48 @@ def enforce_password_change():
         if getattr(current_user, 'must_change_password', False):
             if request.endpoint not in ('auth.change_password', 'auth.logout', 'static'):
                 return redirect(url_for('auth.change_password'))
+
+
+@app.before_request
+def enforce_org_active():
+    """Block access to CRM for users whose organization is suspended."""
+    exempt_endpoints = {
+        'static', 'health_check', 'home', 'about', 'pricing_page',
+        'auth.login', 'auth.register', 'auth.logout', 'auth.verify_otp',
+        'auth.resend_otp', 'auth.forgot_password', 'auth.reset_password',
+        'password_reset.forgot_password', 'password_reset.reset_password',
+        'google_auth.google_login', 'google_auth.google_callback',
+        'microsoft_auth.microsoft_login', 'microsoft_auth.microsoft_callback',
+        'org.switch_organization', 'org.join_organization', 'org.create_organization',
+        'org.organization_settings',
+    }
+    if request.endpoint in exempt_endpoints:
+        return None
+    if request.endpoint and request.endpoint.startswith('super_admin.'):
+        return None
+    from utils.tenant import suspended_org_guard
+    result = suspended_org_guard()
+    if result:
+        return result
+
+
+@app.route('/switch-org', methods=['POST'])
+@login_required
+def switch_organization():
+    """Securely switch the user's active organization."""
+    from utils.tenant import switch_org
+    from flask_wtf.csrf import validate_csrf
+    try:
+        validate_csrf(request.form.get('csrf_token'))
+    except Exception:
+        return redirect(url_for('home_page'))
+    org_id = request.form.get('org_id', type=int)
+    if org_id and switch_org(org_id):
+        flash('Switched organization successfully.', 'success')
+    else:
+        flash('Unable to switch organization.', 'error')
+    next_url = request.form.get('next') or url_for('home_page')
+    return redirect(next_url)
 
 # --- Error Handling ---
 @app.errorhandler(404)

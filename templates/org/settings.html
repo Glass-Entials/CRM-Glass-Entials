@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Organization Settings | GlassEntials{% endblock %}
+
+{% block content %}
+<div class="dash-container">
+    <div class="dash-header">
+        <div>
+            <h1>Organization Settings</h1>
+            <p>Manage your workspaces, create a new organization, or join an existing one.</p>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+        <!-- Left Column -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <!-- Active Org Box -->
+            <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid rgba(13,27,42,0.05); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+                <h3 style="color: var(--primary-color); margin-bottom: 15px;">Active Organization</h3>
+                {% if active_org %}
+                <div style="padding: 15px; background: #fdfcf9; border-radius: 8px; border: 1px solid rgba(212,175,55,0.2);">
+                    <div style="font-size: 1.2rem; font-weight: 600; color: var(--primary-color); margin-bottom: 5px;">{{ active_org.name }}</div>
+                    <div style="color: var(--text-muted); font-size: 0.9rem;">Join Code: <strong style="color: var(--text-color); font-family: monospace; font-size: 1.1rem; background: #eee; padding: 2px 6px; border-radius: 4px;">{{ active_org.unique_code }}</strong></div>
+                    <div style="color: var(--text-muted); font-size: 0.85rem; margin-top: 10px;">Share this code with your team so they can join.</div>
+                </div>
+                {% else %}
+                <div style="color: #ef4444; font-weight: 500;">You do not belong to any active organization.</div>
+                {% endif %}
+            </div>
+
+            <!-- Join Org Box -->
+            <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid rgba(13,27,42,0.05); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+                <h3 style="color: var(--primary-color); margin-bottom: 15px;">Join an Organization</h3>
+                <form action="{{ url_for('org.join_organization') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-group">
+                        <label>Unique Code</label>
+                        <input type="text" name="code" class="form-control" placeholder="e.g. A1B2C3" required style="text-transform: uppercase;">
+                    </div>
+                    <button type="submit" class="btn-primary" style="margin-top: 10px; width: 100%;">Join</button>
+                </form>
+            </div>
+
+            <!-- Create Org Box -->
+            <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid rgba(13,27,42,0.05); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+                <h3 style="color: var(--primary-color); margin-bottom: 15px;">Create New Organization</h3>
+                <form action="{{ url_for('org.create_organization') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-group">
+                        <label>Organization Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="Acme Corp" required>
+                    </div>
+                    <button type="submit" class="btn-primary" style="margin-top: 10px; width: 100%; background: var(--primary-color);">Create</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Right Column (Members) -->
+        <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid rgba(13,27,42,0.05); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+            <h3 style="color: var(--primary-color); margin-bottom: 15px;">Organization Members</h3>
+            {% if active_org and members %}
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                {% for m in members %}
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border: 1px solid #eee; border-radius: 8px;">
+                    <div>
+                        <div style="font-weight: 500; color: var(--primary-color);">{{ m.user.username }}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">{{ m.user.email }}</div>
+                    </div>
+                    <div>
+                        <span style="background: #e6f4ea; color: #1e8e3e; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize;">{{ m.role.value }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color: var(--text-muted);">No members to display.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

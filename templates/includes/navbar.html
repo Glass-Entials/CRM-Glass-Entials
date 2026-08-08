@@ -113,6 +113,31 @@
     <!-- Column 3: Profile + Bell (right-aligned, flex: 1) -->
     <div class="user-profile"
         style="flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+        
+        {% if user_orgs and user_orgs|length > 1 %}
+        <div class="org-switcher dropdown" style="margin-right: 10px;">
+            <a href="#" style="font-weight: 500; text-decoration: none; color: var(--primary-color);">
+                🏢 {{ active_org.name if active_org else 'Select Org' }} ▾
+            </a>
+            <div class="dropdown-content" style="min-width: 200px; z-index: 1001;">
+                {% for org, role in user_orgs %}
+                <form action="{{ url_for('switch_organization') }}" method="POST" style="margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="org_id" value="{{ org.id }}">
+                    <input type="hidden" name="next" value="{{ request.url }}">
+                    <button type="submit" style="width: 100%; text-align: left; padding: 10px 15px; border: none; background: {{ 'var(--bg-light)' if org.id == active_org.id else 'transparent' }}; cursor: pointer; color: var(--text-color); font-family: inherit; font-size: 0.9rem;">
+                        {{ org.name }} {% if org.id == active_org.id %}✓{% endif %}
+                    </button>
+                </form>
+                {% endfor %}
+            </div>
+        </div>
+        {% elif active_org %}
+        <span class="welcome-text" style="margin-right: 10px; font-weight: 500; color: var(--text-muted);">
+            🏢 {{ active_org.name }}
+        </span>
+        {% endif %}
+
         <span class="welcome-text">Welcome, {{ current_user.username }}</span>
 
         <div class="profile-dropdown">
@@ -121,6 +146,9 @@
             </div>
 
             <div class="profile-dropdown-content">
+                <a href="{{ url_for('org.organization_settings') }}">
+                    <span class="icon">🏢</span> Organization Settings
+                </a>
                 <a href="{{ url_for('auth.user_profile') }}">
                     <span class="icon">👤</span> Manage Profile
                 </a>
