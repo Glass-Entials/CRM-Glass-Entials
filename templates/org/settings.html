@@ -27,30 +27,40 @@
                 {% endif %}
             </div>
 
-            <!-- Join Org Box -->
-            <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid rgba(13,27,42,0.05); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
-                <h3 style="color: var(--primary-color); margin-bottom: 15px;">Join an Organization</h3>
-                <form action="{{ url_for('org.join_organization') }}" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="form-group">
-                        <label>Unique Code</label>
-                        <input type="text" name="code" class="form-control" placeholder="e.g. A1B2C3" required style="text-transform: uppercase;">
-                    </div>
-                    <button type="submit" class="btn-primary" style="margin-top: 10px; width: 100%;">Join</button>
-                </form>
+            {% if active_org %}
+            <div style="margin-top: 10px;">
+                <button type="button" class="btn-action outline" onclick="document.getElementById('other-org-actions').style.display = 'flex'; this.style.display='none';" style="width: 100%; border: 1px dashed var(--primary-color); color: var(--primary-color); background: transparent;">
+                    + Join or Create Another Organization
+                </button>
             </div>
+            {% endif %}
 
-            <!-- Create Org Box -->
-            <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid rgba(13,27,42,0.05); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
-                <h3 style="color: var(--primary-color); margin-bottom: 15px;">Create New Organization</h3>
-                <form action="{{ url_for('org.create_organization') }}" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="form-group">
-                        <label>Organization Name</label>
-                        <input type="text" name="name" class="form-control" placeholder="Acme Corp" required>
-                    </div>
-                    <button type="submit" class="btn-primary" style="margin-top: 10px; width: 100%; background: var(--primary-color);">Create</button>
-                </form>
+            <div id="other-org-actions" style="display: {% if active_org %}none{% else %}flex{% endif %}; flex-direction: column; gap: 20px;">
+                <!-- Join Org Box -->
+                <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid rgba(13,27,42,0.05); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+                    <h3 style="color: var(--primary-color); margin-bottom: 15px;">Join an Organization</h3>
+                    <form action="{{ url_for('org.join_organization') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="form-group">
+                            <label>Unique Code</label>
+                            <input type="text" name="code" class="form-control" placeholder="e.g. A1B2C3" required style="text-transform: uppercase;">
+                        </div>
+                        <button type="submit" class="btn-primary" style="margin-top: 10px; width: 100%;">Join</button>
+                    </form>
+                </div>
+
+                <!-- Create Org Box -->
+                <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid rgba(13,27,42,0.05); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+                    <h3 style="color: var(--primary-color); margin-bottom: 15px;">Create New Organization</h3>
+                    <form action="{{ url_for('org.create_organization') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="form-group">
+                            <label>Organization Name</label>
+                            <input type="text" name="name" class="form-control" placeholder="Acme Corp" required>
+                        </div>
+                        <button type="submit" class="btn-primary" style="margin-top: 10px; width: 100%; background: var(--primary-color);">Create</button>
+                    </form>
+                </div>
             </div>
         </div>
 
