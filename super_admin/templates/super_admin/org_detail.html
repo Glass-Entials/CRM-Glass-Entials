@@ -221,9 +221,9 @@
 
                     <div class="form-group" style="margin-bottom: 20px;">
                         <label style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">Member Limit Override</label>
-                        <div style="display: flex; align-items: stretch; gap: 8px;">
-                            <input type="number" name="member_limit_override" class="form-control" style="flex: 1; margin: 0; border-radius: 6px;" placeholder="Default: {{ org.plan.default_member_limit if org.plan else 5 }}" value="{{ org.member_limit_override or '' }}">
-                            <label style="display: flex; align-items: center; justify-content: center; padding: 0 16px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: #4b5563; font-weight: 600; margin: 0; user-select: none; transition: all 0.2s;" onchange="this.style.background = this.querySelector('input').checked ? '#fee2e2' : '#f3f4f6'; this.style.borderColor = this.querySelector('input').checked ? '#fca5a5' : '#d1d5db'; this.style.color = this.querySelector('input').checked ? '#ef4444' : '#4b5563';">
+                        <div style="display: flex; align-items: stretch; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; background: white; transition: all 0.2s;" id="member_limit_group">
+                            <input type="number" name="member_limit_override" class="form-control" style="flex: 1; border: none; margin: 0; border-radius: 0; box-shadow: none;" placeholder="Default: {{ org.plan.default_member_limit if org.plan else 5 }}" value="{{ org.member_limit_override or '' }}" onfocus="document.getElementById('member_limit_group').style.borderColor = 'var(--primary-color)';" onblur="document.getElementById('member_limit_group').style.borderColor = '#d1d5db';">
+                            <label style="display: flex; align-items: center; justify-content: center; padding: 0 16px; background: #f3f4f6; border-left: 1px solid #d1d5db; cursor: pointer; font-size: 0.85rem; color: #4b5563; font-weight: 600; margin: 0; user-select: none; transition: all 0.2s;" onchange="this.style.background = this.querySelector('input').checked ? '#fee2e2' : '#f3f4f6'; this.style.color = this.querySelector('input').checked ? '#ef4444' : '#4b5563';">
                                 <input type="checkbox" name="clear_member_limit" value="1" style="display: none;">
                                 Clear Override
                             </label>
@@ -233,9 +233,9 @@
 
                     <div class="form-group" style="margin-bottom: 24px;">
                         <label style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">Storage Limit Override (GB)</label>
-                        <div style="display: flex; align-items: stretch; gap: 8px;">
-                            <input type="number" step="0.1" name="storage_limit_override_gb" class="form-control" style="flex: 1; margin: 0; border-radius: 6px;" placeholder="Default: {{ org.plan.default_storage_limit_gb if org.plan else 10.0 }}" value="{{ org.storage_limit_override_gb or '' }}">
-                            <label style="display: flex; align-items: center; justify-content: center; padding: 0 16px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: #4b5563; font-weight: 600; margin: 0; user-select: none; transition: all 0.2s;" onchange="this.style.background = this.querySelector('input').checked ? '#fee2e2' : '#f3f4f6'; this.style.borderColor = this.querySelector('input').checked ? '#fca5a5' : '#d1d5db'; this.style.color = this.querySelector('input').checked ? '#ef4444' : '#4b5563';">
+                        <div style="display: flex; align-items: stretch; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; background: white; transition: all 0.2s;" id="storage_limit_group">
+                            <input type="number" step="0.1" name="storage_limit_override_gb" class="form-control" style="flex: 1; border: none; margin: 0; border-radius: 0; box-shadow: none;" placeholder="Default: {{ org.plan.default_storage_limit_gb if org.plan else 10.0 }}" value="{{ org.storage_limit_override_gb or '' }}" onfocus="document.getElementById('storage_limit_group').style.borderColor = 'var(--primary-color)';" onblur="document.getElementById('storage_limit_group').style.borderColor = '#d1d5db';">
+                            <label style="display: flex; align-items: center; justify-content: center; padding: 0 16px; background: #f3f4f6; border-left: 1px solid #d1d5db; cursor: pointer; font-size: 0.85rem; color: #4b5563; font-weight: 600; margin: 0; user-select: none; transition: all 0.2s;" onchange="this.style.background = this.querySelector('input').checked ? '#fee2e2' : '#f3f4f6'; this.style.color = this.querySelector('input').checked ? '#ef4444' : '#4b5563';">
                                 <input type="checkbox" name="clear_storage_limit" value="1" style="display: none;">
                                 Clear Override
                             </label>
