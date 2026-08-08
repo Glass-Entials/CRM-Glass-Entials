@@ -146,7 +146,7 @@
                     <tbody>
                         {% for customer in customers %}
                         <tr>
-                            <td>#{{ loop.index }}</td>
+                            <td>#{{ (pagination.page - 1) * per_page + loop.index }}</td>
                             <td class="customer-name">
                                 <a href="{{ url_for('customers.view_customer', customer_id=customer.id) }}" style="text-decoration: none; color: inherit; font-weight: 600; border-bottom: 1px solid transparent; transition: border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent-gold)'" onmouseout="this.style.borderColor='transparent'">
                                     {{ customer.name }}
