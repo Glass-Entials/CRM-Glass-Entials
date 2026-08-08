@@ -47,6 +47,10 @@ def organization_settings():
 @org_bp.route("/create", methods=["POST"])
 @login_required
 def create_organization():
+    if get_active_org():
+        flash("You are already part of an organization. You cannot create another one.", "error")
+        return redirect(url_for("org.organization_settings"))
+
     name = request.form.get("name", "").strip()
     if not name:
         flash("Organization name is required.", "error")
@@ -85,6 +89,10 @@ def create_organization():
 @org_bp.route("/join", methods=["POST"])
 @login_required
 def join_organization():
+    if get_active_org():
+        flash("You are already part of an organization. You cannot join another one.", "error")
+        return redirect(url_for("org.organization_settings"))
+
     code = request.form.get("code", "").strip().upper()
     if not code:
         flash("Unique code is required to join.", "error")
