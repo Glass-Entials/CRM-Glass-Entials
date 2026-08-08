@@ -221,26 +221,26 @@
 
                     <div class="form-group" style="margin-bottom: 16px;">
                         <label style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">Member Limit Override</label>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="number" name="member_limit_override" class="form-control" style="flex: 1;" placeholder="Default: {{ org.plan.default_member_limit if org.plan else 5 }}" value="{{ org.member_limit_override or '' }}">
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <input type="checkbox" name="clear_member_limit" id="clear_member_limit" value="1">
-                                <label for="clear_member_limit" style="font-size: 0.8rem; color: var(--text-muted);">Clear</label>
-                            </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <input type="number" name="member_limit_override" class="form-control" style="flex: 1; margin: 0;" placeholder="Default: {{ org.plan.default_member_limit if org.plan else 5 }}" value="{{ org.member_limit_override or '' }}">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; margin: 0;">
+                                <input type="checkbox" name="clear_member_limit" value="1" style="margin: 0; cursor: pointer; width: 16px; height: 16px; accent-color: var(--primary-color);">
+                                Clear Override
+                            </label>
                         </div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Current effective limit: <strong>{{ org.effective_member_limit }}</strong></div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">Current effective limit: <strong>{{ org.effective_member_limit }}</strong></div>
                     </div>
 
-                    <div class="form-group" style="margin-bottom: 20px;">
+                    <div class="form-group" style="margin-bottom: 24px;">
                         <label style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">Storage Limit Override (GB)</label>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="number" step="0.1" name="storage_limit_override_gb" class="form-control" style="flex: 1;" placeholder="Default: {{ org.plan.default_storage_limit_gb if org.plan else 10.0 }}" value="{{ org.storage_limit_override_gb or '' }}">
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <input type="checkbox" name="clear_storage_limit" id="clear_storage_limit" value="1">
-                                <label for="clear_storage_limit" style="font-size: 0.8rem; color: var(--text-muted);">Clear</label>
-                            </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <input type="number" step="0.1" name="storage_limit_override_gb" class="form-control" style="flex: 1; margin: 0;" placeholder="Default: {{ org.plan.default_storage_limit_gb if org.plan else 10.0 }}" value="{{ org.storage_limit_override_gb or '' }}">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; margin: 0;">
+                                <input type="checkbox" name="clear_storage_limit" value="1" style="margin: 0; cursor: pointer; width: 16px; height: 16px; accent-color: var(--primary-color);">
+                                Clear Override
+                            </label>
                         </div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Current effective limit: <strong>{{ org.effective_storage_limit_gb }} GB</strong></div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">Current effective limit: <strong>{{ org.effective_storage_limit_gb }} GB</strong></div>
                     </div>
 
                     <button type="submit" class="btn-primary" style="width: 100%;">Save Settings</button>
