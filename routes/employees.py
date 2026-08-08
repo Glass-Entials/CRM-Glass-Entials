@@ -72,6 +72,18 @@ def add_employee():
                 temp_password=temp_password,
             )
             db.session.add(new_emp)
+            db.session.flush()
+
+            # Phase 2: Add OrganizationMember record
+            from model import OrganizationMember, OrgMemberRole
+            new_member = OrganizationMember(
+                organization_id=current_user.organization_id,
+                user_id=new_user.id,
+                role=OrgMemberRole.MEMBER,
+                status='active'
+            )
+            db.session.add(new_member)
+            
             db.session.commit()
             flash(f"Employee added! Temporary password: {temp_password} — Must change on first login.", "employeesuccess")
             return redirect(url_for("employees.employee_list"))
