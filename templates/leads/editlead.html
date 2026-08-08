@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -114,6 +114,7 @@
                                 <option value="Active" {% if lead.status_display == 'Active' %}selected{% endif %}>Active</option>
                                 <option value="Inactive" {% if lead.status_display == 'Inactive' %}selected{% endif %}>Inactive</option>
                                 <option value="Prospect" {% if lead.status_display == 'Prospect' %}selected{% endif %}>Prospect</option>
+                                <option value="Closed" {% if lead.status_display == 'Closed' %}selected{% endif %}>Closed</option>
                             </select>
                         </div>
                         <div class="form-group">

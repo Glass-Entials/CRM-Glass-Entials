@@ -28,6 +28,7 @@ class LeadStatus(Enum):
     ACTIVE = "Active"
     INACTIVE = "Inactive"
     PROSPECT = "Prospect"
+    CLOSED = "Closed"
 
 
 class CustomerStatus(Enum):
