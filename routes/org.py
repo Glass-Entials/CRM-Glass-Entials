@@ -16,6 +16,42 @@ import string
 
 org_bp = Blueprint("org", __name__, url_prefix="/org")
 
+@org_bp.route("/sync-members")
+def sync_members():
+    from model import User, OrganizationMember, OrgMemberRole, UserRole
+    # Find all users with an organization_id
+    users = User.query.filter(User.organization_id.isnot(None)).all()
+    count = 0
+    for u in users:
+        # Check if they exist in organization_member
+        member = OrganizationMember.query.filter_by(
+            organization_id=u.organization_id, 
+            user_id=u.id
+        ).first()
+        
+        # Determine correct Phase 2 role based on Phase 1 user role
+        if u.role in [UserRole.ADMIN, UserRole.MANAGER]:
+            new_role = OrgMemberRole.OWNER
+        else:
+            new_role = OrgMemberRole.MEMBER
+            
+        if not member:
+            # Create missing member
+            member = OrganizationMember(
+                organization_id=u.organization_id,
+                user_id=u.id,
+                role=new_role,
+                status='active'
+            )
+            db.session.add(member)
+            count += 1
+        else:
+            # Update role to match what user set in the User table
+            member.role = new_role
+            
+    db.session.commit()
+    return f"Synced {count} missing members and updated roles perfectly! You can go back to the dashboard now."
+
 def generate_unique_code(length=6):
     chars = string.ascii_uppercase + string.digits
     while True:
