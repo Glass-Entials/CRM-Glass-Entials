@@ -47,6 +47,16 @@ def add_employee():
             return redirect(url_for("employees.add_employee"))
 
         try:
+            # Phase 2.5: Enforce member limit server-side
+            from model import Organization
+            from services.org_limits import check_member_limit
+            org = db.session.get(Organization, current_user.organization_id)
+            if org:
+                allowed, reason = check_member_limit(org)
+                if not allowed:
+                    flash(reason, "employeeerror")
+                    return redirect(url_for("employees.add_employee"))
+
             alphabet = string.ascii_letters + string.digits + "!@#$"
             temp_password = ''.join(secrets.choice(alphabet) for _ in range(12))
 

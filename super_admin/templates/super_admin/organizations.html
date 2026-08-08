@@ -18,8 +18,10 @@
                     <th style="padding: 12px;">ID</th>
                     <th style="padding: 12px;">Name</th>
                     <th style="padding: 12px;">Code / Slug</th>
+                    <th style="padding: 12px;">Plan</th>
                     <th style="padding: 12px;">Status</th>
                     <th style="padding: 12px;">Members</th>
+                    <th style="padding: 12px;">Storage</th>
                     <th style="padding: 12px;">Created</th>
                     <th style="padding: 12px;">Actions</th>
                 </tr>
@@ -27,32 +29,48 @@
             <tbody>
                 {% for org in orgs %}
                 <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding: 12px;">#{{ org.id }}</td>
-                    <td style="padding: 12px; font-weight: 500; color: var(--primary-color);">{{ org.name }}</td>
+                    <td style="padding: 12px; color: var(--text-muted);">#{{ org.id }}</td>
+                    <td style="padding: 12px; font-weight: 600; color: var(--primary-color);">
+                        <a href="{{ url_for('super_admin.organization_detail', org_id=org.id) }}" style="text-decoration: none; color: inherit;">{{ org.name }}</a>
+                    </td>
                     <td style="padding: 12px; color: var(--text-muted);">
-                        <div>Code: <strong style="color: var(--text-color);">{{ org.unique_code }}</strong></div>
-                        <div style="font-size: 0.85rem;">Slug: {{ org.slug }}</div>
+                        <div>Code: <strong style="color: var(--text-color); font-family: monospace;">{{ org.unique_code }}</strong></div>
+                        <div style="font-size: 0.85rem;">{{ org.slug }}</div>
+                    </td>
+                    <td style="padding: 12px; color: var(--text-muted);">
+                        {{ org.plan.display_name if org.plan else '—' }}
                     </td>
                     <td style="padding: 12px;">
-                        {% if org.status == OrganizationStatus.ACTIVE %}
+                        {% if org.status.value == 'active' %}
                         <span style="background: #e6f4ea; color: #1e8e3e; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">Active</span>
-                        {% else %}
+                        {% elif org.status.value == 'suspended' %}
                         <span style="background: #fce8e6; color: #d93025; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">Suspended</span>
+                        {% else %}
+                        <span style="background: #f3f4f6; color: #6b7280; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">Archived</span>
                         {% endif %}
                     </td>
-                    <td style="padding: 12px;">{{ org.member_count }}</td>
+                    <td style="padding: 12px;">
+                        {{ org.member_count }} / {{ org.effective_member_limit }}
+                    </td>
+                    <td style="padding: 12px; font-size: 0.85rem; color: var(--text-muted);">
+                        {{ org.storage_used_gb }} GB / {{ org.effective_storage_limit_gb }} GB
+                    </td>
                     <td style="padding: 12px; color: var(--text-muted);">{{ org.created_at.strftime('%Y-%m-%d') }}</td>
                     <td style="padding: 12px;">
-                        <div style="display: flex; gap: 10px;">
-                            {% if org.status == OrganizationStatus.ACTIVE %}
-                            <form action="{{ url_for('super_admin.suspend_organization', org_id=org.id) }}" method="POST" onsubmit="return confirm('Suspend this organization? Users will lose access.');">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" style="background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">Suspend</button>
-                            </form>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <a href="{{ url_for('super_admin.organization_detail', org_id=org.id) }}"
+                               style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; padding: 5px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; text-decoration: none;">
+                               View
+                            </a>
+                            {% if org.status.value == 'active' %}
+                            <button onclick="openSuspendModal({{ org.id }}, '{{ org.name|e }}')"
+                               style="background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 600;">
+                               Suspend
+                            </button>
                             {% else %}
-                            <form action="{{ url_for('super_admin.activate_organization', org_id=org.id) }}" method="POST">
+                            <form action="{{ url_for('super_admin.activate_organization', org_id=org.id) }}" method="POST" style="margin:0;">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" style="background: #d1fae5; color: #10b981; border: 1px solid #6ee7b7; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">Activate</button>
+                                <button type="submit" style="background: #d1fae5; color: #10b981; border: 1px solid #6ee7b7; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 600;">Activate</button>
                             </form>
                             {% endif %}
                         </div>
@@ -60,11 +78,53 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" style="padding: 20px; text-align: center; color: var(--text-muted);">No organizations found.</td>
+                    <td colspan="9" style="padding: 20px; text-align: center; color: var(--text-muted);">No organizations found.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </main>
+
+<!-- Suspend Modal -->
+<div id="suspendModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:16px; padding:32px; max-width:480px; width:90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+        <h3 style="color: var(--primary-color); margin-bottom: 16px; font-size: 1.2rem;">Suspend Organization</h3>
+        <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;" id="suspendOrgName"></p>
+        <form id="suspendForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem;">Suspension Reason *</label>
+                <select name="reason" required class="form-control" style="width:100%;">
+                    <option value="">Select a reason...</option>
+                    <option value="Payment overdue">Payment overdue</option>
+                    <option value="Policy violation">Policy violation</option>
+                    <option value="Security issue">Security issue</option>
+                    <option value="Customer requested suspension">Customer requested suspension</option>
+                    <option value="Abuse">Abuse</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem;">Internal Note (optional)</label>
+                <textarea name="note" rows="3" class="form-control" placeholder="Add any internal notes..." style="width:100%; resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex; gap:12px; justify-content:flex-end;">
+                <button type="button" onclick="closeSuspendModal()" style="background:#f3f4f6; color:#374151; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:600;">Cancel</button>
+                <button type="submit" style="background:#ef4444; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:600;">Suspend</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openSuspendModal(orgId, orgName) {
+    document.getElementById('suspendModal').style.display = 'flex';
+    document.getElementById('suspendForm').action = '/admin/organizations/' + orgId + '/suspend';
+    document.getElementById('suspendOrgName').textContent = 'Suspending: ' + orgName;
+}
+function closeSuspendModal() {
+    document.getElementById('suspendModal').style.display = 'none';
+}
+</script>
 {% endblock %}

@@ -201,12 +201,31 @@ class PaymentMode(Enum):
 class OrganizationStatus(Enum):
     ACTIVE    = "active"
     SUSPENDED = "suspended"
+    ARCHIVED  = "archived"
 
 
 class OrgMemberRole(Enum):
     OWNER  = "owner"
     ADMIN  = "admin"
     MEMBER = "member"
+
+
+class Plan(db.Model):
+    """SaaS Plan definition — defines default limits for organizations."""
+    __tablename__ = "plan"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)  # e.g. 'Basic', 'Professional', 'Enterprise'
+    display_name = db.Column(db.String(100), nullable=True)
+    default_member_limit = db.Column(db.Integer, nullable=False, default=5)
+    default_storage_limit_gb = db.Column(db.Float, nullable=False, default=10.0)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    organizations = db.relationship("Organization", back_populates="plan")
+
+    def __repr__(self):
+        return f"<Plan {self.name}>"
 
 
 class Organization(db.Model):
@@ -229,11 +248,24 @@ class Organization(db.Model):
     )
     created_by = db.Column(
         db.Integer, db.ForeignKey("user.id"), nullable=True
-    )  # User ID who created it
+    )
     # Legacy field — kept for backwards compat; use status instead for suspend checks
     is_active = db.Column(db.Boolean, default=True)
 
+    # Phase 2.5: Plan & Limits
+    plan_id = db.Column(db.Integer, db.ForeignKey("plan.id"), nullable=True)
+    member_limit_override = db.Column(db.Integer, nullable=True)      # overrides plan default
+    storage_limit_override_gb = db.Column(db.Float, nullable=True)    # overrides plan default
+    storage_used_bytes = db.Column(db.BigInteger, nullable=False, default=0)
+
+    # Phase 2.5: Suspension metadata
+    suspended_at = db.Column(db.DateTime, nullable=True)
+    suspended_by = db.Column(db.String(100), nullable=True)           # Super Admin identifier
+    suspension_reason = db.Column(db.String(100), nullable=True)
+    suspension_note = db.Column(db.Text, nullable=True)
+
     # Relationships
+    plan = db.relationship("Plan", back_populates="organizations")
     users = db.relationship(
         "User", back_populates="organization", foreign_keys="User.organization_id"
     )
@@ -253,6 +285,54 @@ class Organization(db.Model):
     @property
     def member_count(self):
         return len([m for m in self.members if m.status == 'active'])
+
+    @property
+    def effective_member_limit(self):
+        """Returns the applicable member limit: org override > plan default > system default."""
+        if self.member_limit_override is not None:
+            return self.member_limit_override
+        if self.plan:
+            return self.plan.default_member_limit
+        return 5  # system fallback
+
+    @property
+    def effective_storage_limit_gb(self):
+        """Returns the applicable storage limit in GB."""
+        if self.storage_limit_override_gb is not None:
+            return self.storage_limit_override_gb
+        if self.plan:
+            return self.plan.default_storage_limit_gb
+        return 10.0  # system fallback
+
+    @property
+    def effective_storage_limit_bytes(self):
+        return int(self.effective_storage_limit_gb * 1024 * 1024 * 1024)
+
+    @property
+    def storage_used_gb(self):
+        return round((self.storage_used_bytes or 0) / (1024 ** 3), 3)
+
+    @property
+    def storage_usage_pct(self):
+        limit = self.effective_storage_limit_bytes
+        if not limit:
+            return 0
+        return min(100, round(((self.storage_used_bytes or 0) / limit) * 100, 1))
+
+    @property
+    def member_usage_pct(self):
+        limit = self.effective_member_limit
+        if not limit:
+            return 0
+        return min(100, round((self.member_count / limit) * 100, 1))
+
+    @property
+    def owner(self):
+        """Return the first owner member's user."""
+        for m in self.members:
+            if m.role == OrgMemberRole.OWNER and m.status == 'active':
+                return m.user
+        return None
 
     def __repr__(self):
         return f"<Organization {self.name}>"
@@ -274,7 +354,7 @@ class OrganizationMember(db.Model):
         nullable=False,
         default=OrgMemberRole.MEMBER,
     )
-    status = db.Column(db.String(20), nullable=False, default="active")  # active | removed
+    status = db.Column(db.String(20), nullable=False, default="active")  # active | suspended | removed
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -289,6 +369,26 @@ class OrganizationMember(db.Model):
 
     def __repr__(self):
         return f"<OrganizationMember user={self.user_id} org={self.organization_id} role={self.role}>"
+
+
+class OrgAuditLog(db.Model):
+    """Audit log for all Super Admin actions on organizations."""
+    __tablename__ = "org_audit_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True)
+    action = db.Column(db.String(80), nullable=False)         # e.g. 'suspended', 'member_role_changed'
+    performed_by = db.Column(db.String(100), nullable=False)  # 'Super Admin' or username
+    details = db.Column(db.Text, nullable=True)               # Human-readable description
+    meta = db.Column(db.JSON, nullable=True)                  # Structured data
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    organization = db.relationship("Organization", backref=db.backref("audit_logs", lazy="dynamic", order_by="OrgAuditLog.created_at.desc()"))
+
+    def __repr__(self):
+        return f"<OrgAuditLog {self.action} on org={self.organization_id}>"
+
+
 
 
 # --- MODELS ---

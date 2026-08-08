@@ -106,7 +106,9 @@ def create_organization():
     
     org.slug = f"{base_slug}-{org.id}"
     
-    # Add creator as owner
+    # Add creator as owner (owner counts as 1 member)
+    from services.org_limits import check_member_limit
+    # Flush so we can check org.member_count = 0 for new org, always allowed
     member = OrganizationMember(
         organization_id=org.id,
         user_id=current_user.id,
@@ -159,6 +161,12 @@ def join_organization():
             flash(f"You are already a member of '{org.name}'.", "info")
             switch_org(org.id)
     else:
+        # Enforce member limit server-side
+        from services.org_limits import check_member_limit
+        allowed, reason = check_member_limit(org)
+        if not allowed:
+            flash(reason, "error")
+            return redirect(url_for("org.organization_settings"))
         member = OrganizationMember(
             organization_id=org.id,
             user_id=current_user.id,

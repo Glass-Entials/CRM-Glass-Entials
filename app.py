@@ -307,6 +307,35 @@ def enforce_org_active():
         return result
 
 
+@app.before_request
+def enforce_storage_limit():
+    """Globally intercept file uploads and enforce storage limits."""
+    if request.method in ['POST', 'PUT', 'PATCH'] and request.files:
+        from utils.tenant import get_active_org
+        from services.org_limits import check_storage_limit, add_storage_usage
+        org = get_active_org()
+        if org:
+            total_size = 0
+            # Get size of all uploaded files in this request
+            for key, file_storage in request.files.items():
+                if file_storage.filename:
+                    file_storage.seek(0, 2)  # Seek to end
+                    total_size += file_storage.tell()
+                    file_storage.seek(0)     # Reset to beginning
+
+            if total_size > 0:
+                allowed, reason = check_storage_limit(org, total_size)
+                if not allowed:
+                    from flask import flash, redirect
+                    flash(reason, "error")
+                    return redirect(request.url)
+                
+                # If we get here, upload is allowed.
+                # Strictly speaking, if the route fails we might over-count, 
+                # but for simplicity we increment here to enforce limits.
+                add_storage_usage(org, total_size)
+
+
 @app.route('/switch-org', methods=['POST'])
 @login_required
 def switch_organization():
