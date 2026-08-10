@@ -12,53 +12,53 @@
             <div style="margin-top: 5px; display: flex; align-items: center; gap: 15px;">
                 <span style="color: var(--text-muted); font-size: 0.9rem;">Portal Status: <strong style="color: #10b981;">Online</strong></span>
                 <span style="width: 1px; height: 12px; background: rgba(0,0,0,0.1);"></span>
-                <span style="color: var(--text-muted); font-size: 0.9rem;">Build: <strong style="color: var(--accent-gold);">Phase 1</strong></span>
+                <span style="color: var(--text-muted); font-size: 0.9rem;">Build: <strong style="color: var(--accent-gold);">Phase 2.5</strong></span>
             </div>
         </div>
         <div class="quick-actions">
-            <a href="#" class="btn-action outline" style="border: 1px solid var(--primary-color); color: var(--primary-color); text-decoration: none; opacity: 0.6; cursor: not-allowed;">
-                Settings
+            <a href="{{ url_for('super_admin.organizations') }}" class="btn-action outline" style="border: 1px solid var(--primary-color); color: var(--primary-color); text-decoration: none;">
+                🏢 Organizations
             </a>
-            <a href="#" class="btn-action gold" style="text-decoration: none; opacity: 0.6; cursor: not-allowed;">
-                Manage Modules
+            <a href="{{ url_for('super_admin.plans') }}" class="btn-action gold" style="text-decoration: none;">
+                📋 Manage Plans
             </a>
         </div>
     </div>
 
     <!-- Stats Cards Grid -->
     <div class="stats-grid">
-        <div class="stat-card" style="position: relative; overflow: visible;">
+        <a href="{{ url_for('super_admin.organizations') }}" class="stat-card" style="position: relative; overflow: visible; text-decoration: none; cursor: pointer;">
             <div class="stat-info">
-                <h3 style="margin-bottom: 2px;">—</h3>
+                <h3 style="margin-bottom: 2px;">{{ total_orgs }}</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Organizations</p>
-                <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Available in Phase 2</span>
+                <span style="font-size: 0.75rem; color: #6366f1; font-weight: 600;">View all →</span>
             </div>
             <div class="stat-icon" style="background: rgba(99,102,241,0.1); color: #6366f1;">🏢</div>
-        </div>
+        </a>
         
-        <div class="stat-card" style="position: relative; overflow: visible;">
+        <a href="{{ url_for('super_admin.users') }}" class="stat-card" style="position: relative; overflow: visible; text-decoration: none; cursor: pointer;">
             <div class="stat-info">
-                <h3 style="margin-bottom: 2px;">—</h3>
+                <h3 style="margin-bottom: 2px;">{{ total_users }}</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Total Users</p>
-                <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Available in Phase 2</span>
+                <span style="font-size: 0.75rem; color: #8b5cf6; font-weight: 600;">View all →</span>
             </div>
             <div class="stat-icon" style="background: rgba(139,92,246,0.1); color: #8b5cf6;">👥</div>
-        </div>
+        </a>
         
         <div class="stat-card" style="position: relative; overflow: visible;">
             <div class="stat-info">
                 <h3 style="margin-bottom: 2px; color: #10b981;">Online</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Portal Status</p>
-                <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Phase 1 Foundation</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Multi-tenant active</span>
             </div>
             <div class="stat-icon" style="background: rgba(16,185,129,0.1); color: #10b981;">⚡</div>
         </div>
         
         <div class="stat-card" style="position: relative; overflow: visible;">
             <div class="stat-info">
-                <h3 style="margin-bottom: 2px; color: var(--accent-gold);">Phase 1</h3>
+                <h3 style="margin-bottom: 2px; color: var(--accent-gold);">Phase 2.5</h3>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">Build Version</p>
-                <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Foundation complete</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Advanced Tenancy</span>
             </div>
             <div class="stat-icon" style="background: rgba(212,175,55,0.1); color: var(--accent-gold);">🚀</div>
         </div>
@@ -70,7 +70,7 @@
         <div class="panel">
             <div class="panel-header">
                 <h2>🗺 Development Roadmap</h2>
-                <span style="background: rgba(212,175,55,0.1); color: var(--accent-gold); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">Phase 1 of 5</span>
+                <span style="background: rgba(212,175,55,0.1); color: var(--accent-gold); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">Phase 2.5 of 5</span>
             </div>
 
             <div class="table-responsive">
@@ -95,23 +95,23 @@
                         </tr>
                         <tr>
                             <td>
-                                <span style="font-weight: 700; color: var(--accent-gold); display: flex; align-items: center; gap: 8px;">
-                                    <div style="width:24px; height:24px; border-radius:50%; background:rgba(212,175,55,0.1); border:1px solid var(--accent-gold); display:flex; align-items:center; justify-content:center;">2</div>
+                                <span style="font-weight: 700; color: #10b981; display: flex; align-items: center; gap: 8px;">
+                                    <div style="width:24px; height:24px; border-radius:50%; background:rgba(16,185,129,0.1); border:1px solid #10b981; display:flex; align-items:center; justify-content:center;">2</div>
                                     Tenants
                                 </span>
                             </td>
-                            <td>Organizations model, user mapping, isolation boundaries</td>
-                            <td><span class="status-badge status-pending">In Progress</span></td>
+                            <td>Organizations model, advanced limits, audit logs, isolation boundaries</td>
+                            <td><span class="status-badge status-active">Complete</span></td>
                         </tr>
                         <tr>
                             <td>
-                                <span style="font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
-                                    <div style="width:24px; height:24px; border-radius:50%; background:#f1f5f9; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center;">3</div>
+                                <span style="font-weight: 700; color: var(--accent-gold); display: flex; align-items: center; gap: 8px;">
+                                    <div style="width:24px; height:24px; border-radius:50%; background:rgba(212,175,55,0.1); border:1px solid var(--accent-gold); display:flex; align-items:center; justify-content:center;">3</div>
                                     Billing
                                 </span>
                             </td>
                             <td>Plans, subscriptions, payment integration, invoicing</td>
-                            <td><span class="status-badge" style="background: #f1f5f9; color: var(--text-muted);">Planned</span></td>
+                            <td><span class="status-badge status-pending">In Progress</span></td>
                         </tr>
                         <tr>
                             <td>

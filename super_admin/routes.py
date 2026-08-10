@@ -181,7 +181,10 @@ def verify_otp():
 @super_admin_bp.route("/dashboard")
 @super_admin_required
 def dashboard():
-    return render_template("super_admin/dashboard.html")
+    from model import Organization, User
+    total_orgs = Organization.query.count()
+    total_users = User.query.count()
+    return render_template("super_admin/dashboard.html", total_orgs=total_orgs, total_users=total_users)
 
 
 @super_admin_bp.route("/logout")
