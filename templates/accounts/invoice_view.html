@@ -159,10 +159,16 @@
         </div>
       </div>
 
-      <div class="doc-signature-wrap">
-        <div class="doc-signature-blank"></div>
-        <div class="doc-signature-line"></div>
-        <div class="doc-signature-label">Authorized Signatory</div>
+      <div class="doc-signature-wrap" style="text-align: center; width: 200px; margin-left: auto;">
+        {% if settings.default_signature_path %}
+          <img src="{{ url_for('static', filename='uploads/signatures/' + settings.default_signature_path) }}" alt="Signature" style="max-height: 80px; max-width: 150px; display: block; margin: 0 auto 10px;">
+        {% else %}
+          <div class="doc-signature-blank" style="height: 60px;"></div>
+        {% endif %}
+        <div class="doc-signature-line" style="border-top: 1px solid #1e293b; margin: 0 10px 5px;"></div>
+        <div class="doc-signature-label" style="font-weight: 700; font-size: 0.85rem; color: #1e293b;">
+          {{ invoice.signature_label or 'Authorised Signatory' }}
+        </div>
       </div>
 
       <div class="doc-footer">
