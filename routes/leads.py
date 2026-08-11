@@ -176,8 +176,12 @@ def add_lead():
             Employee, assigned_to_id, current_user.organization_id, is_deleted=False
         )
 
-        if not all([name, phone_number]) or len(phone_number) != 10:
-            flash("Required fields missing or phone invalid.", "leadserror")
+        if not name or (not phone_number and not email):
+            flash("Name and either Phone or Email are required.", "leadserror")
+            return redirect(url_for("leads.add_lead"))
+
+        if phone_number and len(phone_number) != 10:
+            flash("Phone number must be exactly 10 digits.", "leadserror")
             return redirect(url_for("leads.add_lead"))
 
         if email:
@@ -288,6 +292,14 @@ def edit_lead(lead_id):
         assigned_to_id = request.form.get("assigned_to")
         source_map = {e.value: e for e in LeadSource}
         status_map = {e.value: e for e in LeadStatus}
+
+        if not lead.name or (not lead.phone_number and not lead.email):
+            flash("Name and either Phone or Email are required.", "leadserror")
+            return redirect(url_for("leads.edit_lead", lead_id=lead_id))
+            
+        if lead.phone_number and len(lead.phone_number) != 10:
+            flash("Phone number must be exactly 10 digits.", "leadserror")
+            return redirect(url_for("leads.edit_lead", lead_id=lead_id))
 
         try:
             new_assignee_id = tenant_record_id(

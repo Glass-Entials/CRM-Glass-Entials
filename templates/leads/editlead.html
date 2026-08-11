@@ -64,12 +64,12 @@
                             <input type="text" id="name" class="form-control" name="name" value="{{ lead.name }}" required>
                         </div>
                         <div class="form-group">
-                            <label for="email">Email</label>
-                            <input type="email" id="email" class="form-control" name="email" value="{{ lead.email }}" required> 
+                            <label>Email Address</label>
+                            <input type="email" id="email" class="form-control" name="email" value="{{ lead.email }}"> 
                         </div>
                         <div class="form-group">
-                            <label for="phone">Phone</label>
-                            <input type="text" id="phone" class="form-control" name="phone" value="{{ lead.phone_number }}" required>
+                            <label>Phone Number (Provide either Email or Phone)</label>
+                            <input type="text" id="phone" class="form-control" name="phone" value="{{ lead.phone_number }}" pattern="\d{10}" title="Please enter exactly 10 digits">
                         </div>
                         <div class="form-group">
                             <label for="company">Company / Legal Name</label>
