@@ -491,3 +491,56 @@ def reorder_terms():
         db.session.rollback()
         current_app.logger.error(f"Error: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": "An error occurred"}), 400
+
+
+@quotation_settings_bp.route("/invoice-settings", methods=["GET", "POST"])
+@login_required
+# @require_roles(UserRole.ADMIN, UserRole.MANAGER)
+def invoice_settings_home():
+    org_id = current_user.organization_id
+    settings = _get_or_create_settings(org_id)
+
+    if request.method == "POST":
+        section = request.form.get("section")
+
+        if section == "company":
+            settings.company_name = request.form.get("company_name") or None
+            settings.company_address = request.form.get("company_address") or None
+            settings.company_gstin = request.form.get("company_gstin") or None
+            settings.company_pan = request.form.get("company_pan") or None
+            settings.company_email = request.form.get("company_email") or None
+            settings.company_phone = request.form.get("company_phone") or None
+            settings.company_state = request.form.get("company_state") or None
+
+            logo_file = request.files.get("company_logo")
+            if logo_file and logo_file.filename:
+                _, ext, _ = validate_upload(logo_file, IMAGE_EXTENSIONS)
+                fname = f"logo_{uuid.uuid4().hex}.{ext}"
+                upload_dir = os.path.join(
+                    current_app.root_path, "static", "uploads", "logos"
+                )
+                os.makedirs(upload_dir, exist_ok=True)
+                logo_file.save(os.path.join(upload_dir, fname))
+                settings.company_logo = fname
+            flash("✅ Invoice billed-by profile saved.", "success")
+
+        elif section == "pdf":
+            settings.default_signature_label = request.form.get(
+                "default_signature_label", "Authorised Signatory"
+            )
+            sig_file = request.files.get("default_signature")
+            if sig_file and sig_file.filename:
+                _, ext, _ = validate_upload(sig_file, IMAGE_EXTENSIONS)
+                fname = f"defaultsig_{uuid.uuid4().hex}.{ext}"
+                upload_dir = os.path.join(
+                    current_app.root_path, "static", "uploads", "signatures"
+                )
+                os.makedirs(upload_dir, exist_ok=True)
+                sig_file.save(os.path.join(upload_dir, fname))
+                settings.default_signature_path = fname
+            flash("✅ Invoice signature settings saved.", "success")
+
+        db.session.commit()
+        return redirect(url_for("quotation_settings.invoice_settings_home"))
+
+    return render_template("accounts/invoice_settings.html", settings=settings)

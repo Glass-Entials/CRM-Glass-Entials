@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Settings | GlassEntials Accounts</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+</head>
+<body class="dashboard-page">
+    <!-- Top Navbar -->
+    {% include 'includes/navbar.html' %}
+
+    <!-- Flash Messages -->
+    <div id="flash-toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
+        {% with msgs = get_flashed_messages(with_categories=true, category_filter=['success','error','info']) %}
+        {% for cat, msg in msgs %}
+        <div class="flash-toast" style="padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; font-size: 14px; color: white; animation: slideInRight 0.3s ease-out; background: {% if cat == 'success' %}#10b981{% elif cat == 'error' %}#ef4444{% else %}#3b82f6{% endif %};">
+            {% if cat == 'success' %}✓{% elif cat == 'error' %}⚠{% else %}ℹ{% endif %} {{ msg }}
+        </div>
+        {% endfor %}
+        {% endwith %}
+    </div>
+    <style>@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }</style>
+
+    <main class="container" style="display: flex; gap: 3rem; margin: 2.5rem auto 0 auto; max-width: 1200px; padding: 0 2rem;">
+        {% set active_tab = 'invoice' %}
+        {% include 'includes/settings_sidebar.html' %}
+        
+        <section style="flex: 1;">
+            <h3 style="font-size: 1.35rem; color: var(--primary-color); margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(13, 27, 42, 0.1); font-family: var(--font-body); font-weight: 700;">Invoice Settings</h3>
+            
+            <div class="qs-layout" style="margin-top: 0; grid-template-columns: 220px 1fr;">
+    
+    <!-- Sidebar nav -->
+    <div class="qs-sidebar">
+      <ul class="qs-nav">
+        <li><a href="#company" class="active" onclick="switchTab('company')">Billed By</a></li>
+        <li><a href="#pdf" onclick="switchTab('pdf')">Signature Upload</a></li>
+      </ul>
+    </div>
+    
+    <!-- Main content panels -->
+    <div class="qs-main">
+
+      <!-- COMPANY PROFILE (Billed By) -->
+      <div id="company" class="qs-panel active">
+        <h2 class="qs-panel-title">Billed By <span class="text-muted font-normal text-sm ml-sm">(Company details that appear on the invoice)</span></h2>
+        <form method="POST" action="{{ url_for('quotation_settings.invoice_settings_home') }}" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <input type="hidden" name="section" value="company">
+          
+          <div class="qf-row">
+            <div class="qf-field">
+              <label>Company Name</label>
+              <input type="text" name="company_name" class="qf-input" value="{{ settings.company_name or '' }}">
+            </div>
+            <div class="qf-field">
+              <label>Logo Upload</label>
+              <input type="file" name="company_logo" class="qf-input" accept="image/png, image/jpeg">
+              {% if settings.company_logo %}
+              <div class="mt-xs text-sm"><a href="{{ url_for('static', filename='uploads/logos/' + settings.company_logo) }}" target="_blank">Current Logo</a></div>
+              {% endif %}
+            </div>
+          </div>
+          
+          <div class="qf-field mb-md">
+            <label>Registered Address</label>
+            <textarea name="company_address" class="qf-input" rows="2">{{ settings.company_address or '' }}</textarea>
+          </div>
+          
+          <div class="qf-row">
+            <div class="qf-field"><label>GSTIN</label><input type="text" name="company_gstin" class="qf-input" value="{{ settings.company_gstin or '' }}"></div>
+            <div class="qf-field"><label>PAN</label><input type="text" name="company_pan" class="qf-input" value="{{ settings.company_pan or '' }}"></div>
+          </div>
+          
+          <div class="qf-row mb-md">
+            <div class="qf-field"><label>Email</label><input type="email" name="company_email" class="qf-input" value="{{ settings.company_email or '' }}"></div>
+            <div class="qf-field"><label>Phone</label><input type="text" name="company_phone" class="qf-input" value="{{ settings.company_phone or '' }}"></div>
+            <div class="qf-field"><label>State (Place of Supply)</label><input type="text" name="company_state" class="qf-input" value="{{ settings.company_state or '' }}" placeholder="Maharashtra"></div>
+          </div>
+          
+          <button type="submit" class="btn-primary">Save Company Profile</button>
+        </form>
+      </div>
+
+      <!-- PDF & SIGNATURE -->
+      <div id="pdf" class="qs-panel" style="display: none;">
+        <h2 class="qs-panel-title">Signature Upload</h2>
+        <form method="POST" action="{{ url_for('quotation_settings.invoice_settings_home') }}" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <input type="hidden" name="section" value="pdf">
+          <div class="qf-row mb-lg">
+            <div class="qf-field">
+              <label>Default Signature Image</label>
+              <input type="file" name="default_signature" class="qf-input" accept="image/png, image/jpeg">
+              {% if settings.default_signature_path %}
+              <div class="mt-sm">
+                <img src="{{ url_for('static', filename='uploads/signatures/' + settings.default_signature_path) }}" style="max-height: 80px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px;" alt="Signature">
+              </div>
+              {% endif %}
+            </div>
+            <div class="qf-field">
+              <label>Default Signature Label</label>
+              <input type="text" name="default_signature_label" class="qf-input" value="{{ settings.default_signature_label or 'Authorised Signatory' }}">
+            </div>
+          </div>
+          <button type="submit" class="btn-primary">Save Signature Settings</button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+        </section>
+    </main>
+    <script>
+    // Very simple tab switching logic
+    function switchTab(tabId) {
+        // Remove active class from all nav items
+        document.querySelectorAll('.qs-nav a').forEach(a => a.classList.remove('active'));
+        // Add active class to clicked
+        event.currentTarget.classList.add('active');
+        
+        // Hide all panels
+        document.querySelectorAll('.qs-panel').forEach(p => {
+            p.style.display = 'none';
+            p.classList.remove('active');
+        });
+        
+        // Show target panel
+        const target = document.getElementById(tabId);
+        if(target) {
+            target.style.display = 'block';
+            setTimeout(() => target.classList.add('active'), 10);
+        }
+    }
+    
+    setTimeout(() => {
+        const flashes = document.querySelectorAll('.flash-toast');
+        flashes.forEach(f => {
+            f.style.opacity = '0';
+            f.style.transition = 'opacity 0.5s';
+            setTimeout(() => f.remove(), 500);
+        });
+    }, 4000);
+    </script>
+</body>
+</html>
