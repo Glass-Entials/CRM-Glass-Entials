@@ -179,6 +179,7 @@ def _save_invoice_from_form(invoice, form, org_id, employee_id):
 
     invoice.notes = form.get("notes") or None
     invoice.terms_conditions = form.get("terms_conditions") or None
+    invoice.references = form.get("references") or None
     invoice.signature_label = form.get("signature_label", "Authorised Signatory")
 
     status_val = form.get("status", "Unpaid")
@@ -192,6 +193,7 @@ def _save_invoice_from_form(invoice, form, org_id, employee_id):
 
     item_names = form.getlist("item_name[]")
     descriptions = form.getlist("description[]")
+    hsn_sacs = form.getlist("hsn_sac[]")
     group_names = form.getlist("group_name[]")
     formula_types = form.getlist("formula_type[]")
     widths = form.getlist("width[]")
@@ -220,6 +222,7 @@ def _save_invoice_from_form(invoice, form, org_id, employee_id):
                 "group_name": group_names[i].strip() if i < len(group_names) else "",
                 "item_name": name,
                 "description": descriptions[i].strip() if i < len(descriptions) else "",
+                "hsn_sac": hsn_sacs[i].strip() if i < len(hsn_sacs) else "",
                 "width": float(widths[i]) if i < len(widths) and widths[i] else 0,
                 "height": float(heights[i]) if i < len(heights) and heights[i] else 0,
                 "formula_type": (
@@ -261,6 +264,7 @@ def _save_invoice_from_form(invoice, form, org_id, employee_id):
             group_name=it.get("group_name"),
             item_name=it["item_name"],
             description=it["description"],
+            hsn_sac=it.get("hsn_sac") or None,
             formula_type=it.get("formula_type"),
             width=it["width"],
             height=it["height"],
@@ -438,16 +442,32 @@ def api_calculate():
     """AJAX endpoint for real-time totals calculation."""
     try:
         data = request.get_json()
+        total_discount = float(data.get("total_discount", 0) or 0)
+        total_discount_type = data.get("total_discount_type", "flat")
+        additional_charges = float(data.get("additional_charges", 0) or 0)
+        additional_charges_taxable = bool(data.get("additional_charges_taxable", False))
+        is_igst = bool(data.get("is_igst", False))
+
         totals = _calc_invoice_totals(
             data.get("items", []),
-            data.get("total_discount", 0),
-            data.get("total_discount_type", "flat"),
-            data.get("additional_charges", 0),
-            data.get("additional_charges_taxable", False),
-            data.get("is_igst", False),
+            total_discount,
+            total_discount_type,
+            additional_charges,
+            additional_charges_taxable,
+            is_igst,
         )
+        # Compute displayed discount amount for UI
+        if total_discount_type == "percent":
+            disc_display = totals["subtotal"] * total_discount / 100
+        else:
+            disc_display = total_discount
+
         totals["words"] = number_to_words(totals["total_amount"])
+        totals["total_discount"] = disc_display
+        totals["additional_charges"] = additional_charges
+        totals["is_igst"] = is_igst
         return jsonify({"success": True, "result": totals})
     except Exception as e:
         current_app.logger.error(f"Error: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": "An error occurred"}), 400
+

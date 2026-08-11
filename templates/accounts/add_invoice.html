@@ -1,482 +1,962 @@
 {% extends "base.html" %}
 
-{% block title %}Add New Invoice | GlassEntials{% endblock %}
+{% block title %}{% if mode == 'edit' %}Edit Invoice #{{ invoice.invoice_number }}{% else %}Create Invoice{% endif %} | GlassEntials{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}?v=5">
+<style>
+  /* ── Invoice Builder Pro Styles ── */
+  :root {
+    --gold: #D4AF37;
+    --gold-light: rgba(212,175,55,0.12);
+    --navy: #0D1B2A;
+    --ib-radius: 12px;
+    --ib-card-shadow: 0 2px 16px rgba(13,27,42,0.07);
+    --ib-border: 1px solid rgba(13,27,42,0.09);
+  }
+
+  body.dashboard-page { background: #f0f2f5; }
+
+  .ib-wrapper {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+    font-family: 'Montserrat', sans-serif;
+  }
+
+  /* ── Sticky Top Bar ── */
+  .ib-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(13,27,42,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    margin: 0 -20px 28px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .ib-topbar-left { display: flex; align-items: center; gap: 16px; }
+  .ib-back-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: #64748b; font-size: 0.875rem; font-weight: 600;
+    text-decoration: none; padding: 6px 12px;
+    border-radius: 8px; border: 1px solid rgba(13,27,42,0.12);
+    transition: all 0.2s;
+  }
+  .ib-back-btn:hover { background: #f8fafc; color: var(--navy); }
+  .ib-topbar-title { font-size: 1.1rem; font-weight: 800; color: var(--navy); }
+  .ib-topbar-subtitle { font-size: 0.78rem; color: #64748b; margin-top: 1px; }
+  .ib-topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+  .ib-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 20px; border-radius: 9px; font-size: 0.875rem;
+    font-weight: 700; cursor: pointer; border: none; transition: all 0.2s;
+    text-decoration: none; font-family: inherit;
+  }
+  .ib-btn-primary { background: var(--gold); color: #fff; box-shadow: 0 3px 12px rgba(212,175,55,0.3); }
+  .ib-btn-primary:hover { background: #c5a037; transform: translateY(-1px); }
+  .ib-btn-outline { background: #fff; color: var(--navy); border: 1.5px solid rgba(13,27,42,0.2); }
+  .ib-btn-outline:hover { background: #f8fafc; }
+
+  /* ── Grid Layout ── */
+  .ib-layout { display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: start; }
+  .ib-main { min-width: 0; }
+  .ib-sidebar { min-width: 0; position: sticky; top: 76px; }
+
+  /* ── Cards ── */
+  .ib-card {
+    background: #ffffff;
+    border-radius: var(--ib-radius);
+    border: var(--ib-border);
+    box-shadow: var(--ib-card-shadow);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .ib-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: var(--ib-border);
+    background: #fafafa;
+  }
+  .ib-card-title {
+    font-size: 0.8rem; font-weight: 800; color: var(--navy);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .ib-card-title-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--gold);
+  }
+  .ib-card-body { padding: 24px; }
+
+  /* ── Invoice Hero Header ── */
+  .ib-invoice-hero {
+    background: linear-gradient(135deg, var(--navy) 0%, #1a2f4a 100%);
+    border-radius: var(--ib-radius);
+    padding: 32px;
+    color: white;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ib-invoice-hero::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: rgba(212,175,55,0.08);
+  }
+  .ib-hero-grid { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: start; }
+  .ib-invoice-label {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 8px;
+  }
+  .ib-invoice-title-input {
+    background: transparent; border: none; border-bottom: 2px solid rgba(255,255,255,0.2);
+    color: white; font-size: 2rem; font-weight: 800;
+    font-family: 'Playfair Display', serif; width: 100%;
+    padding: 4px 0; outline: none; transition: border-color 0.2s;
+  }
+  .ib-invoice-title-input:focus { border-bottom-color: var(--gold); }
+  .ib-invoice-title-input::placeholder { color: rgba(255,255,255,0.3); }
+  .ib-hero-meta { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; }
+  .ib-hero-meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .ib-hero-meta-label { font-size: 0.65rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.45); text-transform: uppercase; }
+  .ib-hero-meta-value { font-size: 0.9rem; font-weight: 700; color: white; }
+  .ib-inv-number-badge {
+    background: var(--gold); color: var(--navy);
+    padding: 10px 20px; border-radius: 8px;
+    font-size: 1rem; font-weight: 800; white-space: nowrap;
+    font-family: monospace; letter-spacing: 0.05em;
+  }
+  .ib-hero-date-input {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    color: white; border-radius: 6px; padding: 6px 10px; font-size: 0.85rem;
+    font-family: inherit; outline: none; width: 140px;
+  }
+  .ib-hero-date-input:focus { border-color: var(--gold); }
+
+  /* ── Party Cards ── */
+  .ib-parties { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .ib-party-card {
+    background: #fff; border-radius: var(--ib-radius); border: var(--ib-border);
+    box-shadow: var(--ib-card-shadow);
+  }
+  .ib-party-header {
+    padding: 14px 20px; border-bottom: var(--ib-border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ib-party-label {
+    font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.1em; color: #64748b;
+  }
+  .ib-party-badge {
+    font-size: 0.65rem; padding: 2px 8px; border-radius: 20px;
+    font-weight: 700; background: var(--gold-light); color: #92700a;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .ib-party-body { padding: 18px 20px; }
+  .ib-party-name { font-size: 1rem; font-weight: 800; color: var(--navy); margin-bottom: 6px; }
+  .ib-party-detail { font-size: 0.8rem; color: #64748b; line-height: 1.7; }
+  .ib-party-detail strong { color: #475569; font-weight: 600; }
+  .ib-billed-by-info { min-height: 100px; }
+
+  /* ── Customer Select ── */
+  .ib-customer-select {
+    width: 100%; padding: 10px 14px; border-radius: 8px;
+    border: 2px solid #e2e8f0; font-size: 0.88rem; font-family: inherit;
+    background: #f8fafc; color: var(--navy); outline: none;
+    transition: border-color 0.2s; margin-bottom: 12px;
+  }
+  .ib-customer-select:focus { border-color: var(--gold); background: white; }
+
+  .ib-customer-autofill {
+    background: #f8fafc; border-radius: 8px; padding: 12px 16px;
+    border: 1px solid rgba(13,27,42,0.08);
+  }
+  .ib-autofill-name { font-weight: 700; color: var(--navy); font-size: 0.9rem; }
+  .ib-autofill-line { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
+  .ib-autofill-tag {
+    display: inline-block; background: var(--gold-light); color: #92700a;
+    font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+    margin-top: 6px; font-family: monospace;
+  }
+
+  /* ── Items Table ── */
+  .ib-items-table {
+    width: 100%; border-collapse: collapse; font-size: 0.82rem;
+  }
+  .ib-items-table thead th {
+    background: #f8fafc; padding: 10px 12px;
+    font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.07em; color: #64748b; text-align: left;
+    border-bottom: 2px solid #e2e8f0; white-space: nowrap;
+  }
+  .ib-items-table thead th.text-right { text-align: right; }
+  .ib-items-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.15s; }
+  .ib-items-table tbody tr:hover { background: #fafbfd; }
+  .ib-items-table td { padding: 8px 12px; vertical-align: middle; }
+  .ib-items-table td.text-right { text-align: right; }
+
+  .ib-inline { 
+    border: 1.5px solid transparent; background: transparent; 
+    width: 100%; padding: 6px 8px; border-radius: 6px;
+    font-size: 0.82rem; font-family: inherit; color: var(--navy);
+    transition: all 0.15s; outline: none;
+  }
+  .ib-inline:hover { border-color: #e2e8f0; background: #fff; }
+  .ib-inline:focus { border-color: var(--gold); background: #fff; box-shadow: 0 0 0 3px rgba(212,175,55,0.1); }
+  .ib-inline-sm { width: 70px; }
+  .ib-inline-md { width: 90px; }
+  .ib-inline-xs { width: 55px; }
+  
+  .ib-inline-select {
+    border: 1.5px solid transparent; background: transparent;
+    padding: 5px 4px; border-radius: 5px; font-size: 0.78rem;
+    font-family: inherit; color: var(--navy); cursor: pointer; outline: none;
+  }
+  .ib-inline-select:hover { border-color: #e2e8f0; }
+  .ib-inline-select:focus { border-color: var(--gold); }
+
+  .ib-item-name-input {
+    font-weight: 700; font-size: 0.85rem;
+  }
+  .ib-item-desc-input {
+    font-size: 0.75rem; color: #64748b; margin-top: 3px;
+  }
+  .ib-drag-handle { cursor: grab; color: #cbd5e1; font-size: 1.1rem; }
+  .ib-drag-handle:hover { color: #94a3b8; }
+  .ib-row-sn { font-weight: 700; color: var(--gold); font-size: 0.78rem; }
+  .ib-remove-row {
+    background: none; border: none; cursor: pointer;
+    color: #cbd5e1; font-size: 1rem; padding: 4px 6px;
+    border-radius: 4px; transition: all 0.15s;
+  }
+  .ib-remove-row:hover { color: #ef4444; background: #fef2f2; }
+  .ib-amount-display { font-weight: 700; color: var(--navy); }
+
+  .ib-group-row td {
+    background: #f8fafc !important; padding: 6px 12px !important;
+  }
+  .ib-group-input {
+    font-weight: 700; font-size: 0.78rem; color: #475569;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    border: none; background: transparent; outline: none; width: 100%;
+  }
+
+  /* ── Add Row / Group Buttons ── */
+  .ib-add-actions { padding: 12px 16px; border-top: 2px dashed #e2e8f0; display: flex; gap: 10px; }
+  .ib-add-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 7px; font-size: 0.78rem;
+    font-weight: 700; cursor: pointer; border: 1.5px solid rgba(13,27,42,0.12);
+    background: #fff; color: var(--navy); transition: all 0.15s; font-family: inherit;
+  }
+  .ib-add-btn:hover { background: var(--gold); color: #fff; border-color: var(--gold); }
+  .ib-add-btn-secondary { color: #64748b; }
+  .ib-add-btn-secondary:hover { background: #f1f5f9; color: var(--navy); border-color: #cbd5e1; }
+
+  /* ── Config Row ── */
+  .ib-config-row {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    padding: 12px 16px; border-bottom: var(--ib-border);
+    background: #f8fafc; font-size: 0.8rem;
+  }
+  .ib-config-item { display: flex; align-items: center; gap: 8px; }
+  .ib-config-label { font-weight: 600; color: #64748b; white-space: nowrap; }
+  .ib-config-select {
+    padding: 5px 10px; border-radius: 6px; border: 1.5px solid #e2e8f0;
+    font-size: 0.78rem; font-family: inherit; background: #fff; outline: none;
+  }
+  .ib-config-select:focus { border-color: var(--gold); }
+  .ib-igst-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .ib-igst-toggle input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--gold); cursor: pointer; }
+
+  /* ── Sidebar / Totals ── */
+  .ib-totals-card {
+    background: #fff; border-radius: var(--ib-radius); border: var(--ib-border);
+    box-shadow: var(--ib-card-shadow); overflow: hidden;
+  }
+  .ib-totals-header {
+    padding: 16px 20px; background: var(--navy);
+    font-size: 0.75rem; font-weight: 800; color: rgba(255,255,255,0.7);
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .ib-totals-body { padding: 0; }
+  .ib-totals-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 11px 20px; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem;
+  }
+  .ib-totals-row:last-child { border-bottom: none; }
+  .ib-totals-row-label { color: #64748b; font-weight: 500; }
+  .ib-totals-row-value { font-weight: 700; color: var(--navy); font-family: monospace; }
+  .ib-totals-grand {
+    background: var(--gold-light); border-top: 2px solid var(--gold);
+    padding: 16px 20px;
+  }
+  .ib-totals-grand-label { font-size: 0.75rem; font-weight: 800; color: #92700a; text-transform: uppercase; letter-spacing: 0.08em; }
+  .ib-totals-grand-value { font-size: 1.4rem; font-weight: 900; color: var(--navy); font-family: monospace; }
+  .ib-totals-words {
+    font-size: 0.7rem; color: #64748b; padding: 8px 20px 12px;
+    border-top: 1px dashed #e2e8f0; line-height: 1.5; font-style: italic;
+  }
+
+  /* Discount/Charges Inline Controls */
+  .ib-inline-control { display: flex; align-items: center; gap: 6px; }
+  .ib-ctrl-input {
+    width: 70px; padding: 5px 8px; border: 1.5px solid #e2e8f0;
+    border-radius: 6px; font-size: 0.8rem; font-family: inherit; text-align: right; outline: none;
+  }
+  .ib-ctrl-input:focus { border-color: var(--gold); }
+  .ib-ctrl-select {
+    width: 44px; padding: 5px 4px; border: 1.5px solid #e2e8f0;
+    border-radius: 6px; font-size: 0.78rem; font-family: inherit; outline: none;
+  }
+  .ib-ctrl-select:focus { border-color: var(--gold); }
+
+  /* Status select */
+  .ib-status-select {
+    width: 100%; padding: 10px 14px; border-radius: 8px;
+    border: 2px solid #e2e8f0; font-size: 0.85rem; font-family: inherit;
+    background: #f8fafc; font-weight: 700; outline: none;
+  }
+  .ib-status-select:focus { border-color: var(--gold); }
+
+  /* Submit button */
+  .ib-submit-btn {
+    width: 100%; padding: 14px; border-radius: 10px; border: none;
+    background: linear-gradient(135deg, var(--navy), #1a2f4a);
+    color: white; font-size: 0.95rem; font-weight: 800;
+    cursor: pointer; transition: all 0.2s; font-family: inherit;
+    letter-spacing: 0.03em; display: flex; align-items: center;
+    justify-content: center; gap: 10px;
+  }
+  .ib-submit-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(13,27,42,0.2); }
+
+  /* Notes & Terms */
+  .ib-textarea {
+    width: 100%; padding: 12px 16px; border-radius: 8px;
+    border: 2px solid #e2e8f0; font-size: 0.85rem; font-family: inherit;
+    resize: vertical; min-height: 100px; outline: none; transition: border-color 0.2s;
+    box-sizing: border-box; color: var(--navy); line-height: 1.6;
+  }
+  .ib-textarea:focus { border-color: var(--gold); }
+
+  /* Form label */
+  .ib-label {
+    display: block; font-size: 0.72rem; font-weight: 800;
+    color: #64748b; text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  .ib-input {
+    width: 100%; padding: 10px 14px; border-radius: 8px;
+    border: 2px solid #e2e8f0; font-size: 0.88rem; font-family: inherit;
+    background: #f8fafc; outline: none; box-sizing: border-box;
+    transition: all 0.2s; color: var(--navy);
+  }
+  .ib-input:focus { border-color: var(--gold); background: white; }
+
+  /* Tax rows */
+  .ib-tax-row { color: #3b82f6; }
+  .ib-tax-row .ib-totals-row-label { color: #3b82f6; }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .ib-layout { grid-template-columns: 1fr; }
+    .ib-sidebar { position: static; }
+  }
+  @media (max-width: 768px) {
+    .ib-parties { grid-template-columns: 1fr; }
+    .ib-hero-grid { grid-template-columns: 1fr; }
+    .ib-invoice-title-input { font-size: 1.4rem; }
+    .ib-topbar { padding: 12px 16px; }
+    .ib-card-body { padding: 16px; }
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}?v=3\">
-<div class="qf-wrapper">
-  
-  <div class="qf-topbar">
-    <div class="flex items-center gap-4">
-      <a href="{{ url_for('accounts.invoice_list') }}" class="btn-back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
-        Invoices
+<div class="ib-wrapper">
+
+  <!-- Sticky Top Bar -->
+  <div class="ib-topbar">
+    <div class="ib-topbar-left">
+      <a href="{{ url_for('accounts.invoice_list') }}" class="ib-back-btn">
+        ← Invoices
       </a>
       <div>
-        <h1 class="text-xl font-bold">{% if mode == 'edit' %}Edit Invoice #{{ invoice.invoice_number }}{% else %}Create Tax Invoice{% endif %}</h1>
-        <p class="text-xs text-muted">{% if mode == 'edit' %}Modify existing invoice details{% else %}Generate a professional tax invoice for your customer{% endif %}</p>
+        <div class="ib-topbar-title">
+          {% if mode == 'edit' %}Edit Invoice #{{ invoice.invoice_number }}{% else %}New Invoice{% endif %}
+        </div>
+        <div class="ib-topbar-subtitle">
+          {% if mode == 'edit' %}Modify existing invoice details{% else %}Create a professional GST tax invoice{% endif %}
+        </div>
       </div>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="ib-topbar-actions">
       {% if mode == 'edit' %}
-      <a href="{{ url_for('accounts.view_invoice', invoice_id=invoice.id) }}" class="btn-secondary">Cancel</a>
+      <a href="{{ url_for('accounts.view_invoice', invoice_id=invoice.id) }}" class="ib-btn ib-btn-outline">
+        👁 View
+      </a>
       {% endif %}
-      <button type="submit" form="invoice-main-form" class="btn-primary" id="btn-save-invoice">
-        🚀 {% if mode == 'edit' %}Update Invoice{% else %}Finalize &amp; Generate{% endif %}
+      <button type="submit" form="invoice-main-form" class="ib-btn ib-btn-primary" id="btn-save-invoice">
+        {% if mode == 'edit' %}✔ Update Invoice{% else %}🚀 Generate Invoice{% endif %}
       </button>
     </div>
   </div>
 
-  <form id="invoice-main-form" action="{% if mode == 'edit' %}{{ url_for('accounts.edit_invoice', invoice_id=invoice.id) }}{% else %}{{ url_for('accounts.add_invoice') }}{% endif %}" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-    <div class="qf-layout">
-      
-      <!-- Main Form Area -->
-      <div class="qf-main">
-        
-        <!-- Header Card: Doc Info -->
-        <div class="qf-card">
-          <div class="qf-card-body">
-            <div class="qf-row">
-              <div class="qf-field" style="flex: 2;">
-                <label class="qf-label">Invoice Title</label>
-                <input type="text" name="invoice_title" class="qf-input" value="{{ invoice.invoice_title if invoice else 'Tax Invoice' }}" placeholder="e.g. Tax Invoice">
-              </div>
-              <div class="qf-field">
-                <label class="qf-label">Invoice #</label>
-                <input type="text" class="qf-input bg-gray-50" value="{{ invoice.invoice_number if invoice else next_number }}" readonly>
-                <p class="text-xs text-muted mt-1">Auto-generated sequence</p>
-              </div>
-              <div class="qf-field" style="flex: 1.5;">
-                <div class="qf-row" style="margin-bottom: 0;">
-                  <div class="qf-field">
-                    <label class="qf-label">Issue Date</label>
-                    <input type="date" name="issue_date" class="qf-input" value="{{ (invoice.issue_date.strftime('%Y-%m-%d') if invoice.issue_date else today) if mode == 'edit' else today }}">
-                  </div>
-                  <div class="qf-field">
-                    <label class="qf-label">Due Date</label>
-                    <input type="date" name="due_date" class="qf-input" value="{{ invoice.due_date.strftime('%Y-%m-%d') if invoice and invoice.due_date else '' }}">
-                  </div>
+  <form id="invoice-main-form" method="POST"
+    action="{% if mode == 'edit' %}{{ url_for('accounts.edit_invoice', invoice_id=invoice.id) }}{% else %}{{ url_for('accounts.add_invoice') }}{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="ib-layout">
+      <div class="ib-main">
+
+        <!-- ── 1. INVOICE HERO HEADER ── -->
+        <div class="ib-invoice-hero">
+          <div class="ib-hero-grid">
+            <div>
+              <div class="ib-invoice-label">Invoice Title</div>
+              <input type="text" name="invoice_title" class="ib-invoice-title-input"
+                value="{{ invoice.invoice_title if invoice else 'Tax Invoice' }}"
+                placeholder="Tax Invoice">
+              <div class="ib-hero-meta">
+                <div class="ib-hero-meta-item">
+                  <span class="ib-hero-meta-label">Issue Date</span>
+                  <input type="date" name="issue_date" class="ib-hero-date-input"
+                    value="{{ (invoice.issue_date.strftime('%Y-%m-%d') if invoice.issue_date else today) if mode == 'edit' else today }}"
+                    required>
                 </div>
+                <div class="ib-hero-meta-item">
+                  <span class="ib-hero-meta-label">Due Date</span>
+                  <input type="date" name="due_date" class="ib-hero-date-input"
+                    value="{{ invoice.due_date.strftime('%Y-%m-%d') if invoice and invoice.due_date else '' }}">
+                </div>
+                <div class="ib-hero-meta-item">
+                  <span class="ib-hero-meta-label">Project (Optional)</span>
+                  <select name="project_id" class="ib-hero-date-input" style="width:160px; cursor:pointer;">
+                    <option value="">— None —</option>
+                    {% for p in projects %}
+                    <option value="{{ p.id }}" {% if invoice and invoice.project_id == p.id %}selected{% endif %}>
+                      {{ p.name }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="ib-hero-meta-item">
+                  <span class="ib-hero-meta-label">PO / Reference</span>
+                  <input type="text" name="references" class="ib-hero-date-input"
+                    style="width:140px;" placeholder="PO/2026/001"
+                    value="{{ invoice.references if invoice and invoice.references else '' }}">
+                </div>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:0.65rem; color:rgba(255,255,255,0.45); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px;">Invoice No.</div>
+              <div class="ib-inv-number-badge">
+                {{ invoice.invoice_number if invoice else next_number }}
+              </div>
+              <div style="margin-top:16px;">
+                <select name="status" class="ib-hero-date-input" style="width:auto; cursor:pointer; font-weight:700;">
+                  <option value="Unpaid" {% if not invoice or invoice.status.value == 'Unpaid' %}selected{% endif %}>🔴 Unpaid</option>
+                  <option value="Paid" {% if invoice and invoice.status.value == 'Paid' %}selected{% endif %}>🟢 Paid</option>
+                  <option value="Partially Paid" {% if invoice and invoice.status.value == 'Partially Paid' %}selected{% endif %}>🟡 Partial</option>
+                  <option value="Overdue" {% if invoice and invoice.status.value == 'Overdue' %}selected{% endif %}>🔴 Overdue</option>
+                  <option value="Cancelled" {% if invoice and invoice.status.value == 'Cancelled' %}selected{% endif %}>⚫ Cancelled</option>
+                </select>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Billing Section -->
-        <div class="qf-card">
-          <div class="qf-card-body">
-            <div class="qf-row">
-              <div class="qf-field" style="flex: 2;">
-              <div class="flex items-center justify-between mb-2">
-                <label class="qf-label mb-0">Customer / Client</label>
-                <a href="{{ url_for('customers.add_customer') }}" class="text-xs text-primary">+ New Customer</a>
-              </div>
-              <select name="customer_id" id="customer-select" class="qf-select" required>
-                <option value="">-- Select Customer --</option>
+        <!-- ── 2. BILLING PARTIES ── -->
+        <div class="ib-parties">
+          <!-- Billed By -->
+          <div class="ib-party-card">
+            <div class="ib-party-header">
+              <span class="ib-party-label">🏢 Billed By</span>
+              <span class="ib-party-badge">Your Company</span>
+            </div>
+            <div class="ib-party-body ib-billed-by-info">
+              {% if settings.company_name %}
+                <div class="ib-party-name">{{ settings.company_name }}</div>
+                <div class="ib-party-detail">
+                  {% if settings.company_address %}<div>{{ settings.company_address }}</div>{% endif %}
+                  {% if settings.company_state %}<div>{{ settings.company_state }}</div>{% endif %}
+                  {% if settings.company_gstin %}<div><strong>GSTIN:</strong> {{ settings.company_gstin }}</div>{% endif %}
+                  {% if settings.company_pan %}<div><strong>PAN:</strong> {{ settings.company_pan }}</div>{% endif %}
+                  {% if settings.company_email %}<div>✉ {{ settings.company_email }}</div>{% endif %}
+                  {% if settings.company_phone %}<div>📞 {{ settings.company_phone }}</div>{% endif %}
+                </div>
+                {% if settings.bank_name %}
+                <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #e2e8f0;">
+                  <div class="ib-party-detail" style="font-size:0.75rem;">
+                    <strong>Bank:</strong> {{ settings.bank_name }}<br>
+                    <strong>A/C:</strong> {{ settings.bank_account_no }}<br>
+                    <strong>IFSC:</strong> {{ settings.bank_ifsc }}
+                  </div>
+                </div>
+                {% endif %}
+              {% else %}
+                <div class="ib-party-detail" style="color:#94a3b8; font-style:italic;">
+                  Company details not configured.<br>
+                  <a href="{{ url_for('accounts.quotation_settings') }}" style="color:var(--gold); font-style:normal; font-weight:600;">
+                    ⚙ Set up company profile →
+                  </a>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Billed To -->
+          <div class="ib-party-card">
+            <div class="ib-party-header">
+              <span class="ib-party-label">👤 Billed To</span>
+              <a href="{{ url_for('customers.add_customer') }}" style="font-size:0.72rem; color:var(--gold); font-weight:700; text-decoration:none;">+ New Client</a>
+            </div>
+            <div class="ib-party-body">
+              <select name="customer_id" id="customer-select" class="ib-customer-select" required>
+                <option value="">— Select Client —</option>
                 {% for c in customers %}
-                  <option value="{{ c.id }}" 
-                          {% if invoice and invoice.customer_id == c.id %}selected{% endif %}
-                          data-company="{{ c.company or c.name }}"
-                          data-address="{{ c.address }}"
-                          data-gstin="{{ c.gst_number or 'Unregistered' }}"
-                          data-phone="{{ c.phone_number }}"
-                          data-email="{{ c.email }}"
-                          data-state="{{ c.state }}">
-                    {{ c.name }} {% if c.company %}({{ c.company }}){% endif %}
-                  </option>
+                <option value="{{ c.id }}"
+                  {% if invoice and invoice.customer_id == c.id %}selected{% endif %}
+                  data-name="{{ c.name }}"
+                  data-company="{{ c.company or '' }}"
+                  data-address="{{ c.address or '' }}"
+                  data-city="{{ c.city or '' }}"
+                  data-state="{{ c.state or '' }}"
+                  data-gstin="{{ c.gst_number or '' }}"
+                  data-pan="{{ c.company_pan if c.company_pan is defined else '' }}"
+                  data-phone="{{ c.phone_number or '' }}"
+                  data-email="{{ c.email or '' }}"
+                  data-pincode="{{ c.pincode or '' }}">
+                  {{ c.name }}{% if c.company %} — {{ c.company }}{% endif %}
+                </option>
                 {% endfor %}
               </select>
-
-              <div id="customer-autofill" class="{% if not invoice %}hidden{% endif %}">
-                <div class="flex justify-between items-start">
-                  <div>
-                    <h4 id="af-company">{{ invoice.customer.company if invoice else 'Company Name' }}</h4>
-                    <p id="af-address">{{ invoice.customer.address if invoice else 'Street Address, City, State' }}</p>
+              <div id="customer-autofill" class="{{ '' if (invoice and invoice.customer_id) else 'hidden' }}">
+                <div class="ib-customer-autofill">
+                  <div class="ib-autofill-name" id="af-company">{{ invoice.customer.company or invoice.customer.name if invoice else '' }}</div>
+                  <div class="ib-autofill-line" id="af-name">{{ invoice.customer.name if invoice else '' }}</div>
+                  <div class="ib-autofill-line" id="af-address">{{ invoice.customer.address or '' if invoice else '' }}</div>
+                  <div class="ib-autofill-line" id="af-city-state">
+                    {{ ((invoice.customer.city or '') + (', ' + invoice.customer.state if invoice.customer.state else '')) if invoice else '' }}
                   </div>
-                  <div class="text-right">
-                    <div class="text-xs font-bold uppercase text-muted">GSTIN</div>
-                    <div id="af-gstin" class="text-xs font-mono">{{ invoice.customer.gst_number if invoice else '27AAAAA0000A1Z5' }}</div>
-                  </div>
-                </div>
-                <div class="flex gap-4 mt-3 pt-2 border-t">
-                  <div class="text-xs">📞 <span id="af-phone">{{ invoice.customer.phone_number if invoice else '9999999999' }}</span></div>
-                  <div class="text-xs">✉️ <span id="af-email">{{ invoice.customer.email if invoice else 'client@example.com' }}</span></div>
-                </div>
-              </div>
-            </div>
-
-              <div class="qf-field">
-                <label class="qf-label">Link to Project (Optional)</label>
-                <select name="project_id" class="qf-select">
-                  <option value="">-- Select Project --</option>
-                  {% for p in projects %}
-                    <option value="{{ p.id }}" {% if invoice and invoice.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
-                  {% endfor %}
-                </select>
-                
-                <div class="mt-4">
-                  <label class="qf-label">Reference / PO No.</label>
-                  <input type="text" name="references" class="qf-input" value="{{ invoice.references if invoice else '' }}" placeholder="e.g. PO/2026/102">
+                  <div class="ib-autofill-line" id="af-phone">{{ invoice.customer.phone_number if invoice else '' }}</div>
+                  <div class="ib-autofill-line" id="af-email">{{ invoice.customer.email if invoice else '' }}</div>
+                  {% if invoice and invoice.customer.gst_number %}
+                  <span class="ib-autofill-tag" id="af-gstin">GSTIN: {{ invoice.customer.gst_number }}</span>
+                  {% else %}
+                  <span class="ib-autofill-tag" id="af-gstin" style="display:none;"></span>
+                  {% endif %}
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- ─── ERP ITEM TABLE ─── -->
-        <div class="qf-card p-0 overflow-hidden">
-          <div class="bg-gray-50">
-            <h3>Line Items &amp; Measurements</h3>
-            <div class="flex gap-2">
-                <button type="button" class="btn-erp-tool" id="btn-config-gst" title="Global GST">⚙ GST</button>
-                <button type="button" class="btn-erp-tool" id="btn-edit-cols" title="Columns">📐 Formula</button>
+        <!-- ── 3. LINE ITEMS TABLE ── -->
+        <div class="ib-card">
+          <div class="ib-card-header">
+            <span class="ib-card-title">
+              <span class="ib-card-title-dot"></span>
+              Line Items & Measurements
+            </span>
+            <div style="display:flex; gap:8px; font-size:0.78rem;">
+              <button type="button" class="ib-add-btn" id="btn-config-gst" title="GST Settings">⚙ GST</button>
+              <button type="button" class="ib-add-btn" id="btn-edit-cols" title="Area Formula">📐 Formula</button>
             </div>
           </div>
-          
-          <div class="erp-table-container">
-            <table class="erp-table">
+
+          <!-- Config Row -->
+          <div class="ib-config-row">
+            <div class="ib-config-item">
+              <span class="ib-config-label">Dimension Unit:</span>
+              <select id="global-dim-unit" class="ib-config-select">
+                <option value="Inches">Inches</option>
+                <option value="Feet">Feet</option>
+                <option value="cm">cm</option>
+                <option value="mm">mm</option>
+              </select>
+            </div>
+            <div class="ib-config-item">
+              <label class="ib-igst-toggle">
+                <input type="checkbox" name="is_igst" value="1" id="toggle-igst"
+                  {% if invoice and invoice.is_igst %}checked{% endif %}>
+                <span class="ib-config-label">Apply IGST (Interstate)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div style="overflow-x:auto;">
+            <table class="ib-items-table" id="items-table">
               <thead>
                 <tr>
-                  <th class="col-drag"></th>
-                  <th class="col-sn">#</th>
-                  <th class="col-item">Item Description</th>
-                  <th class="col-dim">
-                    Width
-                    <select id="global-dim-unit" style="font-size: 10px; margin-top: 2px; padding: 0 4px; display: block; border-radius: 2px; background: transparent; border: 1px solid #ccc;">
-                      <option value="Inches">In(s)</option>
-                      <option value="Feet">Ft(s)</option>
-                      <option value="cm">cm</option>
-                      <option value="mm">mm</option>
-                    </select>
-                  </th>
-                  <th class="col-dim">Height</th>
-                  <th class="col-c-area">Area</th>
-                  <th class="col-qty">Qty</th>
-                  <th class="col-c-qty">Charge Qty</th>
-                  <th class="col-unit">Unit</th>
-                  <th class="col-rate">Rate (₹)</th>
-                  <th class="col-disc">Disc</th>
-                  <th class="col-gst">GST%</th>
-                  <th class="col-amt">Amount</th>
-                  <th class="col-total">Total</th>
-                  <th class="col-action"></th>
+                  <th style="width:24px;"></th>
+                  <th style="width:28px;">#</th>
+                  <th>Description of Goods / Services</th>
+                  <th style="width:70px;">HSN/SAC</th>
+                  <th style="width:85px;">Width</th>
+                  <th style="width:85px;">Height</th>
+                  <th style="width:70px;">Area</th>
+                  <th style="width:65px;">Qty</th>
+                  <th style="width:75px;">C.Qty</th>
+                  <th style="width:60px;">Unit</th>
+                  <th style="width:90px;">Rate ₹</th>
+                  <th style="width:80px;">Disc</th>
+                  <th style="width:55px;">GST%</th>
+                  <th class="text-right" style="width:95px;">Amount ₹</th>
+                  <th class="text-right" style="width:95px;">Total ₹</th>
+                  <th style="width:32px;"></th>
                 </tr>
               </thead>
               <tbody id="items-tbody">
                 {% if mode == 'edit' and invoice %}
                   {% for item in invoice.items %}
-                    <tr class="erp-item-row item-row">
-                      <input type="hidden" name="group_name[]" class="input-group-name" value="{{ item.group_name or '' }}">
-                      <input type="hidden" name="formula_type[]" class="input-formula" value="{{ item.formula_type or 'standard' }}">
-                      <td class="col-drag"><span class="drag-handle">⠿</span></td>
-                      <td class="col-sn">{{ loop.index }}</td>
-                      <td class="col-item">
-                        <input type="text" name="item_name[]" class="erp-inline-input item-name" value="{{ item.item_name }}" placeholder="Item name">
-                        <textarea name="description[]" class="erp-inline-textarea item-desc" rows="1" placeholder="Details...">{{ item.description }}</textarea>
-                      </td>
-                      <td class="col-dim">
-                        <input type="number" name="width[]" class="erp-inline-input dim-w item-calc" value="{{ item.width or 0 }}" step="0.01">
-                      </td>
-                      <td class="col-dim">
-                        <input type="number" name="height[]" class="erp-inline-input dim-h item-calc" value="{{ item.height or 0 }}" step="0.01">
-                      </td>
-                      <td class="col-c-area">
-                        <span class="erp-readonly-val area-val">0.00</span>
-                      </td>
-                      <td class="col-qty">
-                        <input type="number" name="quantity[]" class="erp-inline-input item-qty item-calc" value="{{ item.quantity or 1 }}" step="0.01">
-                      </td>
-                      <td class="col-c-qty">
-                        <input type="number" name="chargeable_quantity[]" class="erp-inline-input item-c-qty item-calc" value="{{ item.chargeable_quantity or '' }}" placeholder="Auto" step="0.01">
-                      </td>
-                      <td class="col-unit">
-                        <select name="unit[]" class="erp-inline-select select-unit">
-                          <option {% if item.unit == 'Sq.Ft' %}selected{% endif %}>Sq.Ft</option>
-                          <option {% if item.unit == 'Sq.M' %}selected{% endif %}>Sq.M</option>
-                          <option {% if item.unit == 'Pcs' %}selected{% endif %}>Pcs</option>
-                          <option {% if item.unit == 'Nos' %}selected{% endif %}>Nos</option>
-                          <option {% if item.unit == 'RFT' %}selected{% endif %}>RFT</option>
+                  <tr class="erp-item-row item-row">
+                    <input type="hidden" name="group_name[]" class="input-group-name" value="{{ item.group_name or '' }}">
+                    <input type="hidden" name="formula_type[]" class="input-formula" value="{{ item.formula_type or 'standard' }}">
+                    <td><span class="ib-drag-handle">⠿</span></td>
+                    <td><span class="ib-row-sn col-sn">{{ loop.index }}</span></td>
+                    <td>
+                      <input type="text" name="item_name[]" class="ib-inline ib-item-name-input item-name" value="{{ item.item_name }}" placeholder="Item name">
+                      <input type="text" name="description[]" class="ib-inline ib-item-desc-input item-desc" value="{{ item.description or '' }}" placeholder="Description...">
+                    </td>
+                    <td><input type="text" name="hsn_sac[]" class="ib-inline ib-inline-sm" value="{{ item.hsn_sac if item.hsn_sac is defined else '' }}" placeholder="HSN"></td>
+                    <td><input type="number" name="width[]" class="ib-inline ib-inline-sm dim-w item-calc" value="{{ item.width or 0 }}" step="0.01"></td>
+                    <td><input type="number" name="height[]" class="ib-inline ib-inline-sm dim-h item-calc" value="{{ item.height or 0 }}" step="0.01"></td>
+                    <td><span class="erp-readonly-val area-val" style="font-size:0.75rem; color:#64748b;">—</span></td>
+                    <td><input type="number" name="quantity[]" class="ib-inline ib-inline-sm item-qty item-calc" value="{{ item.quantity or 1 }}" step="0.01"></td>
+                    <td><input type="number" name="chargeable_quantity[]" class="ib-inline ib-inline-sm item-c-qty item-calc" value="{{ item.chargeable_quantity or '' }}" placeholder="Auto" step="0.01"></td>
+                    <td>
+                      <select name="unit[]" class="ib-inline-select select-unit">
+                        <option {% if item.unit == 'Sq.Ft' %}selected{% endif %}>Sq.Ft</option>
+                        <option {% if item.unit == 'Sq.M' %}selected{% endif %}>Sq.M</option>
+                        <option {% if item.unit == 'Pcs' %}selected{% endif %}>Pcs</option>
+                        <option {% if item.unit == 'Nos' %}selected{% endif %}>Nos</option>
+                        <option {% if item.unit == 'RFT' %}selected{% endif %}>RFT</option>
+                        <option {% if item.unit == 'Kg' %}selected{% endif %}>Kg</option>
+                      </select>
+                    </td>
+                    <td><input type="number" name="rate[]" class="ib-inline ib-inline-md item-rate item-calc" value="{{ item.rate or 0 }}" step="0.01"></td>
+                    <td>
+                      <div style="display:flex; gap:3px;">
+                        <input type="number" name="discount[]" class="ib-inline ib-inline-xs item-disc item-calc" value="{{ item.discount or 0 }}">
+                        <select name="discount_type[]" class="ib-inline-select disc-type">
+                          <option value="flat" {% if item.discount_type == 'flat' %}selected{% endif %}>₹</option>
+                          <option value="percent" {% if item.discount_type == 'percent' %}selected{% endif %}>%</option>
                         </select>
-                      </td>
-                      <td class="col-rate">
-                        <input type="number" name="rate[]" class="erp-inline-input item-rate item-calc" value="{{ item.rate or 0 }}" step="0.01">
-                      </td>
-                      <td class="col-disc">
-                        <div class="disc-wrap">
-                          <input type="number" name="discount[]" class="erp-inline-input item-disc item-calc" value="{{ item.discount or 0 }}" style="width:40px;">
-                          <select name="discount_type[]" class="erp-inline-select disc-type" style="width:30px;">
-                            <option value="flat" {% if item.discount_type == 'flat' %}selected{% endif %}>₹</option>
-                            <option value="percent" {% if item.discount_type == 'percent' %}selected{% endif %}>%</option>
-                          </select>
-                        </div>
-                      </td>
-                      <td class="col-gst">
-                        <select name="gst_rate[]" class="erp-inline-select item-gst item-calc">
-                          <option value="0" {% if item.gst_percentage == 0 %}selected{% endif %}>0%</option>
-                          <option value="5" {% if item.gst_percentage == 5 %}selected{% endif %}>5%</option>
-                          <option value="12" {% if item.gst_percentage == 12 %}selected{% endif %}>12%</option>
-                          <option value="18" {% if item.gst_percentage == 18 %}selected{% endif %}>18%</option>
-                          <option value="28" {% if item.gst_percentage == 28 %}selected{% endif %}>28%</option>
-                        </select>
-                      </td>
-                      <td class="col-amt"><span class="erp-readonly-val item-amount">₹{{ "{:,.2f}".format(item.amount) }}</span></td>
-                      <td class="col-total"><strong class="item-total-str">₹{{ "{:,.2f}".format(item.total) }}</strong></td>
-                      <td class="col-action">
-                        <button type="button" class="btn-remove-erp" title="Remove">✕</button>
-                      </td>
-                    </tr>
+                      </div>
+                    </td>
+                    <td>
+                      <select name="gst_rate[]" class="ib-inline-select item-gst item-calc">
+                        <option value="0" {% if item.gst_percentage == 0 %}selected{% endif %}>0%</option>
+                        <option value="5" {% if item.gst_percentage == 5 %}selected{% endif %}>5%</option>
+                        <option value="12" {% if item.gst_percentage == 12 %}selected{% endif %}>12%</option>
+                        <option value="18" {% if item.gst_percentage == 18 %}selected{% endif %}>18%</option>
+                        <option value="28" {% if item.gst_percentage == 28 %}selected{% endif %}>28%</option>
+                      </select>
+                    </td>
+                    <td class="text-right"><span class="ib-amount-display item-amount">₹{{ "{:,.2f}".format(item.amount) }}</span></td>
+                    <td class="text-right"><strong class="ib-amount-display item-total-str">₹{{ "{:,.2f}".format(item.total) }}</strong></td>
+                    <td><button type="button" class="ib-remove-row btn-remove-erp">✕</button></td>
+                  </tr>
                   {% endfor %}
                 {% endif %}
               </tbody>
             </table>
           </div>
 
-          <div class="erp-footer-actions">
-            <button type="button" id="btn-add-row" class="btn-add-erp">
-                <span>✚</span> Add Item Row
+          <div class="ib-add-actions">
+            <button type="button" id="btn-add-row" class="ib-add-btn">
+              ✚ Add Line Item
             </button>
-            <button type="button" id="btn-add-group" class="btn-add-erp secondary">
-                <span>📁</span> Add Category Group
+            <button type="button" id="btn-add-group" class="ib-add-btn ib-add-btn-secondary">
+              📁 Add Group Header
             </button>
           </div>
-        </div><!-- /.qf-card ERP table -->
+        </div>
 
-        <!-- Bottom Sections: Notes & Terms -->
-        <div class="qf-row mt-6">
-          <div class="qf-field">
-            <div class="qf-card qf-card-body">
-              <label class="qf-label">Invoice Notes (Visible to Customer)</label>
-              <textarea name="notes" class="qf-input" style="min-height:120px; resize:vertical;" placeholder="e.g. Bank details, Payment reminder...">{{ invoice.notes if invoice else '' }}</textarea>
-            </div>
+        <!-- ── 4. NOTES & TERMS ── -->
+        <div class="ib-card">
+          <div class="ib-card-header">
+            <span class="ib-card-title"><span class="ib-card-title-dot"></span>Notes & Terms</span>
           </div>
-          <div class="qf-field">
-            <div class="qf-card qf-card-body">
-              <label class="qf-label">Terms &amp; Conditions</label>
-              <textarea name="terms_conditions" class="qf-input" style="min-height:120px; resize:vertical;" placeholder="Standard terms apply...">{{ invoice.terms_conditions if invoice else '1. Goods once sold will not be taken back.\n2. Interest @18% p.a. will be charged if payment is not made within due date.\n3. Subject to local jurisdiction.' }}</textarea>
+          <div class="ib-card-body" style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+            <div>
+              <label class="ib-label">Invoice Notes (Visible to Customer)</label>
+              <textarea name="notes" class="ib-textarea" placeholder="e.g. Payment due within 30 days...">{{ invoice.notes if invoice else '' }}</textarea>
+            </div>
+            <div>
+              <label class="ib-label">Terms & Conditions</label>
+              <textarea name="terms_conditions" class="ib-textarea" placeholder="1. Goods once sold will not be taken back...">{{ invoice.terms_conditions if invoice else '1. Goods once sold will not be taken back.\n2. Interest @18% p.a. if payment not made within due date.\n3. Subject to local jurisdiction.' }}</textarea>
             </div>
           </div>
         </div>
 
-      </div><!-- /.qf-main -->
-
-       <div class="qf-sidebar">
-        
-         <div class="qf-card-sidebar">
-           <h3 class="font-bold text-sm mb-4 border-b pb-2" style="padding-bottom:12px;">Invoice Summary</h3>
-          
-          <div class="totals-row">
-            <span>Subtotal</span>
-            <span id="t-subtotal">₹{{ "{:,.2f}".format((invoice.subtotal if invoice else 0) or 0) }}</span>
+        <!-- ── 5. SIGNATURE ── -->
+        <div class="ib-card">
+          <div class="ib-card-header">
+            <span class="ib-card-title"><span class="ib-card-title-dot"></span>Signature</span>
           </div>
-
-          <div class="totals-row">
-            <span>Discount</span>
-            <div class="flex items-center gap-1">
-               <input type="number" name="total_discount" id="total-discount" class="erp-inline-input text-right" style="width: 60px; height: 24px; font-size: 13px;" value="{{ invoice.total_discount if invoice else 0 }}" step="0.01">
-               <select name="total_discount_type" id="total-discount-type" class="erp-inline-select" style="width: 40px; height: 24px; padding: 0 4px;">
-                  <option value="flat" {% if invoice and invoice.total_discount_type == 'flat' %}selected{% endif %}>₹</option>
-                  <option value="percent" {% if invoice and invoice.total_discount_type == 'percent' %}selected{% endif %}>%</option>
-               </select>
+          <div class="ib-card-body">
+            <div style="max-width:300px;">
+              <label class="ib-label">Signature Label</label>
+              <input type="text" name="signature_label" class="ib-input"
+                value="{{ invoice.signature_label if invoice else 'Authorised Signatory' }}"
+                placeholder="Authorised Signatory">
+              <div style="margin-top:12px; padding:20px; border:2px dashed #e2e8f0; border-radius:8px; text-align:center; color:#94a3b8; font-size:0.8rem;">
+                Signature will appear on the printed invoice
+              </div>
             </div>
           </div>
-          
-          <div class="totals-row highlight">
-            <span>Taxable Amount</span>
-            <span id="t-taxable">₹{{ "{:,.2f}".format(((invoice.subtotal - invoice.total_discount) if invoice else 0) or 0) }}</span>
-          </div>
+        </div>
 
-          <div class="mt-4 pt-4 border-t space-y-2">
-            <div class="flex items-center justify-between text-xs font-semibold text-muted">
-              <span>TAX BREAKDOWN</span>
-              <label class="flex items-center gap-1 cursor-pointer">
-                <input type="checkbox" name="is_igst" value="1" id="toggle-igst" {% if invoice and invoice.is_igst %}checked{% endif %}> 
-                <span>Apply IGST</span>
+      </div><!-- /.ib-main -->
+
+      <!-- ── SIDEBAR ── -->
+      <div class="ib-sidebar">
+        <!-- Totals -->
+        <div class="ib-totals-card" style="margin-bottom:20px;">
+          <div class="ib-totals-header">Invoice Summary</div>
+          <div class="ib-totals-body">
+            <div class="ib-totals-row">
+              <span class="ib-totals-row-label">Subtotal</span>
+              <span class="ib-totals-row-value" id="t-subtotal">₹{{ "{:,.2f}".format(invoice.subtotal or 0) if invoice else '₹0.00' }}</span>
+            </div>
+            <div class="ib-totals-row">
+              <span class="ib-totals-row-label">Discount</span>
+              <div class="ib-inline-control">
+                <input type="number" name="total_discount" id="total-discount" class="ib-ctrl-input"
+                  value="{{ invoice.total_discount if invoice else 0 }}" step="0.01" min="0">
+                <select name="total_discount_type" id="total-discount-type" class="ib-ctrl-select">
+                  <option value="flat" {% if not invoice or invoice.total_discount_type == 'flat' %}selected{% endif %}>₹</option>
+                  <option value="percent" {% if invoice and invoice.total_discount_type == 'percent' %}selected{% endif %}>%</option>
+                </select>
+              </div>
+            </div>
+            <div class="ib-totals-row" style="background:#f8fafc;">
+              <span class="ib-totals-row-label" style="font-weight:700; color:var(--navy);">Taxable Amount</span>
+              <span class="ib-totals-row-value" id="t-taxable">₹{{ "{:,.2f}".format((invoice.subtotal or 0) - (invoice.total_discount or 0)) if invoice else '₹0.00' }}</span>
+            </div>
+            <div class="ib-totals-row ib-tax-row" id="row-sgst" {% if invoice and invoice.is_igst %}style="display:none"{% endif %}>
+              <span class="ib-totals-row-label">SGST</span>
+              <span class="ib-totals-row-value" id="t-sgst">₹{{ "{:,.2f}".format(invoice.sgst or 0) if invoice else '₹0.00' }}</span>
+            </div>
+            <div class="ib-totals-row ib-tax-row" id="row-cgst" {% if invoice and invoice.is_igst %}style="display:none"{% endif %}>
+              <span class="ib-totals-row-label">CGST</span>
+              <span class="ib-totals-row-value" id="t-cgst">₹{{ "{:,.2f}".format(invoice.cgst or 0) if invoice else '₹0.00' }}</span>
+            </div>
+            <div class="ib-totals-row ib-tax-row" id="row-igst" {% if not (invoice and invoice.is_igst) %}style="display:none"{% endif %}>
+              <span class="ib-totals-row-label">IGST</span>
+              <span class="ib-totals-row-value" id="t-igst">₹{{ "{:,.2f}".format(invoice.igst or 0) if invoice else '₹0.00' }}</span>
+            </div>
+            <div class="ib-totals-row">
+              <span class="ib-totals-row-label">
+                <input type="text" name="additional_charges_label" class="ib-inline ib-config-label"
+                  style="text-transform:none; letter-spacing:0; padding:2px 0; width:110px; font-weight:500;"
+                  value="{{ invoice.additional_charges_label if invoice and invoice.additional_charges_label else '' }}"
+                  placeholder="Misc. Charges">
+              </span>
+              <div class="ib-inline-control">
+                <input type="number" name="additional_charges" id="additional-charges" class="ib-ctrl-input"
+                  value="{{ invoice.additional_charges if invoice else 0 }}" step="0.01" min="0">
+              </div>
+            </div>
+            <div style="padding:8px 20px; border-bottom:1px solid #f1f5f9;">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.75rem; color:#64748b; text-transform:none; letter-spacing:0; font-weight:500;">
+                <input type="checkbox" name="additional_charges_taxable" value="1" id="charges-taxable"
+                  {% if invoice and invoice.additional_charges_taxable %}checked{% endif %}
+                  style="width:15px; height:15px; accent-color:var(--gold);">
+                Charges are GST taxable
               </label>
             </div>
-            
-             <div id="row-sgst" class="totals-row mini {% if invoice and invoice.is_igst %}hidden{% endif %}">
-               <span>SGST</span>
-               <span id="t-sgst">₹{{ "{:,.2f}".format((invoice.sgst if invoice else 0) or 0) }}</span>
-             </div>
-             <div id="row-cgst" class="totals-row mini {% if invoice and invoice.is_igst %}hidden{% endif %}">
-               <span>CGST</span>
-               <span id="t-cgst">₹{{ "{:,.2f}".format((invoice.cgst if invoice else 0) or 0) }}</span>
-             </div>
-             <div id="row-igst" class="totals-row mini {% if not (invoice and invoice.is_igst) %}hidden{% endif %}">
-               <span>IGST</span>
-               <span id="t-igst">₹{{ "{:,.2f}".format((invoice.igst if invoice else 0) or 0) }}</span>
-             </div>
           </div>
-
-           <div class="mt-4 pt-4 border-t">
-             <div class="totals-row total">
-               <span>Grand Total</span>
-               <span id="t-total">₹{{ "{:,.2f}".format((invoice.total_amount if invoice else 0) or 0) }}</span>
-             </div>
-            <p id="t-words" class="text-xs text-right text-muted mt-1 leading-tight uppercase font-medium">{{ invoice.total_in_words if invoice else 'Zero Rupees Only' }}</p>
+          <div class="ib-totals-grand">
+            <div class="ib-totals-grand-label">Grand Total</div>
+            <div class="ib-totals-grand-value" id="t-total">₹{{ "{:,.2f}".format(invoice.total_amount or 0) if invoice else '₹0.00' }}</div>
           </div>
-
-          <div class="mt-6">
-            <label class="qf-label">Invoice Status</label>
-            <select name="status" class="qf-select font-bold">
-              <option value="Unpaid" {% if invoice and invoice.status.value == 'Unpaid' %}selected{% endif %}>Unpaid</option>
-              <option value="Paid" {% if invoice and invoice.status.value == 'Paid' %}selected{% endif %}>Paid</option>
-              <option value="Partially Paid" {% if invoice and invoice.status.value == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
-              <option value="Overdue" {% if invoice and invoice.status.value == 'Overdue' %}selected{% endif %}>Overdue</option>
-            </select>
+          <div class="ib-totals-words" id="t-words">
+            {{ invoice.total_in_words if invoice and invoice.total_in_words else 'Zero Rupees Only' }}
           </div>
-
-          <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">
-          
-          <div class="space-y-4">
-              <div class="qf-field">
-                  <label class="qf-label">Additional Charges Label</label>
-                  <input type="text" name="additional_charges_label" class="qf-input text-xs" value="{{ invoice.additional_charges_label if invoice else '' }}" placeholder="e.g. Shipping / Packing">
-              </div>
-              <div class="qf-field">
-                  <label class="qf-label">Amount (₹)</label>
-                  <input type="number" name="additional_charges" id="additional-charges" class="qf-input" value="{{ invoice.additional_charges if invoice else 0 }}" step="0.01">
-              </div>
-            <label class="qf-toggle-label">
-                <input type="checkbox" name="additional_charges_taxable" value="1" id="charges-taxable" {% if invoice and invoice.additional_charges_taxable %}checked{% endif %}>
-                <span class="text-xs">Is this charge taxable?</span>
-            </label>
-          </div>
-
-          <button type="submit" form="invoice-main-form" class="btn-primary w-full mt-8" style="padding: 14px; font-size: 1rem; font-weight: 700; letter-spacing: 0.02em; box-shadow: 0 8px 20px rgba(37,99,235,0.3);">
-            ✔ Finalize Invoice
-          </button>
         </div>
 
-      </div><!-- /.qf-sidebar -->
+        <!-- Invoice Status -->
+        <div class="ib-card" style="margin-bottom:20px;">
+          <div class="ib-card-header">
+            <span class="ib-card-title"><span class="ib-card-title-dot"></span>Quick Actions</span>
+          </div>
+          <div class="ib-card-body" style="padding:16px;">
+            <button type="submit" form="invoice-main-form" class="ib-submit-btn">
+              ✔ {% if mode == 'edit' %}Update Invoice{% else %}Generate Invoice{% endif %}
+            </button>
+            {% if mode == 'edit' %}
+            <a href="{{ url_for('accounts.view_invoice', invoice_id=invoice.id) }}"
+               class="ib-btn ib-btn-outline" style="width:100%; margin-top:10px; justify-content:center;">
+              👁 View / Print
+            </a>
+            {% endif %}
+          </div>
+        </div>
 
-    </div><!-- /.qf-layout -->
+      </div><!-- /.ib-sidebar -->
+    </div><!-- /.ib-layout -->
   </form>
-
 </div>
 
-<!-- ─── Modals for ERP Extras ─── -->
-<div id="modal-gst-config" class="qt-modal">
-  <div class="qt-modal-content">
-    <div class="qt-modal-header">
-      <h3>GST Configuration</h3>
-      <button type="button" class="btn-close" onclick="closeQtModal('modal-gst-config')">✕</button>
-    </div>
-    <div class="qt-modal-body">
-      <div class="qf-field">
-        <label>Default GST Rate (%)</label>
-        <select id="config-default-gst" class="qf-select">
-          <option value="0">0%</option>
-          <option value="5">5%</option>
-          <option value="12">12%</option>
-          <option value="18" selected>18%</option>
-          <option value="28">28%</option>
-        </select>
-      </div>
-      <div class="qf-field mt-4">
-        <button type="button" class="btn-secondary w-full" id="btn-apply-gst-all">Apply to All Rows</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="modal-edit-cols" class="qt-modal">
-  <div class="qt-modal-content">
-    <div class="qt-modal-header">
-      <h3>Area Formula</h3>
-      <button type="button" class="btn-close" onclick="closeQtModal('modal-edit-cols')">✕</button>
-    </div>
-    <div class="qt-modal-body">
-      <div class="qf-field">
-        <label>Calculation Method</label>
-        <select id="config-global-formula" class="qf-select">
-          <option value="standard">Standard (W x H)</option>
-          <option value="minimal_1">Minimum 1.0 Sq.Ft</option>
-          <option value="round_05">Round to 0.5</option>
-          <option value="inches_to_sqft">Inches to Sq.Ft</option>
-        </select>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Row Template -->
+<!-- ── Row Template ── -->
 <template id="item-row-template">
   <tr class="erp-item-row item-row">
     <input type="hidden" name="group_name[]" class="input-group-name" value="">
     <input type="hidden" name="formula_type[]" class="input-formula" value="standard">
-    <td class="col-drag"><span class="drag-handle">⠿</span></td>
-    <td class="col-sn">1</td>
-    <td class="col-item">
-      <input type="text" name="item_name[]" class="erp-inline-input item-name" placeholder="Item name">
-      <textarea name="description[]" class="erp-inline-textarea item-desc" rows="1" placeholder="Details..."></textarea>
+    <td><span class="ib-drag-handle">⠿</span></td>
+    <td><span class="ib-row-sn col-sn">1</span></td>
+    <td>
+      <input type="text" name="item_name[]" class="ib-inline ib-item-name-input item-name" placeholder="Item / service name">
+      <input type="text" name="description[]" class="ib-inline ib-item-desc-input item-desc" placeholder="Description...">
     </td>
-    <td class="col-dim">
-      <input type="number" name="width[]" class="erp-inline-input dim-w item-calc" value="0" step="0.01">
-    </td>
-    <td class="col-dim">
-      <input type="number" name="height[]" class="erp-inline-input dim-h item-calc" value="0" step="0.01">
-    </td>
-    <td class="col-c-area">
-      <span class="erp-readonly-val area-val">0.00</span>
-    </td>
-    <td class="col-qty">
-      <input type="number" name="quantity[]" class="erp-inline-input item-qty item-calc" value="1" step="0.01">
-    </td>
-    <td class="col-c-qty">
-      <input type="number" name="chargeable_quantity[]" class="erp-inline-input item-c-qty item-calc" placeholder="Auto" step="0.01">
-    </td>
-    <td class="col-unit">
-      <select name="unit[]" class="erp-inline-select select-unit">
-        <option selected>Sq.Ft</option><option>Sq.M</option>
-        <option>Pcs</option><option>Nos</option><option>RFT</option>
+    <td><input type="text" name="hsn_sac[]" class="ib-inline ib-inline-sm" placeholder="HSN"></td>
+    <td><input type="number" name="width[]" class="ib-inline ib-inline-sm dim-w item-calc" value="0" step="0.01"></td>
+    <td><input type="number" name="height[]" class="ib-inline ib-inline-sm dim-h item-calc" value="0" step="0.01"></td>
+    <td><span class="erp-readonly-val area-val" style="font-size:0.75rem; color:#64748b;">—</span></td>
+    <td><input type="number" name="quantity[]" class="ib-inline ib-inline-sm item-qty item-calc" value="1" step="0.01"></td>
+    <td><input type="number" name="chargeable_quantity[]" class="ib-inline ib-inline-sm item-c-qty item-calc" placeholder="Auto" step="0.01"></td>
+    <td>
+      <select name="unit[]" class="ib-inline-select select-unit">
+        <option>Sq.Ft</option><option>Sq.M</option><option>Pcs</option>
+        <option>Nos</option><option>RFT</option><option>Kg</option>
       </select>
     </td>
-    <td class="col-rate">
-      <input type="number" name="rate[]" class="erp-inline-input item-rate item-calc" value="0" step="0.01">
-    </td>
-    <td class="col-disc">
-      <div class="disc-wrap">
-        <input type="number" name="discount[]" class="erp-inline-input item-disc item-calc" value="0" style="width:40px;">
-        <select name="discount_type[]" class="erp-inline-select disc-type" style="width:30px;">
+    <td><input type="number" name="rate[]" class="ib-inline ib-inline-md item-rate item-calc" value="0" step="0.01"></td>
+    <td>
+      <div style="display:flex; gap:3px;">
+        <input type="number" name="discount[]" class="ib-inline ib-inline-xs item-disc item-calc" value="0">
+        <select name="discount_type[]" class="ib-inline-select disc-type">
           <option value="flat">₹</option><option value="percent">%</option>
         </select>
       </div>
     </td>
-    <td class="col-gst">
-      <select name="gst_rate[]" class="erp-inline-select item-gst item-calc">
+    <td>
+      <select name="gst_rate[]" class="ib-inline-select item-gst item-calc">
         <option value="0">0%</option><option value="5">5%</option>
         <option value="12">12%</option><option value="18" selected>18%</option>
         <option value="28">28%</option>
       </select>
     </td>
-    <td class="col-amt"><span class="erp-readonly-val item-amount">₹0.00</span></td>
-    <td class="col-total"><strong class="item-total-str">₹0.00</strong></td>
-    <td class="col-action">
-      <button type="button" class="btn-remove-erp" title="Remove">✕</button>
-    </td>
+    <td class="text-right"><span class="ib-amount-display item-amount">₹0.00</span></td>
+    <td class="text-right"><strong class="ib-amount-display item-total-str">₹0.00</strong></td>
+    <td><button type="button" class="ib-remove-row btn-remove-erp">✕</button></td>
   </tr>
 </template>
+
+<!-- ── GST Config Modal ── -->
+<div id="modal-gst-config" class="qt-modal">
+  <div class="qt-modal-content">
+    <div class="qt-modal-header">
+      <h3>GST Configuration</h3>
+      <button type="button" class="btn-close" onclick="document.getElementById('modal-gst-config').style.display='none'">✕</button>
+    </div>
+    <div class="qt-modal-body">
+      <div class="qf-field" style="margin-bottom:16px;">
+        <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.08em;">Default GST Rate (%)</label>
+        <select id="config-default-gst" class="ib-customer-select">
+          <option value="0">0%</option><option value="5">5%</option>
+          <option value="12">12%</option><option value="18" selected>18%</option>
+          <option value="28">28%</option>
+        </select>
+      </div>
+      <button type="button" class="ib-btn ib-btn-primary" id="btn-apply-gst-all" style="width:100%;">Apply to All Rows</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Formula Modal ── -->
+<div id="modal-edit-cols" class="qt-modal">
+  <div class="qt-modal-content">
+    <div class="qt-modal-header">
+      <h3>Area Formula</h3>
+      <button type="button" class="btn-close" onclick="document.getElementById('modal-edit-cols').style.display='none'">✕</button>
+    </div>
+    <div class="qt-modal-body">
+      <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.08em;">Calculation Method</label>
+      <select id="config-global-formula" class="ib-customer-select">
+        <option value="standard">Standard (W × H)</option>
+        <option value="minimal_1">Minimum 1.0 Sq.Ft</option>
+        <option value="round_05">Round to 0.5</option>
+        <option value="inches_to_sqft">Inches to Sq.Ft</option>
+      </select>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="{{ url_for('static', filename='js/quotation_engine.js') }}"></script>
 <script>
-  window.QE_CONFIG = {
-    calcUrl: "{{ url_for('accounts.api_calculate') }}",
-    defaultGst: 18,
-    isIgst: false,
-    mode: "create"
-  };
+window.QE_CONFIG = {
+  calcUrl: "{{ url_for('accounts.api_calculate') }}",
+  defaultGst: {{ settings.default_gst_rate or 18 }},
+  isIgst: {{ 'true' if invoice and invoice.is_igst else 'false' }},
+  mode: "{{ mode }}"
+};
 
-  // Re-run SN update and initial row
-  document.addEventListener('DOMContentLoaded', () => {
-    const btnAdd = document.getElementById('btn-add-row');
-    if(btnAdd) btnAdd.click(); 
+// ── Customer Autofill Override for new UI ──
+document.addEventListener('DOMContentLoaded', () => {
+  const sel = document.getElementById('customer-select');
+  const panel = document.getElementById('customer-autofill');
+  if (sel) {
+    sel.addEventListener('change', function() {
+      if (!this.value) { panel.classList.add('hidden'); return; }
+      const o = this.options[this.selectedIndex];
+      document.getElementById('af-company').textContent = o.dataset.company || o.dataset.name;
+      document.getElementById('af-name').textContent = o.dataset.name;
+      document.getElementById('af-address').textContent = o.dataset.address || '';
+      document.getElementById('af-city-state').textContent = [o.dataset.city, o.dataset.state].filter(Boolean).join(', ');
+      document.getElementById('af-phone').textContent = o.dataset.phone ? '📞 ' + o.dataset.phone : '';
+      document.getElementById('af-email').textContent = o.dataset.email ? '✉ ' + o.dataset.email : '';
+      const gstin = o.dataset.gstin;
+      const gEl = document.getElementById('af-gstin');
+      if (gstin) { gEl.textContent = 'GSTIN: ' + gstin; gEl.style.display='inline-block'; }
+      else { gEl.style.display='none'; }
+      panel.classList.remove('hidden');
+    });
+  }
+
+  // Modal triggers
+  const gstBtn = document.getElementById('btn-config-gst');
+  if (gstBtn) gstBtn.onclick = () => document.getElementById('modal-gst-config').style.display = 'flex';
+  const colBtn = document.getElementById('btn-edit-cols');
+  if (colBtn) colBtn.onclick = () => document.getElementById('modal-edit-cols').style.display = 'flex';
+
+  // Apply GST to all rows
+  document.getElementById('btn-apply-gst-all')?.addEventListener('click', () => {
+    const rate = document.getElementById('config-default-gst').value;
+    document.querySelectorAll('.item-gst').forEach(s => { s.value = rate; });
+    document.getElementById('modal-gst-config').style.display = 'none';
+    scheduleRecalculate && scheduleRecalculate();
   });
-  
-  window.openQtModal = (id) => document.getElementById(id).style.display = 'flex';
-  window.closeQtModal = (id) => document.getElementById(id).style.display = 'none';
-</script>
 
+  // Auto-add first row if creating and table is empty
+  if ("{{ mode }}" === 'create') {
+    const btn = document.getElementById('btn-add-row');
+    if (btn && document.querySelectorAll('.erp-item-row').length === 0) btn.click();
+  }
+
+  // IGST toggle visual
+  const igstToggle = document.getElementById('toggle-igst');
+  if (igstToggle) {
+    igstToggle.addEventListener('change', function() {
+      const isIgst = this.checked;
+      document.getElementById('row-sgst').style.display = isIgst ? 'none' : '';
+      document.getElementById('row-cgst').style.display = isIgst ? 'none' : '';
+      document.getElementById('row-igst').style.display = isIgst ? '' : 'none';
+    });
+  }
+});
+</script>
 {% endblock %}

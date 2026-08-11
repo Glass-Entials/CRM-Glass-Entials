@@ -1241,6 +1241,7 @@ class Invoice(db.Model):
 
     notes = db.Column(db.Text, nullable=True)
     terms_conditions = db.Column(db.Text, nullable=True)
+    references = db.Column(db.String(100), nullable=True)  # PO/Reference number
 
     # Signature
     signature_label = db.Column(db.String(100), default="Authorised Signatory")
@@ -1284,6 +1285,7 @@ class InvoiceItem(db.Model):
     group_name = db.Column(db.String(100), nullable=True)
     item_name = db.Column(db.String(255), nullable=True)
     description = db.Column(db.Text, nullable=True)
+    hsn_sac = db.Column(db.String(20), nullable=True)  # HSN or SAC code
 
     width = db.Column(db.Float, nullable=True)
     height = db.Column(db.Float, nullable=True)
