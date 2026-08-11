@@ -294,6 +294,12 @@ GlassEntials{% endblock %}
   .ib-hero-date-input:focus {
     border-color: var(--gold);
   }
+  
+  /* Fix for select dropdown options inheriting white text on white background */
+  .ib-hero-date-input option {
+    color: var(--navy);
+    background: white;
+  }
 
   /* ── Party Cards ── */
   .ib-parties {
