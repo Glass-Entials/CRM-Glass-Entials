@@ -67,8 +67,8 @@
                             <label>Email Address</label>
                             <input type="email" id="email" class="form-control" name="email" value="{{ lead.email }}"> 
                         </div>
-                        <div class="form-group">
-                            <label>Phone Number (Provide either Email or Phone)</label>
+                        <div class="form-group" style="display: flex; flex-direction: column; justify-content: flex-end;">
+                            <label>Phone Number <span style="font-weight:normal; font-size:0.85em; opacity:0.7;">(or Email)</span></label>
                             <input type="text" id="phone" class="form-control" name="phone" value="{{ lead.phone_number }}" pattern="\d{10}" title="Please enter exactly 10 digits">
                         </div>
                         <div class="form-group">
