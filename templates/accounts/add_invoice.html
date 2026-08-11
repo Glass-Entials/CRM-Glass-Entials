@@ -1083,21 +1083,27 @@ GlassEntials{% endblock %}
               </select>
               <div id="customer-autofill" class="{{ '' if (invoice and invoice.customer_id) else 'hidden' }}">
                 <div class="ib-customer-autofill">
-                  <div class="ib-autofill-name" id="af-company">{{ invoice.customer.company or invoice.customer.name if
-                    invoice else '' }}</div>
-                  <div class="ib-autofill-line" id="af-name">{{ invoice.customer.name if invoice else '' }}</div>
-                  <div class="ib-autofill-line" id="af-address">{{ invoice.customer.address or '' if invoice else '' }}
-                  </div>
+                  {% if invoice and invoice.customer %}
+                  <div class="ib-autofill-name" id="af-company">{{ invoice.customer.company or invoice.customer.name }}</div>
+                  <div class="ib-autofill-line" id="af-name">{{ invoice.customer.name }}</div>
+                  <div class="ib-autofill-line" id="af-address">{{ invoice.customer.address or '' }}</div>
                   <div class="ib-autofill-line" id="af-city-state">
-                    {{ ((invoice.customer.city or '') + (', ' + invoice.customer.state if invoice.customer.state else
-                    '')) if invoice else '' }}
+                    {{ invoice.customer.city or '' }}{% if invoice.customer.state %}, {{ invoice.customer.state }}{% endif %}
                   </div>
-                  <div class="ib-autofill-line" id="af-phone">{{ invoice.customer.phone_number if invoice else '' }}
-                  </div>
-                  <div class="ib-autofill-line" id="af-email">{{ invoice.customer.email if invoice else '' }}</div>
-                  {% if invoice and invoice.customer.gst_number %}
+                  <div class="ib-autofill-line" id="af-phone">{{ invoice.customer.phone_number or '' }}</div>
+                  <div class="ib-autofill-line" id="af-email">{{ invoice.customer.email or '' }}</div>
+                  {% if invoice.customer.gst_number %}
                   <span class="ib-autofill-tag" id="af-gstin">GSTIN: {{ invoice.customer.gst_number }}</span>
                   {% else %}
+                  <span class="ib-autofill-tag" id="af-gstin" style="display:none;"></span>
+                  {% endif %}
+                  {% else %}
+                  <div class="ib-autofill-name" id="af-company"></div>
+                  <div class="ib-autofill-line" id="af-name"></div>
+                  <div class="ib-autofill-line" id="af-address"></div>
+                  <div class="ib-autofill-line" id="af-city-state"></div>
+                  <div class="ib-autofill-line" id="af-phone"></div>
+                  <div class="ib-autofill-line" id="af-email"></div>
                   <span class="ib-autofill-tag" id="af-gstin" style="display:none;"></span>
                   {% endif %}
                 </div>
