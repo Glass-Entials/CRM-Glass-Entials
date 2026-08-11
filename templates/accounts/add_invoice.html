@@ -987,9 +987,7 @@ GlassEntials{% endblock %}
                   <select name="project_id" class="ib-hero-date-input" style="width:160px; cursor:pointer;">
                     <option value="">— None —</option>
                     {% for p in projects %}
-                    <option value="{{ p.id }}" {% if invoice and invoice.project_id==p.id %}selected{% endif %}>
-                      {{ p.name }}
-                    </option>
+                    <option value="{{ p.id }}" {% if invoice and invoice.project_id==p.id %}selected{% endif %}>{{ p.name }}</option>
                     {% endfor %}
                   </select>
                 </div>
@@ -1009,17 +1007,12 @@ GlassEntials{% endblock %}
                 {{ invoice.invoice_number if invoice else next_number }}
               </div>
               <div style="margin-top:16px;">
-                <select name="status" class="ib-hero-date-input" style="width:auto; cursor:pointer; font-weight:700;">
-                  <option value="Unpaid" {% if not invoice or invoice.status.value=='Unpaid' %}selected{% endif %}>🔴
-                    Unpaid</option>
-                  <option value="Paid" {% if invoice and invoice.status.value=='Paid' %}selected{% endif %}>🟢 Paid
-                  </option>
-                  <option value="Partially Paid" {% if invoice and invoice.status.value=='Partially Paid' %}selected{%
-                    endif %}>🟡 Partial</option>
-                  <option value="Overdue" {% if invoice and invoice.status.value=='Overdue' %}selected{% endif %}>🔴
-                    Overdue</option>
-                  <option value="Cancelled" {% if invoice and invoice.status.value=='Cancelled' %}selected{% endif %}>⚫
-                    Cancelled</option>
+                <select name="status" class="ib-hero-date-input" style="width:100%; min-width:140px; cursor:pointer; font-weight:700;">
+                  <option value="Unpaid" {% if not invoice or invoice.status.value=='Unpaid' %}selected{% endif %}>🔴 Unpaid</option>
+                  <option value="Paid" {% if invoice and invoice.status.value=='Paid' %}selected{% endif %}>🟢 Paid</option>
+                  <option value="Partially Paid" {% if invoice and invoice.status.value=='Partially Paid' %}selected{% endif %}>🟡 Partial</option>
+                  <option value="Overdue" {% if invoice and invoice.status.value=='Overdue' %}selected{% endif %}>🔴 Overdue</option>
+                  <option value="Cancelled" {% if invoice and invoice.status.value=='Cancelled' %}selected{% endif %}>⚫ Cancelled</option>
                 </select>
               </div>
             </div>
