@@ -1,119 +1,340 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
 
-{% block title %}Invoices | GlassEntials Accounts{% endblock %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoices | GlassEntials Staff Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .customer-table {
+            border-collapse: separate;
+            border-spacing: 0 8px;
+            width: 100%;
+            margin-top: -8px;
+        }
+        .customer-table thead th {
+            background: #f8fafc;
+            padding: 1.25rem 1rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            border: none;
+            font-weight: 700;
+        }
+        .customer-table tbody tr {
+            background: #ffffff;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+        .customer-table tbody tr:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(13, 27, 42, 0.08);
+            z-index: 5;
+            position: relative;
+        }
+        .customer-table td {
+            padding: 1.25rem 1rem;
+            border-top: 1px solid rgba(13, 27, 42, 0.05);
+            border-bottom: 1px solid rgba(13, 27, 42, 0.05);
+            vertical-align: middle;
+        }
+        .customer-table td:first-child {
+            border-left: 1px solid rgba(13, 27, 42, 0.05);
+            border-top-left-radius: 8px;
+            border-bottom-left-radius: 8px;
+        }
+        .customer-table td:last-child {
+            border-right: 1px solid rgba(13, 27, 42, 0.05);
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+        .inv-number-link {
+            font-weight: 700;
+            color: var(--accent-gold);
+            text-decoration: none;
+            font-size: 0.92rem;
+            letter-spacing: 0.02em;
+        }
+        .inv-number-link:hover { text-decoration: underline; }
+        .inv-status {
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: inline-block;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .inv-status.paid    { background: rgba(16,185,129,0.1);  color: #059669; }
+        .inv-status.unpaid  { background: rgba(239,68,68,0.1);   color: #dc2626; }
+        .inv-status.draft   { background: rgba(100,116,139,0.1); color: #475569; }
+        .inv-status.partial { background: rgba(234,179,8,0.12);  color: #b45309; }
+        .inv-status.overdue { background: rgba(239,68,68,0.15);  color: #b91c1c; }
+        .inv-stat-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .inv-stat-card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 1.4rem 1.5rem;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .inv-stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(13,27,42,0.10);
+        }
+        .inv-stat-icon { font-size: 1.6rem; line-height: 1; }
+        .inv-stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            font-family: var(--font-heading);
+            line-height: 1;
+        }
+        .inv-stat-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .inv-stat-card.danger .inv-stat-value { color: #dc2626; }
+        .inv-stat-card.success .inv-stat-value { color: #059669; }
+        .inv-stat-card.gold .inv-stat-value { color: var(--accent-gold); }
+        .badge-project {
+            background: rgba(13, 27, 42, 0.06);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        @media (min-width: 992px) {
+            .table-responsive { overflow: visible !important; }
+        }
+        @media (max-width: 768px) {
+            .inv-stat-cards { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
 
-{% block content %}
-<!-- Reuse Quotation Styles for consistency -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}?v=3\">
+<body class="dashboard-page">
 
-<div class="ql-wrapper">
+    {% include 'includes/navbar.html' %}
 
-  <!-- ── PAGE HEADER ──────────────────────────────── -->
-  <div class="ql-header">
-    <div class="ql-header-left">
-      <h1 class="ql-title">Tax Invoices</h1>
-      <p class="ql-subtitle">Manage and track all customer billing and payments</p>
-    </div>
-    <div class="ql-header-right">
-      <a href="{{ url_for('accounts.add_invoice') }}" class="btn-primary">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
-        New Invoice
-      </a>
-    </div>
-  </div>
+    <main class="container">
 
-  <!-- ── STATS STRIP ───────────────────────────────── -->
-  <div class="ql-stats">
-    <div class="ql-stat-card">
-      <span class="ql-stat-icon">📄</span>
-      <span class="ql-stat-count">{{ invoices|length }}</span>
-      <span class="ql-stat-label">Total Invoiced</span>
-    </div>
-    
-    {% set unpaid_count = invoices|selectattr("status.value", "equalto", "Unpaid")|list|length %}
-    <div class="ql-stat-card {% if unpaid_count > 0 %}active{% endif %}" style="{% if unpaid_count > 0 %}border-color:#ef4444{% endif %}">
-      <span class="ql-stat-icon">⚠️</span>
-      <span class="ql-stat-count" style="{% if unpaid_count > 0 %}color:#ef4444{% endif %}">{{ unpaid_count }}</span>
-      <span class="ql-stat-label">Unpaid Bills</span>
-    </div>
+        {% with messages = get_flashed_messages(category_filter=["invoicesuccess"]) %}
+        {% if messages %}{% for message in messages %}
+        <div class="flash-message" style="padding:15px;background:rgba(16,185,129,0.08);border-left:4px solid #10b981;display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;border-radius:4px;">
+            <span style="color:#10b981;font-size:1.2rem;">✓</span> {{ message }}
+        </div>
+        {% endfor %}{% endif %}
+        {% endwith %}
 
-    <div class="ql-stat-card">
-      <span class="ql-stat-icon">💰</span>
-      <span class="ql-stat-count">{% set total_rev = invoices|sum(attribute='total_amount') or 0 %}₹{{ "{:,.0f}".format(total_rev) }}</span>
-      <span class="ql-stat-label">Total Revenue</span>
-    </div>
+        {% with messages = get_flashed_messages(category_filter=["invoiceerror"]) %}
+        {% if messages %}{% for message in messages %}
+        <div class="flash-message" style="padding:15px;background:rgba(139,0,0,0.04);border-left:4px solid rgba(139,0,0,0.5);color:#8b0000;display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;border-radius:4px;">
+            <span style="font-size:1.2rem;">⚠</span> {{ message }}
+        </div>
+        {% endfor %}{% endif %}
+        {% endwith %}
 
-    <div class="ql-stat-card">
-      <span class="ql-stat-icon">✅</span>
-      <span class="ql-stat-count">{{ invoices|selectattr("status.value", "equalto", "Paid")|list|length }}</span>
-      <span class="ql-stat-label">Fully Paid</span>
-    </div>
-  </div>
-
-  <!-- ── TABLE ─────────────────────────────────────── -->
-  {% if invoices %}
-  <div class="ql-table-wrap">
-    <table class="ql-table">
-      <thead>
-        <tr>
-          <th>Invoice #</th>
-          <th>Customer</th>
-          <th>Project</th>
-          <th>Date</th>
-          <th class="text-right">Amount ₹</th>
-          <th class="text-center">Status</th>
-          <th class="text-center">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for inv in invoices %}
-        <tr class="ql-row">
-          <td>
-            <a href="{{ url_for('accounts.view_invoice', invoice_id=inv.id) }}" class="ql-number-link">
-              {{ inv.invoice_number }}
-            </a>
-          </td>
-          <td>
-            <span class="ql-entity-link">{{ inv.customer.customer_name }}</span>
-            {% if inv.customer.company_name %}<div class="ql-row-sub">{{ inv.customer.company_name }}</div>{% endif %}
-          </td>
-          <td>
-            {% if inv.project %}
-            <span class="badge-doctype">{{ inv.project.project_name }}</span>
-            {% else %}—{% endif %}
-          </td>
-          <td>{{ inv.issue_date.strftime('%d %b %Y') if inv.issue_date else '—' }}</td>
-          <td class="text-right">
-            <strong>{{ '₹{:,.2f}'.format(inv.total_amount or 0) }}</strong>
-          </td>
-          <td class="text-center">
-            <span class="status-pill status-{{ inv.status.value.lower().replace(' ', '-') }}">
-              {{ inv.status.value }}
-            </span>
-          </td>
-          <td class="text-center">
-            <div class="ql-actions">
-              <a href="{{ url_for('accounts.view_invoice', invoice_id=inv.id) }}" class="ql-action-btn" title="View">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              </a>
-              <a href="{{ url_for('accounts.edit_invoice', invoice_id=inv.id) }}" class="ql-action-btn" title="Edit">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              </a>
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="search-bar">
+                <span class="search-icon">🔍</span>
+                <input type="text" placeholder="Search invoices..." id="invoiceSearch">
             </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <div class="ql-empty">
-    <div class="ql-empty-icon">📄</div>
-    <h3>No invoices found</h3>
-    <p>Start by generating your first tax invoice for a client.</p>
-    <a href="{{ url_for('accounts.add_invoice') }}" class="btn-primary mt-md">+ New Invoice</a>
-  </div>
-  {% endif %}
+            <div class="btn-group">
+                <a href="{{ url_for('accounts.add_invoice') }}" class="btn-action gold" style="text-decoration:none;">
+                    ➕ New Invoice
+                </a>
+            </div>
+        </div>
 
-</div>
-{% endblock %}
+        <!-- Stat Cards -->
+        {% set unpaid_count = invoices|selectattr("status.value", "equalto", "Unpaid")|list|length %}
+        {% set paid_count   = invoices|selectattr("status.value", "equalto", "Paid")|list|length %}
+        {% set total_rev    = invoices|sum(attribute='total_amount') or 0 %}
+        <div class="inv-stat-cards">
+            <div class="inv-stat-card">
+                <span class="inv-stat-icon">🧾</span>
+                <span class="inv-stat-value">{{ invoices|length }}</span>
+                <span class="inv-stat-label">Total Invoices</span>
+            </div>
+            <div class="inv-stat-card {% if unpaid_count > 0 %}danger{% endif %}">
+                <span class="inv-stat-icon">⚠️</span>
+                <span class="inv-stat-value">{{ unpaid_count }}</span>
+                <span class="inv-stat-label">Unpaid Bills</span>
+            </div>
+            <div class="inv-stat-card gold">
+                <span class="inv-stat-icon">💰</span>
+                <span class="inv-stat-value">₹{{ "{:,.0f}".format(total_rev) }}</span>
+                <span class="inv-stat-label">Total Revenue</span>
+            </div>
+            <div class="inv-stat-card success">
+                <span class="inv-stat-icon">✅</span>
+                <span class="inv-stat-value">{{ paid_count }}</span>
+                <span class="inv-stat-label">Fully Paid</span>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar" style="display:flex;gap:1.5rem;align-items:center;margin-bottom:2rem;background:#fff;padding:1.25rem 1.5rem;border-radius:12px;border:1px solid rgba(13,27,42,0.1);box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+            <div style="display:flex;align-items:center;gap:8px;color:var(--primary-color);font-weight:700;font-size:0.9rem;text-transform:uppercase;letter-spacing:0.05em;">
+                <span style="font-size:1.2rem;">⚡</span> Filters
+            </div>
+            <div style="display:flex;gap:12px;align-items:center;flex:1;">
+                <select id="statusFilter" class="form-control" style="padding:0.7rem 1rem;height:auto;font-size:0.9rem;border-radius:8px;border:1px solid rgba(13,27,42,0.15);background:#f8fafc;cursor:pointer;max-width:200px;">
+                    <option value="">All Statuses</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Partial">Partial</option>
+                    <option value="Draft">Draft</option>
+                    <option value="Overdue">Overdue</option>
+                </select>
+            </div>
+            <button onclick="resetFilters()" class="btn-action outline" style="padding:0.6rem 1.2rem;font-size:0.85rem;">↺ Reset</button>
+        </div>
+
+        <!-- Table -->
+        {% if invoices %}
+        <div style="background:#fff;border-radius:14px;border:1px solid rgba(13,27,42,0.08);box-shadow:0 2px 10px rgba(0,0,0,0.04);overflow:hidden;">
+            <div class="table-responsive">
+                <table class="customer-table" id="invoiceTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Invoice #</th>
+                            <th>Customer</th>
+                            <th>Project</th>
+                            <th>Date</th>
+                            <th style="text-align:right;">Amount</th>
+                            <th style="text-align:center;">Status</th>
+                            <th style="text-align:center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in invoices %}
+                        <tr class="inv-row">
+                            <td style="font-weight:700;color:var(--accent-gold);font-size:0.9rem;">#{{ loop.index }}</td>
+                            <td>
+                                <a href="{{ url_for('accounts.view_invoice', invoice_id=inv.id) }}" class="inv-number-link">
+                                    {{ inv.invoice_number }}
+                                </a>
+                            </td>
+                            <td>
+                                <div style="font-weight:600;color:var(--primary-color);font-size:0.9rem;">{{ inv.customer.customer_name }}</div>
+                                {% if inv.customer.company_name %}
+                                <div style="font-size:0.8rem;color:#64748b;margin-top:2px;">{{ inv.customer.company_name }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if inv.project %}
+                                <span class="badge-project">{{ inv.project.project_name }}</span>
+                                {% else %}
+                                <span style="color:#94a3b8;">—</span>
+                                {% endif %}
+                            </td>
+                            <td style="color:#64748b;font-size:0.88rem;">{{ inv.issue_date.strftime('%d %b %Y') if inv.issue_date else '—' }}</td>
+                            <td style="text-align:right;">
+                                <strong style="color:var(--primary-color);font-size:0.95rem;">{{ '₹{:,.2f}'.format(inv.total_amount or 0) }}</strong>
+                            </td>
+                            <td style="text-align:center;">
+                                {% set sv = inv.status.value %}
+                                <span class="inv-status {{ sv.lower().replace(' ', '-') }}" data-status="{{ sv }}">{{ sv }}</span>
+                            </td>
+                            <td style="text-align:center;">
+                                <div class="table-actions-dropdown" style="position:relative;display:inline-block;">
+                                    <button class="action-trigger" title="Actions">⋮</button>
+                                    <div class="action-menu">
+                                        <a href="{{ url_for('accounts.view_invoice', invoice_id=inv.id) }}">
+                                            <span class="icon">👁</span> View Invoice
+                                        </a>
+                                        <a href="{{ url_for('accounts.edit_invoice', invoice_id=inv.id) }}">
+                                            <span class="icon">✏️</span> Edit Invoice
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div style="background:#fff;border-radius:14px;border:1px solid rgba(13,27,42,0.08);box-shadow:0 2px 10px rgba(0,0,0,0.04);padding:5rem 2rem;text-align:center;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:15px;">
+                <div style="font-size:3.5rem;opacity:0.15;filter:grayscale(1);">🧾</div>
+                <h3 style="font-weight:700;font-size:1.25rem;color:var(--primary-color);margin:0;">No Invoices Found</h3>
+                <p style="margin:0;opacity:0.7;max-width:300px;">Start billing your clients by creating your first tax invoice.</p>
+                <a href="{{ url_for('accounts.add_invoice') }}" class="btn-action gold" style="text-decoration:none;margin-top:10px;padding:0.8rem 2rem;">+ New Invoice →</a>
+            </div>
+        </div>
+        {% endif %}
+
+    </main>
+
+    <script>
+        // Search
+        document.getElementById('invoiceSearch').addEventListener('input', function () {
+            const q = this.value.toLowerCase();
+            document.querySelectorAll('.inv-row').forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+            });
+        });
+
+        // Status Filter
+        document.getElementById('statusFilter').addEventListener('change', function () {
+            const val = this.value.toLowerCase();
+            document.querySelectorAll('.inv-row').forEach(row => {
+                if (!val) { row.style.display = ''; return; }
+                const status = row.querySelector('[data-status]')?.dataset.status?.toLowerCase() || '';
+                row.style.display = status.includes(val) ? '' : 'none';
+            });
+        });
+
+        function resetFilters() {
+            document.getElementById('invoiceSearch').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.querySelectorAll('.inv-row').forEach(r => r.style.display = '');
+        }
+
+        // Kebab Menu Toggle
+        document.querySelectorAll('.action-trigger').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                const menu = this.nextElementSibling;
+                document.querySelectorAll('.action-menu').forEach(m => { if (m !== menu) m.style.cssText = ''; });
+                if (menu.style.opacity === '1') {
+                    menu.style.cssText = '';
+                } else {
+                    menu.style.cssText = 'opacity:1;visibility:visible;transform:translateY(0);';
+                }
+            });
+        });
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.action-menu').forEach(m => m.style.cssText = '');
+        });
+    </script>
+
+</body>
+</html>
