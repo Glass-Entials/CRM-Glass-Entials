@@ -296,7 +296,7 @@
                 </div>
                 <div class="info-row">
                     <div class="info-label">Last Updated</div>
-                    <div class="info-value">{{ customer.updated_at.strftime('%d %b, %Y %H:%M') if customer.updated_at else 'N/A' }}</div>
+                    <div class="info-value">{{ customer.updated_at | ist('%d %b, %Y %H:%M') if customer.updated_at else 'N/A' }}</div>
                 </div>
 
                 <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(16, 185, 129, 0.05); border-radius: 8px; border: 1px dashed #10b981;">

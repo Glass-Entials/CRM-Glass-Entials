@@ -186,7 +186,7 @@
                         <div class="timeline-body">
                             <div class="msg">{{ log.message }}</div>
                             <div class="meta">
-                                {{ log.created_at.strftime('%d %b %Y, %I:%M %p') if log.created_at else '' }}
+                                {{ log.created_at | ist('%d %b %Y, %I:%M %p') if log.created_at else '' }}
                                 {% if log.actor %} · by {{ log.actor.name }}{% endif %}
                             </div>
                         </div>
@@ -211,7 +211,7 @@
                         </div>
                         <div class="timeline-body">
                             <div class="msg"><strong>{{ act.activity_type.value }}</strong> — {{ act.description }}</div>
-                            <div class="meta">{{ act.created_at.strftime('%d %b %Y, %I:%M %p') if act.created_at else '' }} · by {{ act.creator.name if act.creator else 'Unknown' }}</div>
+                            <div class="meta">{{ act.created_at | ist('%d %b %Y, %I:%M %p') if act.created_at else '' }} · by {{ act.creator.name if act.creator else 'Unknown' }}</div>
                         </div>
                     </div>
                     {% endfor %}
@@ -238,7 +238,7 @@
                     <div class="note-text">{{ note.note | nl2br | safe }}</div>
                     <div class="note-meta">
                         <span>👤 {{ note.author.name if note.author else 'Unknown' }}</span>
-                        <span>{{ note.created_at.strftime('%d %b %Y, %I:%M %p') if note.created_at else '' }}</span>
+                        <span>{{ note.created_at | ist('%d %b %Y, %I:%M %p') if note.created_at else '' }}</span>
                     </div>
                 </div>
                 {% endfor %}

@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 
 {% block title %}Follow-Ups | GlassEntials CRM{% endblock %}
 
@@ -308,7 +308,7 @@
                 <div class="fu-date-badge upcoming">
                     <div class="date-main">{{ fu.follow_up_date.strftime('%d') }}</div>
                     <div class="date-sub">{{ fu.follow_up_date.strftime('%b %Y') }}</div>
-                    <div class="date-sub">{{ fu.follow_up_date.strftime('%H:%M') }}</div>
+                    <div class="date-sub">{{ fu.follow_up_date | ist('%H:%M') }}</div>
                 </div>
                 <div class="fu-info">
                     <div class="fu-lead-name"><a href="{{ url_for('leads.view_lead', lead_id=fu.lead.id) }}">{{ fu.lead.name }}</a>

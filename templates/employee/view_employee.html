@@ -41,7 +41,7 @@
                         </div>
                         <div>
                             <strong>Created At:</strong> <br>
-                            {{ employee.created_at.strftime('%Y-%m-%d %H:%M') if employee.created_at else 'N/A' }}
+                            {{ employee.created_at | ist('%Y-%m-%d %H:%M') if employee.created_at else 'N/A' }}
                         </div>
                         <div>
                             <strong>Status:</strong> <br>

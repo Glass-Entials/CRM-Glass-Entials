@@ -151,7 +151,7 @@
                             <i class="bi bi-file-earmark-text" style="font-size: 1.2rem; color: #64748b;"></i>
                             <div>
                                 <div style="font-size: 0.88rem; font-weight: 600; color: var(--navy);">{{ doc.original_name }}</div>
-                                <div style="font-size: 0.75rem; color: #94a3b8;">{{ doc.uploaded_at.strftime('%d %b %Y, %I:%M %p') }} &bull; By {{ (doc.uploader.employee.name if doc.uploader.employee else doc.uploader.username) if doc.uploader else 'System' }}</div>
+                                <div style="font-size: 0.75rem; color: #94a3b8;">{{ doc.uploaded_at | ist('%d %b %Y, %I:%M %p') }} &bull; By {{ (doc.uploader.employee.name if doc.uploader.employee else doc.uploader.username) if doc.uploader else 'System' }}</div>
                             </div>
                         </div>
                         <a href="{{ url_for('static', filename='uploads/receipts/' ~ doc.filename) }}" target="_blank" style="padding: 6px 12px; font-size: 0.8rem; background: #e2e8f0; color: var(--navy); border-radius: 6px; text-decoration: none; font-weight: 600;">
@@ -174,7 +174,7 @@
                         <div class="tl-body">
                             <div class="tl-meta">
                                 {{ r.creator.username if r.creator else 'System' }}
-                                &bull; {{ r.created_at.strftime('%d %b %Y, %I:%M %p') }}
+                                &bull; {{ r.created_at | ist('%d %b %Y, %I:%M %p') }}
                             </div>
                             <div class="tl-text">{{ r.remark }}</div>
                         </div>

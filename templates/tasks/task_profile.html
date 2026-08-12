@@ -98,7 +98,7 @@
                 <a href="{{ url_for('tasks.tasks_list') }}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem; display: inline-block; margin-bottom: 6px;">← Back to Tasks</a>
                 <h1 style="color: var(--primary-color); font-size: 2rem; font-family: var(--font-heading); margin: 0 0 4px 0; line-height: 1.2;">{{ task.title }}</h1>
                 <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
-                    Created on {{ task.created_at.strftime('%B %d, %Y at %I:%M %p') if task.created_at else '—' }}
+                    Created on {{ task.created_at | ist('%B %d, %Y at %I:%M %p') if task.created_at else '—' }}
                 </p>
             </div>
             <div class="action-bar">
@@ -182,7 +182,7 @@
 
                     <div class="info-block" style="margin-bottom: 0;">
                         <span class="info-label">Last Updated</span>
-                        <p class="info-value">{{ task.updated_at.strftime('%d %b %Y, %I:%M %p') if task.updated_at else '—' }}</p>
+                        <p class="info-value">{{ task.updated_at | ist('%d %b %Y, %I:%M %p') if task.updated_at else '—' }}</p>
                     </div>
                 </div>
             </div>
@@ -363,7 +363,7 @@
                     </div>
                     <div style="font-size:0.85rem; color:#64748b; display:grid; gap:2px;">
                         <span><strong>Requested By:</strong> {{ fu.requester.name }}</span>
-                        <span><strong>Date:</strong> {{ fu.created_at.strftime('%d %b %Y, %I:%M %p') }}</span>
+                        <span><strong>Date:</strong> {{ fu.created_at | ist('%d %b %Y, %I:%M %p') }}</span>
                         <span><strong>Message:</strong> {{ fu.message }}</span>
                     </div>
                 </div>
@@ -541,7 +541,7 @@
                                                     {% if act.call_result %}
                                                         <span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 4px;">{{ act.call_result.value }}</span>
                                                     {% endif %}
-                                                    • {{ act.created_at.strftime('%d %b %Y, %I:%M %p') }}
+                                                    • {{ act.created_at | ist('%d %b %Y, %I:%M %p') }}
                                                 </div>
                                             </div>
                                         </div>
@@ -549,7 +549,7 @@
                                         <!-- Actions -->
                                         {% if is_manager or (current_user.employee and act.employee_id == current_user.employee.id) %}
                                         <div style="display: flex; gap: 8px;">
-                                            <button onclick="editActivity({{ act.id }}, '{{ act.message|escape }}', '{{ act.next_follow_up_datetime.strftime('%Y-%m-%dT%H:%M') if act.next_follow_up_datetime else '' }}')" style="background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 0.9rem;">✏️</button>
+                                            <button onclick="editActivity({{ act.id }}, '{{ act.message|escape }}', '{{ act.next_follow_up_datetime | ist('%Y-%m-%dT%H:%M') if act.next_follow_up_datetime else '' }}')" style="background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 0.9rem;">✏️</button>
                                             <form action="{{ url_for('tasks.delete_task_activity', activity_id=act.id) }}" method="POST" onsubmit="openConfirmModal(event, this, 'Remove this activity?')" style="margin: 0;">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                                 <button type="submit" style="background: none; border: none; cursor: pointer; color: #dc3545; font-size: 0.9rem;">🗑️</button>
@@ -566,7 +566,7 @@
                                     <div style="display: flex; flex-wrap: wrap; gap: 15px; font-size: 0.8rem; color: var(--text-muted); border-top: 1px dashed rgba(13,27,42,0.1); padding-top: 10px;">
                                         {% if act.next_follow_up_datetime %}
                                         <div style="display: flex; align-items: center; gap: 5px;">
-                                            ⏰ <span style="font-weight: 600; color: #d97706;">Next Follow Up:</span> {{ act.next_follow_up_datetime.strftime('%d %b %Y, %I:%M %p') }}
+                                            ⏰ <span style="font-weight: 600; color: #d97706;">Next Follow Up:</span> {{ act.next_follow_up_datetime | ist('%d %b %Y, %I:%M %p') }}
                                         </div>
                                         {% endif %}
                                         {% if act.attachments.count() > 0 %}

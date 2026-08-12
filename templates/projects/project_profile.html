@@ -325,7 +325,7 @@
                         </div>
                         <div class="info-row">
                             <span class="info-label">Last Updated</span>
-                            <span class="info-value">{{ project.updated_at.strftime('%d %b %Y, %I:%M %p') if project.updated_at else '—' }}</span>
+                            <span class="info-value">{{ project.updated_at | ist('%d %b %Y, %I:%M %p') if project.updated_at else '—' }}</span>
                         </div>
                         <div class="info-row">
                             <span class="info-label">Created On</span>

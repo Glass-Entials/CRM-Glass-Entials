@@ -507,7 +507,7 @@
                         {% endif %}
                     </div>
                     <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">{{
-                        act.created_at.strftime('%d %b, %Y • %I:%M %p') }}</span>
+                        act.created_at | ist('%d %b, %Y • %I:%M %p') }}</span>
                 </div>
                 <p style="margin: 0; color: var(--primary-color); line-height: 1.6;">{{ act.description }}</p>
             </div>

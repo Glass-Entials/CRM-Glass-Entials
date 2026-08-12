@@ -11,7 +11,7 @@ api_bp = Blueprint("api", __name__, url_prefix="/api")
 @login_required
 def recent_notifications():
     from model import Notification
-    from datetime import datetime
+    from utils.timezone import time_ago_ist
 
     if not current_user.employee:
         return jsonify({"notifications": []}), 200
@@ -28,24 +28,13 @@ def recent_notifications():
 
     results = []
     for n in notifs:
-        diff = datetime.utcnow() - n.created_at
-        seconds = diff.total_seconds()
-        if seconds < 60:
-            time_ago = "Just now"
-        elif seconds < 3600:
-            time_ago = f"{int(seconds // 60)} mins ago"
-        elif seconds < 86400:
-            time_ago = f"{int(seconds // 3600)} hours ago"
-        else:
-            time_ago = n.created_at.strftime("%d %b")
-
         results.append({
             "id": n.id,
             "title": n.title,
             "message": n.message,
             "link": n.link,
             "is_read": n.is_read,
-            "time_ago": time_ago,
+            "time_ago": time_ago_ist(n.created_at),
         })
 
     return jsonify({"notifications": results}), 200

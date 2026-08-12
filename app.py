@@ -138,21 +138,8 @@ def utility_processor():
         return url_for("static", filename="img/default_avatar.png")
 
     def time_ago(dt):
-        if not dt:
-            return ""
-        now = datetime.utcnow()
-        diff = now - dt
-
-        seconds = diff.total_seconds()
-        if seconds < 60:
-            return "Just now"
-        if seconds < 3600:
-            return f"{int(seconds // 60)} mins ago"
-        if seconds < 86400:
-            return f"{int(seconds // 3600)} hours ago"
-        if seconds < 172800:
-            return "Yesterday"
-        return dt.strftime("%d %b")
+        from utils.timezone import time_ago_ist
+        return time_ago_ist(dt)
 
     def unread_notifications_count():
         if current_user.is_authenticated and current_user.employee:
@@ -175,6 +162,10 @@ def utility_processor():
         active_org=active_org,
     )
 
+
+# ── IST timezone display filter ──────────────────────────────────────────────
+from utils.timezone import ist_filter as _ist_filter
+app.add_template_filter(_ist_filter, "ist")
 
 @app.template_filter("nl2br")
 def nl2br_filter(s):

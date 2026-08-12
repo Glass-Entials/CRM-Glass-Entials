@@ -374,7 +374,7 @@
                                 <div class="hours-tag">{{ task.hours_spent if task.hours_spent else '0' }} <span class="hours-label">HRS</span></div>
                             </td>
                             <td style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">
-                                {{ task.created_at.strftime('%H:%M • %d %b') }}
+                                {{ task.created_at | ist('%H:%M • %d %b') }}
                             </td>
                             <td style="white-space:nowrap;text-align:center;">
                                 <div style="display:inline-flex;gap:6px;align-items:center;">

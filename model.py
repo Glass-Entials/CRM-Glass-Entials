@@ -240,11 +240,11 @@ class Organization(db.Model):
         server_default=db.text("'active'"),
         index=True,
     )
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime,
-        default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
     created_by = db.Column(
         db.Integer, db.ForeignKey("user.id"), nullable=True
@@ -456,11 +456,11 @@ class Employee(db.Model):
     )  # Filename of profile picture
     temp_password = db.Column(db.String(100), nullable=True)
 
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime,
-        default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
     is_deleted = db.Column(db.Boolean, default=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
@@ -508,11 +508,11 @@ class Lead(db.Model):
         db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
     )
 
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime,
-        default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
     is_deleted = db.Column(db.Boolean, default=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
@@ -614,11 +614,11 @@ class Customer(db.Model):
         db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
     )
 
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime,
-        default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
     is_deleted = db.Column(db.Boolean, default=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
@@ -671,7 +671,7 @@ class CustomerDocument(db.Model):
     filename = db.Column(db.String(255), nullable=False)  # Stored filename
     original_name = db.Column(db.String(255), nullable=False)  # Original user filename
     file_type = db.Column(db.String(50), nullable=True)  # e.g. 'pdf', 'docx', 'png'
-    uploaded_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     organization_id = db.Column(
         db.Integer, db.ForeignKey("organization.id"), nullable=True, index=True
     )
@@ -695,7 +695,7 @@ class LeadActivity(db.Model):
         nullable=False,
     )
     description = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by = db.Column(
         db.Integer, db.ForeignKey("employee.id"), nullable=False, index=True
     )
@@ -876,11 +876,11 @@ class Task(db.Model):
         default=TaskStatus.PENDING,
         index=True,
     )
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime,
-        default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
     is_deleted = db.Column(db.Boolean, default=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
@@ -957,7 +957,7 @@ class TaskFollowupRequest(db.Model):
         db.Enum(TaskFollowupStatus, values_callable=lambda x: [e.value for e in x]),
         default=TaskFollowupStatus.PENDING
     )
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
     task = db.relationship("Task", backref=db.backref("followup_requests", lazy="dynamic", cascade="all, delete-orphan"))
@@ -978,7 +978,7 @@ class TaskFollowupResponse(db.Model):
     remark = db.Column(db.Text, nullable=False)
     attachment_path = db.Column(db.String(255), nullable=True)
     responded_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=False)
-    responded_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    responded_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
     request = db.relationship("TaskFollowupRequest", backref=db.backref("responses", lazy="dynamic", cascade="all, delete-orphan"))
@@ -1005,11 +1005,11 @@ class DailyTask(db.Model):
         db.Integer, db.ForeignKey("project.id"), nullable=True, index=True
     )
 
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime,
-        default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
 
     # Relationships
@@ -1063,11 +1063,11 @@ class Project(db.Model):
         db.Integer, db.ForeignKey("customer.id"), nullable=True, index=True
     )
 
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime,
-        default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
     is_deleted = db.Column(db.Boolean, default=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
@@ -1172,7 +1172,7 @@ class Notification(db.Model):
     link = db.Column(db.String(255), nullable=True)  # URL to redirect when clicked
 
     is_read = db.Column(db.Boolean, default=False, index=True)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Tenancy
     organization_id = db.Column(
@@ -1233,7 +1233,7 @@ class Invoice(db.Model):
         index=True,
     )
 
-    issue_date = db.Column(db.DateTime, default=db.func.current_timestamp())
+    issue_date = db.Column(db.DateTime, default=datetime.utcnow)
     due_date = db.Column(db.DateTime, nullable=True)
 
     # GST type for auto split
@@ -1246,11 +1246,11 @@ class Invoice(db.Model):
     # Signature
     signature_label = db.Column(db.String(100), default="Authorised Signatory")
 
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime,
-        default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
     created_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=False)
 
@@ -1321,7 +1321,7 @@ class Expense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(150), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    date = db.Column(db.DateTime, default=db.func.current_timestamp())
+    date = db.Column(db.DateTime, default=datetime.utcnow)
     category = db.Column(
         db.Enum(ExpenseCategory, values_callable=lambda x: [e.value for e in x]),
         default=ExpenseCategory.OTHER,
@@ -1387,7 +1387,7 @@ class Quotation(db.Model):
         default=QuotationDocType.QUOTATION,
     )
     quotation_number = db.Column(db.String(50), unique=True, nullable=False, index=True)
-    issue_date = db.Column(db.DateTime, default=db.func.current_timestamp())
+    issue_date = db.Column(db.DateTime, default=datetime.utcnow)
     due_date = db.Column(db.DateTime, nullable=True)
     valid_till_type = db.Column(
         db.String(10), default="date"
@@ -1464,11 +1464,11 @@ class Quotation(db.Model):
     )
 
     # Audit
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime,
-        default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
     created_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=False)
     is_deleted = db.Column(db.Boolean, default=False)
@@ -1786,7 +1786,7 @@ class QuotationAttachment(db.Model):
     original_name = db.Column(db.String(255), nullable=False)
     file_type = db.Column(db.String(50), nullable=True)
     file_size = db.Column(db.Integer, nullable=True)  # bytes
-    uploaded_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     organization_id = db.Column(
         db.Integer, db.ForeignKey("organization.id"), nullable=True
     )
@@ -1810,7 +1810,7 @@ class QuotationSignature(db.Model):
     image_path = db.Column(db.String(255), nullable=True)  # for uploaded image
     pad_data = db.Column(db.Text, nullable=True)  # base64 data URL from pad
     label = db.Column(db.String(100), default="Authorised Signatory")
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
         return f"<QuotationSignature quotation={self.quotation_id}>"
@@ -1906,11 +1906,11 @@ class Product(db.Model):
     )
 
     # Audit
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime,
-        default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
     created_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
     is_deleted = db.Column(db.Boolean, default=False)
@@ -1979,7 +1979,7 @@ class CRMDocument(db.Model):
 
     # Meta
     description = db.Column(db.String(255), nullable=True)
-    uploaded_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     uploaded_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=False)
 
     # Tenancy
@@ -2043,11 +2043,11 @@ class Contact(db.Model):
         db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
     )
 
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime,
-        default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
     is_deleted = db.Column(db.Boolean, default=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
@@ -2100,7 +2100,7 @@ class ContactActivity(db.Model):
         nullable=False,
     )
     description = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by = db.Column(
         db.Integer, db.ForeignKey("employee.id"), nullable=False, index=True
     )
@@ -2147,7 +2147,7 @@ class ContactDocument(db.Model):
     filename = db.Column(db.String(255), nullable=False)
     original_name = db.Column(db.String(255), nullable=False)
     file_type = db.Column(db.String(50), nullable=True)
-    uploaded_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     organization_id = db.Column(
         db.Integer, db.ForeignKey("organization.id"), nullable=True, index=True
     )
@@ -2168,7 +2168,7 @@ class PasswordResetToken(db.Model):
     token      = db.Column(db.String(128), unique=True, nullable=False, index=True)
     expires_at = db.Column(db.DateTime, nullable=False)
     used       = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship("User", backref=db.backref("reset_tokens", cascade="all, delete-orphan"))
 
@@ -2239,11 +2239,11 @@ class Payment(db.Model):
         db.Integer, db.ForeignKey("user.id"), nullable=True
     )
 
-    created_at            = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at            = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at            = db.Column(
         db.DateTime,
-        default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
     is_deleted            = db.Column(db.Boolean, default=False)
 
@@ -2273,7 +2273,7 @@ class PaymentRemark(db.Model):
     )
     remark      = db.Column(db.Text, nullable=False)
     created_by  = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at  = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Future: next_followup_date = db.Column(db.Date, nullable=True)
 
@@ -2292,7 +2292,7 @@ class PaymentDocument(db.Model):
     filename        = db.Column(db.String(255), nullable=False)
     original_name   = db.Column(db.String(255), nullable=False)
     file_type       = db.Column(db.String(50), nullable=True)
-    uploaded_at     = db.Column(db.DateTime, default=db.func.current_timestamp())
+    uploaded_at     = db.Column(db.DateTime, default=datetime.utcnow)
     uploaded_by     = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
 
     payment         = db.relationship("Payment", back_populates="documents")

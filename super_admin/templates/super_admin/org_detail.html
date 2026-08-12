@@ -241,7 +241,7 @@
                                 }}</div>
                             {% endif %}
                             <div style="font-size: 0.8rem; color: #9ca3af; margin-top: 4px;">
-                                {{ log.created_at.strftime('%Y-%m-%d %H:%M') }} by {{ log.performed_by }}
+                                {{ log.created_at | ist('%Y-%m-%d %H:%M') }} by {{ log.performed_by }}
                             </div>
                         </div>
                     </div>
