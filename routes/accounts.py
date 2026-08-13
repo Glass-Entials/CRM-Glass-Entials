@@ -20,6 +20,8 @@ from model import (
     ActivityLog,
     QuotationSettings,
     Lead,
+    Payment,
+    PaymentStatus,
 )
 from utils.number_words import number_to_words
 from utils.security import tenant_record_id
@@ -303,13 +305,47 @@ def _save_invoice_from_form(invoice, form, org_id, employee_id):
 @accounts.route("/invoices")
 @login_required
 def invoice_list():
+    org_id = current_user.organization_id
     all_invoices = (
-        Invoice.query.filter_by(organization_id=current_user.organization_id)
+        Invoice.query.filter_by(organization_id=org_id)
         .order_by(Invoice.created_at.desc())
         .all()
     )
 
-    return render_template("accounts/invoice_list.html", invoices=all_invoices)
+    payments = Payment.query.filter_by(organization_id=org_id, status=PaymentStatus.RECEIVED.value).all()
+    payment_map = defaultdict(float)
+    for p in payments:
+        if p.invoice_id:
+            payment_map[p.invoice_id] += float(p.amount or 0)
+            
+    invoices_data = []
+    for inv in all_invoices:
+        total = float(inv.total_amount or 0)
+        received = payment_map.get(inv.id, 0.0)
+        due = max(0, total - received)
+        gst = float(inv.gst_amount or 0)
+        
+        # customer fields: model uses .name and .company (not customer_name/company_name)
+        cust_name = getattr(inv.customer, 'name', '') if inv.customer else ''
+        comp_name = getattr(inv.customer, 'company', '') if inv.customer else ''
+        
+        invoices_data.append({
+            'id': inv.id,
+            'invoice_number': inv.invoice_number,
+            'status': inv.status.value if inv.status else 'Draft',
+            'issue_date': inv.issue_date.strftime('%Y-%m-%d') if inv.issue_date else '',
+            'issue_date_display': inv.issue_date.strftime('%d %b %Y') if inv.issue_date else '—',
+            'customer_name': cust_name,
+            'company_name': comp_name,
+            'project_name': inv.project.name if inv.project else '',
+            'total_amount': total,
+            'payment_received': received,
+            'amount_due': due,
+            'gst_amount': gst,
+            'tds': 0
+        })
+
+    return render_template("accounts/invoice_list.html", invoices=all_invoices, invoices_json=json.dumps(invoices_data))
 
 
 @accounts.route("/add-invoice", methods=["GET", "POST"])

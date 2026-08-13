@@ -129,9 +129,203 @@
             .table-responsive { overflow: visible !important; }
         }
         @media (max-width: 768px) {
-            .inv-stat-cards { grid-template-columns: repeat(2, 1fr); }
+            .inv-stat-cards { grid-template-columns: repeat(2, 1fr) !important; }
+            .filters-inline { flex-wrap: wrap; }
+            .section-header { flex-wrap: wrap; gap: 6px; }
         }
+        @media (max-width: 1100px) {
+            .inv-stat-cards[style*="repeat(6"] { grid-template-columns: repeat(3, 1fr) !important; }
+        }
+        
+        /* ── Dashboard Sections ─────────────────────── */
+        .dashboard-section {
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid rgba(13,27,42,0.09);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            margin-bottom: 0.75rem;
+            line-height: 1; /* prevent stray text-node height */
+            font-size: 0;   /* kill whitespace between block children */
+        }
+        .dashboard-section > * { font-size: 1rem; line-height: 1.5; } /* restore for real children */
+        .dashboard-section.expanded { overflow: visible; }
+        .dash-header {
+            padding: 0 1.25rem;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            user-select: none;
+            background: #fff;
+            border-radius: 10px;
+            box-sizing: border-box;
+            margin-bottom: 0;
+            margin-top: 0;
+        }
+        .dash-header:hover { background: #f8fafc; }
+        /* separator only when there IS expanded body content */
+        .dashboard-section.expanded:not(.no-body) .dash-header {
+            border-bottom: 1px solid rgba(13,27,42,0.07);
+            border-radius: 10px 10px 0 0;
+        }
+        .toggle-arrow {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            transition: transform 0.2s;
+            display: inline-block;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+        .dashboard-section.expanded .toggle-arrow { transform: rotate(90deg); }
+        .dash-title {
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 0.88rem;
+            white-space: nowrap;
+            margin: 0 auto 0 0; /* margin-right: auto pushes it to the left */
+            text-align: left;
+        }
+        .section-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-left: auto;
+        }
+        /* Bulletproof collapse — max-height:0 + overflow:hidden, no display:none */
+        .dash-content {
+            max-height: 0;
+            overflow: hidden;
+            padding: 0 1.5rem;
+            transition: max-height 0.25s ease, padding 0.25s ease;
+            box-sizing: border-box;
+        }
+        .dashboard-section.expanded .dash-content {
+            max-height: 800px;
+            padding: 1.25rem 1.5rem;
+        }
+
+        /* ── Inline filter pills ─────────────────────── */
+        .filters-inline {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            flex: 1;
+        }
+        .filter-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px 4px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(13,27,42,0.15);
+            background: #f8fafc;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .filter-pill:hover { border-color: rgba(13,27,42,0.3); background: #f1f5f9; }
+        .filter-pill.active { border-color: var(--accent-gold); background: rgba(212,175,55,0.07); color: var(--primary-color); }
+        .filter-pill select {
+            border: none;
+            background: transparent;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: inherit;
+            cursor: pointer;
+            outline: none;
+            padding: 0;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .filter-pill .pill-label {
+            color: #94a3b8;
+            font-weight: 500;
+            margin-right: 2px;
+        }
+        .filter-pill .pill-caret {
+            font-size: 0.6rem;
+            color: #94a3b8;
+            margin-left: 2px;
+        }
+        .active-inv-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(13,27,42,0.15);
+            background: #f8fafc;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #475569;
+        }
+        .active-inv-pill select {
+            border: none;
+            background: transparent;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: inherit;
+            cursor: pointer;
+            outline: none;
+            padding: 0;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        /* ── Compact action buttons ──────────────────── */
+        .btn-compact {
+            padding: 5px 14px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid rgba(13,27,42,0.18);
+            background: #fff;
+            color: #475569;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            transition: background 0.15s, box-shadow 0.15s;
+            white-space: nowrap;
+        }
+        .btn-compact:hover { background: #f1f5f9; }
+        .btn-compact.gold {
+            background: var(--accent-gold);
+            border-color: var(--accent-gold);
+            color: #fff;
+        }
+        .btn-compact.gold:hover { box-shadow: 0 2px 8px rgba(212,175,55,0.35); }
+        .btn-compact-split {
+            display: inline-flex;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--accent-gold);
+        }
+        .btn-compact-split .main { padding: 5px 12px; background: var(--accent-gold); color: #fff; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: none; display: flex; align-items: center; gap: 5px; }
+        .btn-compact-split .caret { padding: 5px 8px; background: var(--accent-gold); color: #fff; font-size: 0.7rem; cursor: pointer; border: none; border-left: 1px solid rgba(255,255,255,0.3); }
+        .btn-compact-split .main:hover, .btn-compact-split .caret:hover { filter: brightness(1.08); }
+
+        /* ── Graph dropdowns ─────────────────────────── */
+        .graph-select {
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(13,27,42,0.15);
+            background: #f8fafc;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            outline: none;
+        }
+
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body class="dashboard-page">
@@ -169,49 +363,137 @@
             </div>
         </div>
 
-        <!-- Stat Cards -->
-        {% set unpaid_count = invoices|selectattr("status.value", "equalto", "Unpaid")|list|length %}
-        {% set paid_count   = invoices|selectattr("status.value", "equalto", "Paid")|list|length %}
-        {% set total_rev    = invoices|sum(attribute='total_amount') or 0 %}
-        <div class="inv-stat-cards">
-            <div class="inv-stat-card">
-                <span class="inv-stat-icon">🧾</span>
-                <span class="inv-stat-value">{{ invoices|length }}</span>
-                <span class="inv-stat-label">Total Invoices</span>
+        <!-- Filters Section (always-visible inline pills, no body content) -->
+        <div class="dashboard-section expanded no-body" id="filters-section">
+            <div class="dash-header" onclick="toggleSection('filters-section')">
+                <span class="toggle-arrow">&#9658;</span>
+                <span class="dash-title">Filters</span>
+
+                <!-- Active Invoice pill (stop propagation so clicking it doesn't toggle) -->
+                <div onclick="event.stopPropagation()" style="margin-left:14px;">
+                    <span class="active-inv-pill">
+                        <select id="filter-active-type" onchange="applyFilters()">
+                            <option value="active">Active Invoice</option>
+                            <option value="">All Invoices</option>
+                        </select>
+                        <span style="font-size:0.6rem;color:#94a3b8;">&#9660;</span>
+                    </span>
+                </div>
+
+                <!-- Inline filter pills -->
+                <div class="filters-inline" onclick="event.stopPropagation()" style="margin-left:14px;">
+                    <span class="filter-pill" id="pill-status">
+                        <span class="pill-label">Status:</span>
+                        <select id="filter-status" onchange="syncPillLabel('filter-status','pill-status','Status'); applyFilters();">
+                            <option value="">All</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Unpaid">Unpaid</option>
+                            <option value="Partial">Partial</option>
+                            <option value="Draft">Draft</option>
+                            <option value="Overdue">Overdue</option>
+                        </select>
+                        <span class="pill-caret">&#9660;</span>
+                    </span>
+                    <span class="filter-pill" id="pill-client">
+                        <span class="pill-label">Client:</span>
+                        <select id="filter-client" onchange="syncPillLabel('filter-client','pill-client','Client'); applyFilters();">
+                            <option value="">All</option>
+                        </select>
+                        <span class="pill-caret">&#9660;</span>
+                    </span>
+                    <span class="filter-pill" id="pill-contact">
+                        <span class="pill-label">Contact:</span>
+                        <select id="filter-contact" onchange="syncPillLabel('filter-contact','pill-contact','Contact'); applyFilters();">
+                            <option value="">All</option>
+                        </select>
+                        <span class="pill-caret">&#9660;</span>
+                    </span>
+                    <span class="filter-pill" id="pill-date">
+                        <span class="pill-label">Date Range:</span>
+                        <select id="filter-date" onchange="syncPillLabel('filter-date','pill-date','Date Range'); applyFilters();">
+                            <option value="">All</option>
+                            <option value="this_month">This Month</option>
+                            <option value="last_month">Last Month</option>
+                            <option value="this_year">This Year</option>
+                        </select>
+                        <span class="pill-caret">&#9660;</span>
+                    </span>
+                </div>
+
+                <!-- Right actions -->
+                <div class="section-actions" onclick="event.stopPropagation()">
+                    <button onclick="resetFilters()" class="btn-compact">&#8635; Reset</button>
+                    <div class="btn-compact-split">
+                        <button class="main">&#8595; Save as Report</button>
+                        <button class="caret">&#9660;</button>
+                    </div>
+                </div>
             </div>
-            <div class="inv-stat-card {% if unpaid_count > 0 %}danger{% endif %}">
-                <span class="inv-stat-icon">⚠️</span>
-                <span class="inv-stat-value">{{ unpaid_count }}</span>
-                <span class="inv-stat-label">Unpaid Bills</span>
+            <!-- no .section-content needed — filters are all inline -->
+        </div>
+
+        <!-- Invoice Summary Section (collapsed by default) -->
+        <div class="dashboard-section" id="summary-section">
+            <div class="dash-header" onclick="toggleSection('summary-section')">
+                <span class="toggle-arrow">&#9658;</span>
+                <span class="dash-title">Invoice Summary</span>
             </div>
-            <div class="inv-stat-card gold">
-                <span class="inv-stat-icon">💰</span>
-                <span class="inv-stat-value">₹{{ "{:,.0f}".format(total_rev) }}</span>
-                <span class="inv-stat-label">Total Revenue</span>
-            </div>
-            <div class="inv-stat-card success">
-                <span class="inv-stat-icon">✅</span>
-                <span class="inv-stat-value">{{ paid_count }}</span>
-                <span class="inv-stat-label">Fully Paid</span>
+            <div class="dash-content">
+                <div class="inv-stat-cards" style="margin-bottom:0; grid-template-columns: repeat(6,1fr);">
+                    <div class="inv-stat-card">
+                        <span class="inv-stat-icon">🧾</span>
+                        <span class="inv-stat-value" id="sum-count">0</span>
+                        <span class="inv-stat-label">Invoices</span>
+                    </div>
+                    <div class="inv-stat-card">
+                        <span class="inv-stat-icon">💰</span>
+                        <span class="inv-stat-value" id="sum-total">₹0</span>
+                        <span class="inv-stat-label">Total Amount</span>
+                    </div>
+                    <div class="inv-stat-card danger">
+                        <span class="inv-stat-icon">⚠️</span>
+                        <span class="inv-stat-value" id="sum-due">₹0</span>
+                        <span class="inv-stat-label">Amount Due</span>
+                    </div>
+                    <div class="inv-stat-card success">
+                        <span class="inv-stat-icon">✅</span>
+                        <span class="inv-stat-value" id="sum-received">₹0</span>
+                        <span class="inv-stat-label">Payment Received</span>
+                    </div>
+                    <div class="inv-stat-card">
+                        <span class="inv-stat-icon">📈</span>
+                        <span class="inv-stat-value" id="sum-gst">₹0</span>
+                        <span class="inv-stat-label">GST Amount</span>
+                    </div>
+                    <div class="inv-stat-card">
+                        <span class="inv-stat-icon">🛡️</span>
+                        <span class="inv-stat-value" id="sum-tds">₹0</span>
+                        <span class="inv-stat-label">TDS</span>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Filter Bar -->
-        <div class="filter-bar" style="display:flex;gap:1.5rem;align-items:center;margin-bottom:2rem;background:#fff;padding:1.25rem 1.5rem;border-radius:12px;border:1px solid rgba(13,27,42,0.1);box-shadow:0 2px 10px rgba(0,0,0,0.03);">
-            <div style="display:flex;align-items:center;gap:8px;color:var(--primary-color);font-weight:700;font-size:0.9rem;text-transform:uppercase;letter-spacing:0.05em;">
-                <span style="font-size:1.2rem;">⚡</span> Filters
+        <!-- Invoice Graph Section (collapsed by default) -->
+        <div class="dashboard-section" id="graph-section">
+            <div class="dash-header" onclick="toggleSection('graph-section')">
+                <span class="toggle-arrow">&#9658;</span>
+                <span class="dash-title">Invoice Graph</span>
+                <div class="section-actions" onclick="event.stopPropagation()">
+                    <select id="graph-period" class="graph-select" onchange="updateChart()">
+                        <option value="monthly">Monthly</option>
+                    </select>
+                    <select id="graph-type" class="graph-select" onchange="updateChart()">
+                        <option value="line">Line Chart</option>
+                        <option value="bar">Bar Chart</option>
+                    </select>
+                </div>
             </div>
-            <div style="display:flex;gap:12px;align-items:center;flex:1;">
-                <select id="statusFilter" class="form-control" style="padding:0.7rem 1rem;height:auto;font-size:0.9rem;border-radius:8px;border:1px solid rgba(13,27,42,0.15);background:#f8fafc;cursor:pointer;max-width:200px;">
-                    <option value="">All Statuses</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Unpaid">Unpaid</option>
-                    <option value="Partial">Partial</option>
-                    <option value="Draft">Draft</option>
-                    <option value="Overdue">Overdue</option>
-                </select>
+            <div class="dash-content">
+                <div style="position:relative;height:320px;width:100%;">
+                    <canvas id="invoiceChart"></canvas>
+                </div>
             </div>
-            <button onclick="resetFilters()" class="btn-action outline" style="padding:0.6rem 1.2rem;font-size:0.85rem;">↺ Reset</button>
         </div>
 
         <!-- Table -->
@@ -233,7 +515,7 @@
                     </thead>
                     <tbody>
                         {% for inv in invoices %}
-                        <tr class="inv-row">
+                        <tr class="inv-row" data-inv-id="{{ inv.id }}">
                             <td style="font-weight:700;color:var(--accent-gold);font-size:0.9rem;">#{{ loop.index }}</td>
                             <td>
                                 <a href="{{ url_for('accounts.view_invoice', invoice_id=inv.id) }}" class="inv-number-link">
@@ -294,28 +576,220 @@
     </main>
 
     <script>
-        // Search
-        document.getElementById('invoiceSearch').addEventListener('input', function () {
-            const q = this.value.toLowerCase();
-            document.querySelectorAll('.inv-row').forEach(row => {
-                row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
-            });
-        });
+        const invoicesData = {{ invoices_json|safe if invoices_json else '[]' }};
+        let invoiceChartInstance = null;
+        let filteredInvoices = [...invoicesData];
 
-        // Status Filter
-        document.getElementById('statusFilter').addEventListener('change', function () {
-            const val = this.value.toLowerCase();
-            document.querySelectorAll('.inv-row').forEach(row => {
-                if (!val) { row.style.display = ''; return; }
-                const status = row.querySelector('[data-status]')?.dataset.status?.toLowerCase() || '';
-                row.style.display = status.includes(val) ? '' : 'none';
+        function toggleSection(id) {
+            const el = document.getElementById(id);
+            if(el) {
+                el.classList.toggle('expanded');
+                // Ensure chart renders properly if its container just became visible
+                if (id === 'graph-section' && el.classList.contains('expanded')) {
+                    if (invoiceChartInstance) {
+                        invoiceChartInstance.resize();
+                    }
+                }
+            }
+        }
+
+        function initFilterOptions() {
+            const clients = new Set();
+            const contacts = new Set();
+            invoicesData.forEach(inv => {
+                if (inv.company_name) clients.add(inv.company_name);
+                if (inv.customer_name) contacts.add(inv.customer_name);
             });
-        });
+
+            const clientSelect = document.getElementById('filter-client');
+            Array.from(clients).sort().forEach(c => {
+                clientSelect.add(new Option(c, c));
+            });
+
+            const contactSelect = document.getElementById('filter-contact');
+            Array.from(contacts).sort().forEach(c => {
+                contactSelect.add(new Option(c, c));
+            });
+        }
+
+        function applyFilters() {
+            const status = document.getElementById('filter-status').value.toLowerCase();
+            const client = document.getElementById('filter-client').value.toLowerCase();
+            const contact = document.getElementById('filter-contact').value.toLowerCase();
+            const dateRange = document.getElementById('filter-date').value;
+            const search = document.getElementById('invoiceSearch').value.toLowerCase();
+
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            filteredInvoices = invoicesData.filter(inv => {
+                // Search filter (Invoice number, client, project, etc)
+                if (search) {
+                    const searchStr = `${inv.invoice_number} ${inv.company_name} ${inv.customer_name} ${inv.project_name}`.toLowerCase();
+                    if (!searchStr.includes(search)) return false;
+                }
+
+                // Dropdown filters
+                if (status && (inv.status || '').toLowerCase() !== status) return false;
+                if (client && (inv.company_name || '').toLowerCase() !== client) return false;
+                if (contact && (inv.customer_name || '').toLowerCase() !== contact) return false;
+
+                // Date filter
+                if (dateRange && inv.issue_date) {
+                    const invDate = new Date(inv.issue_date);
+                    if (dateRange === 'this_month') {
+                        if (invDate.getMonth() !== currentMonth || invDate.getFullYear() !== currentYear) return false;
+                    } else if (dateRange === 'last_month') {
+                        let lm = currentMonth - 1;
+                        let ly = currentYear;
+                        if (lm < 0) { lm = 11; ly--; }
+                        if (invDate.getMonth() !== lm || invDate.getFullYear() !== ly) return false;
+                    } else if (dateRange === 'this_year') {
+                        if (invDate.getFullYear() !== currentYear) return false;
+                    }
+                }
+                return true;
+            });
+
+            updateSummary();
+            updateChart();
+            updateTable();
+        }
 
         function resetFilters() {
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-client').value = '';
+            document.getElementById('filter-contact').value = '';
+            document.getElementById('filter-date').value = '';
             document.getElementById('invoiceSearch').value = '';
-            document.getElementById('statusFilter').value = '';
-            document.querySelectorAll('.inv-row').forEach(r => r.style.display = '');
+            applyFilters();
+        }
+
+        function syncPillLabel(selectId, pillId) {
+            const sel = document.getElementById(selectId);
+            const pill = document.getElementById(pillId);
+            if (!sel || !pill) return;
+            if (sel.value) {
+                pill.classList.add('active');
+            } else {
+                pill.classList.remove('active');
+            }
+        }
+
+        // Bind search input to applyFilters
+        document.getElementById('invoiceSearch').addEventListener('input', applyFilters);
+
+        function formatCurrency(val) {
+            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val);
+        }
+
+        function updateSummary() {
+            let count = filteredInvoices.length;
+            let total = 0, due = 0, received = 0, gst = 0, tds = 0;
+
+            filteredInvoices.forEach(inv => {
+                total += inv.total_amount;
+                due += inv.amount_due;
+                received += inv.payment_received;
+                gst += inv.gst_amount;
+                tds += inv.tds;
+            });
+
+            document.getElementById('sum-count').textContent = count;
+            document.getElementById('sum-total').textContent = formatCurrency(total);
+            document.getElementById('sum-due').textContent = formatCurrency(due);
+            document.getElementById('sum-received').textContent = formatCurrency(received);
+            document.getElementById('sum-gst').textContent = formatCurrency(gst);
+            document.getElementById('sum-tds').textContent = formatCurrency(tds);
+        }
+
+        function updateChart() {
+            const ctx = document.getElementById('invoiceChart').getContext('2d');
+            const type = document.getElementById('graph-type').value;
+
+            // Group by month
+            const monthlyData = {};
+            filteredInvoices.forEach(inv => {
+                if (!inv.issue_date) return;
+                const d = new Date(inv.issue_date);
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                
+                if (!monthlyData[key]) {
+                    monthlyData[key] = { invoiced: 0, received: 0 };
+                }
+                monthlyData[key].invoiced += inv.total_amount;
+                monthlyData[key].received += inv.payment_received;
+            });
+
+            const sortedKeys = Object.keys(monthlyData).sort();
+            const labels = sortedKeys.map(k => {
+                const [y, m] = k.split('-');
+                return new Date(y, parseInt(m)-1).toLocaleString('default', { month: 'short', year: 'numeric' });
+            });
+            const invoicedArr = sortedKeys.map(k => monthlyData[k].invoiced);
+            const receivedArr = sortedKeys.map(k => monthlyData[k].received);
+
+            if (invoiceChartInstance) {
+                invoiceChartInstance.destroy();
+            }
+
+            invoiceChartInstance = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Invoiced Amount',
+                            data: invoicedArr,
+                            borderColor: '#d4af37',
+                            backgroundColor: type === 'bar' ? 'rgba(212, 175, 55, 0.8)' : 'rgba(212, 175, 55, 0.1)',
+                            borderWidth: 2,
+                            fill: type !== 'bar',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Payment Received',
+                            data: receivedArr,
+                            borderColor: '#10b981',
+                            backgroundColor: type === 'bar' ? 'rgba(16, 185, 129, 0.8)' : 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2,
+                            fill: type !== 'bar',
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    if(value >= 1000) return '₹' + (value/1000) + 'k';
+                                    return '₹' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTable() {
+            const validIds = new Set(filteredInvoices.map(inv => String(inv.id)));
+            document.querySelectorAll('.inv-row').forEach(row => {
+                const id = row.getAttribute('data-inv-id');
+                if (validIds.has(id)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         }
 
         // Kebab Menu Toggle
@@ -334,7 +808,13 @@
         document.addEventListener('click', () => {
             document.querySelectorAll('.action-menu').forEach(m => m.style.cssText = '');
         });
-    </script>
 
+        // Initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            initFilterOptions();
+            applyFilters(); // This will populate summary, chart, and table for the first time
+        });
+
+    </script>
 </body>
 </html>
