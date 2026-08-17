@@ -269,5 +269,138 @@ function toggleCustomDates() {
     const row = document.getElementById('custom-dates-row');
     row.style.display = sel.value === 'custom' ? 'flex' : 'none';
 }
+
+// Active filters
+const clFilters = {
+    employee: "{{ employee_filter or '' }}",
+    call_type: "{{ call_type_filter or '' }}",
+    status: "{{ status_filter or '' }}",
+    search: "{{ search_q or '' }}".toLowerCase(),
+    date_range: "{{ date_filter or 'this_month' }}"
+};
+
+function formatDuration(seconds) {
+    if (!seconds) return '0s';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+}
+
+function callMatchesFilters(call) {
+    if (clFilters.employee && String(call.employee_id) !== clFilters.employee) return false;
+    if (clFilters.call_type && call.call_type !== clFilters.call_type) return false;
+    if (clFilters.status && call.follow_up_status !== clFilters.status) return false;
+    if (clFilters.search) {
+        let match = false;
+        if (call.caller_number && call.caller_number.toLowerCase().includes(clFilters.search)) match = true;
+        const name = call.matched_lead || call.matched_contact || "";
+        if (name && name.toLowerCase().includes(clFilters.search)) match = true;
+        if (!match) return false;
+    }
+    // Assume real-time calls match today, this_week, this_month. 
+    // If user is viewing yesterday or custom range, don't insert to avoid confusing them.
+    if (clFilters.date_range === 'yesterday' || clFilters.date_range === 'last_month' || clFilters.date_range === 'custom') {
+        return false;
+    }
+    return true;
+}
+
+if (window.appSocket) {
+    window.appSocket.on('call_log_created', function(call) {
+        // Prevent duplicates
+        if (document.querySelector(`.cl-row[data-call-id="${call.id}"]`)) return;
+
+        // Check if new call matches current filters
+        if (!callMatchesFilters(call)) return;
+
+        // Update Stat Counters safely
+        const totalEl = document.querySelector('.cl-stat-total .cl-stat-value');
+        if (totalEl) totalEl.innerText = parseInt(totalEl.innerText) + 1;
+
+        if (call.call_type === 'received') {
+            const el = document.querySelector('.cl-stat-received .cl-stat-value');
+            if (el) el.innerText = parseInt(el.innerText) + 1;
+        } else if (call.call_type === 'missed') {
+            const el = document.querySelector('.cl-stat-missed .cl-stat-value');
+            if (el) el.innerText = parseInt(el.innerText) + 1;
+        }
+
+        if (call.follow_up_status === 'Pending') {
+            const el = document.querySelector('.cl-stat-followup .cl-stat-value');
+            if (el) el.innerText = parseInt(el.innerText) + 1;
+        }
+
+        // Add to Table
+        const tbody = document.querySelector('#cl-calls-table tbody');
+        if (tbody) {
+            const tr = document.createElement('tr');
+            let rowClass = 'cl-row ';
+            if (call.call_type === 'missed') rowClass += 'cl-row-missed';
+            else if (call.call_type === 'received') rowClass += 'cl-row-received';
+            tr.className = rowClass;
+            tr.setAttribute('data-call-id', call.id);
+
+            // Hide the Empty State if it exists
+            const emptyState = document.querySelector('.cl-empty');
+            if (emptyState) emptyState.style.display = 'none';
+
+            const dt = new Date(call.started_at);
+            const dtStr = dt.toLocaleString('en-IN', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', hour12: true
+            });
+
+            let contactLeadHtml = '<span class="cl-unknown">Unknown Caller</span>';
+            if (call.lead_id) {
+                contactLeadHtml = `<a href="/leads/view-lead/${call.lead_id}" class="cl-lead-link">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    ${call.matched_lead}
+                </a>`;
+            } else if (call.contact_id) {
+                contactLeadHtml = `<a href="/contacts/view/${call.contact_id}" class="cl-contact-link">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    ${call.matched_contact}
+                </a>`;
+            }
+
+            let badgeHtml = '';
+            if (call.call_type === 'received') badgeHtml = '<span class="cl-badge cl-badge-received">📥 Received</span>';
+            else if (call.call_type === 'missed') badgeHtml = '<span class="cl-badge cl-badge-missed">❌ Missed</span>';
+            else if (call.call_type === 'outgoing') badgeHtml = '<span class="cl-badge cl-badge-outgoing">📤 Outgoing</span>';
+
+            let statusHtml = '<span class="cl-badge cl-badge-nr">— N/A</span>';
+            if (call.follow_up_status === 'Pending') statusHtml = '<span class="cl-badge cl-badge-pending">⏳ Pending</span>';
+            else if (call.follow_up_status === 'Completed') statusHtml = '<span class="cl-badge cl-badge-completed">✅ Done</span>';
+
+            tr.innerHTML = `
+                <td class="cl-cell-datetime"><span class="cl-date">${dtStr}</span></td>
+                <td><span class="cl-employee">${call.employee}</span></td>
+                <td><span class="cl-phone">${call.caller_number}</span></td>
+                <td>${contactLeadHtml}</td>
+                <td>${badgeHtml}</td>
+                <td><span class="cl-duration">${formatDuration(call.duration)}</span></td>
+                <td>${statusHtml}</td>
+                <td><a href="/call-monitoring/call/${call.id}" class="cl-btn-view">View</a></td>
+            `;
+            
+            // Add slight highlight animation
+            tr.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+            tbody.insertBefore(tr, tbody.firstChild);
+            
+            setTimeout(() => {
+                tr.style.transition = 'background-color 1.5s ease';
+                tr.style.backgroundColor = 'transparent';
+            }, 500);
+
+            // Optional Toast Notification
+            if (window.toastr) {
+                toastr.success(`New ${call.call_type} call logged for ${call.caller_number}`);
+            }
+        }
+    });
+}
 </script>
 {% endblock %}

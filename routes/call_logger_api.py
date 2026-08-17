@@ -278,6 +278,35 @@ def receive_call_log():
         current_app.logger.exception("Call Logger API: DB error saving call log")
         return jsonify({"success": False, "message": "Internal server error"}), 500
 
+    # 11. Emit real-time event via Socket.IO
+    try:
+        from utils.extensions import socketio
+        payload = {
+            "id": call_log.id,
+            "caller_number": call_log.caller_number,
+            "call_type": call_log.call_type.value,
+            "call_status": call_log.call_status,
+            "started_at": call_log.started_at.isoformat() + "Z" if call_log.started_at else None,
+            "ended_at": call_log.ended_at.isoformat() + "Z" if call_log.ended_at else None,
+            "duration": call_log.duration,
+            "employee": call_log.employee.name if call_log.employee else "Unknown",
+            "employee_id": call_log.employee_id,
+            "matched_lead": lead.name if lead else None,
+            "lead_id": lead.id if lead else None,
+            "matched_contact": contact.name if contact else None,
+            "contact_id": contact.id if contact else None,
+            "created_at": call_log.created_at.isoformat() + "Z" if call_log.created_at else None,
+            "follow_up_status": call_log.follow_up_status.value
+        }
+        
+        # Emit to all active employees in this organization using the existing room pattern
+        org_employees = Employee.query.filter_by(organization_id=org_id, is_deleted=False).all()
+        for emp in org_employees:
+            room = f"org_{org_id}_user_{emp.id}"
+            socketio.emit("call_log_created", payload, room=room)
+    except Exception as e:
+        current_app.logger.error(f"Socket.IO emit failed for call_logger: {e}")
+
     return jsonify({
         "success": True,
         "message": "Call log created",
