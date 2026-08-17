@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block title %}Call Detail | GlassEntials CRM{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/call_logger.css') }}?v=1">
+{% endblock %}
+
+{% block content %}
+<div class="cl-page-wrapper">
+
+    <!-- Back Link -->
+    <div class="cl-breadcrumb">
+        <a href="{{ url_for('call_logger.dashboard') }}" class="cl-back-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            Back to Call Monitoring
+        </a>
+    </div>
+
+    <div class="cl-detail-grid">
+
+        <!-- Left: Call Info -->
+        <div class="cl-detail-main">
+            <!-- Call Summary Card -->
+            <div class="cl-detail-card">
+                <div class="cl-detail-card-header">
+                    <div class="cl-detail-type-badge">
+                        {% if call.call_type.value == 'received' %}
+                        <span class="cl-badge cl-badge-received cl-badge-lg">📥 Received Call</span>
+                        {% elif call.call_type.value == 'missed' %}
+                        <span class="cl-badge cl-badge-missed cl-badge-lg">❌ Missed Call</span>
+                        {% elif call.call_type.value == 'outgoing' %}
+                        <span class="cl-badge cl-badge-outgoing cl-badge-lg">📤 Outgoing Call</span>
+                        {% endif %}
+                    </div>
+                    <span class="cl-detail-id">#{{ call.id }}</span>
+                </div>
+
+                <div class="cl-detail-phone">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.37 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6.12 6.12l.97-.97a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                    {{ call.caller_number }}
+                </div>
+
+                <div class="cl-detail-fields">
+                    <div class="cl-detail-field">
+                        <span class="cl-field-label">Contact / Lead</span>
+                        <span class="cl-field-value">
+                            {% if call.lead %}
+                            <a href="{{ url_for('leads.view_lead', lead_id=call.lead_id) }}" class="cl-lead-link">{{ call.lead.name }}</a>
+                            {% elif call.contact %}
+                            <a href="{{ url_for('contacts.view_contact', contact_id=call.contact_id) }}" class="cl-contact-link">{{ call.contact.name }}</a>
+                            {% else %}
+                            <span class="cl-unknown">Unknown Caller</span>
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="cl-detail-field">
+                        <span class="cl-field-label">Employee</span>
+                        <span class="cl-field-value">{{ call.employee.name if call.employee else '—' }}</span>
+                    </div>
+
+                    <div class="cl-detail-field">
+                        <span class="cl-field-label">Date</span>
+                        <span class="cl-field-value">{{ call.started_at.strftime('%d %B %Y') if call.started_at else '—' }}</span>
+                    </div>
+
+                    <div class="cl-detail-field">
+                        <span class="cl-field-label">Time</span>
+                        <span class="cl-field-value">{{ call.started_at | ist }}</span>
+                    </div>
+
+                    <div class="cl-detail-field">
+                        <span class="cl-field-label">Duration</span>
+                        <span class="cl-field-value">{{ call.duration_display }}</span>
+                    </div>
+
+                    <div class="cl-detail-field">
+                        <span class="cl-field-label">Device</span>
+                        <span class="cl-field-value">{{ call.device.device_name if call.device else '—' }}</span>
+                    </div>
+
+                    <div class="cl-detail-field">
+                        <span class="cl-field-label">SIM / Subscription</span>
+                        <span class="cl-field-value">{{ call.subscription_id or 'Office SIM' }}</span>
+                    </div>
+
+                    <div class="cl-detail-field">
+                        <span class="cl-field-label">Call Status</span>
+                        <span class="cl-field-value">{{ call.call_status or call.call_type.value.capitalize() }}</span>
+                    </div>
+
+                    <div class="cl-detail-field">
+                        <span class="cl-field-label">Follow-up</span>
+                        <span class="cl-field-value">
+                            {% if call.follow_up_status.value == 'Pending' %}
+                            <span class="cl-badge cl-badge-pending">⏳ Pending</span>
+                            {% elif call.follow_up_status.value == 'Completed' %}
+                            <span class="cl-badge cl-badge-completed">✅ Completed</span>
+                            {% else %}
+                            <span class="cl-badge cl-badge-nr">— Not Required</span>
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    {% if call.follow_up_notes %}
+                    <div class="cl-detail-field cl-detail-field-full">
+                        <span class="cl-field-label">Follow-up Notes</span>
+                        <span class="cl-field-value">{{ call.follow_up_notes }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="cl-detail-card">
+                <h3 class="cl-detail-section-title">Actions</h3>
+                <div class="cl-action-buttons">
+                    {% if not call.lead_id %}
+                    <a href="{{ url_for('call_logger.create_lead_from_call', call_id=call.id) }}" class="cl-btn cl-btn-primary">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Create Lead
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('leads.view_lead', lead_id=call.lead_id) }}" class="cl-btn cl-btn-outline">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        View Lead
+                    </a>
+                    {% endif %}
+
+                    {% if call.contact_id and not call.lead_id %}
+                    <a href="{{ url_for('contacts.view_contact', contact_id=call.contact_id) }}" class="cl-btn cl-btn-outline">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        View Contact
+                    </a>
+                    {% endif %}
+
+                    {% if not call.lead_id %}
+                    <!-- Link to existing lead -->
+                    <button onclick="document.getElementById('link-lead-modal').style.display='flex'" class="cl-btn cl-btn-ghost">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                        Link Existing Lead
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Follow-up Panel -->
+        <div class="cl-detail-sidebar">
+            <div class="cl-detail-card">
+                <h3 class="cl-detail-section-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    Update Follow-up
+                </h3>
+
+                <form method="POST" action="{{ url_for('call_logger.update_followup', call_id=call.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="cl-form-group">
+                        <label class="cl-form-label">Follow-up Status</label>
+                        <select name="follow_up_status" class="cl-filter-select">
+                            {% for status in CallFollowUpStatus %}
+                            <option value="{{ status.value }}" {% if call.follow_up_status == status %}selected{% endif %}>{{ status.value }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="cl-form-group">
+                        <label class="cl-form-label">Follow-up Date</label>
+                        <input type="date" name="follow_up_date" class="cl-filter-input" style="width:100%;">
+                    </div>
+
+                    <div class="cl-form-group">
+                        <label class="cl-form-label">Follow-up Time</label>
+                        <input type="time" name="follow_up_time" class="cl-filter-input" style="width:100%;">
+                    </div>
+
+                    <div class="cl-form-group">
+                        <label class="cl-form-label">Notes</label>
+                        <textarea name="follow_up_notes" class="cl-textarea" rows="3" placeholder="Add follow-up notes…">{{ call.follow_up_notes or '' }}</textarea>
+                    </div>
+
+                    <div class="cl-form-group">
+                        <label class="cl-form-label">Assign To</label>
+                        <select name="assigned_employee_id" class="cl-filter-select">
+                            <option value="">— Select Employee —</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if call.employee_id == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <button type="submit" class="cl-btn cl-btn-primary" style="width:100%;">
+                        Save Follow-up
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Link Lead Modal -->
+<div id="link-lead-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:10000; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:14px; padding:2rem; max-width:480px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+        <h3 style="color:var(--primary-color); margin:0 0 1.25rem 0; font-size:1.2rem;">Link to Existing Lead</h3>
+        <p style="color:#64748b; font-size:0.9rem; margin-bottom:1.25rem;">Select a lead to associate with this call from <strong>{{ call.caller_number }}</strong></p>
+        <form method="POST" action="{{ url_for('call_logger.link_lead_to_call', call_id=call.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="cl-form-group">
+                <label class="cl-form-label">Lead</label>
+                <select name="lead_id" class="cl-filter-select" required>
+                    <option value="">— Select a Lead —</option>
+                    {% for lead in leads %}
+                    <option value="{{ lead.id }}">{{ lead.name }} ({{ lead.phone_number }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:1rem;">
+                <button type="submit" class="cl-btn cl-btn-primary">Link Lead</button>
+                <button type="button" onclick="document.getElementById('link-lead-modal').style.display='none'" class="cl-btn cl-btn-ghost">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

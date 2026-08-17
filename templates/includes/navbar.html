@@ -108,6 +108,8 @@
                     {% endif %}
                 </div>
             </div>
+
+            <a href="{{ url_for('call_logger.dashboard') }}" {% if request.blueprint=='call_logger' %}class="active" {% endif %}>📞 Calls</a>
     </nav>
 
     <!-- Column 3: Profile + Bell (right-aligned, flex: 1) -->

@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title %}Call Monitoring | GlassEntials CRM{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/call_logger.css') }}?v=1">
+{% endblock %}
+
+{% block content %}
+<div class="cl-page-wrapper">
+    <!-- Page Header -->
+    <div class="cl-header">
+        <div class="cl-header-left">
+            <h1 class="cl-page-title">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.37 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6.12 6.12l.97-.97a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                Call Monitoring
+            </h1>
+            <p class="cl-page-subtitle">Office SIM call logs for your organisation</p>
+        </div>
+        {% if current_user.role.value in ['admin', 'manager'] %}
+        <a href="{{ url_for('call_logger.cl_settings') }}" class="cl-btn cl-btn-outline">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            Settings
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="cl-stats-grid">
+        <div class="cl-stat-card cl-stat-total">
+            <div class="cl-stat-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.37 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6.12 6.12l.97-.97a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            </div>
+            <div class="cl-stat-body">
+                <span class="cl-stat-value">{{ total_calls }}</span>
+                <span class="cl-stat-label">Total Calls</span>
+            </div>
+        </div>
+        <div class="cl-stat-card cl-stat-received">
+            <div class="cl-stat-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 2 16 8 22 8"></polyline><line x1="23" y1="1" x2="16" y2="8"></line><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.37 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6.12 6.12l.97-.97a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            </div>
+            <div class="cl-stat-body">
+                <span class="cl-stat-value">{{ received_calls }}</span>
+                <span class="cl-stat-label">Received</span>
+            </div>
+        </div>
+        <div class="cl-stat-card cl-stat-missed">
+            <div class="cl-stat-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M16.5 16.5L22 22M3.6 1C2.3 1 1 2.1 1 3.6v3c0 .9.7 1.8 1.6 2L4.8 9c.4.3.5.8.2 1.2l-1 1a1.65 1.65 0 0 0 0 2.3L6 15.4a.65.65 0 0 0 1 0l.7-.7"></path></svg>
+            </div>
+            <div class="cl-stat-body">
+                <span class="cl-stat-value">{{ missed_calls }}</span>
+                <span class="cl-stat-label">Missed</span>
+            </div>
+        </div>
+        <div class="cl-stat-card cl-stat-followup">
+            <div class="cl-stat-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </div>
+            <div class="cl-stat-body">
+                <span class="cl-stat-value">{{ pending_followups }}</span>
+                <span class="cl-stat-label">Pending Follow-ups</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="cl-filter-card">
+        <form method="GET" action="{{ url_for('call_logger.dashboard') }}" id="cl-filter-form">
+            <div class="cl-filter-row">
+                <!-- Search -->
+                <div class="cl-filter-group cl-filter-search">
+                    <label class="cl-filter-label">Search</label>
+                    <div class="cl-search-wrap">
+                        <svg class="cl-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="text" name="q" id="cl-search" class="cl-filter-input" placeholder="Number or name…" value="{{ search_q }}">
+                    </div>
+                </div>
+
+                {% if current_user.role.value in ['admin', 'manager'] %}
+                <!-- Employee -->
+                <div class="cl-filter-group">
+                    <label class="cl-filter-label">Employee</label>
+                    <select name="employee_id" class="cl-filter-select">
+                        <option value="">All Employees</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.id }}" {% if employee_filter == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <!-- Call Type -->
+                <div class="cl-filter-group">
+                    <label class="cl-filter-label">Call Type</label>
+                    <select name="call_type" class="cl-filter-select">
+                        <option value="" {% if not call_type_filter %}selected{% endif %}>All Types</option>
+                        <option value="received" {% if call_type_filter=='received' %}selected{% endif %}>📥 Received</option>
+                        <option value="missed" {% if call_type_filter=='missed' %}selected{% endif %}>❌ Missed</option>
+                        <option value="outgoing" {% if call_type_filter=='outgoing' %}selected{% endif %}>📤 Outgoing</option>
+                    </select>
+                </div>
+
+                <!-- Date Range -->
+                <div class="cl-filter-group">
+                    <label class="cl-filter-label">Date Range</label>
+                    <select name="date_range" class="cl-filter-select" id="date-range-select" onchange="toggleCustomDates()">
+                        <option value="today" {% if date_filter=='today' %}selected{% endif %}>Today</option>
+                        <option value="yesterday" {% if date_filter=='yesterday' %}selected{% endif %}>Yesterday</option>
+                        <option value="this_week" {% if date_filter=='this_week' %}selected{% endif %}>This Week</option>
+                        <option value="this_month" {% if date_filter=='this_month' %}selected{% endif %}>This Month</option>
+                        <option value="custom" {% if date_filter=='custom' %}selected{% endif %}>Custom Range</option>
+                    </select>
+                </div>
+
+                <!-- Follow-up Status -->
+                <div class="cl-filter-group">
+                    <label class="cl-filter-label">Follow-up</label>
+                    <select name="follow_up_status" class="cl-filter-select">
+                        <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
+                        <option value="Pending" {% if status_filter=='Pending' %}selected{% endif %}>⏳ Pending</option>
+                        <option value="Completed" {% if status_filter=='Completed' %}selected{% endif %}>✅ Completed</option>
+                        <option value="Not Required" {% if status_filter=='Not Required' %}selected{% endif %}>— Not Required</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Custom date row (shown only when custom selected) -->
+            <div class="cl-filter-row cl-custom-dates" id="custom-dates-row" style="display: {% if date_filter == 'custom' %}flex{% else %}none{% endif %};">
+                <div class="cl-filter-group">
+                    <label class="cl-filter-label">From</label>
+                    <input type="date" name="start_date" class="cl-filter-input" value="{{ start_date.isoformat() if date_filter == 'custom' else '' }}">
+                </div>
+                <div class="cl-filter-group">
+                    <label class="cl-filter-label">To</label>
+                    <input type="date" name="end_date" class="cl-filter-input" value="{{ end_date.isoformat() if date_filter == 'custom' else '' }}">
+                </div>
+                <div class="cl-filter-group" style="justify-content: flex-end; align-self: flex-end;">
+                    &nbsp;
+                </div>
+            </div>
+
+            <div class="cl-filter-actions">
+                <button type="submit" class="cl-btn cl-btn-primary">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                    Apply Filters
+                </button>
+                <a href="{{ url_for('call_logger.dashboard') }}" class="cl-btn cl-btn-ghost">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 .49-3.89"></path></svg>
+                    Reset
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Call List Table -->
+    <div class="cl-table-card">
+        <div class="cl-table-header">
+            <h3 class="cl-table-title">Call History</h3>
+            <span class="cl-table-count">{{ pagination.total }} calls</span>
+        </div>
+
+        {% if calls %}
+        <div class="cl-table-wrap">
+            <table class="cl-table" id="cl-calls-table">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Employee</th>
+                        <th>Caller Number</th>
+                        <th>Contact / Lead</th>
+                        <th>Type</th>
+                        <th>Duration</th>
+                        <th>Follow-up</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for call in calls %}
+                    <tr class="cl-row {% if call.call_type.value == 'missed' %}cl-row-missed{% elif call.call_type.value == 'received' %}cl-row-received{% endif %}">
+                        <td class="cl-cell-datetime">
+                            <span class="cl-date">{{ call.started_at | ist }}</span>
+                        </td>
+                        <td>
+                            {% if call.employee %}
+                            <span class="cl-employee">{{ call.employee.name }}</span>
+                            {% else %}
+                            <span class="cl-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="cl-phone">{{ call.caller_number }}</span>
+                        </td>
+                        <td>
+                            {% if call.lead %}
+                            <a href="{{ url_for('leads.view_lead', lead_id=call.lead_id) }}" class="cl-lead-link">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                {{ call.lead.name }}
+                            </a>
+                            {% elif call.contact %}
+                            <a href="{{ url_for('contacts.view_contact', contact_id=call.contact_id) }}" class="cl-contact-link">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                {{ call.contact.name }}
+                            </a>
+                            {% else %}
+                            <span class="cl-unknown">Unknown Caller</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if call.call_type.value == 'received' %}
+                            <span class="cl-badge cl-badge-received">📥 Received</span>
+                            {% elif call.call_type.value == 'missed' %}
+                            <span class="cl-badge cl-badge-missed">❌ Missed</span>
+                            {% elif call.call_type.value == 'outgoing' %}
+                            <span class="cl-badge cl-badge-outgoing">📤 Outgoing</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="cl-duration">{{ call.duration_display }}</span>
+                        </td>
+                        <td>
+                            {% if call.follow_up_status.value == 'Pending' %}
+                            <span class="cl-badge cl-badge-pending">⏳ Pending</span>
+                            {% elif call.follow_up_status.value == 'Completed' %}
+                            <span class="cl-badge cl-badge-completed">✅ Done</span>
+                            {% else %}
+                            <span class="cl-badge cl-badge-nr">— N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('call_logger.call_detail', call_id=call.id) }}" class="cl-btn-view">View</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if pagination.pages > 1 %}
+        <div class="cl-pagination">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('call_logger.dashboard', page=pagination.prev_num, q=search_q, employee_id=employee_filter, call_type=call_type_filter, date_range=date_filter, follow_up_status=status_filter) }}" class="cl-page-btn">‹ Prev</a>
+            {% endif %}
+            <span class="cl-page-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+            {% if pagination.has_next %}
+            <a href="{{ url_for('call_logger.dashboard', page=pagination.next_num, q=search_q, employee_id=employee_filter, call_type=call_type_filter, date_range=date_filter, follow_up_status=status_filter) }}" class="cl-page-btn">Next ›</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="cl-empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #cbd5e1;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.37 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6.12 6.12l.97-.97a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            <p>No calls found for the selected filters.</p>
+            {% if current_user.role.value in ['admin', 'manager'] %}
+            <a href="{{ url_for('call_logger.cl_settings') }}" class="cl-btn cl-btn-outline" style="margin-top: 1rem;">Connect a Device</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleCustomDates() {
+    const sel = document.getElementById('date-range-select');
+    const row = document.getElementById('custom-dates-row');
+    row.style.display = sel.value === 'custom' ? 'flex' : 'none';
+}
+</script>
+{% endblock %}

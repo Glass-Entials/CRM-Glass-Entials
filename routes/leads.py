@@ -255,6 +255,19 @@ def add_lead():
                 current_user.employee.id,
                 new_lead.id,
             )
+
+            # Link to call log if call_id is present
+            call_id = request.args.get("call_id", type=int)
+            if call_id:
+                try:
+                    from model import CallLog
+                    call = CallLog.query.get(call_id)
+                    if call and call.organization_id == current_user.organization_id:
+                        call.lead_id = new_lead.id
+                        call.caller_name_snapshot = new_lead.name
+                except Exception as ex:
+                    current_app.logger.error(f"Failed to link call log: {ex}")
+
             db.session.commit()
             flash("Lead added!", "leadssuccess")
             return redirect(url_for("leads.leads_list"))

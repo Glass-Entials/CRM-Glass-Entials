@@ -39,6 +39,8 @@ from routes.payments import payments_bp
 from routes.trash import trash_bp
 from super_admin.routes import super_admin_bp
 from routes.org import org_bp
+from routes.call_logger import call_logger_bp
+from routes.call_logger_api import call_logger_api_bp
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -261,6 +263,10 @@ app.register_blueprint(payments_bp)
 app.register_blueprint(trash_bp)
 app.register_blueprint(super_admin_bp)
 app.register_blueprint(org_bp)
+app.register_blueprint(call_logger_bp)
+app.register_blueprint(call_logger_api_bp)
+# Exempt the Android device API from CSRF (uses Bearer token auth instead)
+csrf.exempt(call_logger_api_bp)
 
 
 @login_manager.user_loader
@@ -287,6 +293,7 @@ def enforce_org_active():
         'microsoft_auth.microsoft_login', 'microsoft_auth.microsoft_callback',
         'org.switch_organization', 'org.join_organization', 'org.create_organization',
         'org.organization_settings',
+        'call_logger_api.receive_call_log', 'call_logger_api.ping',
     }
     if request.endpoint in exempt_endpoints:
         return None

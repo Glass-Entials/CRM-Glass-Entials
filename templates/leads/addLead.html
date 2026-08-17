@@ -39,7 +39,7 @@
         <!-- Add Lead Form Container -->
         <div class="form-container" style="animation: none;">
             <div class="panel" style="border-top: 4px solid var(--accent-gold);">
-                <form action="{{ url_for('leads.add_lead') }}" method="POST" class="customer-form">
+                <form action="{{ request.full_path }}" method="POST" class="customer-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="form-grid">
                         <!-- GST Auto-Fetch Section -->
@@ -72,7 +72,7 @@
                         <div class="form-group" style="display: flex; flex-direction: column; justify-content: flex-end;">
                             <label>Phone Number <span style="font-weight:normal; font-size:0.85em; opacity:0.7;">(or Email)</span> <span style="color: red; opacity: 0.7;">*</span></label>
                             <!-- Note: The app route expects "phone" not "phone_number" -->
-                            <input type="tel" id="phone" name="phone" class="form-control" placeholder="10 digit number e.g. 9876543210" pattern="\d{10}" title="Please enter exactly 10 digits (0-9)">
+                            <input type="tel" id="phone" name="phone" class="form-control" placeholder="10 digit number e.g. 9876543210" pattern="\d{10}" title="Please enter exactly 10 digits (0-9)" value="{{ request.args.get('phone_number', '') | replace('+91', '') | replace('+', '') }}">
                         </div>
                         <div class="form-group">
                             <label>Company / Legal Name</label>

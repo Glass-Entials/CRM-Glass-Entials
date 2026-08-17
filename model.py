@@ -2300,3 +2300,163 @@ class PaymentDocument(db.Model):
 
     def __repr__(self):
         return f"<PaymentDocument {self.original_name} for Payment {self.payment_id}>"
+
+
+# ===========================================================================
+# CALL LOGGER MODULE — NEW
+# ===========================================================================
+
+class CallType(Enum):
+    RECEIVED = "received"
+    MISSED   = "missed"
+    OUTGOING = "outgoing"
+
+
+class CallFollowUpStatus(Enum):
+    PENDING      = "Pending"
+    COMPLETED    = "Completed"
+    NOT_REQUIRED = "Not Required"
+
+
+class DeviceStatus(Enum):
+    ACTIVE  = "active"
+    REVOKED = "revoked"
+    INACTIVE = "inactive"
+
+
+class CallDevice(db.Model):
+    """
+    Registered Android phone that is authorised to send call logs.
+    The credential is stored only as a SHA-256 hash — the raw token is
+    shown to the admin exactly once at registration and never stored again.
+    """
+    __tablename__ = "call_device"
+
+    id              = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True)
+    device_name     = db.Column(db.String(120), nullable=False)
+    employee_id     = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=False, index=True)
+
+    # SHA-256 hash of the raw Bearer token
+    credential_hash  = db.Column(db.String(64), nullable=False, unique=True)
+
+    # Optional metadata sent by the Android app
+    device_identifier    = db.Column(db.String(200), nullable=True)   # Android ANDROID_ID or similar
+    subscription_identifier = db.Column(db.String(200), nullable=True)  # SIM subscription ID
+
+    status     = db.Column(
+        db.Enum(DeviceStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=DeviceStatus.ACTIVE,
+        index=True,
+    )
+    last_seen  = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
+
+    # Relationships
+    organization = db.relationship("Organization", backref=db.backref("call_devices", lazy="dynamic"))
+    employee     = db.relationship("Employee", foreign_keys=[employee_id], backref=db.backref("call_devices", lazy="dynamic"))
+    creator      = db.relationship("Employee", foreign_keys=[created_by])
+    call_logs    = db.relationship("CallLog", back_populates="device", lazy="dynamic")
+
+    @property
+    def is_active(self):
+        return self.status == DeviceStatus.ACTIVE
+
+    @property
+    def last_seen_display(self):
+        if not self.last_seen:
+            return "Never"
+        delta = datetime.utcnow() - self.last_seen
+        if delta.total_seconds() < 60:
+            return "Just now"
+        if delta.total_seconds() < 3600:
+            return f"{int(delta.total_seconds() // 60)} min ago"
+        if delta.total_seconds() < 86400:
+            return f"{int(delta.total_seconds() // 3600)} hr ago"
+        return f"{delta.days} days ago"
+
+    def __repr__(self):
+        return f"<CallDevice {self.device_name} status={self.status.value}>"
+
+
+class CallLog(db.Model):
+    """
+    A single phone call event received from an authorised Android device.
+    """
+    __tablename__ = "call_log"
+
+    id              = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True)
+    device_id       = db.Column(db.Integer, db.ForeignKey("call_device.id"), nullable=False, index=True)
+    employee_id     = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=False, index=True)
+
+    # Caller info
+    caller_number        = db.Column(db.String(30), nullable=False, index=True)
+    caller_name_snapshot = db.Column(db.String(150), nullable=True)   # name at the time of the call
+
+    # Linked CRM records (nullable — unknown caller has neither)
+    lead_id    = db.Column(db.Integer, db.ForeignKey("lead.id"), nullable=True, index=True)
+    contact_id = db.Column(db.Integer, db.ForeignKey("contact.id"), nullable=True, index=True)
+
+    # Call metadata
+    call_type = db.Column(
+        db.Enum(CallType, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        index=True,
+    )
+    call_status       = db.Column(db.String(50), nullable=True)   # raw string from Android
+    started_at        = db.Column(db.DateTime, nullable=False, index=True)
+    ended_at          = db.Column(db.DateTime, nullable=True)
+    duration          = db.Column(db.Integer, nullable=True)       # seconds
+    subscription_id   = db.Column(db.String(100), nullable=True)   # SIM slot identifier
+
+    # Idempotency key supplied by Android app
+    client_event_id   = db.Column(db.String(200), nullable=True, unique=True, index=True)
+
+    # Follow-up tracking
+    follow_up_status = db.Column(
+        db.Enum(CallFollowUpStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=CallFollowUpStatus.NOT_REQUIRED,
+        index=True,
+    )
+    follow_up_notes = db.Column(db.Text, nullable=True)
+
+    # Audit
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    device   = db.relationship("CallDevice", back_populates="call_logs")
+    employee = db.relationship("Employee", foreign_keys=[employee_id], backref=db.backref("call_logs", lazy="dynamic"))
+    lead     = db.relationship("Lead", foreign_keys=[lead_id], backref=db.backref("call_logs", lazy="dynamic"))
+    contact  = db.relationship("Contact", foreign_keys=[contact_id], backref=db.backref("call_logs", lazy="dynamic"))
+
+    __table_args__ = (
+        db.Index("ix_call_log_org_started", "organization_id", "started_at"),
+        db.Index("ix_call_log_employee_type", "employee_id", "call_type"),
+    )
+
+    @property
+    def duration_display(self):
+        if not self.duration:
+            return "—"
+        mins, secs = divmod(self.duration, 60)
+        return f"{mins:02d}:{secs:02d}"
+
+    @property
+    def contact_name(self):
+        if self.caller_name_snapshot:
+            return self.caller_name_snapshot
+        if self.lead:
+            return self.lead.name
+        if self.contact:
+            return self.contact.name
+        return "Unknown Caller"
+
+    def __repr__(self):
+        return f"<CallLog {self.call_type.value} from {self.caller_number} at {self.started_at}>"
+

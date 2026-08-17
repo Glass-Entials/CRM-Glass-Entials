@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Logger Settings | GlassEntials CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/call_logger.css') }}?v=1">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+</head>
+
+<body class="dashboard-page" style="background-color: #f8fafc;">
+    {% include 'includes/navbar.html' %}
+
+    <!-- Flash messages -->
+    <div style="position:fixed; top:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;">
+        {% with messages = get_flashed_messages(with_categories=true, category_filter=["success","error","info"]) %}
+        {% if messages %}{% for category, message in messages %}
+        <div style="padding:12px 24px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); font-weight:600; font-size:14px; color:white; background:{% if category=='success' %}#10b981{% elif category=='error' %}#ef4444{% else %}#3b82f6{% endif %}; animation:slideIn 0.3s ease;">{{ message }}</div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        {# Device token flash — shown only once after registration/regeneration #}
+        {% with messages = get_flashed_messages(with_categories=true, category_filter=["device_token"]) %}
+        {% if messages %}
+        {% for category, raw in messages %}
+        {% set parts = raw.split(':') %}
+        {% if parts|length >= 3 %}
+        {% set raw_token = parts[1] %}
+        {% set dev_id    = parts[2] %}
+        <div id="token-flash" style="background:white; border:2px solid #10b981; border-radius:12px; padding:1.5rem; max-width:480px; box-shadow:0 10px 40px rgba(0,0,0,0.15); position:fixed; top:80px; right:20px; z-index:10000;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.75rem;">
+                <span style="font-size:1.2rem;">🔑</span>
+                <strong style="color:#065f46; font-size:1rem;">Device Credential Generated</strong>
+            </div>
+            <p style="color:#374151; font-size:0.88rem; margin:0 0 0.75rem 0; line-height:1.5;">Copy and store this token securely — <strong>it will NOT be shown again.</strong></p>
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:0.75rem 1rem; font-family:monospace; font-size:0.82rem; word-break:break-all; color:#166534; position:relative;">
+                <span id="device-raw-token">{{ raw_token }}</span>
+                <button onclick="copyToken()" style="position:absolute; top:6px; right:6px; background:#10b981; color:white; border:none; border-radius:6px; padding:4px 10px; font-size:0.75rem; font-weight:600; cursor:pointer;">Copy</button>
+            </div>
+            <button onclick="document.getElementById('token-flash').remove()" style="margin-top:1rem; background:transparent; border:1px solid #d1d5db; border-radius:8px; padding:8px 20px; font-size:0.88rem; cursor:pointer; color:#374151;">Dismiss</button>
+        </div>
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+    </div>
+
+    <main class="container" style="display:flex; gap:3rem; margin:2.5rem auto 0 auto; max-width:1200px; padding:0 2rem 4rem;">
+        <!-- Settings Sidebar -->
+        {% set active_tab = 'call_logger' %}
+        {% include 'includes/settings_sidebar.html' %}
+
+        <!-- Main Content -->
+        <section style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:1px solid rgba(13,27,42,0.1);">
+                <h3 style="font-size:1.35rem; color:var(--primary-color); margin:0; font-family:var(--font-body); font-weight:700;">
+                    📞 Call Logger Settings
+                </h3>
+                <a href="{{ url_for('call_logger.dashboard') }}" class="cl-btn cl-btn-outline" style="font-size:0.85rem;">
+                    View Call Monitoring →
+                </a>
+            </div>
+
+            <!-- Connection Stats -->
+            {% if current_user.role.value in ['admin', 'manager'] %}
+            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.75rem;">
+                <div class="settings-card" style="text-align:center; padding:1.25rem;">
+                    <div style="font-size:2rem; font-weight:700; color:var(--primary-color);">{{ devices|length }}</div>
+                    <div style="font-size:0.85rem; color:#64748b; margin-top:4px;">Total Devices</div>
+                </div>
+                <div class="settings-card" style="text-align:center; padding:1.25rem;">
+                    <div style="font-size:2rem; font-weight:700; color:#10b981;">{{ active_devices }}</div>
+                    <div style="font-size:0.85rem; color:#64748b; margin-top:4px;">Active</div>
+                </div>
+                <div class="settings-card" style="text-align:center; padding:1.25rem;">
+                    <div style="font-size:2rem; font-weight:700; color:#ef4444;">{{ revoked_devices }}</div>
+                    <div style="font-size:0.85rem; color:#64748b; margin-top:4px;">Revoked</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Connected Devices -->
+            <div class="settings-card" style="margin-bottom:1.5rem; padding:0; overflow:hidden;">
+                <div style="padding:1.25rem 1.5rem; border-bottom:1px solid rgba(13,27,42,0.06); display:flex; align-items:center; justify-content:space-between;">
+                    <h4 style="margin:0; color:var(--primary-color); font-size:1rem; font-weight:700;">{% if current_user.role.value in ['admin', 'manager'] %}Connected Devices{% else %}My Devices{% endif %}</h4>
+                    <button onclick="document.getElementById('add-device-section').scrollIntoView({behavior:'smooth'})" class="cl-btn cl-btn-primary" style="font-size:0.82rem; padding:7px 16px;">
+                        + Add Device
+                    </button>
+                </div>
+
+                {% if devices %}
+                <div style="padding:0;">
+                    {% for device in devices %}
+                    <div class="cl-device-row {% if device.status == DeviceStatus.REVOKED %}cl-device-revoked{% endif %}">
+                        <div class="cl-device-info">
+                            <div class="cl-device-status-dot {% if device.status == DeviceStatus.ACTIVE %}cl-dot-active{% elif device.status == DeviceStatus.REVOKED %}cl-dot-revoked{% else %}cl-dot-inactive{% endif %}"></div>
+                            <div>
+                                <div class="cl-device-name">{{ device.device_name }}</div>
+                                <div class="cl-device-meta">
+                                    Employee: <strong>{{ device.employee.name if device.employee else '—' }}</strong>
+                                    &bull; Last seen: {{ device.last_seen_display }}
+                                    &bull; Registered: {{ device.created_at.strftime('%d %b %Y') }}
+                                    {% if device.revoked_at %}
+                                    &bull; Revoked: {{ device.revoked_at.strftime('%d %b %Y') }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cl-device-actions">
+                            {% if device.status == DeviceStatus.ACTIVE %}
+                            <!-- Regenerate credential -->
+                            <form method="POST" action="{{ url_for('call_logger.regenerate_device', device_id=device.id) }}" style="display:inline;" onsubmit="return confirm('Regenerate credential for {{ device.device_name }}? The old token will stop working immediately.')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="cl-btn cl-btn-ghost" style="font-size:0.78rem; padding:6px 12px;">↺ Regenerate</button>
+                            </form>
+                            <!-- Revoke -->
+                            <form method="POST" action="{{ url_for('call_logger.revoke_device', device_id=device.id) }}" style="display:inline;" onsubmit="return confirmRevoke('{{ device.device_name }}')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="cl-btn cl-btn-danger" style="font-size:0.78rem; padding:6px 12px;">Revoke</button>
+                            </form>
+                            {% else %}
+                            <span class="cl-badge cl-badge-missed" style="font-size:0.75rem;">🔴 Revoked</span>
+                            <!-- Reactivate -->
+                            <form method="POST" action="{{ url_for('call_logger.activate_device', device_id=device.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="cl-btn cl-btn-outline" style="font-size:0.78rem; padding:6px 12px;">Reactivate</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="padding:3rem; text-align:center; color:#94a3b8;">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:1rem; display:block; margin-left:auto; margin-right:auto;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+                    <p style="margin:0; font-size:0.95rem;">No devices registered yet.</p>
+                    <p style="margin:0.5rem 0 0; font-size:0.85rem;">Add a device below to start logging Office SIM calls.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Add Device Section -->
+            <div id="add-device-section" class="settings-card">
+                <h4 style="margin:0 0 1.5rem 0; color:var(--primary-color); font-size:1rem; font-weight:700;">Register New Device</h4>
+                <p style="color:#64748b; font-size:0.9rem; margin:0 0 1.5rem 0; line-height:1.5;">
+                    Register an Android phone to allow it to send call logs to this CRM.
+                    A secure token will be generated — enter it in the Android Call Logger app to connect.
+                </p>
+                <form method="POST" action="{{ url_for('call_logger.add_device') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div style="display:grid; grid-template-columns:1fr {% if current_user.role.value in ['admin', 'manager'] %}1fr{% endif %}; gap:1.25rem; margin-bottom:1.25rem;">
+                        <div class="cl-form-group">
+                            <label class="cl-form-label">Device Name <span style="color:#ef4444;">*</span></label>
+                            <input type="text" name="device_name" class="cl-filter-input" style="width:100%;" placeholder="e.g. Sir's Phone" required>
+                        </div>
+                        {% if current_user.role.value in ['admin', 'manager'] %}
+                        <div class="cl-form-group">
+                            <label class="cl-form-label">Assigned Employee <span style="color:#ef4444;">*</span></label>
+                            <select name="employee_id" class="cl-filter-select" required>
+                                <option value="">— Select Employee —</option>
+                                {% for emp in employees %}
+                                <option value="{{ emp.id }}">{{ emp.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div style="background:rgba(212,175,55,0.06); border:1px solid rgba(212,175,55,0.2); border-radius:10px; padding:1rem 1.25rem; margin-bottom:1.25rem;">
+                        <p style="margin:0; font-size:0.85rem; color:#92740a; line-height:1.5;">
+                            <strong>🔒 Security Notice:</strong> The generated credential will be shown <em>exactly once</em> and cannot be retrieved later.
+                            Copy it immediately after generating and enter it into the Android app.
+                        </p>
+                    </div>
+                    <button type="submit" class="cl-btn cl-btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                        Generate Device Credential
+                    </button>
+                </form>
+            </div>
+
+        </section>
+    </main>
+
+    <style>
+        .settings-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(13,27,42,0.05);
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to   { transform: translateX(0);    opacity: 1; }
+        }
+    </style>
+
+    <script>
+        function confirmRevoke(name) {
+            return confirm(`Are you sure you want to revoke "${name}"?\n\nThis device will immediately lose the ability to send call logs to the CRM.`);
+        }
+        function copyToken() {
+            const el = document.getElementById('device-raw-token');
+            if (!el) return;
+            navigator.clipboard.writeText(el.textContent).then(() => {
+                const btn = el.nextElementSibling;
+                btn.textContent = 'Copied!';
+                btn.style.background = '#065f46';
+                setTimeout(() => { btn.textContent = 'Copy'; btn.style.background = '#10b981'; }, 2000);
+            });
+        }
+        // Auto-dismiss regular flash messages
+        setTimeout(() => {
+            document.querySelectorAll('.flash-message').forEach(el => {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 500);
+            });
+        }, 3000);
+    </script>
+</body>
+</html>
