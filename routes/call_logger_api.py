@@ -92,23 +92,33 @@ def _find_lead_by_phone(org_id: int, normalized_number: str):
 
 
 def _find_contact_by_phone(org_id: int, normalized_number: str):
-    """Try to match a phone number to an existing Contact in this org."""
+    """Try to match a phone number to an existing Contact in this org.
+
+    Contact model phone fields (from model.py):
+        - phone_number   (primary, required, unique per org)
+        - secondary_phone (optional)
+        - whatsapp_number (optional)
+    """
+    # Exact primary-number match first
     contact = Contact.query.filter_by(
         organization_id=org_id,
-        phone=normalized_number,
+        phone_number=normalized_number,
         is_deleted=False,
     ).first()
     if contact:
         return contact
+    # Last-10-digit fallback: also checks secondary_phone and whatsapp_number
     last10 = normalized_number[-10:] if len(normalized_number) >= 10 else None
     if last10:
         all_contacts = Contact.query.filter_by(
             organization_id=org_id, is_deleted=False
         ).all()
         for c in all_contacts:
-            if c.phone and c.phone[-10:] == last10:
-                return c
+            for field in (c.phone_number, c.secondary_phone, c.whatsapp_number):
+                if field and field[-10:] == last10:
+                    return c
     return None
+
 
 
 # ---------------------------------------------------------------------------
