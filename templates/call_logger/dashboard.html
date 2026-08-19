@@ -431,11 +431,7 @@ if (window.appSocket) {
             const emptyState = document.querySelector('.cl-empty');
             if (emptyState) emptyState.style.display = 'none';
 
-            const dt = new Date(call.started_at);
-            const dtStr = dt.toLocaleString('en-IN', {
-                day: '2-digit', month: 'short', year: 'numeric',
-                hour: '2-digit', minute: '2-digit', hour12: true
-            });
+            const dtStr = call.started_at_display;
 
             let contactLeadHtml = '<span class="cl-unknown">Unknown Caller</span>';
             if (call.lead_id) {

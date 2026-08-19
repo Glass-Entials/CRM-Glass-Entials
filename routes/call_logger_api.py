@@ -16,6 +16,7 @@ from model import (
 )
 from model import CallLog, CallDevice, CallType, CallFollowUpStatus, DeviceStatus
 from utils.extensions import limiter
+from utils.timezone import format_ist
 
 call_logger_api_bp = Blueprint("call_logger_api", __name__, url_prefix="/api/v1")
 
@@ -287,6 +288,7 @@ def receive_call_log():
             "call_type": call_log.call_type.value,
             "call_status": call_log.call_status,
             "started_at": call_log.started_at.isoformat() + "Z" if call_log.started_at else None,
+            "started_at_display": format_ist(call_log.started_at) if call_log.started_at else "",
             "ended_at": call_log.ended_at.isoformat() + "Z" if call_log.ended_at else None,
             "duration": call_log.duration,
             "employee": call_log.employee.name if call_log.employee else "Unknown",
