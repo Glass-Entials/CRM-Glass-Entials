@@ -207,9 +207,23 @@ def receive_call_log():
     def _parse_dt(raw):
         if not raw:
             return None
+            
+        raw_str = str(raw).strip()
+        is_utc = False
+        if raw_str.upper().endswith("Z"):
+            is_utc = True
+            raw_str = raw_str[:-1]
+
         for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f"):
             try:
-                return datetime.strptime(str(raw), fmt)
+                dt_naive = datetime.strptime(raw_str, fmt)
+                if is_utc:
+                    return dt_naive
+                else:
+                    # The Android app sends local time (IST) without timezone info.
+                    # The database requires UTC, so we subtract 5:30.
+                    from datetime import timedelta
+                    return dt_naive - timedelta(hours=5, minutes=30)
             except ValueError:
                 continue
         return None
