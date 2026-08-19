@@ -121,8 +121,13 @@ def dashboard():
     if employee_filter and employee_filter.isdigit():
         base = base.filter(CallLog.employee_id == int(employee_filter))
 
-    if call_type_filter and call_type_filter in [e.value for e in CallType]:
-        base = base.filter(CallLog.call_type == CallType(call_type_filter))
+    if call_type_filter:
+        if call_type_filter in [e.value for e in CallType]:
+            base = base.filter(CallLog.call_type == CallType(call_type_filter))
+        elif call_type_filter == "connect":
+            base = base.filter(CallLog.call_type == CallType.OUTGOING, CallLog.duration > 0)
+        elif call_type_filter == "not_connect":
+            base = base.filter(CallLog.call_type == CallType.OUTGOING, db.or_(CallLog.duration == 0, CallLog.duration.is_(None)))
 
     if status_filter and status_filter in [e.value for e in CallFollowUpStatus]:
         base = base.filter(CallLog.follow_up_status == CallFollowUpStatus(status_filter))
@@ -158,8 +163,13 @@ def dashboard():
 
     if employee_filter and employee_filter.isdigit():
         list_q = list_q.filter(CallLog.employee_id == int(employee_filter))
-    if call_type_filter and call_type_filter in [e.value for e in CallType]:
-        list_q = list_q.filter(CallLog.call_type == CallType(call_type_filter))
+    if call_type_filter:
+        if call_type_filter in [e.value for e in CallType]:
+            list_q = list_q.filter(CallLog.call_type == CallType(call_type_filter))
+        elif call_type_filter == "connect":
+            list_q = list_q.filter(CallLog.call_type == CallType.OUTGOING, CallLog.duration > 0)
+        elif call_type_filter == "not_connect":
+            list_q = list_q.filter(CallLog.call_type == CallType.OUTGOING, db.or_(CallLog.duration == 0, CallLog.duration.is_(None)))
     if status_filter and status_filter in [e.value for e in CallFollowUpStatus]:
         list_q = list_q.filter(CallLog.follow_up_status == CallFollowUpStatus(status_filter))
     if search_q:

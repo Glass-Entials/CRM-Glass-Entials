@@ -77,7 +77,7 @@
         </div>
         <div class="cl-stat-card cl-stat-missed">
             <div class="cl-stat-icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M16.5 16.5L22 22M3.6 1C2.3 1 1 2.1 1 3.6v3c0 .9.7 1.8 1.6 2L4.8 9c.4.3.5.8.2 1.2l-1 1a1.65 1.65 0 0 0 0 2.3L6 15.4a.65.65 0 0 0 1 0l.7-.7"></path></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="23" y1="1" x2="17" y2="7"></line><line x1="17" y1="1" x2="23" y2="7"></line><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.37 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6.12 6.12l.97-.97a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
             </div>
             <div class="cl-stat-body">
                 <span class="cl-stat-value">{{ missed_calls }}</span>
@@ -127,9 +127,14 @@
                     <label class="cl-filter-label">Call Type</label>
                     <select name="call_type" class="cl-filter-select">
                         <option value="" {% if not call_type_filter %}selected{% endif %}>All Types</option>
+                        {% if direction_filter in ['all', 'incoming'] or not direction_filter %}
                         <option value="received" {% if call_type_filter=='received' %}selected{% endif %}>📥 Received</option>
                         <option value="missed" {% if call_type_filter=='missed' %}selected{% endif %}>❌ Missed</option>
-                        <option value="outgoing" {% if call_type_filter=='outgoing' %}selected{% endif %}>📤 Outgoing</option>
+                        {% endif %}
+                        {% if direction_filter in ['all', 'outgoing'] or not direction_filter %}
+                        <option value="connect" {% if call_type_filter=='connect' %}selected{% endif %}>📞 Connect</option>
+                        <option value="not_connect" {% if call_type_filter=='not_connect' %}selected{% endif %}>📵 Not Connect</option>
+                        {% endif %}
                     </select>
                 </div>
 
@@ -348,7 +353,17 @@ function callMatchesFilters(call) {
     }
 
     if (clFilters.employee && String(call.employee_id) !== clFilters.employee) return false;
-    if (clFilters.call_type && call.call_type !== clFilters.call_type) return false;
+    
+    if (clFilters.call_type) {
+        if (clFilters.call_type === 'connect') {
+            if (call.call_type !== 'outgoing' || !call.duration || call.duration <= 0) return false;
+        } else if (clFilters.call_type === 'not_connect') {
+            if (call.call_type !== 'outgoing' || (call.duration && call.duration > 0)) return false;
+        } else if (call.call_type !== clFilters.call_type) {
+            return false;
+        }
+    }
+
     if (clFilters.status && call.follow_up_status !== clFilters.status) return false;
     if (clFilters.search) {
         let match = false;
