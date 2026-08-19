@@ -220,6 +220,7 @@
                         <th>Caller Number</th>
                         <th>Contact / Lead</th>
                         <th>Type</th>
+                        <th>Status</th>
                         <th>Duration</th>
                         <th>Follow-up</th>
                         <th>Action</th>
@@ -227,7 +228,7 @@
                 </thead>
                 <tbody>
                     {% for call in calls %}
-                    <tr class="cl-row {% if call.call_type.value == 'missed' %}cl-row-missed{% elif call.call_type.value == 'received' %}cl-row-received{% endif %}">
+                    <tr class="cl-row {% if call.call_type.value == 'missed' %}cl-row-missed{% elif call.call_type.value == 'received' %}cl-row-received{% elif call.call_type.value == 'outgoing' %}cl-row-outgoing{% endif %}">
                         <td class="cl-cell-datetime">
                             <span class="cl-date">{{ call.started_at | ist }}</span>
                         </td>
@@ -257,12 +258,23 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if call.call_type.value == 'received' %}
-                            <span class="cl-badge cl-badge-received">📥 Received</span>
-                            {% elif call.call_type.value == 'missed' %}
-                            <span class="cl-badge cl-badge-missed">❌ Missed</span>
+                            {% if call.call_type.value in ['received', 'missed'] %}
+                            <span class="cl-badge cl-badge-incoming">📥 Incoming</span>
                             {% elif call.call_type.value == 'outgoing' %}
                             <span class="cl-badge cl-badge-outgoing">📤 Outgoing</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if call.call_type.value == 'received' %}
+                            <span class="cl-badge cl-badge-received">Received</span>
+                            {% elif call.call_type.value == 'missed' %}
+                            <span class="cl-badge cl-badge-missed">Missed</span>
+                            {% elif call.call_type.value == 'outgoing' %}
+                                {% if call.duration and call.duration > 0 %}
+                                <span class="cl-badge cl-badge-connect">Connect</span>
+                                {% else %}
+                                <span class="cl-badge cl-badge-not-connect">Not connect</span>
+                                {% endif %}
                             {% endif %}
                         </td>
                         <td>
@@ -438,23 +450,39 @@ if (window.appSocket) {
                 </a>`;
             }
 
-            let badgeHtml = '';
-            if (call.call_type === 'received') badgeHtml = '<span class="cl-badge cl-badge-received">📥 Received</span>';
-            else if (call.call_type === 'missed') badgeHtml = '<span class="cl-badge cl-badge-missed">❌ Missed</span>';
-            else if (call.call_type === 'outgoing') badgeHtml = '<span class="cl-badge cl-badge-outgoing">📤 Outgoing</span>';
+            let typeBadgeHtml = '';
+            if (call.call_type === 'received' || call.call_type === 'missed') {
+                typeBadgeHtml = '<span class="cl-badge cl-badge-incoming">📥 Incoming</span>';
+            } else if (call.call_type === 'outgoing') {
+                typeBadgeHtml = '<span class="cl-badge cl-badge-outgoing">📤 Outgoing</span>';
+            }
 
-            let statusHtml = '<span class="cl-badge cl-badge-nr">— N/A</span>';
-            if (call.follow_up_status === 'Pending') statusHtml = '<span class="cl-badge cl-badge-pending">⏳ Pending</span>';
-            else if (call.follow_up_status === 'Completed') statusHtml = '<span class="cl-badge cl-badge-completed">✅ Done</span>';
+            let callStatusBadgeHtml = '';
+            if (call.call_type === 'received') {
+                callStatusBadgeHtml = '<span class="cl-badge cl-badge-received">Received</span>';
+            } else if (call.call_type === 'missed') {
+                callStatusBadgeHtml = '<span class="cl-badge cl-badge-missed">Missed</span>';
+            } else if (call.call_type === 'outgoing') {
+                if (call.duration && call.duration > 0) {
+                    callStatusBadgeHtml = '<span class="cl-badge cl-badge-connect">Connect</span>';
+                } else {
+                    callStatusBadgeHtml = '<span class="cl-badge cl-badge-not-connect">Not connect</span>';
+                }
+            }
+
+            let followUpStatusHtml = '<span class="cl-badge cl-badge-nr">— N/A</span>';
+            if (call.follow_up_status === 'Pending') followUpStatusHtml = '<span class="cl-badge cl-badge-pending">⏳ Pending</span>';
+            else if (call.follow_up_status === 'Completed') followUpStatusHtml = '<span class="cl-badge cl-badge-completed">✅ Done</span>';
 
             tr.innerHTML = `
                 <td class="cl-cell-datetime"><span class="cl-date">${dtStr}</span></td>
                 <td><span class="cl-employee">${call.employee}</span></td>
                 <td><span class="cl-phone">${call.caller_number}</span></td>
                 <td>${contactLeadHtml}</td>
-                <td>${badgeHtml}</td>
+                <td>${typeBadgeHtml}</td>
+                <td>${callStatusBadgeHtml}</td>
                 <td><span class="cl-duration">${formatDuration(call.duration)}</span></td>
-                <td>${statusHtml}</td>
+                <td>${followUpStatusHtml}</td>
                 <td><a href="/call-monitoring/call/${call.id}" class="cl-btn-view">View</a></td>
             `;
             

@@ -322,10 +322,11 @@
 
 .cl-row-missed td { border-left: 3px solid #fca5a5; }
 .cl-row-received td { border-left: 3px solid #6ee7b7; }
+.cl-row-outgoing td { border-left: 3px solid #93c5fd; }
 
 .cl-cell-datetime { white-space: nowrap; }
 .cl-date { color: #64748b; }
-.cl-phone { font-weight: 600; letter-spacing: 0.02em; }
+.cl-phone { font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; }
 .cl-employee { font-weight: 500; }
 .cl-duration { font-weight: 600; font-family: monospace; }
 .cl-muted { color: #94a3b8; }
@@ -356,9 +357,12 @@
     letter-spacing: 0.02em;
 }
 
+.cl-badge-incoming  { background: rgba(16, 185, 129, 0.1); color: #065f46; }
 .cl-badge-received  { background: rgba(16, 185, 129, 0.1); color: #065f46; }
 .cl-badge-missed    { background: rgba(239, 68, 68, 0.1);  color: #b91c1c; }
 .cl-badge-outgoing  { background: rgba(59, 130, 246, 0.1); color: #1d4ed8; }
+.cl-badge-connect   { background: rgba(16, 185, 129, 0.1); color: #065f46; }
+.cl-badge-not-connect { background: rgba(239, 68, 68, 0.1);  color: #b91c1c; }
 .cl-badge-pending   { background: rgba(245, 158, 11, 0.1); color: #92400e; }
 .cl-badge-completed { background: rgba(16, 185, 129, 0.1); color: #065f46; }
 .cl-badge-nr        { background: rgba(100, 116, 139, 0.1); color: #475569; }
