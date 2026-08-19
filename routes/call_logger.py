@@ -71,6 +71,7 @@ def dashboard():
     org_id = current_user.organization_id
 
     # --- Filters ---
+    direction_filter = request.args.get("direction", "all")
     employee_filter = request.args.get("employee_id", "", type=str)
     call_type_filter = request.args.get("call_type", "")
     date_filter = request.args.get("date_range", "this_month")
@@ -112,6 +113,11 @@ def dashboard():
     )
 
     # --- Apply filters ---
+    if direction_filter == "incoming":
+        base = base.filter(CallLog.call_type.in_([CallType.RECEIVED, CallType.MISSED]))
+    elif direction_filter == "outgoing":
+        base = base.filter(CallLog.call_type == CallType.OUTGOING)
+
     if employee_filter and employee_filter.isdigit():
         base = base.filter(CallLog.employee_id == int(employee_filter))
 
@@ -145,6 +151,11 @@ def dashboard():
         CallLog.started_at >= start_dt,
         CallLog.started_at <= end_dt,
     )
+    if direction_filter == "incoming":
+        list_q = list_q.filter(CallLog.call_type.in_([CallType.RECEIVED, CallType.MISSED]))
+    elif direction_filter == "outgoing":
+        list_q = list_q.filter(CallLog.call_type == CallType.OUTGOING)
+
     if employee_filter and employee_filter.isdigit():
         list_q = list_q.filter(CallLog.employee_id == int(employee_filter))
     if call_type_filter and call_type_filter in [e.value for e in CallType]:
@@ -180,6 +191,7 @@ def dashboard():
         outgoing_calls=outgoing_calls,
         pending_followups=pending_followups,
         # filter state
+        direction_filter=direction_filter,
         employee_filter=employee_filter,
         call_type_filter=call_type_filter,
         date_filter=date_filter,

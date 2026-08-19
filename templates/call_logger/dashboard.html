@@ -3,6 +3,37 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/call_logger.css') }}?v=1">
+<style>
+.cl-segmented-control {
+    display: inline-flex;
+    background-color: #f1f5f9;
+    padding: 0.25rem;
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+}
+.cl-segmented-control input[type="radio"] {
+    display: none;
+}
+.cl-segmented-control label {
+    padding: 0.375rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #64748b;
+    cursor: pointer;
+    border-radius: 0.375rem;
+    transition: all 0.2s;
+    user-select: none;
+    margin: 0;
+}
+.cl-segmented-control input[type="radio"]:checked + label {
+    background-color: white;
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.cl-segmented-control label:hover {
+    color: #0f172a;
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -67,6 +98,7 @@
     <!-- Filters -->
     <div class="cl-filter-card">
         <form method="GET" action="{{ url_for('call_logger.dashboard') }}" id="cl-filter-form">
+            <input type="hidden" name="direction" id="hidden_direction" value="{{ direction_filter or 'all' }}">
             <div class="cl-filter-row">
                 <!-- Search -->
                 <div class="cl-filter-group cl-filter-search">
@@ -155,9 +187,22 @@
 
     <!-- Call List Table -->
     <div class="cl-table-card">
-        <div class="cl-table-header">
-            <h3 class="cl-table-title">Call History</h3>
-            <span class="cl-table-count">{{ pagination.total }} calls</span>
+        <div class="cl-table-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <h3 class="cl-table-title" style="margin: 0;">Call History</h3>
+                <span class="cl-table-count" style="margin: 0;">{{ pagination.total }} calls</span>
+            </div>
+            
+            <div class="cl-segmented-control">
+                <input type="radio" name="direction_ui" id="dir_all" value="all" {% if direction_filter == 'all' or not direction_filter %}checked{% endif %} onchange="updateDirection(this.value)">
+                <label for="dir_all">All</label>
+                
+                <input type="radio" name="direction_ui" id="dir_incoming" value="incoming" {% if direction_filter == 'incoming' %}checked{% endif %} onchange="updateDirection(this.value)">
+                <label for="dir_incoming">Incoming</label>
+                
+                <input type="radio" name="direction_ui" id="dir_outgoing" value="outgoing" {% if direction_filter == 'outgoing' %}checked{% endif %} onchange="updateDirection(this.value)">
+                <label for="dir_outgoing">Outgoing</label>
+            </div>
         </div>
 
         {% if calls %}
@@ -240,11 +285,11 @@
         {% if pagination.pages > 1 %}
         <div class="cl-pagination">
             {% if pagination.has_prev %}
-            <a href="{{ url_for('call_logger.dashboard', page=pagination.prev_num, q=search_q, employee_id=employee_filter, call_type=call_type_filter, date_range=date_filter, follow_up_status=status_filter) }}" class="cl-page-btn">‹ Prev</a>
+            <a href="{{ url_for('call_logger.dashboard', page=pagination.prev_num, q=search_q, employee_id=employee_filter, call_type=call_type_filter, date_range=date_filter, follow_up_status=status_filter, direction=direction_filter) }}" class="cl-page-btn">‹ Prev</a>
             {% endif %}
             <span class="cl-page-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
             {% if pagination.has_next %}
-            <a href="{{ url_for('call_logger.dashboard', page=pagination.next_num, q=search_q, employee_id=employee_filter, call_type=call_type_filter, date_range=date_filter, follow_up_status=status_filter) }}" class="cl-page-btn">Next ›</a>
+            <a href="{{ url_for('call_logger.dashboard', page=pagination.next_num, q=search_q, employee_id=employee_filter, call_type=call_type_filter, date_range=date_filter, follow_up_status=status_filter, direction=direction_filter) }}" class="cl-page-btn">Next ›</a>
             {% endif %}
         </div>
         {% endif %}
@@ -276,8 +321,14 @@ const clFilters = {
     call_type: "{{ call_type_filter or '' }}",
     status: "{{ status_filter or '' }}",
     search: "{{ search_q or '' }}".toLowerCase(),
-    date_range: "{{ date_filter or 'this_month' }}"
+    date_range: "{{ date_filter or 'this_month' }}",
+    direction: "{{ direction_filter or 'all' }}"
 };
+
+function updateDirection(value) {
+    document.getElementById('hidden_direction').value = value;
+    document.getElementById('cl-filter-form').submit();
+}
 
 function formatDuration(seconds) {
     if (!seconds) return '0s';
@@ -290,6 +341,12 @@ function formatDuration(seconds) {
 }
 
 function callMatchesFilters(call) {
+    if (clFilters.direction === 'incoming') {
+        if (call.call_type !== 'received' && call.call_type !== 'missed') return false;
+    } else if (clFilters.direction === 'outgoing') {
+        if (call.call_type !== 'outgoing') return false;
+    }
+
     if (clFilters.employee && String(call.employee_id) !== clFilters.employee) return false;
     if (clFilters.call_type && call.call_type !== clFilters.call_type) return false;
     if (clFilters.status && call.follow_up_status !== clFilters.status) return false;
