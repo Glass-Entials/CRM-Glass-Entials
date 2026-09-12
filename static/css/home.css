@@ -37,15 +37,11 @@ html {
     html { zoom: 0.80; }
 }
 @media screen and (max-width: 768px) {
-    html { 
-        zoom: 0.9; 
-        /* Slightly larger for mobile to retain readability */
-    }
+    /* Reset zoom to 1 on mobile — zoom interferes with viewport-based media queries */
+    html { zoom: 1; }
 }
 @media screen and (max-width: 480px) {
-    html { 
-        zoom: 0.85; 
-    }
+    html { zoom: 1; }
 }
 
 body {
