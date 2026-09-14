@@ -16,110 +16,111 @@
 
     <!-- Column 2: Nav menu -->
     <nav class="dash-menu">
-            <a href="{{ url_for('home_page') }}" {% if request.endpoint=='home_page' %}class="active" {% endif
-                %}>Dashboard</a>
-            <a href="{{ url_for('customers.customers_list') }}" {% if request.blueprint=='customers' %}class="active" {%
-                endif %}>Customers</a>
+        <a href="{{ url_for('home_page') }}" {% if request.endpoint=='home_page' %}class="active" {% endif
+            %}>Dashboard</a>
+        <a href="{{ url_for('customers.customers_list') }}" {% if request.blueprint=='customers' %}class="active" {%
+            endif %}>Customers</a>
 
-            <div class="dropdown">
-                <a href="#" {% if request.blueprint=='leads' %}class="active" {% endif %}>Leads ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('leads.leads_list') }}">All Leads</a>
-                    <a href="{{ url_for('leads.all_follow_ups') }}">Follow-Ups</a>
-                </div>
+        <div class="dropdown">
+            <a href="#" {% if request.blueprint=='leads' %}class="active" {% endif %}>Leads ▾</a>
+            <div class="dropdown-content">
+                <a href="{{ url_for('leads.leads_list') }}">All Leads</a>
+                <a href="{{ url_for('leads.all_follow_ups') }}">Follow-Ups</a>
             </div>
-            <a href="{{ url_for('projects.projects_list') }}" {% if request.blueprint=='projects' %}class="active" {%
-                endif %}>Projects</a>
+        </div>
+        <a href="{{ url_for('projects.projects_list') }}" {% if request.blueprint=='projects' %}class="active" {% endif
+            %}>Projects</a>
 
-            <div class="dropdown">
-                <a href="#" {% if request.blueprint=='tasks' %}class="active" {% endif %}>Tasks ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
-                    <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
-                </div>
+        <div class="dropdown">
+            <a href="#" {% if request.blueprint=='tasks' %}class="active" {% endif %}>Tasks ▾</a>
+            <div class="dropdown-content">
+                <a href="{{ url_for('tasks.tasks_list') }}">All Tasks</a>
+                <a href="{{ url_for('tasks.daily_tasks_list') }}">Daily Tasks</a>
             </div>
+        </div>
 
-            <div class="dropdown">
-                <a href="#" {% if request.blueprint=='accounts' or request.blueprint=='quotations' or
-                    request.blueprint=='expenses' or request.blueprint=='payments' %}class="active" {% endif %}>Finance
-                    ▾</a>
-                <div class="dropdown-content">
-                    <!-- Hover Flyout Sales Menu -->
-                    <style>
-                        .nested-dropdown-hover:hover .nested-content {
-                            display: block !important;
-                            animation: fadeInRight 0.2s ease forwards;
+        <div class="dropdown">
+            <a href="#" {% if request.blueprint=='accounts' or request.blueprint=='quotations' or
+                request.blueprint=='expenses' or request.blueprint=='payments' %}class="active" {% endif %}>Finance
+                ▾</a>
+            <div class="dropdown-content">
+                <!-- Hover Flyout Sales Menu -->
+                <style>
+                    .nested-dropdown-hover:hover .nested-content {
+                        display: block !important;
+                        animation: fadeInRight 0.2s ease forwards;
+                    }
+
+                    @keyframes fadeInRight {
+                        from {
+                            opacity: 0;
+                            transform: translateX(-10px);
                         }
 
-                        @keyframes fadeInRight {
-                            from {
-                                opacity: 0;
-                                transform: translateX(-10px);
-                            }
-
-                            to {
-                                opacity: 1;
-                                transform: translateX(0);
-                            }
+                        to {
+                            opacity: 1;
+                            transform: translateX(0);
                         }
-                    </style>
-                    <div class="nested-dropdown-hover"
-                        style="position: relative; border-bottom: 1px solid rgba(13, 27, 42, 0.04);">
-                        <a href="#" style="border-bottom: none !important; width: 100%;">
-                            Sales
-                            <span style="font-size: 0.8em; color: var(--text-muted); margin-left: auto;">▶</span>
-                        </a>
-                        <div class="nested-content"
-                            style="display: none; position: absolute; left: 100%; top: -5px; min-width: 180px; background-color: white; box-shadow: 0 10px 30px rgba(13, 27, 42, 0.1); border-radius: 12px; border: 1px solid rgba(13, 27, 42, 0.08); overflow: hidden; z-index: 1000;">
-                            <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
-                            <a href="{{ url_for('accounts.invoice_list') }}">Invoices</a>
-                        </div>
+                    }
+                </style>
+                <div class="nested-dropdown-hover"
+                    style="position: relative; border-bottom: 1px solid rgba(13, 27, 42, 0.04);">
+                    <a href="#" style="border-bottom: none !important; width: 100%;">
+                        Sales
+                        <span style="font-size: 0.8em; color: var(--text-muted); margin-left: auto;">▶</span>
+                    </a>
+                    <div class="nested-content"
+                        style="display: none; position: absolute; left: 100%; top: -5px; min-width: 180px; background-color: white; box-shadow: 0 10px 30px rgba(13, 27, 42, 0.1); border-radius: 12px; border: 1px solid rgba(13, 27, 42, 0.08); overflow: hidden; z-index: 1000;">
+                        <a href="{{ url_for('quotations.quotation_list') }}">Quotations</a>
+                        <a href="{{ url_for('accounts.invoice_list') }}">Invoices</a>
                     </div>
+                </div>
 
-                    <!-- Payments submenu -->
-                    <div class="nested-dropdown-hover"
-                        style="position: relative; border-bottom: 1px solid rgba(13, 27, 42, 0.04);">
-                        <a href="{{ url_for('payments.due_payments') }}"
-                            style="border-bottom: none !important; width: 100%;">
-                            Payments
-                            <span style="font-size: 0.8em; color: var(--text-muted); margin-left: auto;">▶</span>
-                        </a>
-                        <div class="nested-content"
-                            style="display: none; position: absolute; left: 100%; top: -5px; min-width: 180px; background-color: white; box-shadow: 0 10px 30px rgba(13, 27, 42, 0.1); border-radius: 12px; border: 1px solid rgba(13, 27, 42, 0.08); overflow: hidden; z-index: 1000;">
-                            <a href="{{ url_for('payments.due_payments') }}">Due Payments</a>
-                            <a href="{{ url_for('payments.received_payments') }}">Received Payments</a>
-                        </div>
+                <!-- Payments submenu -->
+                <div class="nested-dropdown-hover"
+                    style="position: relative; border-bottom: 1px solid rgba(13, 27, 42, 0.04);">
+                    <a href="{{ url_for('payments.due_payments') }}"
+                        style="border-bottom: none !important; width: 100%;">
+                        Payments
+                        <span style="font-size: 0.8em; color: var(--text-muted); margin-left: auto;">▶</span>
+                    </a>
+                    <div class="nested-content"
+                        style="display: none; position: absolute; left: 100%; top: -5px; min-width: 180px; background-color: white; box-shadow: 0 10px 30px rgba(13, 27, 42, 0.1); border-radius: 12px; border: 1px solid rgba(13, 27, 42, 0.08); overflow: hidden; z-index: 1000;">
+                        <a href="{{ url_for('payments.due_payments') }}">Due Payments</a>
+                        <a href="{{ url_for('payments.received_payments') }}">Received Payments</a>
                     </div>
-                    <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
                 </div>
+                <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
             </div>
+        </div>
 
-            <a href="{{ url_for('products.products_list') }}" {% if request.blueprint=='products' %}class="active" {%
-                endif %}>Products</a>
+        <a href="{{ url_for('products.products_list') }}" {% if request.blueprint=='products' %}class="active" {% endif
+            %}>Products</a>
 
-            <div class="dropdown">
-                <a href="#" {% if request.blueprint=='employees' or request.blueprint=='contacts' or
-                    request.blueprint=='trash' %}class="active" {% endif %}>Workplace ▾</a>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
-                    <a href="{{ url_for('contacts.contacts_list') }}">Contacts</a>
-                    {% if current_user.role.value in ['admin', 'manager'] %}
-                    <a href="{{ url_for('trash.trash_list') }}">Trash</a>
-                    {% endif %}
-                </div>
+        <div class="dropdown">
+            <a href="#" {% if request.blueprint=='employees' or request.blueprint=='contacts' or
+                request.blueprint=='trash' %}class="active" {% endif %}>Workplace ▾</a>
+            <div class="dropdown-content">
+                <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
+                <a href="{{ url_for('contacts.contacts_list') }}">Contacts</a>
+                {% if current_user.role.value in ['admin', 'manager'] %}
+                <a href="{{ url_for('trash.trash_list') }}">Trash</a>
+                {% endif %}
             </div>
+        </div>
 
-            <a href="{{ url_for('call_logger.dashboard') }}" {% if request.blueprint=='call_logger' %}class="active" {% endif %}>📞 Calls</a>
+        <a href="{{ url_for('call_logger.dashboard') }}" {% if request.blueprint=='call_logger' %}class="active" {%
+            endif %}>📞 Calls</a>
 
-            <!-- Settings — visible only in mobile hamburger menu (hidden on desktop via CSS) -->
-            <a href="{{ url_for('auth.settings') }}" class="mobile-menu-settings-link">⚙️ Settings</a>
+
     </nav>
 
     <!-- Column 3: Profile + Bell (right-aligned, flex: 1) -->
     <div class="user-profile"
         style="flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
-        
-        <span class="welcome-text">Welcome, {{ current_user.employee.name if current_user.employee else current_user.username }}</span>
+
+        <span class="welcome-text">Welcome, {{ current_user.employee.name if current_user.employee else
+            current_user.username }}</span>
 
         <div class="profile-dropdown">
             <div class="profile-trigger">
