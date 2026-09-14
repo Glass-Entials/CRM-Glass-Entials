@@ -165,14 +165,18 @@
         }
         #invoiceSearch::placeholder { color: #9ca3af; }
 
-        /* filter pills */
+        /* Custom Dropdown Pills */
         .filter-pills {
             display: flex;
             align-items: center;
             gap: 6px;
             flex-wrap: wrap;
         }
-        .filter-pill {
+        .custom-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .cd-header {
             display: inline-flex;
             align-items: center;
             gap: 4px;
@@ -186,24 +190,41 @@
             cursor: pointer;
             white-space: nowrap;
             transition: border-color 0.15s, background 0.15s;
+            user-select: none;
         }
-        .filter-pill:hover { border-color: var(--navy); background: #f3f4f6; }
-        .filter-pill.active { border-color: var(--gold); background: var(--gold-light); color: var(--navy); }
-        .filter-pill select {
-            border: none;
-            background: transparent;
+        .cd-header:hover { border-color: var(--navy); background: #f3f4f6; }
+        .custom-dropdown.active .cd-header { border-color: var(--gold); background: var(--gold-light); color: var(--navy); }
+        .cd-label { color: #9ca3af; font-weight: 500; }
+        .cd-value { color: inherit; }
+        .cd-caret { font-size: 9px; color: #9ca3af; margin-left: 2px; transition: transform 0.2s; }
+        .custom-dropdown.open .cd-caret { transform: rotate(180deg); }
+
+        .cd-list {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            background: #fff;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            min-width: 140px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1000;
+            padding: 4px 0;
+        }
+        .custom-dropdown.open .cd-list { display: block; }
+        .cd-item {
+            padding: 8px 12px;
             font-size: 12px;
-            font-weight: 600;
-            color: inherit;
+            font-weight: 500;
+            color: var(--text);
             cursor: pointer;
-            outline: none;
-            padding: 0;
-            -webkit-appearance: none;
-            appearance: none;
-            font-family: inherit;
+            transition: background 0.12s;
         }
-        .pill-label { color: #9ca3af; font-weight: 500; }
-        .pill-caret { font-size: 9px; color: #9ca3af; }
+        .cd-item:hover { background: #f9fafb; color: var(--navy); }
+        .cd-item.selected { background: #f3f4f6; color: var(--navy); font-weight: 600; }
 
         /* right actions in filter header */
         .filter-actions {
@@ -572,43 +593,63 @@
 
                         <!-- Filter Pills -->
                         <div class="filter-pills">
-                            <span class="filter-pill" id="pill-status">
-                                <span class="pill-label">Status:</span>
-                                <select id="filter-status" onchange="syncPillActive('pill-status','filter-status'); applyFilters();">
-                                    <option value="">All</option>
-                                    <option value="Paid">Paid</option>
-                                    <option value="Unpaid">Unpaid</option>
-                                    <option value="Partially Paid">Partial</option>
-                                    <option value="Draft">Draft</option>
-                                    <option value="Overdue">Overdue</option>
-                                    <option value="Cancelled">Cancelled</option>
-                                </select>
-                                <span class="pill-caret">▾</span>
-                            </span>
+                            <div class="custom-dropdown" id="dd-status">
+                                <div class="cd-header" onclick="toggleCustomDropdown('dd-status', event)">
+                                    <span class="cd-label">Status:</span>
+                                    <span class="cd-value">All</span>
+                                    <span class="cd-caret">▾</span>
+                                </div>
+                                <div class="cd-list">
+                                    <div class="cd-item selected" onclick="selectDropdownItem('dd-status', '', 'All', this)">All</div>
+                                    <div class="cd-item" onclick="selectDropdownItem('dd-status', 'Paid', 'Paid', this)">Paid</div>
+                                    <div class="cd-item" onclick="selectDropdownItem('dd-status', 'Unpaid', 'Unpaid', this)">Unpaid</div>
+                                    <div class="cd-item" onclick="selectDropdownItem('dd-status', 'Partially Paid', 'Partial', this)">Partial</div>
+                                    <div class="cd-item" onclick="selectDropdownItem('dd-status', 'Draft', 'Draft', this)">Draft</div>
+                                    <div class="cd-item" onclick="selectDropdownItem('dd-status', 'Overdue', 'Overdue', this)">Overdue</div>
+                                    <div class="cd-item" onclick="selectDropdownItem('dd-status', 'Cancelled', 'Cancelled', this)">Cancelled</div>
+                                </div>
+                                <input type="hidden" id="filter-status" value="">
+                            </div>
 
-                            <span class="filter-pill" id="pill-client">
-                                <span class="pill-label">Client:</span>
-                                <select id="filter-client" onchange="syncPillActive('pill-client','filter-client'); applyFilters();"></select>
-                                <span class="pill-caret">▾</span>
-                            </span>
+                            <div class="custom-dropdown" id="dd-client">
+                                <div class="cd-header" onclick="toggleCustomDropdown('dd-client', event)">
+                                    <span class="cd-label">Client:</span>
+                                    <span class="cd-value">All</span>
+                                    <span class="cd-caret">▾</span>
+                                </div>
+                                <div class="cd-list" id="list-client">
+                                    <div class="cd-item selected" onclick="selectDropdownItem('dd-client', '', 'All', this)">All</div>
+                                </div>
+                                <input type="hidden" id="filter-client" value="">
+                            </div>
 
-                            <span class="filter-pill" id="pill-contact">
-                                <span class="pill-label">Contact:</span>
-                                <select id="filter-contact" onchange="syncPillActive('pill-contact','filter-contact'); applyFilters();"></select>
-                                <span class="pill-caret">▾</span>
-                            </span>
+                            <div class="custom-dropdown" id="dd-contact">
+                                <div class="cd-header" onclick="toggleCustomDropdown('dd-contact', event)">
+                                    <span class="cd-label">Contact:</span>
+                                    <span class="cd-value">All</span>
+                                    <span class="cd-caret">▾</span>
+                                </div>
+                                <div class="cd-list" id="list-contact">
+                                    <div class="cd-item selected" onclick="selectDropdownItem('dd-contact', '', 'All', this)">All</div>
+                                </div>
+                                <input type="hidden" id="filter-contact" value="">
+                            </div>
 
-                            <span class="filter-pill" id="pill-date">
-                                <span class="pill-label">Date Range:</span>
-                                <select id="filter-date" onchange="syncPillActive('pill-date','filter-date'); applyFilters();">
-                                    <option value="">All</option>
-                                    <option value="this_month">This Month</option>
-                                    <option value="last_month">Last Month</option>
-                                    <option value="this_year">This Year</option>
-                                    <option value="last_year">Last Year</option>
-                                </select>
-                                <span class="pill-caret">▾</span>
-                            </span>
+                            <div class="custom-dropdown" id="dd-date">
+                                <div class="cd-header" onclick="toggleCustomDropdown('dd-date', event)">
+                                    <span class="cd-label">Date Range:</span>
+                                    <span class="cd-value">All</span>
+                                    <span class="cd-caret">▾</span>
+                                </div>
+                                <div class="cd-list">
+                                    <div class="cd-item selected" onclick="selectDropdownItem('dd-date', '', 'All', this)">All</div>
+                                    <div class="cd-item" onclick="selectDropdownItem('dd-date', 'this_month', 'This Month', this)">This Month</div>
+                                    <div class="cd-item" onclick="selectDropdownItem('dd-date', 'last_month', 'Last Month', this)">Last Month</div>
+                                    <div class="cd-item" onclick="selectDropdownItem('dd-date', 'this_year', 'This Year', this)">This Year</div>
+                                    <div class="cd-item" onclick="selectDropdownItem('dd-date', 'last_year', 'Last Year', this)">Last Year</div>
+                                </div>
+                                <input type="hidden" id="filter-date" value="">
+                            </div>
                         </div>
                     </div>
 
@@ -820,6 +861,35 @@
             }
         }
 
+        // ── Custom Dropdown Logic ─────────────────────────────────────
+        function toggleCustomDropdown(id, e) {
+            e.stopPropagation();
+            document.querySelectorAll('.custom-dropdown').forEach(d => {
+                if (d.id !== id) d.classList.remove('open');
+            });
+            const el = document.getElementById(id);
+            if(el) el.classList.toggle('open');
+            if (typeof closeReportMenu === 'function') closeReportMenu();
+        }
+
+        function selectDropdownItem(dropdownId, value, labelText, el) {
+            const dd = document.getElementById(dropdownId);
+            if(!dd) return;
+            dd.querySelector('.cd-value').textContent = labelText;
+            dd.querySelectorAll('.cd-item').forEach(item => item.classList.remove('selected'));
+            if(el) el.classList.add('selected');
+            const input = dd.querySelector('input[type="hidden"]');
+            input.value = value;
+            if (value) dd.classList.add('active');
+            else dd.classList.remove('active');
+            dd.classList.remove('open');
+            applyFilters();
+        }
+
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('open'));
+        });
+
         // ── Init filter dropdowns ─────────────────────────────────────
         function initFilterOptions() {
             const clients  = new Set();
@@ -829,13 +899,20 @@
                 if (inv.customer_name) contacts.add(inv.customer_name);
             });
 
-            const clientSel = document.getElementById('filter-client');
-            clientSel.innerHTML = '<option value="">All</option>';
-            Array.from(clients).sort().forEach(c => clientSel.add(new Option(c, c)));
+            const escapeHTML = str => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+            const escapeJS = str => str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-            const contactSel = document.getElementById('filter-contact');
-            contactSel.innerHTML = '<option value="">All</option>';
-            Array.from(contacts).sort().forEach(c => contactSel.add(new Option(c, c)));
+            const clientList = document.getElementById('list-client');
+            clientList.innerHTML = `<div class="cd-item selected" onclick="selectDropdownItem('dd-client', '', 'All', this)">All</div>`;
+            Array.from(clients).sort().forEach(c => {
+                clientList.insertAdjacentHTML('beforeend', `<div class="cd-item" onclick="selectDropdownItem('dd-client', '${escapeJS(c)}', '${escapeJS(c)}', this)">${escapeHTML(c)}</div>`);
+            });
+
+            const contactList = document.getElementById('list-contact');
+            contactList.innerHTML = `<div class="cd-item selected" onclick="selectDropdownItem('dd-contact', '', 'All', this)">All</div>`;
+            Array.from(contacts).sort().forEach(c => {
+                contactList.insertAdjacentHTML('beforeend', `<div class="cd-item" onclick="selectDropdownItem('dd-contact', '${escapeJS(c)}', '${escapeJS(c)}', this)">${escapeHTML(c)}</div>`);
+            });
         }
 
         // ── Apply all filters ─────────────────────────────────────────
@@ -879,22 +956,16 @@
         }
 
         function resetFilters() {
-            ['filter-status','filter-client','filter-contact','filter-date'].forEach(id => {
-                document.getElementById(id).value = '';
-                // get the pill id by replacing filter- with pill-
-            });
             document.getElementById('invoiceSearch').value = '';
-            ['pill-status','pill-client','pill-contact','pill-date'].forEach(id => {
-                document.getElementById(id)?.classList.remove('active');
+            ['status','client','contact','date'].forEach(f => {
+                const dd = document.getElementById(`dd-${f}`);
+                if (dd) {
+                    const list = dd.querySelector('.cd-list');
+                    const firstItem = list.querySelector('.cd-item');
+                    selectDropdownItem(`dd-${f}`, '', 'All', firstItem);
+                }
             });
             applyFilters();
-        }
-
-        function syncPillActive(pillId, selectId) {
-            const pill = document.getElementById(pillId);
-            const sel  = document.getElementById(selectId);
-            if (!pill || !sel) return;
-            sel.value ? pill.classList.add('active') : pill.classList.remove('active');
         }
 
         // ── Search input listener ─────────────────────────────────────
