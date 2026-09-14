@@ -4,120 +4,631 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quotations | GlassEntials Accounts</title>
-  <!-- Fonts -->
+  <title>Quotations | GlassEntials</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap"
-    rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3\">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3\">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}?v=3\">
-
-
-
-
-
-
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=4">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=4">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}?v=4">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+
+  <style>
+    /* ── Quotation List Page Overrides ─────────────────────────────────── */
+
+    /* Page layout */
+    .ql-wrapper {
+      padding: 28px 32px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* ── Page Header ──────────────────────────────────────────────────── */
+    .ql-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .ql-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: #0d1b2a;
+      margin: 0 0 2px 0;
+      letter-spacing: -0.3px;
+    }
+
+    .ql-subtitle {
+      font-size: 13px;
+      color: #6b7280;
+      margin: 0;
+      font-weight: 400;
+    }
+
+    .ql-header-right .btn-primary {
+      background: #0d1b2a;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.18s, box-shadow 0.18s;
+      letter-spacing: 0.2px;
+    }
+
+    .ql-header-right .btn-primary:hover {
+      background: #1a2f4a;
+      box-shadow: 0 4px 14px rgba(13, 27, 42, 0.25);
+    }
+
+    /* ── Status Strip ─────────────────────────────────────────────────── */
+    .ql-stats {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .ql-stat-card {
+      flex: 1;
+      min-width: 120px;
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+      color: #374151;
+      transition: border-color 0.18s, box-shadow 0.18s;
+      cursor: pointer;
+    }
+
+    .ql-stat-card:hover {
+      border-color: #0d1b2a;
+      box-shadow: 0 2px 12px rgba(13, 27, 42, 0.08);
+    }
+
+    .ql-stat-card.active {
+      border-color: #0d1b2a;
+      background: #0d1b2a;
+    }
+
+    .ql-stat-card.active .ql-stat-count,
+    .ql-stat-card.active .ql-stat-label {
+      color: #fff;
+    }
+
+    .ql-stat-card.active .ql-stat-icon-wrap {
+      background: rgba(255,255,255,0.15);
+      color: #d4af37;
+    }
+
+    .ql-stat-icon-wrap {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: #f4f6fa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: #0d1b2a;
+    }
+
+    .ql-stat-icon-wrap svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .ql-stat-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ql-stat-count {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0d1b2a;
+      line-height: 1.1;
+    }
+
+    .ql-stat-label {
+      font-size: 11.5px;
+      color: #6b7280;
+      font-weight: 500;
+      margin-top: 1px;
+    }
+
+    /* Status-specific icon colours */
+    .stat-all   .ql-stat-icon-wrap { background: #eef2ff; color: #4338ca; }
+    .stat-draft .ql-stat-icon-wrap { background: #f3f4f6; color: #6b7280; }
+    .stat-sent  .ql-stat-icon-wrap { background: #eff6ff; color: #2563eb; }
+    .stat-accepted .ql-stat-icon-wrap { background: #ecfdf5; color: #059669; }
+    .stat-rejected .ql-stat-icon-wrap { background: #fef2f2; color: #dc2626; }
+
+    /* ── Filter Bar ───────────────────────────────────────────────────── */
+    .ql-filters {
+      margin-bottom: 18px;
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px 16px;
+    }
+
+    .ql-search-form {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .ql-search-wrap {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      min-width: 220px;
+      background: #f9fafb;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 7px;
+      padding: 0 12px;
+      gap: 8px;
+      transition: border-color 0.18s;
+    }
+
+    .ql-search-wrap:focus-within {
+      border-color: #0d1b2a;
+      background: #fff;
+    }
+
+    .ql-search-wrap svg {
+      color: #9ca3af;
+      flex-shrink: 0;
+    }
+
+    .ql-search-input {
+      border: none;
+      background: transparent;
+      padding: 9px 0;
+      width: 100%;
+      outline: none;
+      font-size: 13.5px;
+      font-family: inherit;
+      color: #0d1b2a;
+    }
+
+    .ql-search-input::placeholder { color: #9ca3af; }
+
+    .ql-filter-select {
+      padding: 9px 12px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 7px;
+      font-size: 13px;
+      font-family: inherit;
+      color: #374151;
+      background: #f9fafb;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.18s;
+    }
+
+    .ql-filter-select:focus {
+      border-color: #0d1b2a;
+      background: #fff;
+    }
+
+    .btn-filter {
+      padding: 9px 18px;
+      background: #0d1b2a;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.18s;
+    }
+
+    .btn-filter:hover { background: #1a2f4a; }
+
+    .btn-clear {
+      padding: 9px 14px;
+      background: transparent;
+      color: #6b7280;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.18s;
+    }
+
+    .btn-clear:hover {
+      border-color: #0d1b2a;
+      color: #0d1b2a;
+    }
+
+    /* ── Table ────────────────────────────────────────────────────────── */
+    .ql-table-wrap {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .ql-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .ql-table thead {
+      background: #f9fafb;
+      border-bottom: 1.5px solid #e5e7eb;
+    }
+
+    .ql-table th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .ql-table td {
+      padding: 13px 16px;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: middle;
+      font-size: 13.5px;
+      color: #374151;
+    }
+
+    .ql-table tbody tr:last-child td { border-bottom: none; }
+
+    .ql-row {
+      transition: background 0.12s;
+    }
+
+    .ql-row:hover {
+      background: #fafafa;
+    }
+
+    .ql-number-link {
+      font-weight: 700;
+      color: #0d1b2a;
+      text-decoration: none;
+      font-size: 13.5px;
+    }
+
+    .ql-number-link:hover {
+      color: #d4af37;
+    }
+
+    .ql-row-sub {
+      font-size: 11.5px;
+      color: #9ca3af;
+      margin-top: 2px;
+    }
+
+    .ql-entity-link {
+      font-weight: 500;
+      color: #374151;
+      text-decoration: none;
+    }
+
+    .ql-entity-link:hover {
+      color: #0d1b2a;
+    }
+
+    /* Status pills */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .status-pill:hover { opacity: 0.8; }
+
+    .status-pill::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-draft {
+      background: #f3f4f6;
+      color: #4b5563;
+    }
+    .status-draft::before { background: #9ca3af; }
+
+    .status-sent {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    .status-sent::before { background: #2563eb; }
+
+    .status-accepted {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .status-accepted::before { background: #10b981; }
+
+    .status-rejected {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .status-rejected::before { background: #ef4444; }
+
+    /* Doc type badge */
+    .badge-doctype {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #f3f4f6;
+      color: #4b5563;
+      letter-spacing: 0.2px;
+    }
+
+    .badge-quotation { background: #eff6ff; color: #1e40af; }
+    .badge-proforma  { background: #fdf4ff; color: #a21caf; }
+    .badge-sales     { background: #ecfdf5; color: #065f46; }
+
+    /* Action buttons */
+    .ql-actions {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+    }
+
+    .ql-action-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7280;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+      font-size: 15px;
+    }
+
+    .ql-action-btn:hover {
+      background: #f3f4f6;
+      color: #0d1b2a;
+      border-color: #e5e7eb;
+    }
+
+    .ql-action-danger:hover {
+      color: #dc2626;
+      background: #fee2e2;
+      border-color: #fecaca;
+    }
+
+    /* Amount column */
+    .col-amount {
+      font-weight: 600;
+      color: #0d1b2a;
+    }
+
+    .text-danger { color: #dc2626; }
+    .text-right  { text-align: right; }
+    .text-center { text-align: center; }
+
+    /* ── Empty State ──────────────────────────────────────────────────── */
+    .ql-empty {
+      padding: 72px 20px;
+      text-align: center;
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+    }
+
+    .ql-empty-icon-wrap {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #f4f6fa;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+    }
+
+    .ql-empty h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #0d1b2a;
+      margin-bottom: 6px;
+    }
+
+    .ql-empty p {
+      font-size: 13.5px;
+      color: #6b7280;
+      margin-bottom: 20px;
+    }
+
+    /* ── Toast / Flash ────────────────────────────────────────────────── */
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+  </style>
 </head>
 
 <body class="dashboard-page">
-  <!-- Top Navbar -->
   {% include 'includes/navbar.html' %}
 
-  <!-- Flash Messages -->
-  <div id="flash-toast-container"
-    style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
+  <!-- Flash Toasts -->
+  <div id="flash-toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;">
     {% with msgs = get_flashed_messages(with_categories=true, category_filter=['success','error','info']) %}
     {% for cat, msg in msgs %}
-    <div class="flash-toast"
-      style="padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; font-size: 14px; color: white; animation: slideInRight 0.3s ease-out; background: {% if cat == 'success' %}#10b981{% elif cat == 'error' %}#ef4444{% else %}#3b82f6{% endif %};">
-      {% if cat == 'success' %}✓{% elif cat == 'error' %}⚠{% else %}ℹ{% endif %} {{ msg }}
+    <div class="flash-toast" style="padding:12px 20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.13);font-weight:600;font-size:13.5px;color:white;animation:slideInRight 0.3s ease-out;background:{% if cat=='success' %}#10b981{% elif cat=='error' %}#ef4444{% else %}#3b82f6{% endif %};">
+      {% if cat=='success' %}✓{% elif cat=='error' %}⚠{% else %}ℹ{% endif %} {{ msg }}
     </div>
     {% endfor %}
     {% endwith %}
   </div>
-  <style>
-    @keyframes slideInRight {
-      from {
-        transform: translateX(100%);
-        opacity: 0;
-      }
-
-      to {
-        transform: translateX(0);
-        opacity: 1;
-      }
-    }
-  </style>
 
   <main class="dash-container">
-
     <div class="ql-wrapper">
 
-      <!-- ── PAGE HEADER ──────────────────────────────── -->
+      <!-- ── PAGE HEADER ───────────────────────────────────────────────── -->
       <div class="ql-header">
         <div class="ql-header-left">
           <h1 class="ql-title">Quotations</h1>
-          <p class="ql-subtitle">Manage all quotations & proforma invoices</p>
+          <p class="ql-subtitle">Manage quotations, proforma invoices &amp; sales orders</p>
         </div>
         <div class="ql-header-right">
           <a href="{{ url_for('quotations.add_quotation') }}" class="btn-primary">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-              <path d="M12 5v14M5 12h14" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15">
+              <path d="M12 5v14M5 12h14"/>
             </svg>
             New Quotation
           </a>
         </div>
       </div>
 
-      <!-- ── STATS STRIP ───────────────────────────────── -->
+      <!-- ── STATUS STRIP ──────────────────────────────────────────────── -->
       <div class="ql-stats">
-        {% set stat_items = [
-        ('total', 'All', '📋', stats.total),
-        ('Draft', 'Draft', '✏️', stats.draft),
-        ('Sent', 'Sent', '📤', stats.sent),
-        ('Accepted', 'Accepted', '✅', stats.accepted),
-        ('Rejected', 'Rejected', '❌', stats.rejected),
-        ] %}
-        {% for key, label, icon, count in stat_items %}
-        <a href="{{ url_for('quotations.quotation_list', status=key if key != 'total' else 'all') }}"
-          class="ql-stat-card {{ 'active' if status_filter == (key if key != 'total' else 'all') }}">
-          <span class="ql-stat-icon">{{ icon }}</span>
-          <span class="ql-stat-count">{{ count }}</span>
-          <span class="ql-stat-label">{{ label }}</span>
+
+        <!-- All -->
+        <a href="{{ url_for('quotations.quotation_list', status='all') }}"
+           class="ql-stat-card stat-all {{ 'active' if status_filter == 'all' }}">
+          <div class="ql-stat-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+          </div>
+          <div class="ql-stat-info">
+            <span class="ql-stat-count">{{ stats.total }}</span>
+            <span class="ql-stat-label">All</span>
+          </div>
         </a>
-        {% endfor %}
+
+        <!-- Draft -->
+        <a href="{{ url_for('quotations.quotation_list', status='Draft') }}"
+           class="ql-stat-card stat-draft {{ 'active' if status_filter == 'Draft' }}">
+          <div class="ql-stat-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/>
+            </svg>
+          </div>
+          <div class="ql-stat-info">
+            <span class="ql-stat-count">{{ stats.draft }}</span>
+            <span class="ql-stat-label">Draft</span>
+          </div>
+        </a>
+
+        <!-- Sent -->
+        <a href="{{ url_for('quotations.quotation_list', status='Sent') }}"
+           class="ql-stat-card stat-sent {{ 'active' if status_filter == 'Sent' }}">
+          <div class="ql-stat-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </div>
+          <div class="ql-stat-info">
+            <span class="ql-stat-count">{{ stats.sent }}</span>
+            <span class="ql-stat-label">Sent</span>
+          </div>
+        </a>
+
+        <!-- Accepted -->
+        <a href="{{ url_for('quotations.quotation_list', status='Accepted') }}"
+           class="ql-stat-card stat-accepted {{ 'active' if status_filter == 'Accepted' }}">
+          <div class="ql-stat-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+          <div class="ql-stat-info">
+            <span class="ql-stat-count">{{ stats.accepted }}</span>
+            <span class="ql-stat-label">Accepted</span>
+          </div>
+        </a>
+
+        <!-- Rejected -->
+        <a href="{{ url_for('quotations.quotation_list', status='Rejected') }}"
+           class="ql-stat-card stat-rejected {{ 'active' if status_filter == 'Rejected' }}">
+          <div class="ql-stat-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </div>
+          <div class="ql-stat-info">
+            <span class="ql-stat-count">{{ stats.rejected }}</span>
+            <span class="ql-stat-label">Rejected</span>
+          </div>
+        </a>
+
       </div>
 
-      <!-- ── FILTERS ───────────────────────────────────── -->
+      <!-- ── FILTER BAR ────────────────────────────────────────────────── -->
       <div class="ql-filters">
         <form method="GET" class="ql-search-form">
           <div class="ql-search-wrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
             </svg>
-            <input type="text" name="q" value="{{ search }}" placeholder="Search quotation number, title…"
-              class="ql-search-input">
+            <input type="text" name="q" value="{{ search }}" placeholder="Search by number, title, or customer…" class="ql-search-input">
           </div>
-          <select name="doc_type" class="qf-select ql-filter-select">
-            <option value="all" {{ 'selected' if doc_type_filter=='all' }}>All Types</option>
-            <option value="Quotation" {{ 'selected' if doc_type_filter=='Quotation' }}>Quotations</option>
-            <option value="Proforma Invoice" {{ 'selected' if doc_type_filter=='Proforma Invoice' }}>Proforma Invoices
-            </option>
-            <option value="Sales Order" {{ 'selected' if doc_type_filter=='Sales Order' }}>Sales Orders</option>
+          <select name="doc_type" class="ql-filter-select">
+            <option value="all"             {{ 'selected' if doc_type_filter=='all'             }}>All Types</option>
+            <option value="Quotation"       {{ 'selected' if doc_type_filter=='Quotation'       }}>Quotation</option>
+            <option value="Proforma Invoice"{{ 'selected' if doc_type_filter=='Proforma Invoice'}}>Proforma Invoice</option>
+            <option value="Sales Order"     {{ 'selected' if doc_type_filter=='Sales Order'     }}>Sales Order</option>
           </select>
-          <button type="submit" class="btn-secondary">Filter</button>
+          <button type="submit" class="btn-filter">Apply</button>
           {% if search or status_filter != 'all' or doc_type_filter != 'all' %}
-          <a href="{{ url_for('quotations.quotation_list') }}" class="btn-ghost">Clear</a>
+          <a href="{{ url_for('quotations.quotation_list') }}" class="btn-clear">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            Clear
+          </a>
           {% endif %}
         </form>
       </div>
 
-      <!-- ── TABLE ─────────────────────────────────────── -->
+      <!-- ── TABLE ──────────────────────────────────────────────────────── -->
       {% if quotations %}
       <div class="ql-table-wrap">
         <table class="ql-table">
@@ -128,7 +639,7 @@
               <th>Customer / Lead</th>
               <th>Date</th>
               <th>Valid Till</th>
-              <th class="text-right">Amount ₹</th>
+              <th class="text-right">Amount</th>
               <th class="text-center">Status</th>
               <th class="text-center">Actions</th>
             </tr>
@@ -136,126 +647,152 @@
           <tbody>
             {% for q in quotations %}
             <tr class="ql-row" data-qid="{{ q.id }}">
+
+              <!-- Number -->
               <td>
                 <a href="{{ url_for('quotations.view_quotation', quotation_id=q.id) }}" class="ql-number-link">
                   {{ q.quotation_number }}
                 </a>
                 {% if q.quotation_title and q.quotation_title != 'Quotation' %}
-                <div class="ql-row-sub">{{ q.quotation_title[:40] }}</div>
+                <div class="ql-row-sub">{{ q.quotation_title[:50] }}</div>
                 {% endif %}
               </td>
+
+              <!-- Doc Type -->
               <td>
-                <span
-                  class="badge-doctype {{ 'badge-proforma' if 'Proforma' in q.doc_type_display else 'badge-quotation' }}">
-                  {{ q.doc_type_display }}
-                </span>
+                {% if 'Proforma' in q.doc_type_display %}
+                  <span class="badge-doctype badge-proforma">{{ q.doc_type_display }}</span>
+                {% elif 'Sales' in q.doc_type_display %}
+                  <span class="badge-doctype badge-sales">{{ q.doc_type_display }}</span>
+                {% else %}
+                  <span class="badge-doctype badge-quotation">{{ q.doc_type_display }}</span>
+                {% endif %}
               </td>
+
+              <!-- Customer / Lead -->
               <td>
                 {% if q.customer %}
-                <a href="{{ url_for('customers.view_customer', customer_id=q.customer.id) }}" class="ql-entity-link">{{
-                  q.customer.name }}</a>
-                {% if q.customer.company %}<div class="ql-row-sub">{{ q.customer.company }}</div>{% endif %}
+                  <a href="{{ url_for('customers.view_customer', customer_id=q.customer.id) }}" class="ql-entity-link">{{ q.customer.name }}</a>
+                  {% if q.customer.company %}<div class="ql-row-sub">{{ q.customer.company }}</div>{% endif %}
                 {% elif q.lead %}
-                <span class="text-muted">{{ q.lead.name }} <em>(Lead)</em></span>
+                  <span>{{ q.lead.name }}</span>
+                  <div class="ql-row-sub">Lead</div>
                 {% else %}
-                <span class="text-muted">—</span>
+                  <span style="color:#9ca3af;">—</span>
                 {% endif %}
               </td>
-              <td>{{ q.issue_date.strftime('%d %b %Y') if q.issue_date else '—' }}</td>
-              <td>
+
+              <!-- Date -->
+              <td style="white-space:nowrap;">{{ q.issue_date.strftime('%d %b %Y') if q.issue_date else '—' }}</td>
+
+              <!-- Valid Till -->
+              <td style="white-space:nowrap;">
                 {% if q.due_date %}
-                {% if q.due_date < now %} <span class="text-danger">{{ q.due_date.strftime('%d %b %Y') }} ⚠</span>
+                  {% if q.due_date < now %}
+                    <span class="text-danger" title="Expired">{{ q.due_date.strftime('%d %b %Y') }}</span>
                   {% else %}
-                  {{ q.due_date.strftime('%d %b %Y') }}
+                    {{ q.due_date.strftime('%d %b %Y') }}
                   {% endif %}
-                  {% else %}—{% endif %}
+                {% else %}—{% endif %}
               </td>
-              <td class="text-right">
-                <strong>{{ '₹{:,.2f}'.format(q.total_amount) }}</strong>
+
+              <!-- Amount -->
+              <td class="text-right col-amount" style="white-space:nowrap;">
+                ₹{{ '{:,.2f}'.format(q.total_amount) }}
               </td>
+
+              <!-- Status -->
               <td class="text-center">
-                <span class="status-pill status-{{ q.status.value.lower() }}" data-qid="{{ q.id }}">
+                <span class="status-pill status-{{ q.status.value.lower() }}" data-qid="{{ q.id }}" title="Click to change status">
                   {{ q.status.value }}
                 </span>
               </td>
+
+              <!-- Actions -->
               <td class="text-center">
                 <div class="ql-actions">
-                  <a href="{{ url_for('quotations.view_quotation', quotation_id=q.id) }}" class="ql-action-btn"
-                    title="View">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
+                  <a href="{{ url_for('quotations.view_quotation', quotation_id=q.id) }}" class="ql-action-btn" title="View">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
                     </svg>
                   </a>
-                  <a href="{{ url_for('quotations.edit_quotation', quotation_id=q.id) }}" class="ql-action-btn"
-                    title="Edit">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  <a href="{{ url_for('quotations.edit_quotation', quotation_id=q.id) }}" class="ql-action-btn" title="Edit">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/>
                     </svg>
                   </a>
-                  <a href="{{ url_for('quotations.generate_pdf', quotation_id=q.id) }}" class="ql-action-btn"
-                    title="PDF" target="_blank">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                      <line x1="16" y1="13" x2="8" y2="13" />
-                      <line x1="16" y1="17" x2="8" y2="17" />
-                      <polyline points="10 9 9 9 8 9" />
+                  <a href="{{ url_for('quotations.generate_pdf', quotation_id=q.id) }}" class="ql-action-btn" title="Download PDF" target="_blank">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="16" y1="13" x2="8" y2="13"/>
+                      <line x1="16" y1="17" x2="8" y2="17"/>
                     </svg>
                   </a>
-                  <form method="POST" action="{{ url_for('quotations.duplicate_quotation', quotation_id=q.id) }}"
-                    style="display:inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                    <button type="submit" class="ql-action-btn" title="Duplicate">📋</button>
+                  <form method="POST" action="{{ url_for('quotations.duplicate_quotation', quotation_id=q.id) }}" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="ql-action-btn" title="Duplicate">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                        <rect x="9" y="9" width="13" height="13" rx="2"/>
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                      </svg>
+                    </button>
                   </form>
-                  <form method="POST" action="{{ url_for('quotations.delete_quotation', quotation_id=q.id) }}"
-                    style="display:inline"
-                    onsubmit="openConfirmModal(event, this, \'Delete {{ q.quotation_number }}?\')">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                  <form method="POST" action="{{ url_for('quotations.delete_quotation', quotation_id=q.id) }}" style="display:inline"
+                        onsubmit="openConfirmModal(event, this, 'Delete {{ q.quotation_number }}?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="ql-action-btn ql-action-danger" title="Delete">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"
-                        height="16">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                        <path d="M10 11v6M14 11v6" />
-                        <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                        <path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
                       </svg>
                     </button>
                   </form>
                 </div>
               </td>
+
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
+
       {% else %}
+      <!-- Empty State -->
       <div class="ql-empty">
-        <div class="ql-empty-icon">📄</div>
+        <div class="ql-empty-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </div>
         <h3>No quotations found</h3>
-        <p>{{ 'Try clearing your filters.' if (search or status_filter != 'all') else 'Create your first quotation to
-          get started.' }}</p>
-        <a href="{{ url_for('quotations.add_quotation') }}" class="btn-primary mt-md">+ New Quotation</a>
+        <p>{{ 'Try adjusting your search or filters.' if (search or status_filter != 'all' or doc_type_filter != 'all') else 'Create your first quotation to get started.' }}</p>
+        <a href="{{ url_for('quotations.add_quotation') }}" class="btn-primary" style="margin:0 auto;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
+          New Quotation
+        </a>
       </div>
       {% endif %}
 
     </div>
-
-
   </main>
+
+  <!-- Quick Status Toggle -->
   <script>
-    // Quick status update via dropdown click
     document.querySelectorAll('.status-pill').forEach(pill => {
-      pill.style.cursor = 'pointer';
-      pill.title = 'Click to change status';
       pill.addEventListener('click', async function () {
         const qid = this.dataset.qid;
         const statuses = ['Draft', 'Sent', 'Accepted', 'Rejected'];
-        const cur = this.textContent.trim();
+        const cur  = this.textContent.trim();
         const next = statuses[(statuses.indexOf(cur) + 1) % statuses.length];
-        /* REMOVED CONFIRM */
-        const res = await fetch(`/quotations/${qid}/status`, {
+        const res  = await fetch(`/quotations/${qid}/status`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: next })
@@ -267,56 +804,53 @@
         }
       });
     });
+
+    // Auto-dismiss toasts after 4s
+    setTimeout(() => {
+      document.querySelectorAll('.flash-toast').forEach(t => {
+        t.style.transition = 'opacity 0.4s';
+        t.style.opacity = '0';
+        setTimeout(() => t.remove(), 400);
+      });
+    }, 4000);
   </script>
 
-
-
-  <!-- Shared Confirm Modal -->
-  <div id="confirmModal"
-    style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:20000;justify-content:center;align-items:center;">
-    <div
-      style="background:white;padding:2rem;border-radius:12px;width:400px;max-width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.2);text-align:center;">
-      <div style="font-size:3rem;color:#ef4444;margin-bottom:1rem;">⚠️</div>
-      <h3 id="confirmModalTitle" style="margin-bottom:1rem;color:var(--primary-color);font-size:1.3rem;"></h3>
-      <p style="color:var(--text-muted);margin-bottom:1.5rem;font-size:0.95rem;line-height:1.5;">This action cannot be
-        undone.</p>
-      <div style="display:flex;gap:1rem;justify-content:center;">
-        <button type="button" class="btn-action outline" onclick="closeConfirmModal()">Cancel</button>
-        <button type="button" class="btn-action" style="background:#ef4444;color:white;"
-          onclick="executeConfirm()">Confirm</button>
+  <!-- Confirm Modal -->
+  <div id="confirmModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:20000;justify-content:center;align-items:center;">
+    <div style="background:#fff;padding:32px;border-radius:14px;width:380px;max-width:92%;box-shadow:0 20px 50px rgba(0,0,0,0.2);text-align:center;">
+      <div style="width:52px;height:52px;border-radius:50%;background:#fee2e2;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;color:#dc2626;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
+      <h3 id="confirmModalTitle" style="margin-bottom:8px;font-size:17px;color:#0d1b2a;font-weight:700;"></h3>
+      <p style="color:#6b7280;margin-bottom:24px;font-size:13.5px;">This action cannot be undone.</p>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button type="button" onclick="closeConfirmModal()" style="padding:9px 20px;border:1.5px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:#374151;">Cancel</button>
+        <button type="button" onclick="executeConfirm()" style="padding:9px 20px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Delete</button>
       </div>
     </div>
   </div>
+
   <script>
-    let _pendingForm = null;
-    let _pendingUrl = null;
-    let _pendingCallback = null;
-    function openConfirmModal(e, form, msg, url = null, callback = null) {
+    let _pendingForm = null, _pendingUrl = null, _pendingCallback = null;
+    function openConfirmModal(e, form, msg, url=null, callback=null) {
       if (e) e.preventDefault();
-      _pendingForm = form;
-      _pendingUrl = url;
-      _pendingCallback = callback;
+      _pendingForm = form; _pendingUrl = url; _pendingCallback = callback;
       document.getElementById('confirmModalTitle').textContent = msg;
       document.getElementById('confirmModal').style.display = 'flex';
     }
     function closeConfirmModal() {
       document.getElementById('confirmModal').style.display = 'none';
-      _pendingForm = null;
-      _pendingUrl = null;
-      _pendingCallback = null;
+      _pendingForm = null; _pendingUrl = null; _pendingCallback = null;
     }
     function executeConfirm() {
-      if (_pendingCallback) {
-        closeConfirmModal();
-        _pendingCallback();
-      } else if (_pendingUrl) {
-        window.location.href = _pendingUrl;
-      } else if (_pendingForm) {
-        _pendingForm.submit();
-      }
+      if (_pendingCallback) { closeConfirmModal(); _pendingCallback(); }
+      else if (_pendingUrl) { window.location.href = _pendingUrl; }
+      else if (_pendingForm) { _pendingForm.submit(); }
     }
   </script>
 
 </body>
-
 </html>
