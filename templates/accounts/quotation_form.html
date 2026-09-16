@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -43,9 +43,18 @@
       </div>
     </div>
     <div class="qf-topbar-right">
-      <button type="button" class="btn-secondary" id="btn-save-draft">💾 Save Draft</button>
+      <button type="button" class="btn-topbar-draft" id="btn-save-draft">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+        Save Draft
+      </button>
+      {% if mode == 'create' %}
+      <button type="button" class="btn-topbar-new" id="btn-save-new">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
+        Save &amp; New
+      </button>
+      {% endif %}
       <button type="submit" form="quotation-main-form" class="btn-primary">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M20 6L9 17l-5-5"/></svg>
         {{ 'Update' if mode == 'edit' else 'Create' }} Quotation
       </button>
     </div>
@@ -147,6 +156,12 @@
                 <input type="text" name="timeline" class="qf-input"
                        value="{{ quotation.timeline if quotation and quotation.timeline else '' }}"
                        placeholder="e.g. 4 Weeks">
+              </div>
+              <div class="qf-field qf-field--sm">
+                <label>Amendment No.</label>
+                <input type="text" name="amendment_no" class="qf-input"
+                       value="{{ quotation.amendment_no if quotation and quotation.amendment_no else '' }}"
+                       placeholder="e.g. Rev-1">
               </div>
             </div>
 
@@ -819,35 +834,36 @@
 
 <!-- Edit Columns/Formulas Modal -->
 <div id="modal-edit-cols" class="qt-modal">
-  <div class="qt-modal-content" style="width: 600px;">
+  <div class="qt-modal-content" style="width: 580px;">
     <div class="qt-modal-header">
-      <h3>Edit Columns & Formulas</h3>
+      <h3>⚙ Edit Columns &amp; Formulas</h3>
       <button type="button" class="btn-close" onclick="closeQtModal('modal-edit-cols')">✕</button>
     </div>
     <div class="qt-modal-body">
       <div class="qf-field">
         <label>Global Area Formula</label>
         <select id="config-global-formula" class="qf-select">
-          <option value="standard">Standard (W x H)</option>
-          <option value="minimal_1">Minimum Area (Min 1.0 Sq.Ft)</option>
-          <option value="round_05">Round Up to nearest 0.5</option>
-          <option value="inches_to_sqft">Inches to Sq.Ft ( (W/12) x (H/12) )</option>
+          <option value="standard">Standard — W × H (direct product)</option>
+          <option value="minimal_1">Minimum Area — Min 1.0 Sq.Ft per item</option>
+          <option value="round_05">Round Up — to nearest 0.5 Sq.Ft</option>
+          <option value="inches_to_sqft">Inches to Sq.Ft — (W÷12) × (H÷12)</option>
         </select>
-        <p class="text-xs text-muted mt-2">Applies to all rows calculating area.</p>
+        <p class="text-xs text-muted mt-2">Applies to all rows using Sq.Ft or Sq.M unit.</p>
       </div>
       <div class="qf-field mt-4">
-          <label>Visible Optional Columns</label>
-          <div class="grid grid-cols-2 gap-2 text-sm">
-              <label class="flex items-center gap-2"><input type="checkbox" checked disabled> SN / SKU</label>
-              <label class="flex items-center gap-2"><input type="checkbox" checked disabled> W / H Dimensions</label>
-              <label class="flex items-center gap-2"><input type="checkbox" checked disabled> Quantity</label>
-              <label class="flex items-center gap-2"><input type="checkbox" checked disabled> GST%</label>
-              <label class="flex items-center gap-2"><input type="checkbox" checked disabled> Discount</label>
-          </div>
+        <label>Visible Columns in Line Items Table</label>
+        <p class="text-xs text-muted mb-2">Uncheck to hide optional columns. Preference is saved automatically.</p>
+        <div id="col-visibility-checkboxes" class="col-visibility-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <!-- Dynamically populated by quotation_engine.js -->
+        </div>
+        <p class="text-xs text-muted mt-2" style="border-top:1px solid #e5e7eb; padding-top:8px;">
+          <strong>Always visible:</strong> Description, Qty, Unit, Rate, Amount, Total
+        </p>
       </div>
     </div>
-    <div class="qt-modal-footer">
-      <button type="button" class="btn-primary" onclick="closeQtModal('modal-edit-cols')">Apply Changes</button>
+    <div class="qt-modal-footer" style="display: flex; justify-content: space-between;">
+      <button type="button" class="btn-secondary" id="btn-reset-col-visibility">Reset to Default</button>
+      <button type="button" class="btn-primary" onclick="closeQtModal('modal-edit-cols')">Done</button>
     </div>
   </div>
 </div>
@@ -938,6 +954,7 @@
     {% if mode == 'edit' and quotation %}
     saveDraftUrl: "{{ url_for('quotations.save_draft', quotation_id=quotation.id) }}",
     {% endif %}
+    saveNewUrl: "{{ url_for('quotations.add_quotation') }}",
   };
 
 // ─────────────────────────────────────────────────────────
@@ -985,54 +1002,24 @@ if(globalFormulaSelect) {
         document.querySelectorAll('.input-formula').forEach(inp => {
             inp.value = formula;
         });
-        document.querySelectorAll('.erp-item-row').forEach(row => calculateRowArea(row));
-        scheduleRecalculate();
+        // calculateRowArea is defined in quotation_engine.js — let the engine handle it
+        if (typeof scheduleRecalculate === 'function') scheduleRecalculate();
     };
 }
 
-// Updated calculateRowArea to handle formulas
-function calculateRowArea(row) {
-  const w = parseFloat(row.querySelector('.dim-w').value) || 0;
-  const h = parseFloat(row.querySelector('.dim-h').value) || 0;
-  const unit = row.querySelector('.select-unit')?.value;
-  const areaVal = row.querySelector('.area-val');
-  const cQtyInput = row.querySelector('.item-c-qty');
-  let formula = row.querySelector('.input-formula')?.value || 'standard';
-
-  let area = 0;
-  // If Square foot or Square meter logic
-  if (['Sq.Ft', 'Sq.M'].includes(unit)) {
-    if (formula === 'standard') {
-        area = w * h;
-    } else if (formula === 'minimal_1') {
-        area = Math.max(1.0, w * h);
-    } else if (formula === 'round_05') {
-        area = Math.ceil((w * h) * 2) / 2;
-    } else if (formula === 'inches_to_sqft') {
-        area = (w / 12) * (h / 12);
-    } else {
-        area = w * h;
-    }
-
-    if (areaVal) areaVal.textContent = area.toFixed(2);
-    // Auto-fill chargeable quantity
-    if (area > 0 && !cQtyInput.dataset.manual) {
-      cQtyInput.value = area.toFixed(2);
-    } else if (area === 0 && !cQtyInput.value) {
-      cQtyInput.value = ''; // stays as Auto placeholder
-    }
-  } else {
-    if (areaVal) areaVal.textContent = '—';
-  }
+// Reset column visibility to defaults
+const btnResetColVis = document.getElementById('btn-reset-col-visibility');
+if(btnResetColVis) {
+    btnResetColVis.addEventListener('click', () => {
+        try { localStorage.removeItem('qe_col_visibility'); } catch(e) {}
+        // Re-build the modal (shows all checked)
+        if (typeof buildColVisibilityModal === 'function') buildColVisibilityModal();
+        // Show all columns
+        document.querySelectorAll('#items-table .col-dim, #items-table .col-c-area, #items-table .col-c-qty, #items-table .col-disc, #items-table .col-gst').forEach(el => {
+            el.style.display = '';
+        });
+    });
 }
-
-// Initial calculation for edit mode
-document.addEventListener('DOMContentLoaded', () => {
-    // wait slightly or do immediate
-    setTimeout(() => {
-        document.querySelectorAll('.erp-item-row').forEach(row => calculateRowArea(row));
-    }, 100);
-});
 </script>
 
 

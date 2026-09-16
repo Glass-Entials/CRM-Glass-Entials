@@ -1,6 +1,12 @@
 /**
- * GlassEntials Enterprise Quotation Engine
- * Handles dynamic line item calculations, drag-n-drop, custom fields toggles, saving draft, and signature pad.
+ * GlassEntials Enterprise Quotation Engine v2
+ * Handles dynamic line item calculations, drag-n-drop, custom fields toggles,
+ * saving draft, signature pad, and column visibility.
+ *
+ * DAY 2 fixes:
+ *  - FIX A: IGST toggle ID corrected (#toggle-igst → #is-igst-cb)
+ *  - FIX C: Save Draft now works in create mode via form submit with status=Draft
+ *  - NEW:   Column visibility toggle persisted to localStorage
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -31,7 +37,6 @@ if (addCfDropdown) {
     const fieldKey = this.value;
     if (!fieldKey) return;
     
-    console.log("Adding field:", fieldKey);
     const wrap = document.querySelector(`.qf-custom-field-wrap[data-field-key="${fieldKey}"]`);
     if (wrap) {
       wrap.classList.remove('cf-hidden');
@@ -71,13 +76,29 @@ if (custSelect) {
       autofillPanel.style.display = 'none';
     }
   });
+
+  // Populate autofill panel on edit mode
+  if (custSelect.value) {
+    const opt = custSelect.options[custSelect.selectedIndex];
+    if (opt && opt.value) {
+      const afCompany = document.getElementById('af-company');
+      if (afCompany && !afCompany.textContent.trim()) {
+        afCompany.textContent = opt.dataset.company || '—';
+        document.getElementById('af-address').textContent = opt.dataset.address || '—';
+        document.getElementById('af-gstin').textContent = opt.dataset.gstin || '—';
+        document.getElementById('af-phone').textContent = opt.dataset.phone || '—';
+        document.getElementById('af-email').textContent = opt.dataset.email || '—';
+        document.getElementById('af-state').textContent = opt.dataset.state || '—';
+      }
+    }
+  }
 }
 
 if (leadSelect) {
   leadSelect.addEventListener('change', function() {
     if (this.value && custSelect) {
       custSelect.value = '';
-      autofillPanel.style.display = 'none';
+      if (autofillPanel) autofillPanel.style.display = 'none';
     }
   });
 }
@@ -97,17 +118,87 @@ if (vtType) {
 
 
 // ─────────────────────────────────────────────────────────
+// Column Visibility (FIX: modal was all-disabled before)
+// ─────────────────────────────────────────────────────────
+
+const COL_VISIBILITY_KEY = 'qe_col_visibility';
+
+const TOGGLEABLE_COLS = [
+  { id: 'col-toggle-dim',    classes: ['.col-dim'],    label: 'Width / Height (Dimensions)' },
+  { id: 'col-toggle-area',   classes: ['.col-c-area'],  label: 'Chargeable Area (Sq.Ft)' },
+  { id: 'col-toggle-cqty',   classes: ['.col-c-qty'],   label: 'Chargeable Qty' },
+  { id: 'col-toggle-disc',   classes: ['.col-disc'],    label: 'Discount' },
+  { id: 'col-toggle-gst',    classes: ['.col-gst'],     label: 'GST %' },
+];
+
+function saveColVisibility() {
+  const state = {};
+  TOGGLEABLE_COLS.forEach(col => {
+    const cb = document.getElementById(col.id);
+    if (cb) state[col.id] = cb.checked;
+  });
+  try { localStorage.setItem(COL_VISIBILITY_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function loadColVisibility() {
+  try {
+    const raw = localStorage.getItem(COL_VISIBILITY_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+
+function applyColVisibility(id, visible) {
+  const colDef = TOGGLEABLE_COLS.find(c => c.id === id);
+  if (!colDef) return;
+  colDef.classes.forEach(cls => {
+    document.querySelectorAll(`#items-table ${cls}`).forEach(el => {
+      el.style.display = visible ? '' : 'none';
+    });
+  });
+}
+
+function buildColVisibilityModal() {
+  const container = document.getElementById('col-visibility-checkboxes');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  const saved = loadColVisibility();
+  
+  TOGGLEABLE_COLS.forEach(col => {
+    const isVisible = saved.hasOwnProperty(col.id) ? saved[col.id] : true;
+    
+    const label = document.createElement('label');
+    label.className = 'col-visibility-item';
+    label.innerHTML = `
+      <input type="checkbox" id="${col.id}" ${isVisible ? 'checked' : ''}>
+      <span>${col.label}</span>
+    `;
+    container.appendChild(label);
+    
+    // Apply initial state
+    applyColVisibility(col.id, isVisible);
+    
+    // Wire change
+    const cb = label.querySelector('input');
+    cb.addEventListener('change', () => {
+      applyColVisibility(col.id, cb.checked);
+      saveColVisibility();
+    });
+  });
+}
+
+// ─────────────────────────────────────────────────────────
 // Line Items Engine (ERP)
 // ─────────────────────────────────────────────────────────
 
 function attachRowListeners(row) {
   row.querySelectorAll('.item-calc, .select-unit').forEach(el => {
     el.addEventListener('input', (e) => {
-      // If user edits directly, mark as manual
+      // If user edits chargeable qty directly, mark as manual
       if (e.target.classList.contains('item-c-qty')) {
         e.target.dataset.manual = 'true';
       } 
-      // If user edits dimensions or qty, remove manual override so it auto-calculates again
+      // If user edits dimensions or qty, remove manual override so it auto-calculates
       else if (e.target.classList.contains('dim-w') || e.target.classList.contains('dim-h') || e.target.classList.contains('item-qty')) {
         const cQtyInput = row.querySelector('.item-c-qty');
         if (cQtyInput) delete cQtyInput.dataset.manual;
@@ -129,7 +220,6 @@ function attachRowListeners(row) {
   
   row.querySelector('.btn-copy-erp')?.addEventListener('click', () => {
     const clone = row.cloneNode(true);
-    // clean up values
     clone.querySelector('.btn-remove-erp').addEventListener('click', () => {
       clone.remove(); scheduleRecalculate();
     });
@@ -137,9 +227,24 @@ function attachRowListeners(row) {
       el.addEventListener('input', () => { calculateRowArea(clone); scheduleRecalculate(); });
       el.addEventListener('change', () => { calculateRowArea(clone); scheduleRecalculate(); });
     });
-    clone.querySelector('.btn-copy-erp').addEventListener('click', () => { /* basic copy hook */ });
+    clone.querySelector('.btn-copy-erp').addEventListener('click', () => {
+      // re-attach for the cloned copy-btn
+      const cloneOfClone = clone.cloneNode(true);
+      attachRowListeners(cloneOfClone);
+      clone.after(cloneOfClone);
+      updateRowSerials();
+      scheduleRecalculate();
+    });
     row.after(clone);
     updateRowSerials();
+    // Re-apply column visibility to new row
+    const saved = loadColVisibility();
+    TOGGLEABLE_COLS.forEach(col => {
+      const isVisible = saved.hasOwnProperty(col.id) ? saved[col.id] : true;
+      col.classes.forEach(cls => {
+        clone.querySelectorAll(cls).forEach(el => { el.style.display = isVisible ? '' : 'none'; });
+      });
+    });
     scheduleRecalculate();
   });
 }
@@ -153,9 +258,14 @@ function updateRowSerials() {
 }
 
 function calculateRowArea(row) {
-  const w = parseFloat(row.querySelector('.dim-w').value) || 0;
-  const h = parseFloat(row.querySelector('.dim-h').value) || 0;
-  const unit = row.querySelector('.select-unit')?.value;
+  const wInput = row.querySelector('.dim-w');
+  const hInput = row.querySelector('.dim-h');
+  if (!wInput || !hInput) return;
+  
+  const w = parseFloat(wInput.value) || 0;
+  const h = parseFloat(hInput.value) || 0;
+  const unitSel = row.querySelector('.select-unit');
+  const unit = unitSel ? unitSel.value : 'Sq.Ft';
   const areaVal = row.querySelector('.area-val');
   const cQtyInput = row.querySelector('.item-c-qty');
   let formula = row.querySelector('.input-formula')?.value || 'standard';
@@ -167,23 +277,24 @@ function calculateRowArea(row) {
     let rawArea = w * h;
     let areaSqFt = rawArea;
 
-    // First convert raw input area into Sq.Ft
+    // Convert raw input area into Sq.Ft based on dimension unit
     if (dimUnit === 'Inches') {
        areaSqFt = rawArea / 144.0;
     } else if (dimUnit === 'cm') {
        areaSqFt = rawArea / 929.0304;
     } else if (dimUnit === 'mm') {
        areaSqFt = rawArea / 92903.04;
-    } // if Feet, it's already Sq.Ft equivalent
+    }
+    // If Feet, it's already Sq.Ft equivalent
 
-    // Now convert Sq.Ft to target billing unit, if necessary
+    // Convert Sq.Ft to target billing unit
     if (unit === 'Sq.M') {
         area = areaSqFt / 10.76391;
     } else {
         area = areaSqFt;
     }
     
-    // Apply special rounding formulas if chosen
+    // Apply special rounding formulas
     if (formula === 'round_05') {
         area = Math.ceil(area * 2) / 2;
     } else if (formula === 'minimal_1') {
@@ -191,16 +302,19 @@ function calculateRowArea(row) {
     }
 
     if (areaVal) areaVal.textContent = area.toFixed(2);
+
     // Auto-fill chargeable quantity
-    if (area > 0 && !cQtyInput.dataset.manual) {
-      cQtyInput.value = area.toFixed(2);
+    if (cQtyInput) {
+      if (area > 0 && !cQtyInput.dataset.manual) {
+        cQtyInput.value = area.toFixed(2);
+      }
     }
   } else {
-    // Other units like Pcs, Nos, RFT
+    // Other units like Pcs, Nos, RFT — chargeable qty = regular qty
     if (areaVal) areaVal.textContent = '—';
-    if (!cQtyInput.dataset.manual) {
-      // Typically for Pieces/Nos, Chargeable Qty matches the pure quantity
-      const qty = parseFloat(row.querySelector('.item-qty').value) || 1;
+    if (cQtyInput && !cQtyInput.dataset.manual) {
+      const qtyInput = row.querySelector('.item-qty');
+      const qty = parseFloat(qtyInput?.value) || 1;
       cQtyInput.value = qty.toFixed(2);
     }
   }
@@ -238,6 +352,20 @@ if (btnAddRow) {
     attachRowListeners(tr);
     itemsBody.appendChild(tr);
     updateRowSerials();
+
+    // Apply current column visibility to the new row
+    const saved = loadColVisibility();
+    TOGGLEABLE_COLS.forEach(col => {
+      const isVisible = saved.hasOwnProperty(col.id) ? saved[col.id] : true;
+      if (!isVisible) {
+        col.classes.forEach(cls => {
+          tr.querySelectorAll(cls).forEach(el => { el.style.display = 'none'; });
+        });
+      }
+    });
+
+    // Focus on item name of the new row
+    tr.querySelector('.item-name')?.focus();
   });
 }
 
@@ -254,7 +382,7 @@ if (btnAddGroup) {
       tr.remove();
     });
     tr.querySelector('.erp-group-input').addEventListener('input', function() {
-      // Find all rows below this until next group and update their hidden group_name
+      // Find all rows below this group header and update their hidden group_name
       let next = tr.nextElementSibling;
       while(next && !next.classList.contains('erp-group-row')) {
         const inp = next.querySelector('.input-group-name');
@@ -289,8 +417,8 @@ function scheduleRecalculate() {
   calcTimeout = setTimeout(calculateTotals, 300); // debounce API calls
 }
 
-// Globals listeners
-['total-discount', 'total-discount-type', 'additional-charges', 'charges-taxable', 'toggle-igst']
+// Listen on IGST toggle — FIX A: corrected ID from 'toggle-igst' to 'is-igst-cb'
+['total-discount', 'total-discount-type', 'additional-charges', 'charges-taxable', 'is-igst-cb']
   .forEach(id => {
     const el = document.getElementById(id);
     if(el) {
@@ -302,8 +430,11 @@ function scheduleRecalculate() {
 async function calculateTotals() {
   if (!CONFIG.calcUrl) return;
 
+  // FIX A: corrected ID from 'toggle-igst' to 'is-igst-cb'
+  const igstCheckbox = document.getElementById('is-igst-cb');
+
   const payload = {
-    is_igst: document.getElementById('toggle-igst')?.checked || false,
+    is_igst: igstCheckbox?.checked || false,
     total_discount: parseFloat(document.getElementById('total-discount')?.value || 0),
     total_discount_type: document.getElementById('total-discount-type')?.value || 'flat',
     additional_charges: parseFloat(document.getElementById('additional-charges')?.value || 0),
@@ -352,27 +483,38 @@ function updateUI(res, rows) {
   });
 
   // Update totals panel
-  document.getElementById('t-subtotal').textContent = `₹${res.subtotal.toFixed(2)}`;
-  document.getElementById('t-discount').textContent = `— ₹${res.total_discount.toFixed(2)}`;
-  document.getElementById('t-taxable').textContent = `₹${(res.subtotal - res.total_discount).toFixed(2)}`;
+  const tSubtotal = document.getElementById('t-subtotal');
+  const tDiscount = document.getElementById('t-discount');
+  const tTaxable = document.getElementById('t-taxable');
+  const tSgst = document.getElementById('t-sgst');
+  const tCgst = document.getElementById('t-cgst');
+  const tIgst = document.getElementById('t-igst');
+  const tCharges = document.getElementById('t-charges');
+  const tTotal = document.getElementById('t-total');
+  const tQty = document.getElementById('t-qty');
+  const tWords = document.getElementById('t-words');
+
+  if (tSubtotal) tSubtotal.textContent = `₹${res.subtotal.toFixed(2)}`;
+  if (tDiscount) tDiscount.textContent = `— ₹${res.total_discount.toFixed(2)}`;
+  if (tTaxable) tTaxable.textContent = `₹${(res.subtotal - res.total_discount).toFixed(2)}`;
   
   if (res.is_igst) {
-    document.getElementById('row-igst').classList.remove('hidden');
-    document.getElementById('row-sgst').classList.add('hidden');
-    document.getElementById('row-cgst').classList.add('hidden');
-    document.getElementById('t-igst').textContent = `₹${res.igst.toFixed(2)}`;
+    document.getElementById('row-igst')?.classList.remove('hidden');
+    document.getElementById('row-sgst')?.classList.add('hidden');
+    document.getElementById('row-cgst')?.classList.add('hidden');
+    if (tIgst) tIgst.textContent = `₹${res.igst.toFixed(2)}`;
   } else {
-    document.getElementById('row-igst').classList.add('hidden');
-    document.getElementById('row-sgst').classList.remove('hidden');
-    document.getElementById('row-cgst').classList.remove('hidden');
-    document.getElementById('t-sgst').textContent = `₹${res.sgst.toFixed(2)}`;
-    document.getElementById('t-cgst').textContent = `₹${res.cgst.toFixed(2)}`;
+    document.getElementById('row-igst')?.classList.add('hidden');
+    document.getElementById('row-sgst')?.classList.remove('hidden');
+    document.getElementById('row-cgst')?.classList.remove('hidden');
+    if (tSgst) tSgst.textContent = `₹${res.sgst.toFixed(2)}`;
+    if (tCgst) tCgst.textContent = `₹${res.cgst.toFixed(2)}`;
   }
   
-  document.getElementById('t-charges').textContent = `₹${res.additional_charges.toFixed(2)}`;
-  document.getElementById('t-total').textContent = `₹${res.total_amount.toFixed(2)}`;
-  document.getElementById('t-qty').textContent = res.total_quantity;
-  document.getElementById('t-words').textContent = res.words + ' Only';
+  if (tCharges) tCharges.textContent = `₹${res.additional_charges.toFixed(2)}`;
+  if (tTotal) tTotal.textContent = `₹${res.total_amount.toFixed(2)}`;
+  if (tQty) tQty.textContent = res.total_quantity;
+  if (tWords) tWords.textContent = res.words + ' Only';
 }
 
 // ─────────────────────────────────────────────────────────
@@ -433,7 +575,7 @@ if (dropZone && fileInput) {
     
     if(e.type === 'drop') {
       let files = e.dataTransfer.files;
-      fileInput.files = files; // HTML5 standard feature
+      fileInput.files = files;
       renderFilePreview(files);
     }
   }
@@ -464,30 +606,117 @@ document.querySelectorAll('.btn-remove-att').forEach(btn => {
   });
 });
 
-
-// Save draft via AJAX handling
+// ─────────────────────────────────────────────────────────
+// Save Draft — FIX C: works in both create and edit mode
+// ─────────────────────────────────────────────────────────
 const btnDraft = document.getElementById('btn-save-draft');
-if (btnDraft && CONFIG.saveDraftUrl) {
+
+if (btnDraft) {
   btnDraft.addEventListener('click', async () => {
-    btnDraft.disabled = true;
-    btnDraft.textContent = 'Saving...';
     
-    const formData = new FormData(form);
-    try {
-      const res = await fetch(CONFIG.saveDraftUrl, {
-        method: 'POST', body: formData
-      });
-      const js = await res.json();
-      if(js.success) {
-        btnDraft.textContent = '✅ Saved';
-        setTimeout(() => { btnDraft.textContent = '💾 Save Draft'; btnDraft.disabled=false; }, 2000);
+    if (CONFIG.mode === 'edit' && CONFIG.saveDraftUrl) {
+      // Edit mode: AJAX save
+      btnDraft.disabled = true;
+      btnDraft.textContent = 'Saving...';
+      
+      const formData = new FormData(form);
+      // Ensure status is Draft
+      formData.set('status', 'Draft');
+      try {
+        const res = await fetch(CONFIG.saveDraftUrl, {
+          method: 'POST', body: formData
+        });
+        const js = await res.json();
+        if(js.success) {
+          btnDraft.textContent = '✅ Saved';
+          setTimeout(() => { btnDraft.textContent = '💾 Save Draft'; btnDraft.disabled = false; }, 2500);
+        } else {
+          throw new Error('Server returned failure');
+        }
+      } catch(e) {
+        console.error(e);
+        alert("Error saving draft. Please try again.");
+        btnDraft.textContent = '💾 Save Draft';
+        btnDraft.disabled = false;
       }
-    } catch(e) {
-      alert("Error saving draft");
-      btnDraft.textContent = '💾 Save Draft';
-      btnDraft.disabled = false;
+    } else {
+      // Create mode: FIX C — set status=Draft and submit the form normally
+      const statusSelect = form.querySelector('select[name="status"]');
+      if (statusSelect) statusSelect.value = 'Draft';
+      
+      // Ensure we don't submit a duplicate
+      btnDraft.disabled = true;
+      btnDraft.textContent = 'Saving Draft...';
+      form.submit();
     }
   });
 }
 
+// ─────────────────────────────────────────────────────────
+// Save & New button
+// ─────────────────────────────────────────────────────────
+const btnSaveNew = document.getElementById('btn-save-new');
+if (btnSaveNew && form) {
+  btnSaveNew.addEventListener('click', () => {
+    // Add a hidden field so the backend can redirect to /new
+    let inp = form.querySelector('input[name="save_and_new"]');
+    if (!inp) {
+      inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = 'save_and_new';
+      form.appendChild(inp);
+    }
+    inp.value = '1';
+    form.submit();
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+// Term Groups Checkbox Wiring
+// ─────────────────────────────────────────────────────────
+document.querySelectorAll('.tg-master-cb').forEach(masterCb => {
+  masterCb.addEventListener('change', function() {
+    const groupId = this.dataset.group;
+    document.querySelectorAll(`.term-cb[data-group="${groupId}"]`).forEach(cb => {
+      cb.checked = this.checked;
+      const termItem = cb.closest('.qf-term-item');
+      if(termItem) {
+        if(this.checked) termItem.classList.add('is-attached');
+        else termItem.classList.remove('is-attached');
+      }
+    });
+  });
 });
+
+document.querySelectorAll('.term-cb').forEach(termCb => {
+  termCb.addEventListener('change', function() {
+    const groupId = this.dataset.group;
+    const termItem = this.closest('.qf-term-item');
+    if(termItem) {
+      if(this.checked) termItem.classList.add('is-attached');
+      else termItem.classList.remove('is-attached');
+    }
+    
+    // Update master checkbox
+    const master = document.querySelector(`.tg-master-cb[data-group="${groupId}"]`);
+    if(master) {
+      const total = document.querySelectorAll(`.term-cb[data-group="${groupId}"]`).length;
+      const checked = document.querySelectorAll(`.term-cb[data-group="${groupId}"]:checked`).length;
+      master.checked = (total > 0 && total === checked);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// Initialise column visibility on page load
+// ─────────────────────────────────────────────────────────
+buildColVisibilityModal();
+
+
+// Initial area calculation for edit mode
+setTimeout(() => {
+  document.querySelectorAll('.erp-item-row').forEach(row => calculateRowArea(row));
+  scheduleRecalculate();
+}, 150);
+
+}); // end DOMContentLoaded
