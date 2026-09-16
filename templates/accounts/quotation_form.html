@@ -30,7 +30,7 @@
   <!-- ── TOP HEADER ──────────────────────────────────── -->
   <div class="qf-topbar" style="background: transparent; border: none; padding: 0 0 24px 0; display: flex; justify-content: space-between; align-items: center;">
     <div class="qf-topbar-left">
-      <a href="{{ url_for('quotations.list_quotations') }}" class="btn-back" style="color: var(--saas-text-muted);">
+      <a href="{{ url_for('quotations.quotation_list') }}" class="btn-back" style="color: var(--saas-text-muted);">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
         Back
       </a>
@@ -737,7 +737,7 @@
     <!-- STICKY BOTTOM ACTION BAR -->
     <div class="saas-action-bar" style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); border-top: 1px solid var(--saas-border); padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; box-shadow: 0 -4px 12px rgba(0,0,0,0.05);">
       <div class="saas-action-left" style="display: flex; gap: 12px;">
-        <a href="{{ url_for('quotations.list_quotations') }}" class="btn-ghost" style="border: 1px solid var(--saas-border);">← Cancel</a>
+        <a href="{{ url_for('quotations.quotation_list') }}" class="btn-ghost" style="border: 1px solid var(--saas-border);">← Cancel</a>
         {% if mode == 'edit' %}
         <a href="{{ url_for('quotations.view_quotation', quotation_id=quotation.id) }}" class="btn-ghost" style="border: 1px solid var(--saas-border);">👁 Preview</a>
         <a href="{{ url_for('quotations.generate_pdf', quotation_id=quotation.id) }}" target="_blank" class="btn-secondary">📄 PDF</a>
