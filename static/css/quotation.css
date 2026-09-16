@@ -2708,3 +2708,270 @@ label {
   .doc-parties { grid-template-columns: 1fr; gap: 16px; }
   .ql-wrapper { padding: 16px; }
 }
+
+/* =========================================================================
+   SAAS REDESIGN (QUOTATION FORM V2)
+   ========================================================================= */
+
+:root {
+  --saas-primary: #111827;
+  --saas-border: #e5e7eb;
+  --saas-bg-body: #f3f4f6;
+  --saas-bg-card: #ffffff;
+  --saas-text: #374151;
+  --saas-text-muted: #6b7280;
+  --saas-radius: 8px;
+  --saas-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.025);
+  --saas-shadow-hover: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+}
+
+.saas-parties-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.saas-card {
+  background: var(--saas-bg-card);
+  border: 1px solid var(--saas-border);
+  border-radius: var(--saas-radius);
+  padding: 24px;
+  box-shadow: var(--saas-shadow);
+  transition: box-shadow 0.2s;
+}
+
+.saas-card:hover {
+  box-shadow: var(--saas-shadow-hover);
+}
+
+.saas-card-header-sm {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--saas-border);
+  padding-bottom: 8px;
+}
+
+.saas-label-muted {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--saas-text-muted);
+}
+
+.saas-link-sm {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.saas-company-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--saas-primary);
+  margin-bottom: 8px;
+}
+
+.saas-company-info p {
+  font-size: 13px;
+  color: var(--saas-text);
+  margin-bottom: 4px;
+}
+
+.saas-select, .saas-input {
+  width: 100%;
+  border: 1px solid var(--saas-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--saas-text);
+  background: #fff;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.saas-select:focus, .saas-input:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+
+.saas-customer-autofill {
+  margin-top: 16px;
+  background: #f9fafb;
+  border-radius: 6px;
+  padding: 12px;
+  border: 1px solid var(--saas-border);
+}
+
+.saas-autofill-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.saas-af-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.saas-af-full {
+  grid-column: span 2;
+}
+
+.saas-af-label {
+  font-size: 11px;
+  color: var(--saas-text-muted);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.saas-af-val {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--saas-primary);
+}
+
+.saas-details-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.saas-span-2 {
+  grid-column: span 2;
+}
+
+.saas-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--saas-text-muted);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.saas-readonly-val {
+  padding: 10px 12px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--saas-primary);
+  border: 1px solid transparent;
+}
+
+.saas-due-row {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 1024px) {
+  .saas-parties-grid {
+    grid-template-columns: 1fr;
+  }
+  .saas-details-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .saas-details-grid {
+    grid-template-columns: 1fr;
+  }
+  .saas-span-2 {
+    grid-column: span 1;
+  }
+}
+
+/* =========================================================================
+   SAAS LINE ITEMS TABLE OVERRIDES
+   ========================================================================= */
+
+.saas-items-card .erp-items-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.saas-items-card .erp-table-hdr th {
+  background: #f9fafb !important;
+  color: var(--saas-text-muted) !important;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 12px 8px !important;
+  border-bottom: 1px solid var(--saas-border) !important;
+  border-right: none !important;
+}
+
+.saas-items-card .erp-item-row td {
+  border-bottom: 1px solid var(--saas-border) !important;
+  border-right: none !important;
+  padding: 8px !important;
+  background: #fff;
+  transition: background 0.1s;
+}
+
+.saas-items-card .erp-item-row:hover td {
+  background: #f8fafc;
+}
+
+/* Make inputs look seamless in the table until hovered/focused */
+.saas-items-card .erp-inline-input,
+.saas-items-card .erp-inline-select,
+.saas-items-card .erp-inline-textarea {
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  border-radius: 4px;
+  padding: 8px !important;
+  font-size: 13px !important;
+  color: var(--saas-text) !important;
+  box-shadow: none !important;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.saas-items-card .erp-inline-input:hover,
+.saas-items-card .erp-inline-select:hover,
+.saas-items-card .erp-inline-textarea:hover {
+  border: 1px solid #d1d5db !important;
+  background: #fff !important;
+}
+
+.saas-items-card .erp-inline-input:focus,
+.saas-items-card .erp-inline-select:focus,
+.saas-items-card .erp-inline-textarea:focus {
+  border: 1px solid #2563eb !important;
+  background: #fff !important;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.1) !important;
+  outline: none;
+}
+
+.saas-items-card .erp-readonly-val,
+.saas-items-card .item-total-str {
+  font-size: 13px !important;
+}
+
+.saas-items-card .erp-group-row td {
+  background: #f1f5f9 !important;
+  border-bottom: 1px solid var(--saas-border) !important;
+  border-top: 1px solid var(--saas-border) !important;
+  padding: 12px 16px !important;
+}
+
+.saas-items-card .group-name-input {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: var(--saas-primary) !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* Action Bar Padding to avoid overlapping content */
+body {
+  padding-bottom: 100px;
+}
