@@ -27,20 +27,36 @@
 
 <div class="qf-wrapper" id="quotation-form-root">
 
-  <!-- ── TOP HEADER ──────────────────────────────────── -->
-  <div class="qf-topbar" style="background: transparent; border: none; padding: 0 0 24px 0; display: flex; justify-content: space-between; align-items: center;">
+  <!-- ── TOP ACTION BAR ──────────────────────────────────── -->
+  <div class="qf-topbar">
     <div class="qf-topbar-left">
-      <a href="{{ url_for('quotations.quotation_list') }}" class="btn-back" style="color: var(--saas-text-muted);">
+      <a href="{{ url_for('quotations.quotation_list') }}" class="btn-back">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
         Back
       </a>
-      <div class="qf-breadcrumb" style="font-size: 13px; color: var(--saas-text-muted);">
+      <div class="qf-breadcrumb">
         <span>Accounts</span>
-        <span class="sep" style="margin: 0 8px;">›</span>
+        <span class="sep">›</span>
         <span>Quotations</span>
-        <span class="sep" style="margin: 0 8px;">›</span>
-        <span class="active" style="color: var(--saas-primary); font-weight: 600;">{{ 'Edit' if mode == 'edit' else 'New' }} Quotation</span>
+        <span class="sep">›</span>
+        <span class="active">{{ 'Edit' if mode == 'edit' else 'New' }}</span>
       </div>
+    </div>
+    <div class="qf-topbar-right">
+      <button type="button" class="btn-topbar-draft" id="btn-save-draft">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+        Save Draft
+      </button>
+      {% if mode == 'create' %}
+      <button type="button" class="btn-topbar-new" id="btn-save-new">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
+        Save &amp; New
+      </button>
+      {% endif %}
+      <button type="submit" form="quotation-main-form" class="btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M20 6L9 17l-5-5"/></svg>
+        {{ 'Update' if mode == 'edit' else 'Create' }} Quotation
+      </button>
     </div>
   </div>
 
@@ -57,162 +73,154 @@
       ════════════════════════════════════════════════════ -->
       <div class="qf-main">
 
-        <!-- ── SECTION 1: PARTIES (FROM/TO) ───────────────────────────── -->
-        <div class="saas-parties-grid">
-          
-          <!-- Quotation From -->
-          <div class="saas-card saas-party-card">
-            <div class="saas-card-header-sm">
-              <span class="saas-label-muted">Quotation From</span>
-              <a href="{{ url_for('quotation_settings.settings_home') }}" class="saas-link-sm">Edit</a>
-            </div>
-            <div class="saas-company-info">
-              <h2 class="saas-company-name">{{ settings.company_name or 'GlassEntials' }}</h2>
-              {% if settings.company_address %}<p>{{ settings.company_address }}</p>{% endif %}
-              {% if settings.company_gstin %}<p><strong>GSTIN:</strong> {{ settings.company_gstin }}</p>{% endif %}
-              {% if settings.company_phone %}<p>📞 {{ settings.company_phone }}</p>{% endif %}
-            </div>
+        <!-- ── SECTION 1: HEADER ───────────────────────────── -->
+        <div class="qf-card" id="section-header">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">01</span>
+            <h2>Document Header</h2>
           </div>
+          <div class="qf-card-body">
 
-          <!-- Quotation To (Customer) -->
-          <div class="saas-card saas-party-card" id="section-customer">
-            <div class="saas-card-header-sm">
-              <span class="saas-label-muted">Quotation To (Customer/Lead)</span>
-              <a href="{{ url_for('customers.add_customer') }}" class="saas-link-sm" id="btn-new-customer">+ New</a>
-            </div>
-            <div class="saas-party-body">
-              <div class="qf-row" style="margin-bottom: 12px;">
-                <div class="qf-field qf-field--grow" style="margin-bottom: 0;">
-                  <select name="customer_id" class="qf-select saas-select" id="customer-select">
-                    <option value="">— Select Customer —</option>
-                    {% for c in customers %}
-                    <option value="{{ c.id }}"
-                      data-name="{{ c.name }}"
-                      data-email="{{ c.email }}"
-                      data-phone="{{ c.phone_number }}"
-                      data-address="{{ c.address or '' }}"
-                      data-city="{{ c.city or '' }}"
-                      data-state="{{ c.state or '' }}"
-                      data-gstin="{{ c.gst_number or '' }}"
-                      data-company="{{ c.company or '' }}"
-                      {{ 'selected' if quotation and quotation.customer_id == c.id }}>
-                      {{ c.name }}{% if c.company %} — {{ c.company }}{% endif %}
-                    </option>
-                    {% endfor %}
-                  </select>
-                </div>
-                <div class="qf-field" style="margin-bottom: 0;">
-                  <select name="lead_id" class="qf-select saas-select" id="lead-select">
-                    <option value="">— Or Lead —</option>
-                    {% for l in leads %}
-                    <option value="{{ l.id }}" {{ 'selected' if quotation and quotation.lead_id == l.id }}>{{ l.name }}</option>
-                    {% endfor %}
-                  </select>
-                </div>
+            <div class="qf-row">
+              <div class="qf-field qf-field--sm">
+                <label>Document Type</label>
+                <select name="doc_type" class="qf-select" id="doc-type-select">
+                  {% set dtypes = ['Quotation', 'Proforma Invoice', 'Sales Order'] %}
+                  {% set cur_dt = quotation.doc_type.value if quotation and quotation.doc_type else 'Quotation' %}
+                  {% for dt in dtypes %}
+                  <option value="{{ dt }}" {{ 'selected' if cur_dt == dt }}>{{ dt }}</option>
+                  {% endfor %}
+                </select>
               </div>
-              
-              <!-- Autofill preview panel -->
-              <div class="saas-customer-autofill" id="customer-autofill" style="{{ '' if (quotation and quotation.customer_id) else 'display:none' }}">
-                <div class="saas-autofill-grid">
-                  <div class="saas-af-row"><span class="saas-af-label">Company</span><span class="saas-af-val" id="af-company"></span></div>
-                  <div class="saas-af-row"><span class="saas-af-label">GSTIN</span><span class="saas-af-val" id="af-gstin"></span></div>
-                  <div class="saas-af-row"><span class="saas-af-label">Email</span><span class="saas-af-val" id="af-email"></span></div>
-                  <div class="saas-af-row"><span class="saas-af-label">Phone</span><span class="saas-af-val" id="af-phone"></span></div>
-                  <div class="saas-af-row saas-af-full"><span class="saas-af-label">Address</span><span class="saas-af-val" id="af-address"></span>, <span class="saas-af-val" id="af-state"></span></div>
-                </div>
+              <div class="qf-field qf-field--grow">
+                <label>Document Title</label>
+                <input type="text" name="quotation_title" class="qf-input"
+                       value="{{ quotation.quotation_title if quotation else 'Quotation' }}"
+                       placeholder="e.g. Quotation for Glass Works">
               </div>
             </div>
+
+            <div class="qf-row">
+              <div class="qf-field">
+                <label>Quotation Number <span class="badge-auto">Auto</span></label>
+                <div class="qf-number-preview" id="qn-preview">
+                  {{ quotation.quotation_number if quotation else next_number }}
+                </div>
+              </div>
+              <div class="qf-field">
+                <label>Quotation Date <span class="req">*</span></label>
+                <input type="date" name="issue_date" class="qf-input" id="issue-date"
+                       value="{{ (quotation.issue_date.strftime('%Y-%m-%d') if quotation and quotation.issue_date else today.strftime('%Y-%m-%d')) }}"
+                       required>
+              </div>
+              <div class="qf-field">
+                <label>Valid Till / Due Date</label>
+                <div class="qf-due-row">
+                  <select name="valid_till_type" id="valid-till-type" class="qf-select qf-select--sm">
+                    <option value="date" {{ 'selected' if not quotation or quotation.valid_till_type == 'date' }}>Specific Date</option>
+                    <option value="days" {{ 'selected' if quotation and quotation.valid_till_type == 'days' }}>Days After</option>
+                    <option value="none" {{ 'selected' if quotation and quotation.valid_till_type == 'none' }}>No Expiry</option>
+                  </select>
+                  <div id="due-date-picker" class="{{ 'hidden' if quotation and quotation.valid_till_type != 'date' else '' }}">
+                    <input type="date" name="due_date" class="qf-input"
+                           value="{{ quotation.due_date.strftime('%Y-%m-%d') if quotation and quotation.due_date else '' }}">
+                  </div>
+                  <div id="due-days-picker" class="{{ '' if quotation and quotation.valid_till_type == 'days' else 'hidden' }}">
+                    <input type="number" name="valid_till_days" class="qf-input" min="1" max="365"
+                           placeholder="e.g. 30"
+                           value="{{ quotation.valid_till_days if quotation and quotation.valid_till_days else settings.validity_days }}">
+                    <span class="qf-suffix">days</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="qf-row">
+              <div class="qf-field">
+                <label>Project</label>
+                <select name="project_id" class="qf-select">
+                  <option value="">— Select Project —</option>
+                  {% for p in projects %}
+                  <option value="{{ p.id }}" {{ 'selected' if quotation and quotation.project_id == p.id }}>{{ p.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="qf-field">
+                <label>Source</label>
+                <input type="text" name="source" class="qf-input"
+                       value="{{ quotation.source if quotation and quotation.source else '' }}"
+                       placeholder="e.g. Referral, Website">
+              </div>
+              <div class="qf-field">
+                <label>Timeline</label>
+                <input type="text" name="timeline" class="qf-input"
+                       value="{{ quotation.timeline if quotation and quotation.timeline else '' }}"
+                       placeholder="e.g. 4 Weeks">
+              </div>
+              <div class="qf-field qf-field--sm">
+                <label>Amendment No.</label>
+                <input type="text" name="amendment_no" class="qf-input"
+                       value="{{ quotation.amendment_no if quotation and quotation.amendment_no else '' }}"
+                       placeholder="e.g. Rev-1">
+              </div>
+            </div>
+
           </div>
         </div>
 
-        <!-- ── SECTION 2: DOCUMENT DETAILS ───────────────────────────── -->
-        <div class="saas-card saas-details-card" id="section-header">
-          <div class="saas-details-grid">
-            
-            <div class="saas-field">
-              <label>Document Type</label>
-              <select name="doc_type" class="qf-select saas-select" id="doc-type-select">
-                {% set dtypes = ['Quotation', 'Proforma Invoice', 'Sales Order'] %}
-                {% set cur_dt = quotation.doc_type.value if quotation and quotation.doc_type else 'Quotation' %}
-                {% for dt in dtypes %}
-                <option value="{{ dt }}" {{ 'selected' if cur_dt == dt }}>{{ dt }}</option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <div class="saas-field saas-span-2">
-              <label>Document Title</label>
-              <input type="text" name="quotation_title" class="qf-input saas-input"
-                     value="{{ quotation.quotation_title if quotation else 'Quotation' }}"
-                     placeholder="e.g. Quotation for Glass Works">
-            </div>
-
-            <div class="saas-field">
-              <label>Quotation Number</label>
-              <div class="saas-readonly-val" id="qn-preview">
-                {{ quotation.quotation_number if quotation else next_number }}
-              </div>
-            </div>
-
-            <div class="saas-field">
-              <label>Issue Date <span class="req">*</span></label>
-              <input type="date" name="issue_date" class="qf-input saas-input" id="issue-date"
-                     value="{{ (quotation.issue_date.strftime('%Y-%m-%d') if quotation and quotation.issue_date else today.strftime('%Y-%m-%d')) }}"
-                     required>
-            </div>
-
-            <div class="saas-field saas-span-2">
-              <label>Valid Till / Due</label>
-              <div class="saas-due-row">
-                <select name="valid_till_type" id="valid-till-type" class="qf-select saas-select">
-                  <option value="date" {{ 'selected' if not quotation or quotation.valid_till_type == 'date' }}>Specific Date</option>
-                  <option value="days" {{ 'selected' if quotation and quotation.valid_till_type == 'days' }}>Days After</option>
-                  <option value="none" {{ 'selected' if quotation and quotation.valid_till_type == 'none' }}>No Expiry</option>
+        <!-- ── SECTION 2: CUSTOMER ────────────────────────── -->
+        <div class="qf-card" id="section-customer">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">02</span>
+            <h2>Quotation For <span class="text-muted">(Customer / Lead)</span></h2>
+            <a href="{{ url_for('customers.add_customer') }}" class="btn-icon-sm ml-auto" id="btn-new-customer" title="Create New Customer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              New Customer
+            </a>
+          </div>
+          <div class="qf-card-body">
+            <div class="qf-row">
+              <div class="qf-field qf-field--grow">
+                <label>Select Customer</label>
+                <select name="customer_id" class="qf-select" id="customer-select">
+                  <option value="">— Select Customer —</option>
+                  {% for c in customers %}
+                  <option value="{{ c.id }}"
+                    data-name="{{ c.name }}"
+                    data-email="{{ c.email }}"
+                    data-phone="{{ c.phone_number }}"
+                    data-address="{{ c.address or '' }}"
+                    data-city="{{ c.city or '' }}"
+                    data-state="{{ c.state or '' }}"
+                    data-gstin="{{ c.gst_number or '' }}"
+                    data-company="{{ c.company or '' }}"
+                    {{ 'selected' if quotation and quotation.customer_id == c.id }}>
+                    {{ c.name }}{% if c.company %} — {{ c.company }}{% endif %}
+                  </option>
+                  {% endfor %}
                 </select>
-                <div id="due-date-picker" class="{{ 'hidden' if quotation and quotation.valid_till_type != 'date' else '' }}">
-                  <input type="date" name="due_date" class="qf-input saas-input"
-                         value="{{ quotation.due_date.strftime('%Y-%m-%d') if quotation and quotation.due_date else '' }}">
-                </div>
-                <div id="due-days-picker" class="{{ '' if quotation and quotation.valid_till_type == 'days' else 'hidden' }}" style="display:flex; align-items:center; gap:8px;">
-                  <input type="number" name="valid_till_days" class="qf-input saas-input" min="1" max="365"
-                         placeholder="30" style="width: 80px;"
-                         value="{{ quotation.valid_till_days if quotation and quotation.valid_till_days else settings.validity_days }}">
-                  <span class="text-sm text-muted">days</span>
-                </div>
+              </div>
+              <div class="qf-field">
+                <label>Or Select Lead</label>
+                <select name="lead_id" class="qf-select" id="lead-select">
+                  <option value="">— Select Lead —</option>
+                  {% for l in leads %}
+                  <option value="{{ l.id }}" {{ 'selected' if quotation and quotation.lead_id == l.id }}>{{ l.name }}</option>
+                  {% endfor %}
+                </select>
               </div>
             </div>
-
-            <div class="saas-field">
-              <label>Project</label>
-              <select name="project_id" class="qf-select saas-select">
-                <option value="">— Select Project —</option>
-                {% for p in projects %}
-                <option value="{{ p.id }}" {{ 'selected' if quotation and quotation.project_id == p.id }}>{{ p.name }}</option>
-                {% endfor %}
-              </select>
+            <!-- Autofill preview panel -->
+            <div class="qf-customer-autofill" id="customer-autofill" style="{{ '' if (quotation and quotation.customer_id) else 'display:none' }}">
+              <div class="qf-autofill-grid">
+                <div class="qf-autofill-row"><span class="label">Company</span><span class="value" id="af-company"></span></div>
+                <div class="qf-autofill-row"><span class="label">Address</span><span class="value" id="af-address"></span></div>
+                <div class="qf-autofill-row"><span class="label">GSTIN</span><span class="value" id="af-gstin"></span></div>
+                <div class="qf-autofill-row"><span class="label">Phone</span><span class="value" id="af-phone"></span></div>
+                <div class="qf-autofill-row"><span class="label">Email</span><span class="value" id="af-email"></span></div>
+                <div class="qf-autofill-row"><span class="label">State</span><span class="value" id="af-state"></span></div>
+              </div>
             </div>
-
-            <div class="saas-field">
-              <label>Source</label>
-              <input type="text" name="source" class="qf-input saas-input"
-                     value="{{ quotation.source if quotation and quotation.source else '' }}"
-                     placeholder="e.g. Referral">
-            </div>
-
-            <div class="saas-field">
-              <label>Timeline</label>
-              <input type="text" name="timeline" class="qf-input saas-input"
-                     value="{{ quotation.timeline if quotation and quotation.timeline else '' }}"
-                     placeholder="e.g. 4 Weeks">
-            </div>
-
-            <div class="saas-field">
-              <label>Amendment No.</label>
-              <input type="text" name="amendment_no" class="qf-input saas-input"
-                     value="{{ quotation.amendment_no if quotation and quotation.amendment_no else '' }}"
-                     placeholder="e.g. Rev-1">
-            </div>
-            
           </div>
         </div>
 
@@ -289,31 +297,32 @@
         {% endif %}
 
         <!-- ── SECTION 4: LINE ITEMS (ERP BILLING) ──────────────────────── -->
-        <div class="saas-card saas-items-card" id="section-items" style="padding:0; overflow:hidden;">
-          <div class="saas-items-header" style="padding: 16px 24px; border-bottom: 1px solid var(--saas-border); display: flex; justify-content: space-between; align-items: center; background: #fafafa;">
-            <div>
-              <h2 style="font-size: 16px; font-weight: 700; color: var(--saas-primary);">Line Items</h2>
-              <p class="text-xs text-muted" style="margin-top: 2px;">Add and configure products or services for this quotation.</p>
-            </div>
-            
-            <div class="saas-items-actions" style="display: flex; gap: 12px; align-items: center;">
-              <label class="qf-toggle-label text-sm" style="margin: 0;">
+        <div class="qf-card erp-items-card" id="section-items">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">{{ '04' if custom_fields else '03' }}</span>
+            <h2>Line Items</h2>
+            <div class="qf-items-controls ml-auto">
+              <label class="qf-toggle-label mr-md">
                 <input type="checkbox" id="is-igst-cb" name="is_igst" value="1"
                        {{ 'checked' if quotation and quotation.is_igst }}>
                 <span>Inter-state (IGST)</span>
               </label>
-              <div style="width: 1px; height: 24px; background: var(--saas-border);"></div>
-              <button type="button" class="btn-ghost-erp" id="btn-config-gst" title="Configure GST default">⚙ GST</button>
-              <select class="erp-select-toolbar" id="currency-select" style="height: 32px; border-radius: 6px; border: 1px solid var(--saas-border);">
-                <option>₹ INR</option>
-                <option>$ USD</option>
-                <option>€ EUR</option>
-              </select>
-              <button type="button" class="btn-ghost-erp" id="btn-edit-cols" title="Edit columns and formulas">🧮 Columns</button>
             </div>
           </div>
+          
+          <!-- ERP Toolbar -->
+          <div class="erp-toolbar">
+             <button type="button" class="btn-ghost-erp" id="btn-config-gst" title="Configure GST default">⚙ Configure GST</button>
+             <select class="erp-select-toolbar" id="currency-select">
+               <option>₹ INR</option>
+               <option>$ USD</option>
+               <option>€ EUR</option>
+             </select>
+             <button type="button" class="btn-ghost-erp" id="btn-num-format" title="Change format">🔢 Number Format</button>
+             <button type="button" class="btn-ghost-erp" id="btn-edit-cols" title="Edit columns and formulas">🧮 Edit Columns/Formulas</button>
+          </div>
 
-          <div class="qf-card-body p-0" style="padding: 0;">
+          <div class="qf-card-body p-0">
             <div class="erp-table-wrap">
               <table class="erp-items-table" id="items-table">
                 <thead class="erp-table-hdr">
@@ -453,118 +462,123 @@
         </div>
 
         <!-- ── SECTION 5: DISCOUNT + CHARGES ─────────────── -->
-        <div class="saas-card" id="section-totals-config">
-          <div class="saas-card-header-sm">
-            <span class="saas-label-muted">Discount & Additional Charges</span>
+        <div class="qf-card" id="section-totals-config">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">05</span>
+            <h2>Discount & Additional Charges</h2>
           </div>
-          <div class="saas-details-grid" style="grid-template-columns: repeat(4, 1fr);">
-            <div class="saas-field">
-              <label>Total-Level Discount</label>
-              <div style="display:flex;">
-                <input type="number" name="total_discount" id="total-discount" class="saas-input item-calc"
-                       value="{{ quotation.total_discount if quotation else 0 }}" min="0" step="0.01" style="border-radius: 6px 0 0 6px; border-right: 0;">
-                <select name="total_discount_type" id="total-discount-type" class="saas-select disc-type item-calc" style="border-radius: 0 6px 6px 0; width: 90px; background: #f9fafb;">
-                  <option value="flat" {{ 'selected' if not quotation or quotation.total_discount_type == 'flat' }}>₹ Flat</option>
-                  <option value="percent" {{ 'selected' if quotation and quotation.total_discount_type == 'percent' }}>% Pct</option>
-                </select>
+          <div class="qf-card-body">
+            <div class="qf-row">
+              <div class="qf-field">
+                <label>Total-Level Discount</label>
+                <div class="disc-wrap">
+                  <input type="number" name="total_discount" id="total-discount" class="qf-input item-calc"
+                         value="{{ quotation.total_discount if quotation else 0 }}" min="0" step="0.01">
+                  <select name="total_discount_type" id="total-discount-type" class="qf-select disc-type item-calc">
+                    <option value="flat" {{ 'selected' if not quotation or quotation.total_discount_type == 'flat' }}>₹ Flat</option>
+                    <option value="percent" {{ 'selected' if quotation and quotation.total_discount_type == 'percent' }}>% Percent</option>
+                  </select>
+                </div>
               </div>
-            </div>
-            <div class="saas-field">
-              <label>Additional Charges Label</label>
-              <input type="text" name="additional_charges_label" class="saas-input"
-                     value="{{ quotation.additional_charges_label if quotation else '' }}"
-                     placeholder="e.g. Freight, Installation">
-            </div>
-            <div class="saas-field">
-              <label>Additional Charges ₹</label>
-              <input type="number" name="additional_charges" id="additional-charges" class="saas-input item-calc"
-                     value="{{ quotation.additional_charges if quotation else 0 }}" min="0" step="0.01">
-            </div>
-            <div class="saas-field" style="display:flex; align-items:center; padding-top:24px;">
-              <label class="qf-toggle-label" style="margin:0;">
-                <input type="checkbox" name="additional_charges_taxable" id="charges-taxable" value="1"
-                       {{ 'checked' if quotation and quotation.additional_charges_taxable }}>
-                <span>Taxable</span>
-              </label>
+              <div class="qf-field">
+                <label>Additional Charges Label</label>
+                <input type="text" name="additional_charges_label" class="qf-input"
+                       value="{{ quotation.additional_charges_label if quotation else '' }}"
+                       placeholder="e.g. Freight, Installation">
+              </div>
+              <div class="qf-field">
+                <label>Additional Charges ₹</label>
+                <input type="number" name="additional_charges" id="additional-charges" class="qf-input item-calc"
+                       value="{{ quotation.additional_charges if quotation else 0 }}" min="0" step="0.01">
+              </div>
+              <div class="qf-field qf-field--center">
+                <label class="qf-toggle-label mt-lg">
+                  <input type="checkbox" name="additional_charges_taxable" id="charges-taxable" value="1"
+                         {{ 'checked' if quotation and quotation.additional_charges_taxable }}>
+                  <span>Taxable</span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- ── SECTION 6: PAYMENT DETAILS ────────────────── -->
-        <div class="saas-card" id="section-payment">
-          <div class="saas-card-header-sm">
-            <span class="saas-label-muted">Payment Details</span>
+        <div class="qf-card" id="section-payment">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">06</span>
+            <h2>Payment Details</h2>
           </div>
-          <div class="saas-details-grid" style="grid-template-columns: repeat(3, 1fr);">
-            <div class="saas-field">
-              <label>Advance Payment ₹</label>
-              <input type="number" name="advance_payment" class="saas-input"
-                     value="{{ quotation.advance_payment if quotation else 0 }}" min="0" step="0.01">
-            </div>
-            <div class="saas-field">
-              <label>Mode of Payment</label>
-              <input type="text" name="mode_of_payment" class="saas-input"
-                     value="{{ quotation.mode_of_payment if quotation else '' }}"
-                     placeholder="e.g. NEFT, Cheque, Cash">
-            </div>
-            <div class="saas-field">
-              <label>Balance Payment ₹</label>
-              <input type="number" name="balance_payment" class="saas-input"
-                     value="{{ quotation.balance_payment if quotation else 0 }}" min="0" step="0.01">
+          <div class="qf-card-body">
+            <div class="qf-row">
+              <div class="qf-field">
+                <label>Advance Payment ₹</label>
+                <input type="number" name="advance_payment" class="qf-input"
+                       value="{{ quotation.advance_payment if quotation else 0 }}" min="0" step="0.01">
+              </div>
+              <div class="qf-field">
+                <label>Mode of Payment</label>
+                <input type="text" name="mode_of_payment" class="qf-input"
+                       value="{{ quotation.mode_of_payment if quotation else '' }}"
+                       placeholder="e.g. NEFT, Cheque, Cash">
+              </div>
+              <div class="qf-field">
+                <label>Balance Payment ₹</label>
+                <input type="number" name="balance_payment" class="qf-input"
+                       value="{{ quotation.balance_payment if quotation else 0 }}" min="0" step="0.01">
+              </div>
             </div>
           </div>
         </div>
 
         <!-- ── SECTION 7: NOTES & TERMS ───────────────────── -->
-        <div class="saas-card" id="section-notes">
-          <div class="saas-card-header-sm">
-            <span class="saas-label-muted">Notes, Terms & Conditions</span>
+        <div class="qf-card" id="section-notes">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">07</span>
+            <h2>Notes, Terms & Conditions</h2>
           </div>
-          <div class="saas-details-grid" style="grid-template-columns: 1fr;">
-            <div class="saas-field">
-              <label>Notes <span class="text-muted font-normal">— Visible on document</span></label>
-              <textarea name="notes" class="saas-input" rows="3"
+          <div class="qf-card-body">
+            <div class="qf-field mb-md">
+              <label>Notes <span class="text-muted">(visible on document)</span></label>
+              <textarea name="notes" class="qf-input" rows="3"
                         placeholder="Any notes to the customer...">{{ quotation.notes if quotation and quotation.notes else '' }}</textarea>
             </div>
-            <div class="saas-field">
-              <label>Additional Info <span class="text-muted font-normal">— Internal reference</span></label>
-              <textarea name="additional_info" class="saas-input" rows="2"
+            <div class="qf-field mb-md">
+              <label>Additional Info</label>
+              <textarea name="additional_info" class="qf-input" rows="2"
                         placeholder="Internal info, references...">{{ quotation.additional_info if quotation and quotation.additional_info else '' }}</textarea>
             </div>
-            <div class="saas-field">
+            <div class="qf-field mb-md">
               <label>Inline Terms & Conditions</label>
-              <textarea name="terms_conditions" class="saas-input" rows="3"
+              <textarea name="terms_conditions" class="qf-input" rows="3"
                         placeholder="Quick terms (or use Annexure terms below)">{{ quotation.terms_conditions if quotation and quotation.terms_conditions else '' }}</textarea>
             </div>
 
             <!-- Annexure Terms -->
             {% if term_groups %}
-            <div class="saas-annexure-section" style="margin-top: 16px;">
-              <h3 class="saas-label-muted" style="margin-bottom: 12px;">📋 Selectable Annexure Terms</h3>
+            <div class="qf-annexure-section">
+              <h3 class="qf-subsection-title">📋 Annexure Terms</h3>
               {% for tg in term_groups %}
-              <div class="saas-term-group" style="border: 1px solid var(--saas-border); border-radius: 6px; margin-bottom: 12px; overflow: hidden;">
-                <div class="saas-term-group-header" style="background: #f9fafb; padding: 12px 16px; border-bottom: 1px solid var(--saas-border);">
-                  <label class="qf-toggle-label" style="margin: 0;">
+              <div class="qf-term-group">
+                <div class="qf-term-group-header">
+                  <label class="qf-toggle-label">
                     <input type="checkbox" class="tg-master-cb" data-group="{{ tg.id }}"
                            {{ 'checked' if tg.is_default or (attached_term_ids is defined and tg.terms|selectattr('id', 'in', attached_term_ids)|list) }}>
-                    <strong style="color: var(--saas-primary);">{{ tg.name }}</strong>
+                    <strong>{{ tg.name }}</strong>
                   </label>
-                  {% if tg.description %}<p class="text-muted text-sm mt-sm" style="margin-left: 28px;">{{ tg.description }}</p>{% endif %}
+                  {% if tg.description %}<span class="text-muted text-sm">— {{ tg.description }}</span>{% endif %}
                 </div>
-                <div class="saas-term-list" style="padding: 12px 16px; display: flex; flex-direction: column; gap: 8px;">
+                <div class="qf-term-list">
                   {% for term in tg.terms %}
                   {% set is_attached = attached_term_ids is defined and term.id in attached_term_ids %}
                   {% set is_attached = is_attached or (tg.is_default and mode == 'create') %}
-                  <div class="saas-term-item {{ 'is-attached' if is_attached }}" style="padding: 8px; border-radius: 6px; background: {{ '#f0f9ff' if is_attached else 'transparent' }};">
-                    <label style="display: flex; gap: 12px; margin: 0; cursor: pointer;">
+                  <div class="qf-term-item {{ 'is-attached' if is_attached }}">
+                    <label>
                       <input type="checkbox" name="term_ids[]" value="{{ term.id }}"
                              class="term-cb" data-group="{{ tg.id }}"
-                             {{ 'checked' if is_attached }} style="margin-top: 3px;">
-                      <div>
-                        <span style="font-weight: 600; color: var(--saas-primary); font-size: 13px;">{{ term.term_title }}</span>
-                        <p class="text-muted text-sm" style="margin-top: 4px;">{{ term.term_body[:100] }}{% if term.term_body|length > 100 %}…{% endif %}</p>
-                      </div>
+                             {{ 'checked' if is_attached }}>
+                      <span class="term-title">{{ term.term_title }}</span>
                     </label>
+                    <p class="term-body-preview">{{ term.term_body[:100] }}{% if term.term_body|length > 100 %}…{% endif %}</p>
                   </div>
                   {% endfor %}
                 </div>
@@ -576,50 +590,53 @@
         </div>
 
         <!-- ── SECTION 8: ATTACHMENTS ─────────────────────── -->
-        <div class="saas-card" id="section-attachments">
-          <div class="saas-card-header-sm">
-            <span class="saas-label-muted">Attachments</span>
+        <div class="qf-card" id="section-attachments">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">08</span>
+            <h2>Attachments</h2>
           </div>
-          <div class="saas-card-body p-0">
+          <div class="qf-card-body">
             {% if quotation and quotation.attachments %}
             <div class="qf-attachment-list mb-md">
               {% for att in quotation.attachments %}
-              <div class="qf-attachment-item" style="background: #f9fafb; border: 1px solid var(--saas-border); padding: 8px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px; margin-right: 8px;">
+              <div class="qf-attachment-item">
                 <span class="att-icon">📎</span>
-                <a href="{{ url_for('quotations.download_attachment', att_id=att.id) }}" target="_blank" style="color: var(--saas-primary); text-decoration: none; font-size: 13px;">{{ att.original_name }}</a>
-                <button type="button" class="btn-remove-att" data-att-id="{{ att.id }}" title="Delete" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 2px;">✕</button>
+                <a href="{{ url_for('quotations.download_attachment', att_id=att.id) }}" target="_blank">{{ att.original_name }}</a>
+                <button type="button" class="btn-remove-att" data-att-id="{{ att.id }}" title="Delete">✕</button>
               </div>
               {% endfor %}
             </div>
             {% endif %}
-            <div class="qf-drop-zone" id="attachment-drop-zone" style="border: 2px dashed var(--saas-border); border-radius: 8px; padding: 24px; text-align: center; background: #f9fafb; cursor: pointer;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32" style="margin-bottom: 8px; color: #9ca3af;"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M16 8l-4-4-4 4M12 4v12"/></svg>
-              <p style="font-size: 14px; color: var(--saas-text);">Drop files here or <label for="att-file-input" class="saas-link-sm" style="cursor: pointer;">browse</label></p>
-              <p class="text-muted text-sm mt-sm">PDF, Images, Word, Excel accepted</p>
-              <input type="file" id="att-file-input" name="attachments[]" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" class="hidden">
+            <div class="qf-drop-zone" id="attachment-drop-zone">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M16 8l-4-4-4 4M12 4v12"/></svg>
+              <p>Drop files here or <label for="att-file-input" class="link-label">browse</label></p>
+              <p class="text-muted text-sm">PDF, Images, Word, Excel accepted</p>
+              <input type="file" id="att-file-input" name="attachments[]" multiple
+                     accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" class="hidden">
             </div>
             <div class="qf-upload-preview" id="upload-preview"></div>
           </div>
         </div>
 
         <!-- ── SECTION 9: SIGNATURE ───────────────────────── -->
-        <div class="saas-card" id="section-signature">
-          <div class="saas-card-header-sm">
-            <span class="saas-label-muted">Signature</span>
+        <div class="qf-card" id="section-signature">
+          <div class="qf-card-header">
+            <span class="qf-section-badge">09</span>
+            <h2>Signature</h2>
           </div>
-          <div class="saas-card-body p-0">
-            <div class="saas-details-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 16px;">
-              <div class="saas-field">
+          <div class="qf-card-body">
+            <div class="qf-row mb-md">
+              <div class="qf-field">
                 <label>Signature Label</label>
-                <input type="text" name="signature_label" class="saas-input"
+                <input type="text" name="signature_label" class="qf-input"
                        value="{{ quotation.signature_label if quotation else settings.default_signature_label or 'Authorised Signatory' }}"
                        placeholder="Authorised Signatory">
               </div>
-              <div class="saas-field">
+              <div class="qf-field">
                 <label>Signature Type</label>
-                <div class="qf-sig-tabs" style="display: flex; gap: 8px;">
-                  <button type="button" class="sig-tab active" data-tab="upload" style="flex:1; padding: 10px; border: 1px solid var(--saas-border); background: #f3f4f6; border-radius: 6px; font-size: 13px; font-weight: 600;">Upload Image</button>
-                  <button type="button" class="sig-tab" data-tab="pad" style="flex:1; padding: 10px; border: 1px solid var(--saas-border); background: #fff; border-radius: 6px; font-size: 13px; font-weight: 600;">Draw Signature</button>
+                <div class="qf-sig-tabs">
+                  <button type="button" class="sig-tab active" data-tab="upload">Upload Image</button>
+                  <button type="button" class="sig-tab" data-tab="pad">Draw Signature</button>
                 </div>
               </div>
             </div>
@@ -627,27 +644,27 @@
 
             <!-- Upload tab -->
             <div class="sig-tab-panel" id="sig-panel-upload">
-              <div class="qf-drop-zone sig-drop" style="border: 2px dashed var(--saas-border); border-radius: 8px; padding: 24px; text-align: center; background: #f9fafb;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24" style="margin-bottom: 8px; color: #9ca3af;"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M16 8l-4-4-4 4M12 4v12"/></svg>
-                <p style="font-size: 13px;">Upload signature image (PNG recommended)</p>
+              <div class="qf-drop-zone sig-drop">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M16 8l-4-4-4 4M12 4v12"/></svg>
+                <p>Upload signature image (PNG with transparent bg recommended)</p>
                 <input type="file" name="sig_upload" id="sig-upload-input" accept=".png,.jpg,.jpeg">
               </div>
               {% set sig = quotation.signatures[0] if quotation and quotation.signatures else None %}
               {% if sig and sig.image_path %}
-              <div class="sig-preview" style="margin-top: 16px; padding: 12px; border: 1px solid var(--saas-border); border-radius: 6px; display: inline-block;">
-                <img src="{{ url_for('static', filename='uploads/signatures/' + sig.image_path) }}" alt="Signature" style="max-height: 80px;">
-                <p class="text-muted text-sm mt-sm">Current signature</p>
+              <div class="sig-preview">
+                <img src="{{ url_for('static', filename='uploads/signatures/' + sig.image_path) }}" alt="Signature">
+                <p class="text-muted text-sm">Current signature</p>
               </div>
               {% endif %}
             </div>
 
             <!-- Pad tab -->
             <div class="sig-tab-panel hidden" id="sig-panel-pad">
-              <div class="sig-pad-wrap" style="border: 1px solid var(--saas-border); border-radius: 6px; overflow: hidden;">
-                <canvas id="signature-pad" width="500" height="150" style="background: #fafafa; display: block; width: 100%;"></canvas>
-                <div class="sig-pad-actions" style="background: #f3f4f6; padding: 8px 12px; display: flex; justify-content: space-between; border-top: 1px solid var(--saas-border);">
-                  <button type="button" id="btn-clear-sig" class="btn-ghost text-sm" style="padding: 4px 8px;">Clear</button>
-                  <button type="button" id="btn-save-sig" class="btn-secondary text-sm" style="padding: 4px 8px;">Lock Signature</button>
+              <div class="sig-pad-wrap">
+                <canvas id="signature-pad" width="500" height="150"></canvas>
+                <div class="sig-pad-actions">
+                  <button type="button" id="btn-clear-sig">Clear</button>
+                  <button type="button" id="btn-save-sig">Use This Signature</button>
                 </div>
               </div>
               <input type="hidden" name="pad_data" id="pad-data-input">
@@ -664,105 +681,100 @@
            RIGHT COLUMN — Sticky Totals Panel
       ════════════════════════════════════════════════════ -->
       <div class="qf-sidebar">
-        <div class="saas-card" id="totals-panel" style="position: sticky; top: 24px; padding: 24px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-            <h3 style="font-size: 16px; font-weight: 700; color: var(--saas-primary); margin:0;">Summary</h3>
-            <span class="qf-status-badge status-{{ quotation.status.value.lower() if quotation else 'draft' }}" style="font-size: 11px; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">
+        <div class="qf-totals-panel" id="totals-panel">
+          <div class="qf-totals-header">
+            <h3>Summary</h3>
+            <span class="qf-status-badge status-{{ quotation.status.value.lower() if quotation else 'draft' }}">
               {{ quotation.status.value if quotation else 'Draft' }}
             </span>
           </div>
 
           <!-- Status selector -->
-          <div class="saas-field" style="margin-bottom: 20px;">
-            <label>Update Status</label>
-            <select name="status" class="saas-select" style="background: #f9fafb;">
+          <div class="qf-field mb-md">
+            <label class="qf-label-sm">Status</label>
+            <select name="status" class="qf-select">
               {% for s in ['Draft', 'Sent', 'Accepted', 'Rejected'] %}
               <option value="{{ s }}" {{ 'selected' if (quotation and quotation.status.value == s) or (not quotation and s == 'Draft') }}>{{ s }}</option>
               {% endfor %}
             </select>
           </div>
 
-          <div class="saas-totals-body" style="font-size: 14px; color: var(--saas-text);">
-            <div style="display:flex; justify-content:space-between; margin-bottom: 12px;">
-              <span class="text-muted">Subtotal</span>
-              <span id="t-subtotal" style="font-weight: 600;">₹{{ '%.2f'|format(quotation.subtotal) if quotation else '0.00' }}</span>
+          <div class="qf-totals-body">
+            <div class="totals-row">
+              <span>Subtotal</span>
+              <span id="t-subtotal">₹{{ '%.2f'|format(quotation.subtotal) if quotation else '0.00' }}</span>
             </div>
-            <div style="display:flex; justify-content:space-between; margin-bottom: 12px;">
-              <span class="text-muted">Discount</span>
-              <span id="t-discount" class="text-danger" style="font-weight: 600;">— ₹0.00</span>
+            <div class="totals-row">
+              <span>Discount</span>
+              <span id="t-discount" class="text-danger">— ₹0.00</span>
             </div>
-            <div style="display:flex; justify-content:space-between; margin-bottom: 12px;">
-              <span class="text-muted">Taxable Amount</span>
-              <span id="t-taxable" style="font-weight: 600;">₹{{ '%.2f'|format(quotation.subtotal - quotation.total_discount) if quotation else '0.00' }}</span>
+            <div class="totals-row">
+              <span>Taxable Amount</span>
+              <span id="t-taxable">₹{{ '%.2f'|format(quotation.subtotal - quotation.total_discount) if quotation else '0.00' }}</span>
             </div>
-            <div id="row-sgst" style="display:flex; justify-content:space-between; margin-bottom: 12px;">
-              <span class="text-muted">SGST</span>
-              <span id="t-sgst" style="font-weight: 600;">₹{{ '%.2f'|format(quotation.sgst) if quotation else '0.00' }}</span>
+            <div class="totals-row" id="row-sgst">
+              <span>SGST</span>
+              <span id="t-sgst">₹{{ '%.2f'|format(quotation.sgst) if quotation else '0.00' }}</span>
             </div>
-            <div id="row-cgst" style="display:flex; justify-content:space-between; margin-bottom: 12px;">
-              <span class="text-muted">CGST</span>
-              <span id="t-cgst" style="font-weight: 600;">₹{{ '%.2f'|format(quotation.cgst) if quotation else '0.00' }}</span>
+            <div class="totals-row" id="row-cgst">
+              <span>CGST</span>
+              <span id="t-cgst">₹{{ '%.2f'|format(quotation.cgst) if quotation else '0.00' }}</span>
             </div>
-            <div id="row-igst" class="hidden" style="display:flex; justify-content:space-between; margin-bottom: 12px;">
-              <span class="text-muted">IGST</span>
-              <span id="t-igst" style="font-weight: 600;">₹{{ '%.2f'|format(quotation.igst) if quotation else '0.00' }}</span>
+            <div class="totals-row hidden" id="row-igst">
+              <span>IGST</span>
+              <span id="t-igst">₹{{ '%.2f'|format(quotation.igst) if quotation else '0.00' }}</span>
             </div>
-            <div style="display:flex; justify-content:space-between; margin-bottom: 16px;">
-              <span class="text-muted">Additional Charges</span>
-              <span id="t-charges" style="font-weight: 600;">₹0.00</span>
+            <div class="totals-row">
+              <span>Additional Charges</span>
+              <span id="t-charges">₹0.00</span>
             </div>
-            
-            <div style="height: 1px; background: var(--saas-border); margin: 16px 0;"></div>
-            
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-              <span style="font-weight: 700; font-size: 16px; color: var(--saas-primary);">Grand Total</span>
-              <span id="t-total" style="font-weight: 700; font-size: 20px; color: #10b981;">₹{{ '%.2f'|format(quotation.total_amount) if quotation else '0.00' }}</span>
+            <div class="totals-separator"></div>
+            <div class="totals-row totals-grand">
+              <span>Grand Total</span>
+              <span id="t-total">₹{{ '%.2f'|format(quotation.total_amount) if quotation else '0.00' }}</span>
             </div>
-            <div style="display:flex; justify-content:space-between; font-size: 12px; margin-bottom: 24px;">
-              <span class="text-muted">Total Items</span>
-              <span id="t-qty" style="font-weight: 600;">{{ quotation.total_quantity if quotation else 0 }}</span>
+            <div class="totals-qty-row">
+              <span>Total Qty</span>
+              <span id="t-qty">{{ quotation.total_quantity if quotation else 0 }}</span>
             </div>
           </div>
 
-          <div class="saas-total-words" id="total-words-panel" style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 6px;">
-            <p style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #166534; margin-bottom: 4px;">Amount in Words</p>
-            <p id="t-words" style="font-size: 13px; font-weight: 500; color: #14532d; line-height: 1.4;">{{ quotation.total_in_words if quotation else '—' }}</p>
+          <div class="qf-total-words" id="total-words-panel">
+            <p class="label">Amount in Words</p>
+            <p id="t-words" class="words-text">{{ quotation.total_in_words if quotation else '—' }}</p>
           </div>
+
+          <!-- CTA -->
+          <div class="qf-totals-actions">
+            <button type="submit" form="quotation-main-form" class="btn-primary w-full">
+              {{ 'Update' if mode == 'edit' else 'Create' }} Quotation
+            </button>
+            {% if mode == 'edit' %}
+            <a href="{{ url_for('quotations.generate_pdf', quotation_id=quotation.id) }}"
+               target="_blank" class="btn-secondary w-full mt-sm">
+              📄 Download PDF
+            </a>
+            <a href="{{ url_for('quotations.view_quotation', quotation_id=quotation.id) }}"
+               class="btn-ghost w-full mt-sm">
+              👁 Preview
+            </a>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Company Info Card -->
+        <div class="qf-company-card">
+          <p class="qf-company-label">Quotation From</p>
+          <p class="qf-company-name">{{ settings.company_name or 'GlassEntials' }}</p>
+          {% if settings.company_address %}<p class="qf-company-detail">{{ settings.company_address }}</p>{% endif %}
+          {% if settings.company_gstin %}<p class="qf-company-detail"><strong>GSTIN:</strong> {{ settings.company_gstin }}</p>{% endif %}
+          {% if settings.company_phone %}<p class="qf-company-detail">📞 {{ settings.company_phone }}</p>{% endif %}
+          <a href="{{ url_for('quotation_settings.settings_home') }}" class="btn-text text-sm">⚙ Edit Company Info</a>
         </div>
 
       </div><!-- /.qf-sidebar -->
 
     </div><!-- /.qf-layout -->
-    
-    <!-- STICKY BOTTOM ACTION BAR -->
-    <div class="saas-action-bar" style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); border-top: 1px solid var(--saas-border); padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; box-shadow: 0 -4px 12px rgba(0,0,0,0.05);">
-      <div class="saas-action-left" style="display: flex; gap: 12px;">
-        <a href="{{ url_for('quotations.quotation_list') }}" class="btn-ghost" style="border: 1px solid var(--saas-border);">← Cancel</a>
-        {% if mode == 'edit' %}
-        <a href="{{ url_for('quotations.view_quotation', quotation_id=quotation.id) }}" class="btn-ghost" style="border: 1px solid var(--saas-border);">👁 Preview</a>
-        <a href="{{ url_for('quotations.generate_pdf', quotation_id=quotation.id) }}" target="_blank" class="btn-secondary">📄 PDF</a>
-        {% endif %}
-      </div>
-      <div class="saas-action-right" style="display: flex; gap: 12px; align-items: center;">
-        <div style="font-size: 14px; margin-right: 16px;">
-          <span class="text-muted">Total: </span>
-          <strong id="bar-total" style="font-size: 16px; color: var(--saas-primary);">₹{{ '%.2f'|format(quotation.total_amount) if quotation else '0.00' }}</strong>
-        </div>
-        
-        <button type="button" class="btn-ghost" id="btn-save-draft" style="border: 1px solid var(--saas-border); background: white;">
-          Save Draft
-        </button>
-        {% if mode == 'create' %}
-        <button type="button" class="btn-ghost" id="btn-save-new" style="border: 1px solid var(--saas-border); background: white;">
-          Save &amp; New
-        </button>
-        {% endif %}
-        
-        <button type="submit" form="quotation-main-form" class="btn-primary" style="padding: 10px 24px; font-size: 15px; border-radius: 8px;">
-          {{ 'Update' if mode == 'edit' else 'Create' }} Quotation
-        </button>
-      </div>
-    </div>
   </form>
 
 </div><!-- /.qf-wrapper -->
