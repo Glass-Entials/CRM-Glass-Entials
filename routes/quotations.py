@@ -30,6 +30,10 @@ from model import (
     QuotationSignature,
     QuotationTaxSummary,
     ActivityLog,
+    CustomerStatus,
+    LeadSource,
+    LeadStatus,
+    ProjectStatus,
 )
 from utils.number_words import number_to_words
 from utils.security import tenant_record_id, validate_upload
@@ -1088,6 +1092,190 @@ def api_calculate():
     except Exception as e:
         current_app.logger.error(f"Error: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": "An error occurred"}), 400
+
+
+# ──────────────────────────────────────────────────
+# INLINE CREATION APIs (AJAX)
+# ──────────────────────────────────────────────────
+
+@quotations_bp.route("/api/create-customer", methods=["POST"])
+@login_required
+def api_create_customer():
+    data = request.get_json()
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip()
+    phone_number = data.get("phone_number", "").strip()
+    
+    if not all([name, email, phone_number]):
+        return jsonify({"success": False, "error": "Name, Email, and Phone Number are required."}), 400
+        
+    existing = Customer.query.filter(
+        ((Customer.email == email) | (Customer.phone_number == phone_number)),
+        Customer.organization_id == current_user.organization_id,
+        Customer.is_deleted == False,
+    ).first()
+
+    if existing:
+        return jsonify({"success": False, "error": "Customer already exists with this email or phone number in your organization."}), 400
+
+    new_customer = Customer(
+        name=name,
+        email=email,
+        phone_number=phone_number,
+        company=data.get("company", "").strip(),
+        address=data.get("address", "").strip(),
+        city=data.get("city", "").strip(),
+        state=data.get("state", "").strip(),
+        gst_number=data.get("gst_number", "").strip(),
+        source=LeadSource.OTHER,
+        status=CustomerStatus.NEW,
+        created_by=current_user.employee.id,
+        assigned_to=current_user.employee.id,
+        organization_id=current_user.organization_id,
+    )
+    try:
+        db.session.add(new_customer)
+        db.session.flush()
+        
+        # log activity
+        log_activity(
+            "create",
+            "customer",
+            new_customer.name,
+            current_user.organization_id,
+            current_user.employee.id,
+            new_customer.id,
+        )
+        db.session.commit()
+        return jsonify({
+            "success": True, 
+            "record": {
+                "id": new_customer.id,
+                "name": new_customer.name,
+                "company": new_customer.company,
+                "email": new_customer.email,
+                "phone": new_customer.phone_number,
+                "address": new_customer.address,
+                "city": new_customer.city,
+                "state": new_customer.state,
+                "gstin": new_customer.gst_number
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating customer: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": "A server error occurred while saving."}), 500
+
+
+@quotations_bp.route("/api/create-lead", methods=["POST"])
+@login_required
+def api_create_lead():
+    data = request.get_json()
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip()
+    phone_number = data.get("phone_number", "").strip()
+    
+    if not all([name, email, phone_number]):
+        return jsonify({"success": False, "error": "Name, Email, and Phone Number are required."}), 400
+        
+    existing = Lead.query.filter(
+        ((Lead.email == email) | (Lead.phone_number == phone_number)),
+        Lead.organization_id == current_user.organization_id,
+        Lead.is_deleted == False,
+    ).first()
+
+    if existing:
+        return jsonify({"success": False, "error": "Lead already exists with this email or phone number in your organization."}), 400
+
+    new_lead = Lead(
+        name=name,
+        email=email,
+        phone_number=phone_number,
+        company=data.get("company", "").strip(),
+        address=data.get("address", "").strip(),
+        city=data.get("city", "").strip(),
+        source=LeadSource.OTHER,
+        status=LeadStatus.NEW,
+        created_by=current_user.employee.id,
+        assigned_to=current_user.employee.id,
+        organization_id=current_user.organization_id,
+    )
+    try:
+        db.session.add(new_lead)
+        db.session.flush()
+        
+        log_activity(
+            "create",
+            "lead",
+            new_lead.name,
+            current_user.organization_id,
+            current_user.employee.id,
+            new_lead.id,
+        )
+        db.session.commit()
+        return jsonify({
+            "success": True, 
+            "record": {
+                "id": new_lead.id,
+                "name": new_lead.name,
+                "company": new_lead.company
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating lead: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": "A server error occurred while saving."}), 500
+
+
+@quotations_bp.route("/api/create-project", methods=["POST"])
+@login_required
+def api_create_project():
+    data = request.get_json()
+    name = data.get("name", "").strip()
+    
+    if not name:
+        return jsonify({"success": False, "error": "Project Name is required."}), 400
+
+    existing = Project.query.filter_by(
+        name=name,
+        organization_id=current_user.organization_id,
+        is_deleted=False
+    ).first()
+
+    if existing:
+        return jsonify({"success": False, "error": "Project with this name already exists in your organization."}), 400
+
+    new_project = Project(
+        name=name,
+        description=data.get("description", "").strip(),
+        status=ProjectStatus.PLANNING,
+        created_by=current_user.employee.id,
+        organization_id=current_user.organization_id,
+    )
+    try:
+        db.session.add(new_project)
+        db.session.flush()
+        
+        log_activity(
+            "create",
+            "project",
+            new_project.name,
+            current_user.organization_id,
+            current_user.employee.id,
+            new_project.id,
+        )
+        db.session.commit()
+        return jsonify({
+            "success": True, 
+            "record": {
+                "id": new_project.id,
+                "name": new_project.name
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating project: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": "A server error occurred while saving."}), 500
 
 
 # ─────────────────────────────────────────────────────────────

@@ -138,8 +138,11 @@
 
             <div class="qf-row">
               <div class="qf-field">
-                <label>Project</label>
-                <select name="project_id" class="qf-select">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <label style="margin-bottom: 0;">Project</label>
+                  <button type="button" class="btn-text" onclick="openInlineModal('modal-create-project')">+ Create New</button>
+                </div>
+                <select name="project_id" class="qf-select" id="project-select">
                   <option value="">— Select Project —</option>
                   {% for p in projects %}
                   <option value="{{ p.id }}" {{ 'selected' if quotation and quotation.project_id == p.id }}>{{ p.name }}</option>
@@ -182,7 +185,10 @@
           <div class="qf-card-body">
             <div class="qf-row">
               <div class="qf-field qf-field--grow">
-                <label>Select Customer</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <label style="margin-bottom: 0;">Select Customer</label>
+                  <button type="button" class="btn-text" onclick="openInlineModal('modal-create-customer')">+ Create New</button>
+                </div>
                 <select name="customer_id" class="qf-select" id="customer-select">
                   <option value="">— Select Customer —</option>
                   {% for c in customers %}
@@ -202,7 +208,10 @@
                 </select>
               </div>
               <div class="qf-field">
-                <label>Or Select Lead</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <label style="margin-bottom: 0;">Or Select Lead</label>
+                  <button type="button" class="btn-text" onclick="openInlineModal('modal-create-lead')">+ Create New</button>
+                </div>
                 <select name="lead_id" class="qf-select" id="lead-select">
                   <option value="">— Select Lead —</option>
                   {% for l in leads %}
@@ -780,6 +789,122 @@
 
 </div><!-- /.qf-wrapper -->
 
+<!-- ─── Inline Creation Modals ─── -->
+<!-- Create Project Modal -->
+<div id="modal-create-project" class="qt-modal">
+  <div class="qt-modal-content">
+    <div class="qt-modal-header">
+      <h3>Create New Project</h3>
+      <button type="button" class="btn-close" onclick="closeInlineModal('modal-create-project')">✕</button>
+    </div>
+    <div class="qt-modal-body">
+      <div id="project-error-msg" class="text-danger mb-sm hidden"></div>
+      <div class="qf-field mb-md">
+        <label>Project Name <span class="req">*</span></label>
+        <input type="text" id="inline-project-name" class="qf-input" placeholder="e.g. Skyline Towers">
+      </div>
+      <div class="qf-field">
+        <label>Description</label>
+        <textarea id="inline-project-desc" class="qf-input" rows="2" placeholder="Optional details..."></textarea>
+      </div>
+    </div>
+    <div class="qt-modal-footer">
+      <button type="button" class="btn-ghost" onclick="closeInlineModal('modal-create-project')">Cancel</button>
+      <button type="button" class="btn-primary" id="btn-save-inline-project" onclick="submitInlineProject()">Save Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Customer Modal -->
+<div id="modal-create-customer" class="qt-modal">
+  <div class="qt-modal-content">
+    <div class="qt-modal-header">
+      <h3>Create New Customer</h3>
+      <button type="button" class="btn-close" onclick="closeInlineModal('modal-create-customer')">✕</button>
+    </div>
+    <div class="qt-modal-body" style="max-height: 70vh; overflow-y: auto;">
+      <div id="customer-error-msg" class="text-danger mb-sm hidden"></div>
+      <div class="qf-row mb-sm">
+        <div class="qf-field">
+          <label>Name <span class="req">*</span></label>
+          <input type="text" id="inline-cust-name" class="qf-input" placeholder="Customer Name">
+        </div>
+        <div class="qf-field">
+          <label>Company</label>
+          <input type="text" id="inline-cust-company" class="qf-input" placeholder="Company Name">
+        </div>
+      </div>
+      <div class="qf-row mb-sm">
+        <div class="qf-field">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" id="inline-cust-email" class="qf-input" placeholder="Email Address">
+        </div>
+        <div class="qf-field">
+          <label>Phone Number <span class="req">*</span></label>
+          <input type="text" id="inline-cust-phone" class="qf-input" placeholder="10-digit number">
+        </div>
+      </div>
+      <div class="qf-field mb-sm">
+        <label>Address</label>
+        <textarea id="inline-cust-address" class="qf-input" rows="2" placeholder="Street Address"></textarea>
+      </div>
+      <div class="qf-row mb-sm">
+        <div class="qf-field">
+          <label>City</label>
+          <input type="text" id="inline-cust-city" class="qf-input" placeholder="City">
+        </div>
+        <div class="qf-field">
+          <label>State</label>
+          <input type="text" id="inline-cust-state" class="qf-input" placeholder="State">
+        </div>
+      </div>
+      <div class="qf-field">
+        <label>GSTIN</label>
+        <input type="text" id="inline-cust-gstin" class="qf-input" placeholder="GST Number">
+      </div>
+    </div>
+    <div class="qt-modal-footer">
+      <button type="button" class="btn-ghost" onclick="closeInlineModal('modal-create-customer')">Cancel</button>
+      <button type="button" class="btn-primary" id="btn-save-inline-customer" onclick="submitInlineCustomer()">Save Customer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Lead Modal -->
+<div id="modal-create-lead" class="qt-modal">
+  <div class="qt-modal-content">
+    <div class="qt-modal-header">
+      <h3>Create New Lead</h3>
+      <button type="button" class="btn-close" onclick="closeInlineModal('modal-create-lead')">✕</button>
+    </div>
+    <div class="qt-modal-body">
+      <div id="lead-error-msg" class="text-danger mb-sm hidden"></div>
+      <div class="qf-field mb-sm">
+        <label>Name <span class="req">*</span></label>
+        <input type="text" id="inline-lead-name" class="qf-input" placeholder="Lead Name">
+      </div>
+      <div class="qf-field mb-sm">
+        <label>Company</label>
+        <input type="text" id="inline-lead-company" class="qf-input" placeholder="Company Name">
+      </div>
+      <div class="qf-row">
+        <div class="qf-field">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" id="inline-lead-email" class="qf-input" placeholder="Email Address">
+        </div>
+        <div class="qf-field">
+          <label>Phone Number <span class="req">*</span></label>
+          <input type="text" id="inline-lead-phone" class="qf-input" placeholder="10-digit number">
+        </div>
+      </div>
+    </div>
+    <div class="qt-modal-footer">
+      <button type="button" class="btn-ghost" onclick="closeInlineModal('modal-create-lead')">Cancel</button>
+      <button type="button" class="btn-primary" id="btn-save-inline-lead" onclick="submitInlineLead()">Save Lead</button>
+    </div>
+  </div>
+</div>
+
 <!-- ─── Modals for ERP Extras ─── -->
 <!-- GST Config Modal -->
 <div id="modal-gst-config" class="qt-modal">
@@ -1020,7 +1145,240 @@ if(btnResetColVis) {
             el.style.display = '';
         });
     });
+    });
 }
+</script>
+
+<script>
+// =========================================================================
+// INLINE CREATION JS
+// =========================================================================
+
+function openInlineModal(modalId) {
+    document.getElementById(modalId).style.display = 'flex';
+    // Focus first input
+    setTimeout(() => {
+        const firstInput = document.querySelector(`#${modalId} input[type="text"]`);
+        if (firstInput) firstInput.focus();
+    }, 100);
+}
+
+function closeInlineModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+    // Clear error
+    const errorMsg = document.querySelector(`#${modalId} .text-danger`);
+    if (errorMsg) {
+        errorMsg.textContent = '';
+        errorMsg.classList.add('hidden');
+    }
+}
+
+async function submitInlineProject() {
+    const btn = document.getElementById('btn-save-inline-project');
+    const errDiv = document.getElementById('project-error-msg');
+    const name = document.getElementById('inline-project-name').value;
+    const desc = document.getElementById('inline-project-desc').value;
+    
+    if (!name) {
+        errDiv.textContent = 'Project Name is required.';
+        errDiv.classList.remove('hidden');
+        return;
+    }
+    
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+    errDiv.classList.add('hidden');
+    
+    try {
+        const response = await fetch("{{ url_for('quotations.api_create_project') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            },
+            body: JSON.stringify({ name, description: desc })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            closeInlineModal('modal-create-project');
+            const select = document.getElementById('project-select');
+            if(!select) {
+                // some layouts use name instead of ID
+                const selects = document.getElementsByName('project_id');
+                if (selects.length > 0) selects[0].add(new Option(data.record.name, data.record.id, false, true));
+            } else {
+                select.add(new Option(data.record.name, data.record.id, false, true));
+            }
+            // Clear inputs
+            document.getElementById('inline-project-name').value = '';
+            document.getElementById('inline-project-desc').value = '';
+        } else {
+            errDiv.textContent = data.error || 'Failed to create project.';
+            errDiv.classList.remove('hidden');
+        }
+    } catch (e) {
+        errDiv.textContent = 'A network error occurred.';
+        errDiv.classList.remove('hidden');
+    } finally {
+        btn.textContent = 'Save Project';
+        btn.disabled = false;
+    }
+}
+
+async function submitInlineCustomer() {
+    const btn = document.getElementById('btn-save-inline-customer');
+    const errDiv = document.getElementById('customer-error-msg');
+    
+    const payload = {
+        name: document.getElementById('inline-cust-name').value,
+        company: document.getElementById('inline-cust-company').value,
+        email: document.getElementById('inline-cust-email').value,
+        phone_number: document.getElementById('inline-cust-phone').value,
+        address: document.getElementById('inline-cust-address').value,
+        city: document.getElementById('inline-cust-city').value,
+        state: document.getElementById('inline-cust-state').value,
+        gst_number: document.getElementById('inline-cust-gstin').value
+    };
+    
+    if (!payload.name || !payload.email || !payload.phone_number) {
+        errDiv.textContent = 'Name, Email, and Phone Number are required.';
+        errDiv.classList.remove('hidden');
+        return;
+    }
+    
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+    errDiv.classList.add('hidden');
+    
+    try {
+        const response = await fetch("{{ url_for('quotations.api_create_customer') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            closeInlineModal('modal-create-customer');
+            const select = document.getElementById('customer-select');
+            
+            // Create option with dataset
+            const opt = document.createElement('option');
+            opt.value = data.record.id;
+            opt.text = data.record.name + (data.record.company ? ' — ' + data.record.company : '');
+            opt.dataset.name = data.record.name;
+            opt.dataset.email = data.record.email;
+            opt.dataset.phone = data.record.phone;
+            opt.dataset.address = data.record.address || '';
+            opt.dataset.city = data.record.city || '';
+            opt.dataset.state = data.record.state || '';
+            opt.dataset.gstin = data.record.gstin || '';
+            opt.dataset.company = data.record.company || '';
+            opt.selected = true;
+            
+            select.add(opt);
+            // Trigger change event so autofill happens if defined in existing JS
+            select.dispatchEvent(new Event('change'));
+            
+            // Clear lead if any
+            const leadSelect = document.getElementById('lead-select');
+            if (leadSelect) leadSelect.value = '';
+            
+            // Clear inputs
+            ['name','company','email','phone','address','city','state','gstin'].forEach(f => {
+                document.getElementById(`inline-cust-${f}`).value = '';
+            });
+        } else {
+            errDiv.textContent = data.error || 'Failed to create customer.';
+            errDiv.classList.remove('hidden');
+        }
+    } catch (e) {
+        errDiv.textContent = 'A network error occurred.';
+        errDiv.classList.remove('hidden');
+    } finally {
+        btn.textContent = 'Save Customer';
+        btn.disabled = false;
+    }
+}
+
+async function submitInlineLead() {
+    const btn = document.getElementById('btn-save-inline-lead');
+    const errDiv = document.getElementById('lead-error-msg');
+    
+    const payload = {
+        name: document.getElementById('inline-lead-name').value,
+        company: document.getElementById('inline-lead-company').value,
+        email: document.getElementById('inline-lead-email').value,
+        phone_number: document.getElementById('inline-lead-phone').value
+    };
+    
+    if (!payload.name || !payload.email || !payload.phone_number) {
+        errDiv.textContent = 'Name, Email, and Phone Number are required.';
+        errDiv.classList.remove('hidden');
+        return;
+    }
+    
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+    errDiv.classList.add('hidden');
+    
+    try {
+        const response = await fetch("{{ url_for('quotations.api_create_lead') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            closeInlineModal('modal-create-lead');
+            const select = document.getElementById('lead-select');
+            
+            const opt = document.createElement('option');
+            opt.value = data.record.id;
+            opt.text = data.record.name;
+            opt.selected = true;
+            select.add(opt);
+            select.dispatchEvent(new Event('change'));
+            
+            // Clear customer if any
+            const custSelect = document.getElementById('customer-select');
+            if (custSelect) custSelect.value = '';
+            const autofill = document.getElementById('customer-autofill');
+            if (autofill) autofill.style.display = 'none';
+            
+            // Clear inputs
+            ['name','company','email','phone'].forEach(f => {
+                document.getElementById(`inline-lead-${f}`).value = '';
+            });
+        } else {
+            errDiv.textContent = data.error || 'Failed to create lead.';
+            errDiv.classList.remove('hidden');
+        }
+    } catch (e) {
+        errDiv.textContent = 'A network error occurred.';
+        errDiv.classList.remove('hidden');
+    } finally {
+        btn.textContent = 'Save Lead';
+        btn.disabled = false;
+    }
+}
+
+// Global click to close modals when clicking outside
+window.addEventListener('click', function(event) {
+    if (event.target.classList.contains('qt-modal')) {
+        event.target.style.display = 'none';
+        const errs = event.target.querySelectorAll('.text-danger');
+        errs.forEach(e => { e.textContent = ''; e.classList.add('hidden'); });
+    }
+});
 </script>
 
 
