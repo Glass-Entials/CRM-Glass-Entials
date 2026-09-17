@@ -1155,7 +1155,7 @@ if(btnResetColVis) {
 // =========================================================================
 
 function openInlineModal(modalId) {
-    document.getElementById(modalId).style.display = 'flex';
+    document.getElementById(modalId).style.setProperty('display', 'flex', 'important');
     // Focus first input
     setTimeout(() => {
         const firstInput = document.querySelector(`#${modalId} input[type="text"]`);
@@ -1164,7 +1164,7 @@ function openInlineModal(modalId) {
 }
 
 function closeInlineModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
+    document.getElementById(modalId).style.setProperty('display', 'none', 'important');
     // Clear error
     const errorMsg = document.querySelector(`#${modalId} .text-danger`);
     if (errorMsg) {
@@ -1374,7 +1374,7 @@ async function submitInlineLead() {
 // Global click to close modals when clicking outside
 window.addEventListener('click', function(event) {
     if (event.target.classList.contains('qt-modal')) {
-        event.target.style.display = 'none';
+        event.target.style.setProperty('display', 'none', 'important');
         const errs = event.target.querySelectorAll('.text-danger');
         errs.forEach(e => { e.textContent = ''; e.classList.add('hidden'); });
     }
