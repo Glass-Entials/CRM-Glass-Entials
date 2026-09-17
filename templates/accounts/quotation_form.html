@@ -103,10 +103,16 @@
 
             <div class="qf-row">
               <div class="qf-field">
-                <label>Quotation Number <span class="badge-auto">Auto</span></label>
-                <div class="qf-number-preview" id="qn-preview">
-                  {{ quotation.quotation_number if quotation else next_number }}
-                </div>
+                <label>Quotation Number</label>
+                <input
+                  type="text"
+                  name="quotation_number"
+                  id="qn-preview"
+                  class="qf-input"
+                  value="{{ quotation.quotation_number if quotation else next_number }}"
+                  placeholder="e.g. GL-001"
+                  autocomplete="off"
+                >
               </div>
               <div class="qf-field">
                 <label>Quotation Date <span class="req">*</span></label>

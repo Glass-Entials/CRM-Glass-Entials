@@ -207,6 +207,20 @@ def _save_quotation_from_form(quotation, form, files, org_id, employee_id):
     Populate a Quotation (new or existing) from POST form data.
     Also creates/replaces items, tax summary, signature, attachments.
     """
+    # ── Quotation Number (user-editable) ─────────────────────
+    custom_number = form.get("quotation_number", "").strip()
+    if custom_number and custom_number != quotation.quotation_number:
+        # Check uniqueness within org
+        conflict = Quotation.query.filter(
+            Quotation.quotation_number == custom_number,
+            Quotation.organization_id == org_id,
+            Quotation.id != quotation.id,
+            Quotation.is_deleted == False,
+        ).first()
+        if conflict:
+            raise ValueError(f"Quotation number '{custom_number}' is already used by another quotation.")
+        quotation.quotation_number = custom_number
+
     # ── Header ──────────────────────────────────────────────
     quotation.quotation_title = form.get("quotation_title", "Quotation")
     doc_type_val = form.get("doc_type", "Quotation")
@@ -571,8 +585,22 @@ def add_quotation():
 
     if request.method == "POST":
         try:
+            # Use submitted number or auto-generate
+            submitted_number = request.form.get("quotation_number", "").strip()
+            auto_number = generate_quotation_number(org_id)
+            initial_number = submitted_number if submitted_number else auto_number
+
+            # Check uniqueness before creating
+            if Quotation.query.filter_by(
+                quotation_number=initial_number,
+                organization_id=org_id,
+                is_deleted=False
+            ).first():
+                flash(f"Quotation number '{initial_number}' is already in use. Please choose another.", "error")
+                return redirect(url_for("quotations.add_quotation"))
+
             quotation = Quotation(
-                quotation_number=generate_quotation_number(org_id),
+                quotation_number=initial_number,
                 organization_id=org_id,
                 created_by=emp.id,
             )
@@ -687,11 +715,17 @@ def edit_quotation(quotation_id):
                 url_for("quotations.view_quotation", quotation_id=quotation.id)
             )
 
+        except ValueError as ve:
+            db.session.rollback()
+            flash(str(ve), "error")
+            return redirect(url_for("quotations.edit_quotation", quotation_id=quotation_id))
+
         except Exception as e:
             db.session.rollback()
 
             current_app.logger.error(f"Error: {str(e)}", exc_info=True)
             flash("An error occurred. Please try again.", "error")
+
 
     settings = _get_or_create_settings(org_id)
     customers = Customer.query.filter_by(organization_id=org_id, is_deleted=False).all()
