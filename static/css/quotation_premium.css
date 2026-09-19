@@ -1208,3 +1208,406 @@ body.dashboard-page {
   #quotation-form-root .qf-grid-3 { grid-template-columns: 1fr 1fr !important; }
   #quotation-form-root .qf-term-list { grid-template-columns: 1fr !important; }
 }
+
+
+/* =========================================================================
+   LINE-ITEM TABLE — SaaS Data-Grid Redesign
+   ========================================================================= */
+
+/* ── TABLE WRAPPER — horizontal scroll contained ── */
+.erp-table-wrap {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  border-radius: 0 0 12px 12px !important;
+}
+
+/* ── TABLE BASE ─────────────────────────────────── */
+.erp-items-table {
+  width: 100% !important;
+  min-width: 1380px !important;
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  font-size: 13px !important;
+}
+
+/* ── HEADER ─────────────────────────────────────── */
+.erp-table-hdr th {
+  background: #1e1b4b !important;     /* deep indigo */
+  color: #e2e8f0 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.6px !important;
+  padding: 12px 10px !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  border-bottom: 2px solid #312e81 !important;
+}
+
+.erp-table-hdr th:first-child { border-radius: 0 !important; }
+.erp-table-hdr th:last-child  { border-radius: 0 !important; }
+
+/* Header accent line at top */
+.erp-table-hdr th::before {
+  content: none !important;
+}
+
+/* ── ITEM ROWS ───────────────────────────────────── */
+.erp-item-row td {
+  padding: 8px 10px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  vertical-align: middle !important;
+  background: #ffffff !important;
+  transition: background 0.12s !important;
+}
+
+.erp-item-row:hover td {
+  background: #f8fafc !important;
+}
+
+.erp-item-row:nth-child(even) td {
+  background: #fafbfe !important;
+}
+
+.erp-item-row:nth-child(even):hover td {
+  background: #f1f5f9 !important;
+}
+
+/* ── GROUP ROW ───────────────────────────────────── */
+.erp-group-row td {
+  background: #ede9fe !important;
+  border-left: 3px solid #7c3aed !important;
+  padding: 6px 10px !important;
+}
+
+.erp-group-input {
+  background: transparent !important;
+  border: none !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #5b21b6 !important;
+  letter-spacing: 0.5px !important;
+  text-transform: uppercase !important;
+  width: calc(100% - 48px) !important;
+}
+
+.erp-group-input:focus {
+  outline: none !important;
+}
+
+.btn-remove-group {
+  background: none !important;
+  border: none !important;
+  color: #7c3aed !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  opacity: 0.6 !important;
+  float: right !important;
+  margin-top: 2px !important;
+}
+
+.btn-remove-group:hover { opacity: 1 !important; }
+
+/* ── SERIAL + DRAG ────────────────────────────────── */
+.col-drag {
+  width: 24px !important;
+  text-align: center !important;
+  padding: 8px 4px !important;
+}
+
+.drag-handle {
+  color: #94a3b8 !important;
+  cursor: grab !important;
+  font-size: 16px !important;
+  user-select: none !important;
+  display: block !important;
+}
+
+.drag-handle:active { cursor: grabbing !important; }
+
+.col-sn {
+  width: 32px !important;
+  color: #94a3b8 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+}
+
+/* ── ITEM NAME CELL ─────────────────────────────── */
+.col-item {
+  min-width: 220px !important;
+}
+
+.item-name-input {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  width: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 4px 6px !important;
+  border-radius: 4px !important;
+  outline: none !important;
+  transition: background 0.15s !important;
+  display: block !important;
+  margin-bottom: 4px !important;
+}
+
+.item-name-input:hover {
+  background: #f1f5f9 !important;
+}
+
+.item-name-input:focus {
+  background: #eef2ff !important;
+  box-shadow: inset 0 0 0 1.5px #818cf8 !important;
+}
+
+.item-desc {
+  font-size: 11.5px !important;
+  color: #64748b !important;
+  width: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 2px 6px !important;
+  resize: none !important;
+  outline: none !important;
+  border-radius: 4px !important;
+  transition: background 0.15s !important;
+  display: block !important;
+  min-height: 20px !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+.item-desc:hover   { background: #f1f5f9 !important; }
+.item-desc:focus   { background: #eef2ff !important; box-shadow: inset 0 0 0 1px #818cf8 !important; }
+.item-desc::placeholder { color: #94a3b8 !important; font-style: italic !important; }
+
+/* ── GHOST NUMBER INPUTS ───────────────────────── */
+.erp-num-input {
+  width: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 5px 6px !important;
+  font-size: 12.5px !important;
+  font-family: 'Inter', sans-serif !important;
+  color: #1e293b !important;
+  border-radius: 4px !important;
+  outline: none !important;
+  text-align: right !important;
+  transition: background 0.12s, box-shadow 0.12s !important;
+  -moz-appearance: textfield !important;
+}
+
+.erp-num-input::-webkit-outer-spin-button,
+.erp-num-input::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+.erp-num-input:hover  { background: #f8fafc !important; }
+.erp-num-input:focus  { background: #eef2ff !important; box-shadow: inset 0 0 0 1.5px #818cf8 !important; }
+
+/* ── HSN INPUT ─────────────────────────────────── */
+.erp-hsn-input {
+  width: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 5px 6px !important;
+  font-size: 12px !important;
+  font-family: 'Inter', sans-serif !important;
+  color: #475569 !important;
+  border-radius: 4px !important;
+  outline: none !important;
+  transition: background 0.12s !important;
+}
+
+.erp-hsn-input:hover  { background: #f8fafc !important; }
+.erp-hsn-input:focus  { background: #eef2ff !important; box-shadow: inset 0 0 0 1.5px #818cf8 !important; }
+
+/* ── INLINE SELECT ─────────────────────────────── */
+.erp-inline-select {
+  width: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 5px 4px !important;
+  font-size: 12px !important;
+  font-family: 'Inter', sans-serif !important;
+  color: #1e293b !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  outline: none !important;
+  transition: background 0.12s !important;
+}
+
+.erp-inline-select:hover  { background: #f1f5f9 !important; }
+.erp-inline-select:focus  { background: #eef2ff !important; box-shadow: inset 0 0 0 1.5px #818cf8 !important; }
+
+/* ── DISCOUNT WRAP ─────────────────────────────── */
+.disc-wrap {
+  display: flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+}
+
+.disc-wrap .erp-num-input {
+  flex: 1 !important;
+  min-width: 44px !important;
+}
+
+.disc-wrap .erp-inline-select {
+  width: 36px !important;
+  flex-shrink: 0 !important;
+  padding: 5px 2px !important;
+  font-size: 11px !important;
+}
+
+/* ── COMPUTED / READ-ONLY CELLS ─────────────────── */
+.erp-computed {
+  display: block !important;
+  text-align: right !important;
+  font-size: 12.5px !important;
+  color: #475569 !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+.erp-total-strong {
+  display: block !important;
+  text-align: right !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* ── ACTION COLUMN ─────────────────────────────── */
+.col-action {
+  width: 56px !important;
+  text-align: center !important;
+}
+
+.erp-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  justify-content: center !important;
+}
+
+.erp-action-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 26px !important;
+  height: 26px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px !important;
+  background: #f8fafc !important;
+  color: #64748b !important;
+  cursor: pointer !important;
+  transition: all 0.15s !important;
+  padding: 0 !important;
+}
+
+.erp-action-btn:hover {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.btn-copy-erp:hover {
+  background: #eff6ff !important;
+  color: #2563eb !important;
+  border-color: #bfdbfe !important;
+}
+
+.btn-remove-erp:hover {
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  border-color: #fecaca !important;
+}
+
+/* ── FOOTER ADD BUTTONS ────────────────────────── */
+.erp-items-footer {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 14px 16px !important;
+  border-top: 1px solid #f1f5f9 !important;
+  background: #f8fafc !important;
+  border-radius: 0 0 12px 12px !important;
+}
+
+.btn-add-line,
+.btn-add-group {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 7px 14px !important;
+  border-radius: 7px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.15s !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+.btn-add-line {
+  background: #312e81 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.btn-add-line:hover {
+  background: #1e1b4b !important;
+}
+
+.btn-add-group {
+  background: #ffffff !important;
+  color: #4f46e5 !important;
+  border: 1.5px solid #c7d2fe !important;
+}
+
+.btn-add-group:hover {
+  background: #eef2ff !important;
+  border-color: #818cf8 !important;
+}
+
+/* ── COL WIDTHS ──────────────────────────────────── */
+.col-dim   { width: 70px !important; }
+.col-qty   { width: 64px !important; }
+.col-c-qty { width: 72px !important; }
+.col-unit  { width: 78px !important; }
+.col-hsn   { width: 82px !important; }
+.col-gst   { width: 70px !important; }
+.col-rate  { width: 90px !important; }
+.col-disc  { width: 96px !important; }
+.col-amt   { width: 90px !important; text-align: right !important; }
+.col-total { width: 96px !important; text-align: right !important; }
+.col-c-area { width: 80px !important; text-align: right !important; }
+
+/* Right-align amount/total/area header */
+.erp-table-hdr th.col-amt,
+.erp-table-hdr th.col-total,
+.erp-table-hdr th.col-c-area {
+  text-align: right !important;
+}
+
+/* ── SORTABLE GHOST ─────────────────────────────── */
+.sortable-ghost td {
+  background: #eef2ff !important;
+  opacity: 0.5 !important;
+}
+
+/* ── MOBILE RESPONSIVE ──────────────────────────── */
+@media (max-width: 768px) {
+  .erp-table-wrap {
+    margin: 0 -16px !important;
+    border-radius: 0 !important;
+  }
+  .erp-items-table {
+    min-width: 1100px !important;
+  }
+  .erp-items-footer {
+    flex-wrap: wrap !important;
+  }
+}

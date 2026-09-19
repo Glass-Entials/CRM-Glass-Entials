@@ -321,6 +321,7 @@ def _save_quotation_from_form(quotation, form, files, org_id, employee_id):
     discounts = form.getlist("discount[]")
     discount_types = form.getlist("discount_type[]")
     gst_rates = form.getlist("gst_rate[]")
+    hsn_sacs = form.getlist("hsn_sac[]")
 
     items_data = []
     for i in range(len(item_names)):
@@ -359,6 +360,7 @@ def _save_quotation_from_form(quotation, form, files, org_id, employee_id):
                 "gst_percentage": (
                     float(gst_rates[i]) if i < len(gst_rates) and gst_rates[i] else 18
                 ),
+                "hsn_sac": hsn_sacs[i].strip() if i < len(hsn_sacs) else "",
             }
         )
 
@@ -391,6 +393,7 @@ def _save_quotation_from_form(quotation, form, files, org_id, employee_id):
             discount=it["discount"],
             discount_type=it["discount_type"],
             gst_percentage=gst,
+            hsn_sac=it.get("hsn_sac", ""),
             sgst_rate=0 if quotation.is_igst else half,
             cgst_rate=0 if quotation.is_igst else half,
             igst_rate=gst if quotation.is_igst else 0,
