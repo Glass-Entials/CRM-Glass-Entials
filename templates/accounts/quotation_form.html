@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3\">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3\">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/quotation.css') }}?v=3\">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/quotation_premium.css') }}?v=1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/quotation_premium.css') }}?v=2">
 
 
 
@@ -1082,7 +1082,7 @@
 </template>
 
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
-<script src="{{ url_for('static', filename='js/quotation_engine.js') }}"></script>
+<script src="{{ url_for('static', filename='js/quotation_engine.js') }}?v=2"></script>
 <script>
   // Pass server-side settings to JS
   window.QE_CONFIG = {
