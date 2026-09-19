@@ -459,7 +459,10 @@ async function calculateTotals() {
   try {
     const res = await fetch(CONFIG.calcUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-CSRFToken': CONFIG.csrfToken
+      },
       body: JSON.stringify(payload)
     });
     const data = await res.json();
@@ -600,7 +603,10 @@ document.querySelectorAll('.btn-remove-att').forEach(btn => {
     const attId = btn.dataset.attId;
     btn.parentElement.style.opacity = 0.5;
     try {
-      const res = await fetch(`/quotations/attachments/${attId}/delete`, {method: 'POST'});
+      const res = await fetch(`/quotations/attachments/${attId}/delete`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CONFIG.csrfToken }
+      });
       if(res.ok) btn.parentElement.remove();
     } catch(e) { console.error(e); }
   });

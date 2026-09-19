@@ -357,9 +357,8 @@
                       </select>
                     </th>
                     <th class="col-dim" style="width:72px;">H</th>
-                    <th class="col-c-area" style="width:80px;">Chrg. Area<div style="font-size:10px;font-weight:400;opacity:.7;">Sq.Ft / Sq.M</div></th>
+                    <th class="col-c-qty" style="width:82px;">Chrg. Qty</th>
                     <th class="col-qty" style="width:64px;">Qty</th>
-                    <th class="col-c-qty" style="width:72px;">Chrg. Qty</th>
                     <th class="col-unit" style="width:76px;">Unit</th>
                     <th class="col-hsn" style="width:80px;">HSN/SAC</th>
                     <th class="col-gst" style="width:72px;">GST %</th>
@@ -408,16 +407,13 @@
                         <input type="number" name="height[]" class="erp-inline-input erp-num-input dim-h item-calc"
                                value="{{ item.height or '' }}" placeholder="0" step="0.01">
                       </td>
-                      <td class="col-c-area">
-                        <span class="erp-computed area-val">0.00</span>
+                      <td class="col-c-qty">
+                        <input type="number" name="chargeable_quantity[]" class="erp-inline-input erp-num-input item-c-qty item-calc"
+                               value="{{ item.chargeable_quantity or '' }}" placeholder="Auto" step="0.01">
                       </td>
                       <td class="col-qty">
                         <input type="number" name="quantity[]" class="erp-inline-input erp-num-input item-qty item-calc"
                                value="{{ item.quantity }}" min="0" step="0.01">
-                      </td>
-                      <td class="col-c-qty">
-                        <input type="number" name="chargeable_quantity[]" class="erp-inline-input erp-num-input item-c-qty item-calc"
-                               value="{{ item.chargeable_quantity or '' }}" placeholder="Auto" step="0.01">
                       </td>
                       <td class="col-unit">
                         <select name="unit[]" class="erp-inline-select select-unit item-calc">
@@ -1029,14 +1025,11 @@
     <td class="col-dim">
       <input type="number" name="height[]" class="erp-inline-input erp-num-input dim-h item-calc" value="" placeholder="0" step="0.01">
     </td>
-    <td class="col-c-area">
-      <span class="erp-computed area-val">—</span>
+    <td class="col-c-qty">
+      <input type="number" name="chargeable_quantity[]" class="erp-inline-input erp-num-input item-c-qty item-calc" placeholder="Auto" step="0.01">
     </td>
     <td class="col-qty">
       <input type="number" name="quantity[]" class="erp-inline-input erp-num-input item-qty item-calc" value="1" min="0" step="0.01">
-    </td>
-    <td class="col-c-qty">
-      <input type="number" name="chargeable_quantity[]" class="erp-inline-input erp-num-input item-c-qty item-calc" placeholder="Auto" step="0.01">
     </td>
     <td class="col-unit">
       <select name="unit[]" class="erp-inline-select select-unit item-calc">
@@ -1094,6 +1087,7 @@
   // Pass server-side settings to JS
   window.QE_CONFIG = {
     calcUrl: "{{ url_for('quotations.api_calculate') }}",
+    csrfToken: "{{ csrf_token() }}",
     defaultGst: {{ settings.default_gst_rate or 18 }},
     isIgst: {{ 'true' if quotation and quotation.is_igst else 'false' }},
     mode: "{{ mode }}",
