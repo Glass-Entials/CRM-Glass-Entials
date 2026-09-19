@@ -967,6 +967,10 @@ body.dashboard-page {
   border: none !important;
 }
 
+#quotation-form-root .totals-row.hidden {
+  display: none !important;
+}
+
 #quotation-form-root .totals-row span:last-child {
   font-weight: 600 !important;
   color: #0f172a !important;
