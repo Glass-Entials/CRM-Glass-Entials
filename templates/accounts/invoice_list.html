@@ -78,7 +78,7 @@
             border: 1.5px solid var(--border);
             border-radius: var(--radius);
             margin-bottom: 12px;
-            overflow: hidden;
+            /* removed overflow: hidden so dropdowns can overflow */
         }
 
         .inv-section-header {
@@ -90,10 +90,12 @@
             cursor: pointer;
             user-select: none;
             transition: background 0.13s;
+            border-radius: var(--radius);
         }
         .inv-section-header:hover { background: #fafafa; }
         .inv-section.expanded .inv-section-header {
             border-bottom: 1.5px solid var(--border);
+            border-radius: var(--radius) var(--radius) 0 0;
         }
 
         .toggle-arrow {
