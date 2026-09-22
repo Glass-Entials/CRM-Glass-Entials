@@ -41,6 +41,7 @@ from super_admin.routes import super_admin_bp
 from routes.org import org_bp
 from routes.call_logger import call_logger_bp
 from routes.call_logger_api import call_logger_api_bp
+from routes.gst_reports import gst_bp
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -265,6 +266,7 @@ app.register_blueprint(super_admin_bp)
 app.register_blueprint(org_bp)
 app.register_blueprint(call_logger_bp)
 app.register_blueprint(call_logger_api_bp)
+app.register_blueprint(gst_bp)
 # Exempt the Android device API from CSRF (uses Bearer token auth instead)
 csrf.exempt(call_logger_api_bp)
 
