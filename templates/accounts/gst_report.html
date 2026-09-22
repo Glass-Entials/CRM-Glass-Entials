@@ -1,420 +1,571 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GST Reports | GlassEntials</title>
-  <meta name="description" content="Generate GSTR-1 monthly and financial year GST reports from your invoice data.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
-  <style>
-    :root {
-      --gst-primary: #1e3a5f;
-      --gst-accent: #3b82f6;
-      --gst-success: #10b981;
-      --gst-warn: #f59e0b;
-      --gst-danger: #ef4444;
-      --gst-surface: #ffffff;
-      --gst-bg: #f1f5f9;
-      --gst-border: #e2e8f0;
-      --gst-text: #1e293b;
-      --gst-muted: #64748b;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GST Reports | GlassEntials Accounts</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    
+    <style>
+        :root {
+            --primary-color: #1a2f4a;
+            --accent-gold: #d4af37;
+            --gold: #d4af37;
+            --bg-color: #fdfcf9;
+            --border: rgba(13, 27, 42, 0.12);
+            --text-main: #0d1b2a;
+            --text-muted: #6e7985;
+            --radius: 12px;
+        }
 
-    body { font-family: "Inter", sans-serif; background: var(--gst-bg); color: var(--gst-text); }
+        body.dashboard-page {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+        }
 
-    /* ── Page header ── */
-    .gst-page-header {
-      background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
-      padding: 32px 40px 48px;
-      color: #fff;
-    }
-    .gst-page-header h1 { font-size: 28px; font-weight: 800; margin: 0; }
-    .gst-page-header p { font-size: 14px; opacity: .75; margin: 4px 0 0; }
+        /* ── Wrapper ───────────────────────────────────────── */
+        .inv-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 24px 60px;
+        }
 
-    /* ── Container ── */
-    .gst-body { max-width: 1280px; margin: -20px auto 40px; padding: 0 24px; }
+        /* ── Header ────────────────────────────────────────── */
+        .inv-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 24px;
+        }
+        .inv-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 0 0 6px 0;
+            letter-spacing: -0.01em;
+        }
+        .inv-subtitle {
+            font-size: 14.5px;
+            color: var(--text-muted);
+            margin: 0;
+            font-weight: 400;
+        }
 
-    /* ── Filter Card ── */
-    .gst-filter-card {
-      background: var(--gst-surface);
-      border: 1px solid var(--gst-border);
-      border-radius: 16px;
-      padding: 28px 32px;
-      box-shadow: 0 4px 24px rgba(0,0,0,.07);
-      margin-bottom: 28px;
-    }
-    .gst-filter-card h2 { font-size: 15px; font-weight: 700; color: var(--gst-primary); margin: 0 0 18px; }
+        /* ── Filter Card ───────────────────────────────────── */
+        .inv-section {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 24px;
+            padding: 24px 28px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+        }
+        .inv-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
 
-    .filter-row { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
-    .filter-group { display: flex; flex-direction: column; gap: 6px; }
-    .filter-group label { font-size: 12px; font-weight: 600; color: var(--gst-muted); text-transform: uppercase; letter-spacing: .5px; }
-    .filter-group select, .filter-group input {
-      padding: 10px 14px;
-      border: 1.5px solid var(--gst-border);
-      border-radius: 10px;
-      font-size: 14px;
-      font-family: inherit;
-      color: var(--gst-text);
-      background: #f8fafc;
-      min-width: 140px;
-      transition: border-color .2s;
-    }
-    .filter-group select:focus, .filter-group input:focus {
-      outline: none;
-      border-color: var(--gst-accent);
-      background: #fff;
-    }
+        .filter-row {
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .filter-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .filter-select {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            color: var(--text-main);
+            background: #fdfcf9;
+            min-width: 150px;
+            outline: none;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .filter-select:hover, .filter-select:focus {
+            border-color: var(--accent-gold);
+            background: #fff;
+        }
 
-    .btn-generate {
-      display: inline-flex; align-items: center; gap: 8px;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: #fff; border: none; border-radius: 10px;
-      padding: 12px 24px; font-size: 14px; font-weight: 700;
-      cursor: pointer; transition: all .2s; box-shadow: 0 4px 14px rgba(37,99,235,.3);
-      font-family: inherit;
-    }
-    .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,235,.4); }
+        /* ── Buttons ───────────────────────────────────────── */
+        .btn-gold {
+            background: var(--accent-gold);
+            color: #fff;
+            border: none;
+            padding: 11px 24px;
+            border-radius: 8px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25);
+        }
+        .btn-gold:hover {
+            background: #c3a032;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(212, 175, 55, 0.3);
+        }
+        .btn-gold:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
 
-    .btn-export {
-      display: inline-flex; align-items: center; gap: 8px;
-      background: linear-gradient(135deg, #10b981, #059669);
-      color: #fff; border: none; border-radius: 10px;
-      padding: 12px 22px; font-size: 14px; font-weight: 700;
-      cursor: pointer; transition: all .2s; box-shadow: 0 4px 14px rgba(16,185,129,.3);
-      font-family: inherit; margin-left: 8px;
-    }
-    .btn-export:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(16,185,129,.4); }
-    .btn-export:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+        .btn-primary {
+            background: var(--primary-color);
+            color: #fff;
+            border: none;
+            padding: 11px 24px;
+            border-radius: 8px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(26, 47, 74, 0.2);
+        }
+        .btn-primary:hover {
+            background: #112033;
+            transform: translateY(-1px);
+        }
 
-    /* ── Summary Cards ── */
-    .gst-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
-    .summary-card {
-      background: var(--gst-surface);
-      border: 1px solid var(--gst-border);
-      border-radius: 14px;
-      padding: 20px 24px;
-      box-shadow: 0 2px 12px rgba(0,0,0,.05);
-      position: relative; overflow: hidden;
-    }
-    .summary-card::before {
-      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-      background: var(--card-color, var(--gst-accent));
-    }
-    .summary-card .card-label { font-size: 12px; color: var(--gst-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
-    .summary-card .card-value { font-size: 24px; font-weight: 800; color: var(--gst-primary); margin-top: 6px; }
-    .summary-card .card-sub { font-size: 12px; color: var(--gst-muted); margin-top: 4px; }
+        /* ── Summary Cards ─────────────────────────────────── */
+        .sum-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .sum-card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+            position: relative;
+            overflow: hidden;
+        }
+        .sum-card::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; bottom: 0; width: 4px;
+            background: var(--card-color, var(--primary-color));
+            border-radius: 4px 0 0 4px;
+        }
+        .sum-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .sum-val {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 6px 0 4px;
+        }
+        .sum-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
 
-    /* ── Tabs ── */
-    .gst-tabs-wrap {
-      background: var(--gst-surface);
-      border: 1px solid var(--gst-border);
-      border-radius: 16px;
-      box-shadow: 0 4px 24px rgba(0,0,0,.07);
-      overflow: hidden;
-    }
-    .gst-tabs-nav {
-      display: flex; gap: 0; overflow-x: auto;
-      border-bottom: 2px solid var(--gst-border);
-      background: #f8fafc; padding: 0 16px;
-    }
-    .gst-tab-btn {
-      padding: 14px 18px; font-size: 13px; font-weight: 600; color: var(--gst-muted);
-      border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent;
-      margin-bottom: -2px; white-space: nowrap; transition: all .2s; font-family: inherit;
-    }
-    .gst-tab-btn.active { color: var(--gst-accent); border-bottom-color: var(--gst-accent); }
-    .gst-tab-btn:hover:not(.active) { color: var(--gst-text); background: rgba(0,0,0,.03); }
+        /* ── Tabs ──────────────────────────────────────────── */
+        .gst-tabs-nav {
+            display: flex;
+            gap: 0;
+            overflow-x: auto;
+            border-bottom: 1.5px solid var(--border);
+            margin-bottom: 20px;
+        }
+        .gst-tab-btn {
+            padding: 12px 18px;
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1.5px;
+            white-space: nowrap;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .gst-tab-btn:hover {
+            color: var(--primary-color);
+        }
+        .gst-tab-btn.active {
+            color: var(--accent-gold);
+            border-bottom-color: var(--accent-gold);
+        }
+        .gst-tab-panel { display: none; }
+        .gst-tab-panel.active { display: block; animation: fadeIn 0.3s; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-    .gst-tab-panel { display: none; padding: 24px; }
-    .gst-tab-panel.active { display: block; }
+        /* ── Table ─────────────────────────────────────────── */
+        .inv-table-wrap {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow-x: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+        }
+        .inv-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13.5px;
+        }
+        .inv-table thead th {
+            background: #fafafa;
+            padding: 14px 18px;
+            text-align: left;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        .inv-table tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+        .inv-table tbody tr:hover {
+            background: #fcfbfa;
+        }
+        .inv-table tbody td {
+            padding: 12px 18px;
+            color: var(--text-main);
+            vertical-align: middle;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+            font-size: 14.5px;
+        }
+        .empty-state svg {
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
 
-    /* ── Table ── */
-    .gst-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--gst-border); }
-    .gst-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .gst-table thead tr { background: var(--gst-primary); }
-    .gst-table thead th {
-      padding: 12px 14px; text-align: left; font-size: 11px; font-weight: 700;
-      color: #fff; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap;
-    }
-    .gst-table tbody tr { border-bottom: 1px solid var(--gst-border); transition: background .1s; }
-    .gst-table tbody tr:nth-child(even) { background: #f8fafc; }
-    .gst-table tbody tr:hover { background: #eff6ff; }
-    .gst-table tbody td { padding: 11px 14px; color: var(--gst-text); }
-    .empty-state { text-align: center; padding: 48px; color: var(--gst-muted); font-size: 14px; }
-    .empty-state span { font-size: 36px; display: block; margin-bottom: 12px; }
+        /* ── Loader ────────────────────────────────────────── */
+        .gst-loader {
+            display: none;
+            text-align: center;
+            padding: 60px;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(26,47,74,0.1);
+            border-top-color: var(--accent-gold);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Loading ── */
-    .gst-loader { display: none; text-align: center; padding: 48px; }
-    .spinner {
-      width: 44px; height: 44px; border: 4px solid #e2e8f0;
-      border-top-color: var(--gst-accent); border-radius: 50%;
-      animation: spin .7s linear infinite; margin: 0 auto 16px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .period-badge {
-      display: inline-block; background: rgba(59,130,246,.1); color: var(--gst-accent);
-      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-left: 8px;
-    }
-
-    /* Flash messages */
-    .alert { padding: 12px 18px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; }
-    .alert-danger { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
-    .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
-
-    @media (max-width: 768px) {
-      .gst-page-header { padding: 24px 20px 40px; }
-      .gst-body { padding: 0 16px; }
-      .gst-filter-card { padding: 20px; }
-      .filter-row { flex-direction: column; align-items: stretch; }
-      .btn-generate, .btn-export { width: 100%; justify-content: center; }
-    }
-  </style>
+    </style>
 </head>
-<body>
-{% include "partials/sidebar.html" ignore missing %}
+<body class="dashboard-page">
 
-<div class="main-content" id="main-content">
-  <!-- Page Header -->
-  <div class="gst-page-header">
-    <h1>📊 GST Reports</h1>
-    <p>Generate GSTR-1 reports from your invoice data — monthly or by financial year</p>
-  </div>
+    {% include 'includes/navbar.html' %}
 
-  <div class="gst-body">
-    <!-- Filter Card -->
-    <div class="gst-filter-card">
-      <h2>🔍 Filter Report</h2>
-      <form id="gst-filter-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="filter-row">
-          <div class="filter-group">
-            <label>Report Type</label>
-            <select id="report-type" name="report_type" onchange="toggleFilterMode()">
-              <option value="monthly">📅 Monthly</option>
-              <option value="fy">📆 Financial Year</option>
-            </select>
-          </div>
+    <main class="container">
+        <div class="inv-wrapper">
+            
+            <!-- Page Header -->
+            <div class="inv-header">
+                <div>
+                    <h1 class="inv-title">GST Reports</h1>
+                    <p class="inv-subtitle">Generate GSTR-1 reports from your invoice data</p>
+                </div>
+            </div>
 
-          <!-- Monthly filters -->
-          <div class="filter-group" id="monthly-filters">
-            <label>Year</label>
-            <select name="year" id="year-select">
-              {% for y in years %}
-              <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="filter-group" id="month-filter">
-            <label>Month</label>
-            <select name="month" id="month-select">
-              {% for num, name in months %}
-              <option value="{{ num }}" {% if num == current_month %}selected{% endif %}>{{ name }}</option>
-              {% endfor %}
-            </select>
-          </div>
+            <!-- Filter Section -->
+            <div class="inv-section">
+                <div class="inv-section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                    Filter Report
+                </div>
+                
+                <form id="gst-filter-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>Report Type</label>
+                            <select id="report-type" name="report_type" class="filter-select" onchange="toggleFilterMode()">
+                                <option value="monthly">Monthly</option>
+                                <option value="fy">Financial Year</option>
+                            </select>
+                        </div>
 
-          <!-- FY filter (hidden by default) -->
-          <div class="filter-group" id="fy-filter" style="display:none;">
-            <label>Financial Year</label>
-            <select name="fy_year" id="fy-select">
-              {% for yr, label in fy_years %}
-              <option value="{{ yr }}" {% if yr == current_year - 1 %}selected{% endif %}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
+                        <!-- Monthly filters -->
+                        <div class="filter-group" id="monthly-filters">
+                            <label>Year</label>
+                            <select name="year" id="year-select" class="filter-select">
+                                {% for y in years %}
+                                <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="filter-group" id="month-filter">
+                            <label>Month</label>
+                            <select name="month" id="month-select" class="filter-select">
+                                {% for num, name in months %}
+                                <option value="{{ num }}" {% if num == current_month %}selected{% endif %}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
 
-          <div style="display:flex; gap:8px; align-items:flex-end;">
-            <button type="button" class="btn-generate" onclick="generateReport()">
-              ⚡ Generate Report
-            </button>
-            <button type="submit" id="btn-export" class="btn-export" disabled form="export-form">
-              📥 Export Excel
-            </button>
-          </div>
+                        <!-- FY filter -->
+                        <div class="filter-group" id="fy-filter" style="display:none;">
+                            <label>Financial Year</label>
+                            <select name="fy_year" id="fy-select" class="filter-select">
+                                {% for yr, label in fy_years %}
+                                <option value="{{ yr }}" {% if yr == current_year - 1 %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div style="display:flex; gap:12px; margin-left:auto;">
+                            <button type="button" class="btn-primary" onclick="generateReport()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                                Generate Report
+                            </button>
+                            <button type="submit" id="btn-export" class="btn-gold" disabled form="export-form">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Export Excel
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                <!-- Hidden export form -->
+                <form id="export-form" method="POST" action="{{ url_for('gst_reports.export_excel') }}" style="display:none;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="report_type" id="ef-type">
+                    <input type="hidden" name="year" id="ef-year">
+                    <input type="hidden" name="month" id="ef-month">
+                    <input type="hidden" name="fy_year" id="ef-fy">
+                </form>
+            </div>
+
+            <!-- Loader -->
+            <div class="gst-loader" id="gst-loader">
+                <div class="spinner"></div>
+                <p>Generating report from invoice data…</p>
+            </div>
+
+            <!-- Results -->
+            <div id="gst-results" style="display:none;">
+                
+                <!-- Summary cards -->
+                <div class="sum-grid" id="summary-cards"></div>
+
+                <!-- Tabs & Tables -->
+                <div class="gst-tabs-nav" role="tablist">
+                    <button class="gst-tab-btn active" onclick="switchTab('b2b')" id="tab-btn-b2b">B2B / SEZ / DE</button>
+                    <button class="gst-tab-btn" onclick="switchTab('b2cl')" id="tab-btn-b2cl">B2CL</button>
+                    <button class="gst-tab-btn" onclick="switchTab('b2cs')" id="tab-btn-b2cs">B2CS</button>
+                    <button class="gst-tab-btn" onclick="switchTab('cdnr')" id="tab-btn-cdnr">CDNR</button>
+                    <button class="gst-tab-btn" onclick="switchTab('cdnur')" id="tab-btn-cdnur">CDNUR</button>
+                    <button class="gst-tab-btn" onclick="switchTab('exp')" id="tab-btn-exp">EXP</button>
+                    <button class="gst-tab-btn" onclick="switchTab('exemp')" id="tab-btn-exemp">EXEMP</button>
+                    <button class="gst-tab-btn" onclick="switchTab('hsn_b2b')" id="tab-btn-hsn_b2b">HSN (B2B)</button>
+                    <button class="gst-tab-btn" onclick="switchTab('hsn_b2c')" id="tab-btn-hsn_b2c">HSN (B2C)</button>
+                    <button class="gst-tab-btn" onclick="switchTab('docs')" id="tab-btn-docs">DOCS</button>
+                    <button class="gst-tab-btn" onclick="switchTab('cancelled')" id="tab-btn-cancelled" style="color:var(--text-muted);">Cancelled</button>
+                </div>
+
+                <div class="gst-tab-panel active" id="panel-b2b"></div>
+                <div class="gst-tab-panel" id="panel-b2cl"></div>
+                <div class="gst-tab-panel" id="panel-b2cs"></div>
+                <div class="gst-tab-panel" id="panel-cdnr"></div>
+                <div class="gst-tab-panel" id="panel-cdnur"></div>
+                <div class="gst-tab-panel" id="panel-exp"></div>
+                <div class="gst-tab-panel" id="panel-exemp"></div>
+                <div class="gst-tab-panel" id="panel-hsn_b2b"></div>
+                <div class="gst-tab-panel" id="panel-hsn_b2c"></div>
+                <div class="gst-tab-panel" id="panel-docs"></div>
+                <div class="gst-tab-panel" id="panel-cancelled"></div>
+
+            </div>
         </div>
-      </form>
-      <!-- Hidden export form (POST to download) -->
-      <form id="export-form" method="POST" action="{{ url_for('gst_reports.export_excel') }}" style="display:none;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="report_type" id="ef-type">
-        <input type="hidden" name="year" id="ef-year">
-        <input type="hidden" name="month" id="ef-month">
-        <input type="hidden" name="fy_year" id="ef-fy">
-      </form>
-    </div>
-
-    <!-- Loader -->
-    <div class="gst-loader" id="gst-loader">
-      <div class="spinner"></div>
-      <p>Generating report…</p>
-    </div>
-
-    <!-- Results (hidden until generated) -->
-    <div id="gst-results" style="display:none;">
-      <!-- Summary cards -->
-      <div class="gst-summary" id="summary-cards"></div>
-
-      <!-- Tabs -->
-      <div class="gst-tabs-wrap">
-        <div class="gst-tabs-nav" role="tablist">
-          <button class="gst-tab-btn active" onclick="switchTab('b2b')" id="tab-btn-b2b">B2B / SEZ / DE</button>
-          <button class="gst-tab-btn" onclick="switchTab('b2cl')" id="tab-btn-b2cl">B2CL</button>
-          <button class="gst-tab-btn" onclick="switchTab('b2cs')" id="tab-btn-b2cs">B2CS</button>
-          <button class="gst-tab-btn" onclick="switchTab('cdnr')" id="tab-btn-cdnr">CDNR</button>
-          <button class="gst-tab-btn" onclick="switchTab('cdnur')" id="tab-btn-cdnur">CDNUR</button>
-          <button class="gst-tab-btn" onclick="switchTab('exp')" id="tab-btn-exp">EXP</button>
-          <button class="gst-tab-btn" onclick="switchTab('exemp')" id="tab-btn-exemp">EXEMP</button>
-          <button class="gst-tab-btn" onclick="switchTab('hsn_b2b')" id="tab-btn-hsn_b2b">HSN (B2B)</button>
-          <button class="gst-tab-btn" onclick="switchTab('hsn_b2c')" id="tab-btn-hsn_b2c">HSN (B2C)</button>
-          <button class="gst-tab-btn" onclick="switchTab('docs')" id="tab-btn-docs">DOCS</button>
-          <button class="gst-tab-btn" onclick="switchTab('cancelled')" id="tab-btn-cancelled" style="color:#ef4444;">⛔ Cancelled</button>
-        </div>
-
-        <div class="gst-tab-panel active" id="panel-b2b"></div>
-        <div class="gst-tab-panel" id="panel-b2cl"></div>
-        <div class="gst-tab-panel" id="panel-b2cs"></div>
-        <div class="gst-tab-panel" id="panel-cdnr"></div>
-        <div class="gst-tab-panel" id="panel-cdnur"></div>
-        <div class="gst-tab-panel" id="panel-exp"></div>
-        <div class="gst-tab-panel" id="panel-exemp"></div>
-        <div class="gst-tab-panel" id="panel-hsn_b2b"></div>
-        <div class="gst-tab-panel" id="panel-hsn_b2c"></div>
-        <div class="gst-tab-panel" id="panel-docs"></div>
-        <div class="gst-tab-panel" id="panel-cancelled"></div>
-      </div>
-    </div>
-  </div>
-</div>
+    </main>
 
 <script>
-  const GENERATE_URL = "{{ url_for('gst_reports.generate_report') }}";
-  let currentReport = null;
-  let currentActiveTab = "b2b";
+    const GENERATE_URL = "{{ url_for('gst_reports.generate_report') }}";
+    let currentReport = null;
+    let currentActiveTab = "b2b";
 
-  function toggleFilterMode() {
-    const type = document.getElementById("report-type").value;
-    const monthly = document.getElementById("monthly-filters");
-    const monthEl = document.getElementById("month-filter");
-    const fy = document.getElementById("fy-filter");
-    if (type === "fy") {
-      monthly.style.display = "none";
-      monthEl.style.display = "none";
-      fy.style.display = "";
-    } else {
-      monthly.style.display = "";
-      monthEl.style.display = "";
-      fy.style.display = "none";
+    function toggleFilterMode() {
+        const type = document.getElementById("report-type").value;
+        const monthly = document.getElementById("monthly-filters");
+        const monthEl = document.getElementById("month-filter");
+        const fy = document.getElementById("fy-filter");
+        if (type === "fy") {
+            monthly.style.display = "none";
+            monthEl.style.display = "none";
+            fy.style.display = "";
+        } else {
+            monthly.style.display = "";
+            monthEl.style.display = "";
+            fy.style.display = "none";
+        }
     }
-  }
 
-  function switchTab(tab) {
-    document.querySelectorAll(".gst-tab-btn").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".gst-tab-panel").forEach(p => p.classList.remove("active"));
-    document.getElementById("tab-btn-" + tab).classList.add("active");
-    document.getElementById("panel-" + tab).classList.add("active");
-    currentActiveTab = tab;
-  }
-
-  function renderTable(rows) {
-    if (!rows || rows.length === 0) {
-      return `<div class="empty-state"><span>📭</span>No data for this period.</div>`;
+    function switchTab(tab) {
+        document.querySelectorAll(".gst-tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".gst-tab-panel").forEach(p => p.classList.remove("active"));
+        document.getElementById("tab-btn-" + tab).classList.add("active");
+        document.getElementById("panel-" + tab).classList.add("active");
+        currentActiveTab = tab;
     }
-    const headers = Object.keys(rows[0]);
-    let html = `<div class="gst-table-wrap"><table class="gst-table"><thead><tr>`;
-    headers.forEach(h => { html += `<th>${h}</th>`; });
-    html += `</tr></thead><tbody>`;
-    rows.forEach(row => {
-      html += `<tr>`;
-      headers.forEach(h => { html += `<td>${row[h] ?? ""}</td>`; });
-      html += `</tr>`;
-    });
-    html += `</tbody></table></div>`;
-    return html;
-  }
 
-  function fmtCurrency(v) {
-    return "₹" + parseFloat(v || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
-  }
-
-  async function generateReport() {
-    const form = document.getElementById("gst-filter-form");
-    const fd = new FormData(form);
-
-    document.getElementById("gst-loader").style.display = "";
-    document.getElementById("gst-results").style.display = "none";
-
-    try {
-      const res = await fetch(GENERATE_URL, { method: "POST", body: fd });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "Generation failed");
-
-      currentReport = data.report;
-      renderResults(currentReport);
-      syncExportForm(fd);
-      document.getElementById("btn-export").disabled = false;
-    } catch (e) {
-      alert("Error generating report: " + e.message);
-    } finally {
-      document.getElementById("gst-loader").style.display = "none";
+    function renderTable(rows) {
+        if (!rows || rows.length === 0) {
+            return `
+            <div class="inv-table-wrap">
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="32" height="32"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                    <br>No data available for this period.
+                </div>
+            </div>`;
+        }
+        const headers = Object.keys(rows[0]);
+        let html = `<div class="inv-table-wrap"><table class="inv-table"><thead><tr>`;
+        headers.forEach(h => { html += `<th>${h}</th>`; });
+        html += `</tr></thead><tbody>`;
+        rows.forEach(row => {
+            html += `<tr>`;
+            headers.forEach(h => { html += `<td>${row[h] ?? ""}</td>`; });
+            html += `</tr>`;
+        });
+        html += `</tbody></table></div>`;
+        return html;
     }
-  }
 
-  function renderResults(report) {
-    const s = report.summary;
-    const cardsHTML = `
-      <div class="summary-card" style="--card-color:#2563eb">
-        <div class="card-label">Total Invoices</div>
-        <div class="card-value">${s.total_invoices}</div>
-        <div class="card-sub">Period: ${s.start} – ${s.end}</div>
-      </div>
-      <div class="summary-card" style="--card-color:#10b981">
-        <div class="card-label">Total Taxable Value</div>
-        <div class="card-value">${fmtCurrency(s.total_taxable)}</div>
-        <div class="card-sub">Pre-tax subtotal</div>
-      </div>
-      <div class="summary-card" style="--card-color:#f59e0b">
-        <div class="card-label">Total GST Amount</div>
-        <div class="card-value">${fmtCurrency(s.total_gst)}</div>
-        <div class="card-sub">CGST + SGST + IGST</div>
-      </div>
-      <div class="summary-card" style="--card-color:#8b5cf6">
-        <div class="card-label">Total Invoice Value</div>
-        <div class="card-value">${fmtCurrency(s.total_invoice_value)}</div>
-        <div class="card-sub">Including GST</div>
-      </div>
-      <div class="summary-card" style="--card-color:#ef4444">
-        <div class="card-label">Cancelled Invoices</div>
-        <div class="card-value">${s.cancelled_count}</div>
-        <div class="card-sub">Excluded from main report</div>
-      </div>
-    `;
-    document.getElementById("summary-cards").innerHTML = cardsHTML;
+    function fmtCurrency(v) {
+        return "₹" + parseFloat(v || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
+    }
 
-    const tabMap = {
-      b2b: report.b2b, b2cl: report.b2cl, b2cs: report.b2cs,
-      cdnr: report.cdnr, cdnur: report.cdnur, exp: report.exp,
-      exemp: report.exemp, hsn_b2b: report.hsn_b2b, hsn_b2c: report.hsn_b2c,
-      docs: report.docs, cancelled: report.cancelled,
-    };
-    Object.entries(tabMap).forEach(([key, rows]) => {
-      document.getElementById("panel-" + key).innerHTML = renderTable(rows);
-    });
+    async function generateReport() {
+        const form = document.getElementById("gst-filter-form");
+        const fd = new FormData(form);
 
-    document.getElementById("gst-results").style.display = "";
-    switchTab(currentActiveTab);
-  }
+        document.getElementById("gst-loader").style.display = "block";
+        document.getElementById("gst-results").style.display = "none";
 
-  function syncExportForm(fd) {
-    document.getElementById("ef-type").value = fd.get("report_type") || "monthly";
-    document.getElementById("ef-year").value = fd.get("year") || "";
-    document.getElementById("ef-month").value = fd.get("month") || "";
-    document.getElementById("ef-fy").value = fd.get("fy_year") || "";
-  }
+        try {
+            const res = await fetch(GENERATE_URL, { method: "POST", body: fd });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || "Generation failed");
+
+            currentReport = data.report;
+            renderResults(currentReport);
+            syncExportForm(fd);
+            document.getElementById("btn-export").disabled = false;
+        } catch (e) {
+            alert("Error generating report: " + e.message);
+        } finally {
+            document.getElementById("gst-loader").style.display = "none";
+        }
+    }
+
+    function renderResults(report) {
+        const s = report.summary;
+        const cardsHTML = `
+            <div class="sum-card" style="--card-color: var(--primary-color);">
+                <div class="sum-label">Total Invoices</div>
+                <div class="sum-val">${s.total_invoices}</div>
+                <div class="sum-sub">${s.period_label || 'Valid invoices'}</div>
+            </div>
+            <div class="sum-card" style="--card-color: #3b82f6;">
+                <div class="sum-label">Total Taxable Value</div>
+                <div class="sum-val">${fmtCurrency(s.total_taxable)}</div>
+                <div class="sum-sub">Pre-tax subtotal</div>
+            </div>
+            <div class="sum-card" style="--card-color: var(--accent-gold);">
+                <div class="sum-label">Total GST Amount</div>
+                <div class="sum-val">${fmtCurrency(s.total_gst)}</div>
+                <div class="sum-sub">CGST + SGST + IGST</div>
+            </div>
+            <div class="sum-card" style="--card-color: #10b981;">
+                <div class="sum-label">Total Invoice Value</div>
+                <div class="sum-val">${fmtCurrency(s.total_invoice_value)}</div>
+                <div class="sum-sub">Including GST</div>
+            </div>
+        `;
+        document.getElementById("summary-cards").innerHTML = cardsHTML;
+
+        const tabMap = {
+            b2b: report.b2b, b2cl: report.b2cl, b2cs: report.b2cs,
+            cdnr: report.cdnr, cdnur: report.cdnur, exp: report.exp,
+            exemp: report.exemp, hsn_b2b: report.hsn_b2b, hsn_b2c: report.hsn_b2c,
+            docs: report.docs, cancelled: report.cancelled,
+        };
+        Object.entries(tabMap).forEach(([key, rows]) => {
+            document.getElementById("panel-" + key).innerHTML = renderTable(rows);
+        });
+
+        document.getElementById("gst-results").style.display = "block";
+        switchTab(currentActiveTab);
+    }
+
+    function syncExportForm(fd) {
+        document.getElementById("ef-type").value = fd.get("report_type") || "monthly";
+        document.getElementById("ef-year").value = fd.get("year") || "";
+        document.getElementById("ef-month").value = fd.get("month") || "";
+        document.getElementById("ef-fy").value = fd.get("fy_year") || "";
+    }
 </script>
 </body>
 </html>
