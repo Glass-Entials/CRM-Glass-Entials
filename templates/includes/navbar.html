@@ -41,7 +41,7 @@
 
         <div class="dropdown">
             <a href="#" {% if request.blueprint=='accounts' or request.blueprint=='quotations' or
-                request.blueprint=='expenses' or request.blueprint=='payments' %}class="active" {% endif %}>Finance
+                request.blueprint=='expenses' or request.blueprint=='payments' or request.blueprint=='gst_reports' %}class="active" {% endif %}>Finance
                 ▾</a>
             <div class="dropdown-content">
                 <!-- Hover Flyout Sales Menu -->
@@ -91,6 +91,19 @@
                     </div>
                 </div>
                 <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
+                
+                <!-- Reports submenu -->
+                <div class="nested-dropdown-hover"
+                    style="position: relative; border-top: 1px solid rgba(13, 27, 42, 0.04);">
+                    <a href="#" style="border-bottom: none !important; width: 100%;">
+                        Reports
+                        <span style="font-size: 0.8em; color: var(--text-muted); margin-left: auto;">▶</span>
+                    </a>
+                    <div class="nested-content"
+                        style="display: none; position: absolute; left: 100%; top: -5px; min-width: 180px; background-color: white; box-shadow: 0 10px 30px rgba(13, 27, 42, 0.1); border-radius: 12px; border: 1px solid rgba(13, 27, 42, 0.08); overflow: hidden; z-index: 1000;">
+                        <a href="{{ url_for('gst_reports.gst_report_page') }}">GST Reports</a>
+                    </div>
+                </div>
             </div>
         </div>
 
