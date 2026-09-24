@@ -31,17 +31,23 @@ class Config:
             SQLALCHEMY_DATABASE_URI = secrets.get("DATABASE_URL")
             GST_CLIENT_ID = secrets.get("GST_CLIENT_ID")
             GST_CLIENT_SECRET = secrets.get("GST_CLIENT_SECRET")
+            RAZORPAY_KEY_ID = secrets.get("RAZORPAY_KEY_ID")
+            RAZORPAY_KEY_SECRET = secrets.get("RAZORPAY_KEY_SECRET")
         except Exception as e:
             logging.error("Could not load AWS secrets, falling back to env")
             SECRET_KEY = os.environ.get("SECRET_KEY")
             SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
             GST_CLIENT_ID = os.environ.get("GST_CLIENT_ID")
             GST_CLIENT_SECRET = os.environ.get("GST_CLIENT_SECRET")
+            RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID")
+            RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET")
     else:
         SECRET_KEY = os.environ.get("SECRET_KEY")
         SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
         GST_CLIENT_ID = os.environ.get("GST_CLIENT_ID")
         GST_CLIENT_SECRET = os.environ.get("GST_CLIENT_SECRET")
+        RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID")
+        RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET")
 
     if not SECRET_KEY or SECRET_KEY == "secret123":
         raise RuntimeError("Set a strong SECRET_KEY in the environment before startup.")

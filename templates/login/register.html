@@ -36,8 +36,10 @@
         {% endwith %}
 
         <form action="{{ url_for('auth.register') }}" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {% if request.args.get('plan_id') %}
+            <input type="hidden" name="plan_id" value="{{ request.args.get('plan_id') }}">
+            {% endif %}
             <div class="form-row">
                 <div class="form-group">
                     <label for="username">Full Name (Username)</label>

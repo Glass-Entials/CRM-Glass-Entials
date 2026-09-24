@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout - GlassEntials CRM{% endblock %}
+
+{% block styles %}
+<style>
+    .checkout-container {
+        max-width: 600px;
+        margin: 4rem auto;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .checkout-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .checkout-header h2 {
+        color: var(--text-primary);
+        font-family: 'Playfair Display', serif;
+        margin-bottom: 0.5rem;
+    }
+    
+    .plan-summary {
+        background: var(--bg-tertiary);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid var(--border-color);
+    }
+    
+    .plan-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .billing-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .price-display {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .gst-note {
+        text-align: center;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+    }
+    
+    #pay-btn {
+        width: 100%;
+        padding: 1rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="checkout-container">
+    <div class="checkout-header">
+        <h2>Complete Your Subscription</h2>
+        <p class="text-muted">You're almost there! Activate your {{ plan.display_name }} plan.</p>
+    </div>
+    
+    <div class="plan-summary">
+        <div class="plan-title">
+            <span>{{ plan.display_name }} Plan</span>
+            <span><i class="fas fa-users"></i> Up to {{ plan.default_member_limit }} Users</span>
+        </div>
+        
+        <div class="billing-toggle">
+            <span id="label-monthly" style="font-weight:bold; color:var(--primary-color);">Monthly</span>
+            <label class="toggle-switch" for="billingToggle">
+                <input type="checkbox" id="billingToggle">
+                <span class="toggle-track"></span>
+            </label>
+            <span id="label-yearly" style="color:var(--text-muted);">Yearly (Save 17%)</span>
+        </div>
+        
+        <div id="price-monthly" class="price-display">
+            ₹{{ plan.monthly_price_inr|int }} <span style="font-size:1rem; color:var(--text-muted); font-weight:normal;">/ mo</span>
+        </div>
+        
+        <div id="price-yearly" class="price-display" style="display:none;">
+            ₹{{ plan.yearly_price_inr|int }} <span style="font-size:1rem; color:var(--text-muted); font-weight:normal;">/ yr</span>
+        </div>
+        
+        <p class="gst-note">+ 18% GST will be added at checkout</p>
+    </div>
+    
+    <button id="pay-btn" class="btn btn-primary">Proceed to Payment</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+    const toggle = document.getElementById('billingToggle');
+    const priceMonthly = document.getElementById('price-monthly');
+    const priceYearly = document.getElementById('price-yearly');
+    const labelMonthly = document.getElementById('label-monthly');
+    const labelYearly = document.getElementById('label-yearly');
+    const payBtn = document.getElementById('pay-btn');
+    
+    let currentCycle = 'monthly';
+    
+    toggle.addEventListener('change', function () {
+        if (this.checked) {
+            priceMonthly.style.display = 'none';
+            priceYearly.style.display = 'block';
+            labelYearly.style.fontWeight = 'bold';
+            labelYearly.style.color = 'var(--primary-color)';
+            labelMonthly.style.fontWeight = 'normal';
+            labelMonthly.style.color = 'var(--text-muted)';
+            currentCycle = 'yearly';
+        } else {
+            priceMonthly.style.display = 'block';
+            priceYearly.style.display = 'none';
+            labelMonthly.style.fontWeight = 'bold';
+            labelMonthly.style.color = 'var(--primary-color)';
+            labelYearly.style.fontWeight = 'normal';
+            labelYearly.style.color = 'var(--text-muted)';
+            currentCycle = 'monthly';
+        }
+    });
+
+    payBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        payBtn.disabled = true;
+        payBtn.textContent = 'Processing...';
+        
+        // Create subscription backend
+        fetch("{{ url_for('saas.create_subscription') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ cycle: currentCycle })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                payBtn.disabled = false;
+                payBtn.textContent = 'Proceed to Payment';
+                return;
+            }
+            
+            // Open Razorpay
+            var options = {
+                "key": "{{ key_id }}",
+                "subscription_id": data.subscription_id,
+                "name": "GlassEntials CRM",
+                "description": "{{ plan.display_name }} Plan Subscription",
+                "image": "{{ url_for('static', filename='img/logo.png', _external=True) }}",
+                "handler": function (response){
+                    // Verify Payment
+                    fetch("{{ url_for('saas.verify_payment') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify(response)
+                    })
+                    .then(r => r.json())
+                    .then(ver => {
+                        if (ver.success) {
+                            window.location.href = "{{ url_for('home_page') }}";
+                        } else {
+                            alert("Payment verification failed: " + ver.error);
+                            payBtn.disabled = false;
+                            payBtn.textContent = 'Proceed to Payment';
+                        }
+                    });
+                },
+                "prefill": {
+                    "name": data.user_name,
+                    "email": data.user_email,
+                    "contact": data.user_phone
+                },
+                "theme": {
+                    "color": "#D4AF37"
+                }
+            };
+            var rzp1 = new Razorpay(options);
+            rzp1.on('payment.failed', function (response){
+                alert("Payment Failed: " + response.error.description);
+                payBtn.disabled = false;
+                payBtn.textContent = 'Proceed to Payment';
+            });
+            rzp1.open();
+        })
+        .catch(err => {
+            console.error(err);
+            alert("An error occurred initializing payment.");
+            payBtn.disabled = false;
+            payBtn.textContent = 'Proceed to Payment';
+        });
+    });
+</script>
+{% endblock %}

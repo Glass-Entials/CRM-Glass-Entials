@@ -153,7 +153,27 @@ def approve_employee(employee_id):
     ).first_or_404()
     
     if employee.user:
+        # Check SaaS member limit before activating
+        from model import Organization, OrganizationMember
+        from services.org_limits import check_member_limit
+        
+        org = db.session.get(Organization, current_user.organization_id)
+        if org:
+            allowed, reason = check_member_limit(org)
+            if not allowed:
+                flash(reason, "employeeerror")
+                return redirect(url_for("employees.employee_list"))
+        
         employee.user.is_active = True
+        
+        # Also mark the OrganizationMember as active
+        member = OrganizationMember.query.filter_by(
+            user_id=employee.user.id, 
+            organization_id=current_user.organization_id
+        ).first()
+        if member:
+            member.status = 'active'
+            
         db.session.commit()
         flash(f"{employee.name}'s account has been approved and activated.", "employeesuccess")
     else:

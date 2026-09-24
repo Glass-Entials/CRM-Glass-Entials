@@ -707,7 +707,108 @@ def users():
 @super_admin_bp.route("/plans")
 @super_admin_required
 def plans():
-    return render_template("super_admin/coming_soon.html", page_title="Plans")
+    from model import Plan
+    plans_list = Plan.query.order_by(Plan.sort_order.asc(), Plan.id.asc()).all()
+    return render_template("super_admin/plans.html", plans=plans_list, page_title="Plans")
+
+
+@super_admin_bp.route("/plans/create", methods=["POST"])
+@super_admin_required
+def create_plan():
+    from model import Plan, db
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Plan name is required.", "error")
+        return redirect(url_for("super_admin.plans"))
+        
+    try:
+        monthly_price = float(request.form.get("monthly_price", 0))
+        yearly_price = float(request.form.get("yearly_price", 0))
+        member_limit = int(request.form.get("default_member_limit", 5))
+        storage_limit = float(request.form.get("default_storage_limit_gb", 10.0))
+        
+        if monthly_price < 0 or yearly_price < 0 or member_limit < 1 or storage_limit < 0:
+            flash("Invalid limit or price values.", "error")
+            return redirect(url_for("super_admin.plans"))
+            
+        p = Plan(
+            name=name,
+            display_name=request.form.get("display_name", name).strip(),
+            description=request.form.get("description", "").strip(),
+            default_member_limit=member_limit,
+            default_storage_limit_gb=storage_limit,
+            monthly_price_paise=int(monthly_price * 100),
+            yearly_price_paise=int(yearly_price * 100),
+            razorpay_monthly_plan_id=request.form.get("razorpay_monthly_plan_id", "").strip() or None,
+            razorpay_yearly_plan_id=request.form.get("razorpay_yearly_plan_id", "").strip() or None,
+            is_active=True
+        )
+        db.session.add(p)
+        db.session.commit()
+        flash(f"Plan '{name}' created successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error creating plan: {str(e)}", "error")
+        
+    return redirect(url_for("super_admin.plans"))
+
+
+@super_admin_bp.route("/plans/<int:plan_id>/edit", methods=["POST"])
+@super_admin_required
+def edit_plan(plan_id):
+    from model import Plan, db
+    p = db.session.get(Plan, plan_id)
+    if not p:
+        flash("Plan not found.", "error")
+        return redirect(url_for("super_admin.plans"))
+        
+    try:
+        name = request.form.get("name", "").strip()
+        if not name:
+            flash("Plan name is required.", "error")
+            return redirect(url_for("super_admin.plans"))
+            
+        monthly_price = float(request.form.get("monthly_price", 0))
+        yearly_price = float(request.form.get("yearly_price", 0))
+        member_limit = int(request.form.get("default_member_limit", 5))
+        storage_limit = float(request.form.get("default_storage_limit_gb", 10.0))
+        
+        if monthly_price < 0 or yearly_price < 0 or member_limit < 1 or storage_limit < 0:
+            flash("Invalid limit or price values.", "error")
+            return redirect(url_for("super_admin.plans"))
+            
+        p.name = name
+        p.display_name = request.form.get("display_name", name).strip()
+        p.description = request.form.get("description", "").strip()
+        p.default_member_limit = member_limit
+        p.default_storage_limit_gb = storage_limit
+        p.monthly_price_paise = int(monthly_price * 100)
+        p.yearly_price_paise = int(yearly_price * 100)
+        p.razorpay_monthly_plan_id = request.form.get("razorpay_monthly_plan_id", "").strip() or None
+        p.razorpay_yearly_plan_id = request.form.get("razorpay_yearly_plan_id", "").strip() or None
+        
+        db.session.commit()
+        flash(f"Plan '{name}' updated successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error updating plan: {str(e)}", "error")
+        
+    return redirect(url_for("super_admin.plans"))
+
+
+@super_admin_bp.route("/plans/<int:plan_id>/toggle", methods=["POST"])
+@super_admin_required
+def toggle_plan(plan_id):
+    from model import Plan, db
+    p = db.session.get(Plan, plan_id)
+    if not p:
+        flash("Plan not found.", "error")
+        return redirect(url_for("super_admin.plans"))
+        
+    p.is_active = not p.is_active
+    db.session.commit()
+    flash(f"Plan '{p.name}' is now {'active' if p.is_active else 'inactive'}.", "success")
+    return redirect(url_for("super_admin.plans"))
 
 
 @super_admin_bp.route("/modules")

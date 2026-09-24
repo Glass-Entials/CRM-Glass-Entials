@@ -105,7 +105,11 @@ def suspended_org_guard():
     if not org_id:
         return None
     org = db.session.get(Organization, org_id)
-    if org and org.is_suspended:
-        from flask import render_template
-        return render_template('errors/org_suspended.html', org=org), 403
+    if org:
+        if org.status == OrganizationStatus.PENDING:
+            from flask import redirect, url_for
+            return redirect(url_for('saas.checkout'))
+        if not org.has_crm_access:
+            from flask import render_template
+            return render_template('errors/org_suspended.html', org=org), 403
     return None

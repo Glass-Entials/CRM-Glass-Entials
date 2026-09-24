@@ -267,8 +267,12 @@ app.register_blueprint(org_bp)
 app.register_blueprint(call_logger_bp)
 app.register_blueprint(call_logger_api_bp)
 app.register_blueprint(gst_bp)
+from routes.saas import saas_bp
+app.register_blueprint(saas_bp)
 # Exempt the Android device API from CSRF (uses Bearer token auth instead)
 csrf.exempt(call_logger_api_bp)
+# Exempt Razorpay webhook (verified by Razorpay signature, not CSRF token)
+csrf.exempt(saas_bp)
 
 
 @login_manager.user_loader
@@ -299,7 +303,7 @@ def enforce_org_active():
     }
     if request.endpoint in exempt_endpoints:
         return None
-    if request.endpoint and request.endpoint.startswith('super_admin.'):
+    if request.endpoint and (request.endpoint.startswith('super_admin.') or request.endpoint.startswith('saas.')):
         return None
     from utils.tenant import suspended_org_guard
     result = suspended_org_guard()
@@ -382,7 +386,9 @@ def about():
 
 @app.route("/pricing")
 def pricing_page():
-    return render_template("home/pricing.html")
+    from model import Plan
+    plans = Plan.query.filter_by(is_active=True).order_by(Plan.sort_order).all()
+    return render_template("home/pricing.html", plans=plans)
 
 
 @app.route("/home")

@@ -202,7 +202,14 @@ def delete_document(doc_id):
             current_app.config["UPLOAD_FOLDER"], "crm_docs", doc.filename
         )
         if os.path.exists(file_path):
+            file_size = os.path.getsize(file_path)
             os.remove(file_path)
+            
+            from services.org_limits import subtract_storage_usage
+            from model import Organization
+            org = db.session.get(Organization, current_user.organization_id)
+            if org:
+                subtract_storage_usage(org, file_size, commit=False)
 
         # Determine entity type and ID for logging if needed
         is_lead_doc = doc.lead_id is not None

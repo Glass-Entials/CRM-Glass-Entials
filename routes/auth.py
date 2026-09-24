@@ -22,6 +22,7 @@ from model import (
     User,
     Employee,
     Organization,
+    OrganizationStatus,
     UserRole,
     Task,
     Lead,
@@ -83,6 +84,11 @@ def login():
 
             login_user(user)
             flash("Login successful!", "loginsuccess")
+            
+            # SaaS check — redirect PENDING orgs to checkout
+            if user.organization and user.organization.status == OrganizationStatus.PENDING:
+                return redirect(url_for("saas.checkout"))
+            
             next_page = request.args.get("next")
             return redirect(safe_redirect_target(next_page, url_for("home_page")))
         else:
@@ -214,7 +220,15 @@ def register():
                     if not Organization.query.filter_by(unique_code=code).first():
                         return code
 
-            org = Organization(name=org_name, unique_code=generate_org_code())
+            from model import OrganizationStatus
+            plan_id = request.form.get("plan_id")
+            
+            org = Organization(
+                name=org_name, 
+                unique_code=generate_org_code(),
+                status=OrganizationStatus.PENDING,
+                plan_id=int(plan_id) if plan_id else None
+            )
             db.session.add(org)
             db.session.flush()
             
@@ -258,6 +272,7 @@ def register():
                 password=hashed_pw,
                 role=UserRole.ADMIN if org_option == "create" else role_pref_mapped,
                 organization_id=org.id,
+                is_active=True if org_option == "create" else False
             )
 
             db.session.add(new_user)
@@ -277,14 +292,33 @@ def register():
                 organization_id=org.id,
                 user_id=new_user.id,
                 role=OrgMemberRole.OWNER if org_option == "create" else OrgMemberRole.MEMBER,
-                status="active"
+                status="active" if org_option == "create" else "pending"
             )
             db.session.add(member)
+            db.session.flush()
+
+            # SaaS: Create pending subscription if plan selected
+            if org_option == "create":
+                plan_id = request.form.get("plan_id")
+                if plan_id:
+                    from model import SaaSSubscription, SaaSSubscriptionStatus
+                    sub = SaaSSubscription(
+                        organization_id=org.id,
+                        plan_id=int(plan_id),
+                        status=SaaSSubscriptionStatus.PENDING
+                    )
+                    db.session.add(sub)
             
             db.session.commit()
 
-            flash("Registration successful!", "registersuccess")
-            return redirect(url_for("auth.login"))
+            if org_option == "create":
+                # Automatically log them in to proceed to checkout
+                login_user(new_user)
+                return redirect(url_for("saas.checkout"))
+            else:
+                flash("Registration successful! Wait for admin approval or login now.", "registersuccess")
+                return redirect(url_for("auth.login"))
+
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Error: {str(e)}", exc_info=True)

@@ -78,159 +78,65 @@
         ══════════════════════════════════════ -->
         <section class="pricing-cards-section">
             <div class="pricing-grid">
-
-                <!-- Starter -->
-                <div class="pricing-card fade-up delay-1">
-                    <div class="plan-header">
-                        <h3 class="plan-name">Starter</h3>
-                        <p class="plan-desc">Perfect for small teams getting started</p>
-                    </div>
-                    <div class="plan-price">
-                        <div class="price-monthly">
-                            <span class="price-currency">₹</span>
-                            <span class="price-amount">600</span>
-                            <div class="price-period-large">Per User / Month</div>
-                            <div class="price-min-users">Minimum 5 Users</div>
-                            <div class="price-billed-as">Billed as ₹2,999/month <span class="price-gst-inline">+ 18% GST</span></div>
+                {% if plans %}
+                    {% for plan in plans %}
+                    <div class="pricing-card fade-up delay-{{ loop.index }} {% if plan.name|lower == 'professional' %}pricing-card--popular{% elif plan.name|lower == 'enterprise' %}pricing-card--enterprise{% endif %}">
+                        {% if plan.name|lower == 'professional' %}
+                        <div class="popular-badge">⭐ Most Popular</div>
+                        {% endif %}
+                        <div class="plan-header">
+                            <h3 class="plan-name">{{ plan.display_name or plan.name }}</h3>
+                            <p class="plan-desc">{{ plan.description or "Perfect for your business needs." }}</p>
                         </div>
-                        <div class="price-yearly" style="display:none;">
-                            <span class="price-currency">₹</span>
-                            <span class="price-amount">600</span>
-                            <div class="price-period-large">Per User / Month</div>
-                            <div class="price-min-users">Minimum 5 Users</div>
-                            <div class="price-billed-as">(Billed Annually ₹29,999) <span class="price-gst-inline">+ 18% GST</span></div>
-                            <div class="price-savings">Save ₹6,000/year</div>
+                        <div class="plan-price" {% if plan.name|lower == 'enterprise' %}style="padding-bottom: 2rem;"{% endif %}>
+                            {% if plan.monthly_price_paise == 0 %}
+                                <div class="price-monthly">
+                                    <span class="price-custom-tag" style="margin-top:0;">Custom Pricing</span>
+                                    <div class="price-min-users" style="color: rgba(255,255,255,0.9); margin-top: 1rem;">Unlimited Users</div>
+                                    <div class="price-billed-as" style="color: rgba(255,255,255,0.7); visibility: hidden;">Spacer</div>
+                                </div>
+                                <div class="price-yearly" style="display:none;">
+                                    <span class="price-custom-tag" style="margin-top:0;">Custom Pricing</span>
+                                    <div class="price-min-users" style="color: rgba(255,255,255,0.9); margin-top: 1rem;">Unlimited Users</div>
+                                    <div class="price-billed-as" style="color: rgba(255,255,255,0.7); visibility: hidden;">Spacer</div>
+                                </div>
+                            {% else %}
+                                <div class="price-monthly">
+                                    <span class="price-currency">₹</span>
+                                    <span class="price-amount">{{ plan.monthly_price_inr|int }}</span>
+                                    <div class="price-period-large">Per Month</div>
+                                    <div class="price-min-users">Up to {{ plan.default_member_limit }} Users</div>
+                                    <div class="price-billed-as">Billed as ₹{{ plan.monthly_price_inr|int }}/month <span class="price-gst-inline">+ 18% GST</span></div>
+                                </div>
+                                <div class="price-yearly" style="display:none;">
+                                    <span class="price-currency">₹</span>
+                                    <span class="price-amount">{{ (plan.yearly_price_inr / 12)|int }}</span>
+                                    <div class="price-period-large">Per Month</div>
+                                    <div class="price-min-users">Up to {{ plan.default_member_limit }} Users</div>
+                                    <div class="price-billed-as">(Billed Annually ₹{{ plan.yearly_price_inr|int }}) <span class="price-gst-inline">+ 18% GST</span></div>
+                                    <div class="price-savings">Save ₹{{ (plan.monthly_price_inr * 12 - plan.yearly_price_inr)|int }}/year</div>
+                                </div>
+                            {% endif %}
                         </div>
+                        <ul class="plan-features">
+                            {% for feature in plan.features %}
+                            <li><span class="check-icon">✓</span> {{ feature }}</li>
+                            {% endfor %}
+                            {% if not plan.features %}
+                                <li><span class="check-icon">✓</span> Up to {{ plan.default_member_limit }} Users</li>
+                                <li><span class="check-icon">✓</span> {{ plan.default_storage_limit_gb }} GB Storage</li>
+                            {% endif %}
+                        </ul>
+                        {% if plan.monthly_price_paise == 0 %}
+                            <a href="mailto:sales@glassentials.com" class="plan-cta plan-cta--enterprise">Contact Sales</a>
+                        {% else %}
+                            <a href="{{ url_for('auth.register', plan_id=plan.id) }}" class="plan-cta {% if plan.name|lower == 'professional' %}plan-cta--primary{% endif %}">Start Free Trial</a>
+                        {% endif %}
                     </div>
-                    <p class="plan-users" style="display:none;">
-                        <!-- Hidden as minimum users is in pricing block now -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-                        Up to 5 Users
-                    </p>
-                    <ul class="plan-features">
-                        <li><span class="check-icon">✓</span> Customer Management</li>
-                        <li><span class="check-icon">✓</span> Lead Management</li>
-                        <li><span class="check-icon">✓</span> Task Management</li>
-                        <li><span class="check-icon">✓</span> Sales Pipeline</li>
-                        <li><span class="check-icon">✓</span> Dashboard</li>
-                        <li><span class="check-icon">✓</span> Email Support</li>
-                    </ul>
-                    <a href="{{ url_for('auth.register') }}" class="plan-cta">Start Free Trial</a>
-                </div>
-
-                <!-- Professional (Popular) -->
-                <div class="pricing-card pricing-card--popular fade-up delay-2">
-                    <div class="popular-badge">⭐ Most Popular</div>
-                    <div class="plan-header">
-                        <h3 class="plan-name">Professional</h3>
-                        <p class="plan-desc">For growing teams that need more power</p>
-                    </div>
-                    <div class="plan-price">
-                        <div class="price-monthly">
-                            <span class="price-currency">₹</span>
-                            <span class="price-amount">300</span>
-                            <div class="price-period-large">Per User / Month</div>
-                            <div class="price-min-users">Minimum 20 Users</div>
-                            <div class="price-billed-as">Billed as ₹5,999/month <span class="price-gst-inline">+ 18% GST</span></div>
-                        </div>
-                        <div class="price-yearly" style="display:none;">
-                            <span class="price-currency">₹</span>
-                            <span class="price-amount">300</span>
-                            <div class="price-period-large">Per User / Month</div>
-                            <div class="price-min-users">Minimum 20 Users</div>
-                            <div class="price-billed-as">(Billed Annually ₹59,999) <span class="price-gst-inline">+ 18% GST</span></div>
-                            <div class="price-savings">Save ₹12,000/year</div>
-                        </div>
-                    </div>
-                    <p class="plan-users" style="display:none;">
-                        <!-- Hidden as minimum users is in pricing block now -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-                        Up to 20 Users
-                    </p>
-                    <ul class="plan-features">
-                        <li><span class="check-icon">✓</span> Everything in Starter</li>
-                        <li><span class="check-icon">✓</span> Team Management</li>
-                        <li><span class="check-icon">✓</span> Reports &amp; Analytics</li>
-                        <li><span class="check-icon">✓</span> Notifications</li>
-                        <li><span class="check-icon">✓</span> Role Based Access</li>
-                        <li><span class="check-icon">✓</span> Priority Support</li>
-                    </ul>
-                    <a href="{{ url_for('auth.register') }}" class="plan-cta plan-cta--primary">Start Free Trial</a>
-                </div>
-
-                <!-- Business -->
-                <div class="pricing-card fade-up delay-3">
-                    <div class="plan-header">
-                        <h3 class="plan-name">Business</h3>
-                        <p class="plan-desc">For established businesses scaling up</p>
-                    </div>
-                    <div class="plan-price">
-                        <div class="price-monthly">
-                            <span class="price-currency">₹</span>
-                            <span class="price-amount">200</span>
-                            <div class="price-period-large">Per User / Month</div>
-                            <div class="price-min-users">Minimum 50 Users</div>
-                            <div class="price-billed-as">Billed as ₹9,999/month <span class="price-gst-inline">+ 18% GST</span></div>
-                        </div>
-                        <div class="price-yearly" style="display:none;">
-                            <span class="price-currency">₹</span>
-                            <span class="price-amount">200</span>
-                            <div class="price-period-large">Per User / Month</div>
-                            <div class="price-min-users">Minimum 50 Users</div>
-                            <div class="price-billed-as">(Billed Annually ₹99,999) <span class="price-gst-inline">+ 18% GST</span></div>
-                            <div class="price-savings">Save ₹20,000/year</div>
-                        </div>
-                    </div>
-                    <p class="plan-users" style="display:none;">
-                        <!-- Hidden as minimum users is in pricing block now -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-                        Up to 50 Users
-                    </p>
-                    <ul class="plan-features">
-                        <li><span class="check-icon">✓</span> Everything in Professional</li>
-                        <li><span class="check-icon">✓</span> Advanced Reports</li>
-                        <li><span class="check-icon">✓</span> API Access</li>
-                        <li><span class="check-icon">✓</span> Custom Workflows</li>
-                        <li><span class="check-icon">✓</span> Integrations</li>
-                        <li><span class="check-icon">✓</span> Priority Support</li>
-                    </ul>
-                    <a href="{{ url_for('auth.register') }}" class="plan-cta">Start Free Trial</a>
-                </div>
-
-                <!-- Enterprise -->
-                <div class="pricing-card pricing-card--enterprise fade-up delay-4">
-                    <div class="plan-header">
-                        <h3 class="plan-name">Enterprise</h3>
-                        <p class="plan-desc">Custom solutions for large organizations</p>
-                    </div>
-                    <div class="plan-price" style="padding-bottom: 2rem;">
-                        <div class="price-monthly">
-                            <span class="price-custom-tag" style="margin-top:0;">Custom Pricing</span>
-                            <div class="price-min-users" style="color: rgba(255,255,255,0.9); margin-top: 1rem;">Unlimited Users</div>
-                            <div class="price-billed-as" style="color: rgba(255,255,255,0.7); visibility: hidden;">Spacer</div>
-                        </div>
-                        <div class="price-yearly" style="display:none;">
-                            <span class="price-custom-tag" style="margin-top:0;">Custom Pricing</span>
-                            <div class="price-min-users" style="color: rgba(255,255,255,0.9); margin-top: 1rem;">Unlimited Users</div>
-                            <div class="price-billed-as" style="color: rgba(255,255,255,0.7); visibility: hidden;">Spacer</div>
-                        </div>
-                    </div>
-                    <p class="plan-users" style="display:none;">
-                        <!-- Hidden as minimum users is in pricing block now -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-                        Unlimited Users
-                    </p>
-                    <ul class="plan-features">
-                        <li><span class="check-icon">✓</span> Everything in Business</li>
-                        <li><span class="check-icon">✓</span> Dedicated Account Manager</li>
-                        <li><span class="check-icon">✓</span> Custom Integrations</li>
-                        <li><span class="check-icon">✓</span> SLA Support</li>
-                        <li><span class="check-icon">✓</span> Enterprise Security</li>
-                        <li><span class="check-icon">✓</span> Unlimited Users</li>
-                    </ul>
-                    <a href="mailto:sales@glassentials.com" class="plan-cta plan-cta--enterprise">Contact Sales</a>
-                </div>
-
+                    {% endfor %}
+                {% else %}
+                    <p style="text-align:center; width:100%;">Pricing plans are being updated. Please check back later.</p>
+                {% endif %}
             </div>
             
             <div class="pricing-transparency-note fade-up">

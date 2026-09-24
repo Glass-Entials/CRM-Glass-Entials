@@ -65,10 +65,13 @@ def organization_settings():
     active_org = get_active_org()
     user_orgs = get_user_orgs()
     
+    subscription = None
     if active_org:
         members = OrganizationMember.query.filter_by(
             organization_id=active_org.id, status='active'
         ).all()
+        from model import SaaSSubscription
+        subscription = SaaSSubscription.query.filter_by(organization_id=active_org.id).first()
     else:
         members = []
         
@@ -76,7 +79,8 @@ def organization_settings():
         "org/settings.html", 
         active_org=active_org, 
         user_orgs=user_orgs, 
-        members=members
+        members=members,
+        subscription=subscription
     )
 
 
