@@ -37,6 +37,7 @@ from model import (
 )
 from utils.number_words import number_to_words
 from utils.security import tenant_record_id, validate_upload
+from utils.activity import log_activity
 import datetime, os, uuid, json, base64
 from collections import defaultdict
 
@@ -845,7 +846,11 @@ def save_draft(quotation_id):
     ).first_or_404()
     try:
         _save_quotation_from_form(
-            quotation, request.form, request.files, org_id, current_user.employee.id
+            quotation, 
+            request.form, 
+            request.files, 
+            org_id, 
+            current_user.employee.id if current_user.employee else None
         )
         quotation.status = QuotationStatus.DRAFT
         db.session.commit()
@@ -1169,8 +1174,8 @@ def api_create_customer():
         gst_number=data.get("gst_number", "").strip(),
         source=LeadSource.OTHER,
         status=CustomerStatus.NEW,
-        created_by=current_user.employee.id,
-        assigned_to=current_user.employee.id,
+        created_by=current_user.employee.id if current_user.employee else None,
+        assigned_to=current_user.employee.id if current_user.employee else None,
         organization_id=current_user.organization_id,
     )
     try:
@@ -1183,7 +1188,7 @@ def api_create_customer():
             "customer",
             new_customer.name,
             current_user.organization_id,
-            current_user.employee.id,
+            current_user.employee.id if current_user.employee else None,
             new_customer.id,
         )
         db.session.commit()
@@ -1236,8 +1241,8 @@ def api_create_lead():
         city=data.get("city", "").strip(),
         source=LeadSource.OTHER,
         status=LeadStatus.NEW,
-        created_by=current_user.employee.id,
-        assigned_to=current_user.employee.id,
+        created_by=current_user.employee.id if current_user.employee else None,
+        assigned_to=current_user.employee.id if current_user.employee else None,
         organization_id=current_user.organization_id,
     )
     try:
@@ -1249,7 +1254,7 @@ def api_create_lead():
             "lead",
             new_lead.name,
             current_user.organization_id,
-            current_user.employee.id,
+            current_user.employee.id if current_user.employee else None,
             new_lead.id,
         )
         db.session.commit()
@@ -1289,7 +1294,7 @@ def api_create_project():
         name=name,
         description=data.get("description", "").strip(),
         status=ProjectStatus.PLANNING,
-        created_by=current_user.employee.id,
+        created_by=current_user.employee.id if current_user.employee else None,
         organization_id=current_user.organization_id,
     )
     try:
@@ -1301,7 +1306,7 @@ def api_create_project():
             "project",
             new_project.name,
             current_user.organization_id,
-            current_user.employee.id,
+            current_user.employee.id if current_user.employee else None,
             new_project.id,
         )
         db.session.commit()
