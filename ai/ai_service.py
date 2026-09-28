@@ -37,10 +37,10 @@ MAX_RECORDS    = 8
 #   "created by Ratandeep", "leads created by me",
 #   "Ratandeep created", "did Ratandeep create", "by me"
 _CREATOR_BY_PATTERNS = [
-    re.compile(r'created\s+by\s+(?:"([^"]+)"|([\w]+))', re.IGNORECASE),
-    re.compile(r'by\s+(?:"([^"]+)"|([\w]+))\s+created', re.IGNORECASE),
-    re.compile(r'did\s+(?:"([^"]+)"|([\w]+))\s+create', re.IGNORECASE),
-    re.compile(r'(?:"([^"]+)"|([\w]+))\s+created', re.IGNORECASE),
+    re.compile(r'create[d]?\s+by\s+(?:"([^"]+)"|([\w]+))', re.IGNORECASE),
+    re.compile(r'by\s+(?:"([^"]+)"|([\w]+))\s+create[d]?', re.IGNORECASE),
+    re.compile(r'did\s+(?:"([^"]+)"|([\w]+))\s+create[d]?', re.IGNORECASE),
+    re.compile(r'(?:"([^"]+)"|([\w]+))\s+create[d]?', re.IGNORECASE),
 ]
 _MY_LEADS_PATTERN = re.compile(
     r'\bmy\s+leads\b|\bleads\s+i\s+created\b|\bi\s+created\b|created\s+by\s+me\b|\bdid\s+i\s+create\b',
