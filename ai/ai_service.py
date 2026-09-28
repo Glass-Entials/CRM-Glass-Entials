@@ -7,6 +7,7 @@ Orchestrates: query routing → CRM query → document retrieval → context bui
 This is the only module that routes.ai_chat.py should call.
 """
 
+import re
 import logging
 from typing import Optional
 
@@ -20,6 +21,7 @@ from ai.crm_query import (
     get_projects,
     get_recent_activities,
     get_monthly_quotation_summary,
+    resolve_creator_in_org,
 )
 from ai.context_builder import build_context, build_llm_messages
 
@@ -29,7 +31,60 @@ MAX_DOC_CHUNKS = 4
 MAX_RECORDS    = 8
 
 
-def _run_structured_query(question: str, org_id: int) -> Optional[dict]:
+# ── Creator filter extraction ──────────────────────────────────────────────────
+
+# Matches phrases like:
+#   "created by Ratandeep", "leads created by me",
+#   "Ratandeep created", "did Ratandeep create", "by me"
+_CREATOR_BY_PATTERNS = [
+    re.compile(r'created\s+by\s+(?:"([^"]+)"|([\w]+))', re.IGNORECASE),
+    re.compile(r'by\s+(?:"([^"]+)"|([\w]+))\s+created', re.IGNORECASE),
+    re.compile(r'did\s+(?:"([^"]+)"|([\w]+))\s+create', re.IGNORECASE),
+    re.compile(r'(?:"([^"]+)"|([\w]+))\s+created', re.IGNORECASE),
+]
+_MY_LEADS_PATTERN = re.compile(
+    r'\bmy\s+leads\b|\bleads\s+i\s+created\b|\bi\s+created\b|created\s+by\s+me\b|\bdid\s+i\s+create\b',
+    re.IGNORECASE,
+)
+
+
+def extract_creator_intent(question: str) -> Optional[str]:
+    """
+    Extract creator name from a natural-language question.
+    Returns:
+      "me"        → current logged-in user
+      "<name>"    → literal name to resolve against org users
+      None        → no creator filter detected
+    """
+    # "my leads" / "created by me" / "leads I created"
+    if _MY_LEADS_PATTERN.search(question):
+        return "me"
+
+    for pattern in _CREATOR_BY_PATTERNS:
+        m = pattern.search(question)
+        if m:
+            # Group 1 is quoted, group 2 is unquoted
+            name = m.group(1) or m.group(2)
+            if name and name.lower() not in ("me", "i", "we", "us", "my"):
+                return name
+
+    return None
+
+
+def _resolve_creator(creator_name: str, org_id: int, current_user_id: int) -> tuple:
+    """
+    Resolve a creator name to a user_id scoped to the org.
+    Returns (user_id, error_message_or_None).
+    """
+    if creator_name == "me":
+        return current_user_id, None
+    user_id = resolve_creator_in_org(creator_name, org_id)
+    if user_id is None:
+        return None, f"I couldn't find a CRM user named '{creator_name}' in your organization."
+    return user_id, None
+
+
+def _run_structured_query(question: str, org_id: int, current_user_id: int) -> Optional[dict]:
     """Map the user question to a controlled CRM query. Returns {type, data, summary} or None."""
     q = question.lower()
 
@@ -74,11 +129,27 @@ def _run_structured_query(question: str, org_id: int) -> Optional[dict]:
         count = count_customers(org_id)
         return {"type": "customers", "data": data, "summary": f"{count} total customer(s)"}
 
-    if any(w in q for w in ["how many lead", "count lead"]):
+    if any(w in q for w in ["how many lead", "count lead", "how many leads"]):
+        creator_name = extract_creator_intent(question)
+        if creator_name:
+            creator_id, err = _resolve_creator(creator_name, org_id, current_user_id)
+            if err:
+                return {"type": "leads", "data": [], "summary": err}
+            count = count_leads(org_id, created_by_id=creator_id)
+            label = "you" if creator_name == "me" else creator_name
+            return {"type": "leads", "data": count, "summary": f"Leads created by {label}: {count}"}
         count = count_leads(org_id)
         return {"type": "leads", "data": count, "summary": f"Total leads: {count}"}
 
     if "lead" in q:
+        creator_name = extract_creator_intent(question)
+        if creator_name:
+            creator_id, err = _resolve_creator(creator_name, org_id, current_user_id)
+            if err:
+                return {"type": "leads", "data": [], "summary": err}
+            data = get_leads(org_id, limit=MAX_RECORDS, created_by_id=creator_id)
+            label = "you" if creator_name == "me" else creator_name
+            return {"type": "leads", "data": data, "summary": f"{len(data)} lead(s) created by {label}"}
         data = get_leads(org_id, limit=MAX_RECORDS)
         count = count_leads(org_id)
         return {"type": "leads", "data": data, "summary": f"{count} total lead(s)"}
@@ -110,10 +181,11 @@ def _run_document_search(question: str, org_id: int):
         return []
 
 
-def process_question(question: str, org_id: int) -> dict:
+def process_question(question: str, org_id: int, current_user_id: Optional[int] = None) -> dict:
     """
     Main entry point.
-    Returns: {answer, sources, query_type, error}
+    current_user_id is used for creator-filter queries ("my leads", "leads I created").
+    Returns: {answer, sources, query_type, structured_data, document_data}
     """
     if not question or not question.strip():
         return {"answer": "Please ask a question.", "sources": [], "query_type": "NONE"}
@@ -127,7 +199,7 @@ def process_question(question: str, org_id: int) -> dict:
     # Run structured query for STRUCTURED or HYBRID
     if query_type in ("STRUCTURED", "HYBRID"):
         try:
-            structured_result = _run_structured_query(question, org_id)
+            structured_result = _run_structured_query(question, org_id, current_user_id or 0)
         except Exception as e:
             logger.error(f"Structured query error: {e}")
 

@@ -41,7 +41,7 @@ def chat():
 
     try:
         from ai.ai_service import process_question
-        result = process_question(question=question, org_id=org_id)
+        result = process_question(question=question, org_id=org_id, current_user_id=current_user.id)
         return jsonify({
             "success": True,
             "answer": result["answer"],

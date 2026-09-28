@@ -10,6 +10,36 @@ from datetime import datetime, date, timedelta
 from typing import Optional, List, Dict, Any
 
 
+def resolve_creator_in_org(name: str, org_id: int) -> Optional[int]:
+    """
+    Look up a User by username within ONLY the given organization.
+    Returns the user's id, or None if not found.
+    NEVER searches across organizations — tenant isolation enforced here.
+
+    Match order:
+    1. Exact case-insensitive match on username
+    2. username STARTS WITH the name (for 'Ratandeep' matching 'Ratandeep Putohit')
+    """
+    from model import User
+
+    # 1. Exact match
+    user = User.query.filter(
+        User.organization_id == org_id,
+        User.is_active == True,
+        User.username.ilike(name),
+    ).first()
+    if user:
+        return user.id
+
+    # 2. Starts-with match (first name / prefix)
+    user = User.query.filter(
+        User.organization_id == org_id,
+        User.is_active == True,
+        User.username.ilike(f"{name} %"),
+    ).first()
+    return user.id if user else None
+
+
 def get_customers(org_id: int, limit: int = 10, status: Optional[str] = None) -> List[Dict]:
     from model import Customer, CustomerStatus
     q = Customer.query.filter_by(organization_id=org_id, is_deleted=False)
@@ -39,7 +69,12 @@ def count_customers(org_id: int) -> int:
     return Customer.query.filter_by(organization_id=org_id, is_deleted=False).count()
 
 
-def get_leads(org_id: int, limit: int = 10, status: Optional[str] = None) -> List[Dict]:
+def get_leads(
+    org_id: int,
+    limit: int = 10,
+    status: Optional[str] = None,
+    created_by_id: Optional[int] = None,
+) -> List[Dict]:
     from model import Lead, LeadStatus
     q = Lead.query.filter_by(organization_id=org_id, is_deleted=False)
     if status:
@@ -47,6 +82,8 @@ def get_leads(org_id: int, limit: int = 10, status: Optional[str] = None) -> Lis
             q = q.filter(Lead.status == LeadStatus(status))
         except ValueError:
             pass
+    if created_by_id is not None:
+        q = q.filter(Lead.created_by == created_by_id)
     leads = q.order_by(Lead.id.desc()).limit(limit).all()
     return [
         {
@@ -62,9 +99,12 @@ def get_leads(org_id: int, limit: int = 10, status: Optional[str] = None) -> Lis
     ]
 
 
-def count_leads(org_id: int) -> int:
+def count_leads(org_id: int, created_by_id: Optional[int] = None) -> int:
     from model import Lead
-    return Lead.query.filter_by(organization_id=org_id, is_deleted=False).count()
+    q = Lead.query.filter_by(organization_id=org_id, is_deleted=False)
+    if created_by_id is not None:
+        q = q.filter(Lead.created_by == created_by_id)
+    return q.count()
 
 
 def get_quotations(org_id: int, limit: int = 10, status: Optional[str] = None) -> List[Dict]:
