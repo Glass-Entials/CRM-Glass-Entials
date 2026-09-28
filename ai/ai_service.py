@@ -121,10 +121,26 @@ def _run_structured_query(question: str, org_id: int, current_user_id: int) -> O
         return {"type": "quotations", "data": data, "summary": f"{count} total quotation(s)"}
 
     if any(w in q for w in ["how many customer", "count customer", "number of customer"]):
+        creator_name = extract_creator_intent(question)
+        if creator_name:
+            creator_id, err = _resolve_creator(creator_name, org_id, current_user_id)
+            if err:
+                return {"type": "customers", "data": [], "summary": err}
+            count = count_customers(org_id, created_by_id=creator_id)
+            label = "you" if creator_name == "me" else creator_name
+            return {"type": "customers", "data": count, "summary": f"Customers created by {label}: {count}"}
         count = count_customers(org_id)
         return {"type": "customers", "data": count, "summary": f"Total customers: {count}"}
 
     if any(w in q for w in ["customer", "clients", "client"]):
+        creator_name = extract_creator_intent(question)
+        if creator_name:
+            creator_id, err = _resolve_creator(creator_name, org_id, current_user_id)
+            if err:
+                return {"type": "customers", "data": [], "summary": err}
+            data = get_customers(org_id, limit=MAX_RECORDS, created_by_id=creator_id)
+            label = "you" if creator_name == "me" else creator_name
+            return {"type": "customers", "data": data, "summary": f"{len(data)} customer(s) created by {label}"}
         data = get_customers(org_id, limit=MAX_RECORDS)
         count = count_customers(org_id)
         return {"type": "customers", "data": data, "summary": f"{count} total customer(s)"}

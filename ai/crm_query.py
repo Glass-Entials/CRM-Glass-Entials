@@ -40,7 +40,12 @@ def resolve_creator_in_org(name: str, org_id: int) -> Optional[int]:
     return user.id if user else None
 
 
-def get_customers(org_id: int, limit: int = 10, status: Optional[str] = None) -> List[Dict]:
+def get_customers(
+    org_id: int,
+    limit: int = 10,
+    status: Optional[str] = None,
+    created_by_id: Optional[int] = None,
+) -> List[Dict]:
     from model import Customer, CustomerStatus
     q = Customer.query.filter_by(organization_id=org_id, is_deleted=False)
     if status:
@@ -48,6 +53,8 @@ def get_customers(org_id: int, limit: int = 10, status: Optional[str] = None) ->
             q = q.filter(Customer.status == CustomerStatus(status))
         except ValueError:
             pass
+    if created_by_id is not None:
+        q = q.filter(Customer.created_by == created_by_id)
     customers = q.order_by(Customer.id.desc()).limit(limit).all()
     return [
         {
@@ -64,9 +71,12 @@ def get_customers(org_id: int, limit: int = 10, status: Optional[str] = None) ->
     ]
 
 
-def count_customers(org_id: int) -> int:
+def count_customers(org_id: int, created_by_id: Optional[int] = None) -> int:
     from model import Customer
-    return Customer.query.filter_by(organization_id=org_id, is_deleted=False).count()
+    q = Customer.query.filter_by(organization_id=org_id, is_deleted=False)
+    if created_by_id is not None:
+        q = q.filter(Customer.created_by == created_by_id)
+    return q.count()
 
 
 def get_leads(
