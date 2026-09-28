@@ -143,236 +143,579 @@
 
     <!-- AI Copilot Styles -->
     <style>
+        /* ============================================================
+           AI COPILOT — PREMIUM REDESIGN
+           GlassEntials AI Workspace Panel
+        ============================================================ */
+
+        /* Overlay */
         .ai-copilot-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(13, 27, 42, 0.4);
+            inset: 0;
+            background: rgba(10, 15, 28, 0.35);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
             z-index: 10000;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+            transition: opacity 0.28s ease, visibility 0.28s ease;
         }
-
         .ai-copilot-overlay.active {
             opacity: 1;
             visibility: visible;
         }
 
+        /* Drawer Panel */
         .ai-copilot-drawer {
             position: fixed;
             top: 0;
-            right: -420px;
-            width: 400px;
+            right: -440px;
+            width: 420px;
             max-width: 100vw;
             height: 100vh;
-            background: #ffffff;
-            box-shadow: -4px 0 24px rgba(0,0,0,0.1);
+            background: #f8f9fb;
+            border-left: 1px solid #e4e7ed;
             z-index: 10001;
             display: flex;
             flex-direction: column;
             transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Montserrat', -apple-system, sans-serif;
         }
-
         .ai-copilot-drawer.active {
             right: 0;
         }
 
+        /* Header */
         .ai-copilot-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid rgba(13, 27, 42, 0.08);
+            padding: 0 16px;
+            height: 56px;
+            min-height: 56px;
+            border-bottom: 1px solid #e4e7ed;
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            background: #fdfcf9;
+            align-items: center;
+            background: #ffffff;
+            gap: 12px;
+            flex-shrink: 0;
         }
-
-        .ai-copilot-title {
-            margin: 0;
-            font-size: 1.1rem;
-            color: var(--primary-color);
+        .ai-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+        .ai-header-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #0d1b2a, #1a3a5c);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .ai-header-text {
+            min-width: 0;
+        }
+        .ai-header-name {
+            font-size: 0.88rem;
             font-weight: 700;
+            color: #0d1b2a;
+            letter-spacing: -0.01em;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-
-        .ai-copilot-subtitle {
-            font-size: 0.85rem;
-            color: var(--accent-gold);
+        .ai-header-sub {
+            font-size: 0.73rem;
+            color: #7a8595;
             font-weight: 500;
-            margin-top: 4px;
+            line-height: 1;
+            margin-top: 2px;
         }
-
-        .ai-copilot-close {
+        .ai-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .ai-header-btn {
             background: none;
             border: none;
-            font-size: 1.5rem;
-            line-height: 1;
-            color: var(--text-muted);
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-
-        .ai-copilot-close:hover {
-            background: rgba(13, 27, 42, 0.05);
-            color: var(--primary-color);
-        }
-
-        .ai-copilot-chat {
-            flex: 1;
-            overflow-y: auto;
-            padding: 24px;
-            background: #fafafa;
-        }
-
-        .ai-welcome-state {
-            text-align: center;
-            padding: 20px 0;
-        }
-
-        .ai-welcome-icon {
-            font-size: 2.5rem;
-            margin-bottom: 12px;
-        }
-
-        .ai-welcome-state h3 {
-            margin: 0 0 8px 0;
-            color: var(--primary-color);
-            font-size: 1.25rem;
-        }
-
-        .ai-welcome-state p {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            line-height: 1.5;
-            margin: 0 0 24px 0;
-        }
-
-        .ai-suggestions {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .ai-suggestion-btn {
-            background: white;
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            color: var(--primary-color);
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-
-        .ai-suggestion-btn:hover {
-            border-color: var(--accent-gold);
-            background: rgba(212, 175, 55, 0.05);
-            transform: translateY(-1px);
-        }
-
-        .ai-message {
-            margin-bottom: 16px;
-            max-width: 85%;
-            padding: 12px 16px;
-            border-radius: 12px;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            word-wrap: break-word;
-        }
-
-        .ai-message.user {
-            background: var(--primary-color);
-            color: white;
-            margin-left: auto;
-            border-bottom-right-radius: 4px;
-        }
-
-        .ai-message.assistant {
-            background: white;
-            color: var(--text-color);
-            border: 1px solid rgba(13, 27, 42, 0.08);
-            margin-right: auto;
-            border-bottom-left-radius: 4px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        }
-
-        .ai-copilot-input-area {
-            padding: 20px 24px;
-            background: white;
-            border-top: 1px solid rgba(13, 27, 42, 0.08);
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .ai-copilot-input {
-            flex: 1;
-            padding: 12px 16px;
-            border: 1px solid rgba(13, 27, 42, 0.15);
-            border-radius: 24px;
-            font-size: 0.95rem;
-            outline: none;
-            transition: border-color 0.2s ease;
-            font-family: inherit;
-        }
-
-        .ai-copilot-input:focus {
-            border-color: var(--accent-gold);
-            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
-        }
-
-        .ai-copilot-send {
-            background: var(--accent-gold);
-            color: white;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.2s ease;
+            color: #7a8595;
+            transition: background 0.15s, color 0.15s;
+            font-size: 16px;
+            line-height: 1;
+        }
+        .ai-header-btn:hover {
+            background: #f0f1f4;
+            color: #0d1b2a;
+        }
+        .ai-header-btn.close-btn:hover {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        /* Chat scroll area */
+        .ai-copilot-chat {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0;
+            background: #f8f9fb;
+            scroll-behavior: smooth;
+        }
+        .ai-copilot-chat::-webkit-scrollbar {
+            width: 4px;
+        }
+        .ai-copilot-chat::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .ai-copilot-chat::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+
+        /* ── Welcome State ── */
+        .ai-welcome-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 48px 28px 32px;
+            text-align: center;
+        }
+        .ai-welcome-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 20px;
+            background: linear-gradient(145deg, #0d1b2a 0%, #1e4976 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 24px rgba(13,27,42,0.18);
+        }
+        .ai-welcome-heading {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #0d1b2a;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.02em;
+        }
+        .ai-welcome-sub {
+            font-size: 0.9rem;
+            color: #7a8595;
+            margin: 0 0 32px 0;
+            line-height: 1.5;
+        }
+        .ai-suggestions-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+            max-width: 340px;
+        }
+        .ai-suggestion-btn {
+            background: #ffffff;
+            border: 1px solid #e4e7ed;
+            color: #0d1b2a;
+            padding: 11px 16px;
+            border-radius: 10px;
+            font-size: 0.84rem;
+            font-weight: 500;
+            text-align: left;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s, transform 0.15s;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            line-height: 1.3;
+        }
+        .ai-suggestion-btn:hover {
+            border-color: #c9a227;
+            background: #fffbf0;
+            transform: translateY(-1px);
+        }
+        .ai-suggestion-icon {
+            font-size: 15px;
             flex-shrink: 0;
         }
 
-        .ai-copilot-send:hover {
-            background: #cba332;
-            transform: scale(1.05);
+        /* ── Message Thread ── */
+        #aiChatMessages {
+            padding: 20px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
         }
 
+        /* User message */
+        .ai-msg-user {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 16px;
+        }
+        .ai-msg-user-bubble {
+            background: #0d1b2a;
+            color: #ffffff;
+            padding: 9px 14px;
+            border-radius: 14px 14px 3px 14px;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            max-width: 78%;
+            word-break: break-word;
+            font-weight: 500;
+        }
+
+        /* AI response block */
+        .ai-msg-ai {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin-bottom: 20px;
+            max-width: 100%;
+        }
+
+        /* AI natural language answer */
+        .ai-answer-text {
+            font-size: 0.875rem;
+            line-height: 1.6;
+            color: #374151;
+            margin-bottom: 12px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* Section header inside AI response */
+        .ai-section-header {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #7a8595;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 8px;
+            margin-top: 4px;
+        }
+
+        /* CRM Record Card */
+        .ai-crm-card {
+            background: #ffffff;
+            border: 1px solid #e8ebf0;
+            border-radius: 10px;
+            padding: 13px 15px;
+            margin-bottom: 8px;
+            transition: border-color 0.15s;
+        }
+        .ai-crm-card:hover {
+            border-color: #c9a227;
+        }
+        .ai-crm-card-title {
+            font-size: 0.88rem;
+            font-weight: 650;
+            color: #0d1b2a;
+            margin-bottom: 6px;
+            line-height: 1.3;
+        }
+        .ai-crm-card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 7px;
+            align-items: center;
+        }
+        .ai-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 0.72rem;
+            font-weight: 650;
+            line-height: 1.4;
+        }
+        .ai-badge-status {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .ai-badge-paid {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        .ai-badge-unpaid {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+        .ai-date-chip {
+            font-size: 0.72rem;
+            color: #7a8595;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .ai-crm-card-desc {
+            font-size: 0.8rem;
+            color: #6b7280;
+            line-height: 1.45;
+            margin-bottom: 8px;
+        }
+        .ai-crm-extras {
+            font-size: 0.78rem;
+            color: #9ca3af;
+            margin-bottom: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 12px;
+        }
+        .ai-crm-extras strong {
+            color: #6b7280;
+        }
+        .ai-open-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.78rem;
+            font-weight: 650;
+            color: #c9a227;
+            text-decoration: none;
+            margin-top: 6px;
+        }
+        .ai-open-link:hover {
+            color: #a07c1a;
+            text-decoration: underline;
+        }
+
+        /* Activity timeline */
+        .ai-activity-item {
+            display: flex;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .ai-activity-item:last-child {
+            border-bottom: none;
+        }
+        .ai-activity-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #c9a227;
+            margin-top: 5px;
+            flex-shrink: 0;
+        }
+        .ai-activity-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .ai-activity-action {
+            font-size: 0.82rem;
+            font-weight: 650;
+            color: #0d1b2a;
+            text-transform: capitalize;
+        }
+        .ai-activity-entity {
+            font-size: 0.78rem;
+            color: #6b7280;
+        }
+        .ai-activity-time {
+            font-size: 0.72rem;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+
+        /* Document card */
+        .ai-doc-card {
+            background: #ffffff;
+            border: 1px solid #e8ebf0;
+            border-left: 3px solid #3b82f6;
+            border-radius: 8px;
+            padding: 10px 13px;
+            margin-bottom: 7px;
+        }
+        .ai-doc-name {
+            font-size: 0.82rem;
+            font-weight: 650;
+            color: #0d1b2a;
+            margin-bottom: 4px;
+        }
+        .ai-doc-snippet {
+            font-size: 0.77rem;
+            color: #9ca3af;
+            font-style: italic;
+            line-height: 1.4;
+        }
+        .ai-doc-match {
+            font-size: 0.7rem;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        /* Sources */
+        .ai-sources-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 6px;
+        }
+        .ai-source-chip {
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            color: #6b7280;
+            padding: 3px 9px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        /* Typing indicator */
+        .ai-typing {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            padding: 4px 0 12px 2px;
+        }
+        .ai-typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #c9a227;
+            animation: ai-bounce 1.2s ease-in-out infinite;
+        }
+        .ai-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .ai-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes ai-bounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+            30% { transform: translateY(-5px); opacity: 1; }
+        }
+        .ai-typing-label {
+            font-size: 0.78rem;
+            color: #9ca3af;
+            margin-left: 4px;
+        }
+
+        /* Composer */
+        .ai-composer {
+            padding: 12px 14px;
+            background: #ffffff;
+            border-top: 1px solid #e4e7ed;
+            flex-shrink: 0;
+        }
+        .ai-composer-box {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            background: #f3f4f6;
+            border: 1.5px solid #e4e7ed;
+            border-radius: 12px;
+            padding: 8px 8px 8px 14px;
+            transition: border-color 0.2s;
+        }
+        .ai-composer-box:focus-within {
+            border-color: #c9a227;
+            background: #fffdf5;
+        }
+        .ai-composer-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: #0d1b2a;
+            outline: none;
+            resize: none;
+            font-family: inherit;
+            min-height: 22px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        .ai-composer-input::placeholder {
+            color: #b0b7c3;
+        }
+        .ai-composer-send {
+            background: #0d1b2a;
+            color: white;
+            border: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.18s, transform 0.15s;
+            flex-shrink: 0;
+        }
+        .ai-composer-send:hover {
+            background: #1a3a5c;
+            transform: scale(1.04);
+        }
+        .ai-composer-send:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .ai-composer-hint {
+            font-size: 0.7rem;
+            color: #b0b7c3;
+            text-align: center;
+            margin-top: 8px;
+            letter-spacing: 0.01em;
+        }
+
+        /* Floating button */
         .ai-floating-btn {
             position: fixed;
             bottom: 24px;
             right: 24px;
-            background: white;
-            color: var(--primary-color);
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            padding: 12px 20px;
-            border-radius: 30px;
+            background: #0d1b2a;
+            color: #ffffff;
+            border: none;
+            padding: 0 20px;
+            height: 44px;
+            border-radius: 22px;
             font-weight: 600;
-            font-size: 0.95rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            font-size: 0.875rem;
+            box-shadow: 0 4px 18px rgba(13,27,42,0.22);
             cursor: pointer;
             z-index: 9990;
             display: flex;
             align-items: center;
             gap: 8px;
-            transition: all 0.3s ease;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-family: 'Montserrat', sans-serif;
         }
-
         .ai-floating-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-            border-color: var(--accent-gold);
+            box-shadow: 0 8px 24px rgba(13,27,42,0.28);
+        }
+        .ai-floating-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #c9a227;
         }
 
+        /* Empty state (no-data) */
+        .ai-no-data {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            font-style: italic;
+            padding: 4px 0 8px;
+        }
+
+        /* Responsive */
         @media (max-width: 768px) {
             .ai-copilot-drawer {
                 width: 100%;
@@ -383,65 +726,100 @@
                 right: 16px;
             }
         }
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .ai-copilot-drawer {
+                width: 380px;
+            }
+        }
     </style>
 
     <!-- AI Copilot Overlay -->
     <div id="aiCopilotOverlay" class="ai-copilot-overlay" onclick="closeAICopilot()" aria-hidden="true"></div>
 
     <!-- AI Copilot Drawer -->
-    <aside id="aiCopilotDrawer" class="ai-copilot-drawer" aria-label="AI Copilot">
-        <header class="ai-copilot-header">
-            <div>
-                <h2 class="ai-copilot-title">✨ GlassEntials AI</h2>
-                <div class="ai-copilot-subtitle">AI Copilot</div>
-            </div>
-            <button onclick="closeAICopilot()" class="ai-copilot-close" aria-label="Close AI Copilot">&times;</button>
-        </header>
+    <aside id="aiCopilotDrawer" class="ai-copilot-drawer" aria-label="GlassEntials AI Copilot">
 
-        <div id="aiCopilotChat" class="ai-copilot-chat">
-            <!-- Welcome State -->
-            <div class="ai-welcome-state" id="aiWelcomeState">
-                <div class="ai-welcome-icon">✨</div>
-                <h3>Hello, {{ current_user.employee.name.split(' ')[0] if current_user.employee else current_user.username }}</h3>
-                <p>I can help you find and understand information across your CRM.</p>
-                <div class="ai-suggestions">
-                    <button class="ai-suggestion-btn" onclick="handleSuggestionClick('Show my pending tasks')">Show my pending tasks</button>
-                    <button class="ai-suggestion-btn" onclick="handleSuggestionClick('How many customers do we have?')">How many customers do we have?</button>
-                    <button class="ai-suggestion-btn" onclick="handleSuggestionClick('Find recent quotations')">Find recent quotations</button>
-                    <button class="ai-suggestion-btn" onclick="handleSuggestionClick('Show today\'s activities')">Show today's activities</button>
-                    <button class="ai-suggestion-btn" onclick="handleSuggestionClick('Tell me about a customer')">Tell me about a customer</button>
+        <!-- Header -->
+        <header class="ai-copilot-header">
+            <div class="ai-header-left">
+                <div class="ai-header-icon">✨</div>
+                <div class="ai-header-text">
+                    <div class="ai-header-name">GlassEntials AI</div>
+                    <div class="ai-header-sub">AI Copilot · CRM Assistant</div>
                 </div>
             </div>
-            
-            <div id="aiChatMessages">
-                <!-- Chat messages will be injected here -->
+            <div class="ai-header-actions">
+                <button class="ai-header-btn" onclick="clearAIChat()" title="New conversation" aria-label="New conversation">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+                <button class="ai-header-btn close-btn" onclick="closeAICopilot()" aria-label="Close AI Copilot">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
             </div>
+        </header>
+
+        <!-- Chat Body -->
+        <div id="aiCopilotChat" class="ai-copilot-chat">
+
+            <!-- Welcome State -->
+            <div class="ai-welcome-state" id="aiWelcomeState">
+                <div class="ai-welcome-avatar">✨</div>
+                <h2 class="ai-welcome-heading">How can I help?</h2>
+                <p class="ai-welcome-sub">Ask anything about your customers,<br>tasks, quotations, or documents.</p>
+                <div class="ai-suggestions-grid">
+                    <button class="ai-suggestion-btn" onclick="handleSuggestionClick('Show my pending tasks')">
+                        <span class="ai-suggestion-icon">📋</span> Show my pending tasks
+                    </button>
+                    <button class="ai-suggestion-btn" onclick="handleSuggestionClick('Show unpaid invoices')">
+                        <span class="ai-suggestion-icon">💳</span> Show unpaid invoices
+                    </button>
+                    <button class="ai-suggestion-btn" onclick="handleSuggestionClick('Show pending quotations')">
+                        <span class="ai-suggestion-icon">📄</span> Show pending quotations
+                    </button>
+                    <button class="ai-suggestion-btn" onclick="handleSuggestionClick('Show recent activities')">
+                        <span class="ai-suggestion-icon">🕒</span> Show recent activities
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat messages -->
+            <div id="aiChatMessages"></div>
         </div>
 
-        <div class="ai-copilot-input-area">
-            <input type="text" id="aiCopilotInput" class="ai-copilot-input" placeholder="Ask anything about your CRM..." aria-label="Ask AI Copilot" onkeypress="handleAIInputKeyPress(event)">
-            <button class="ai-copilot-send" onclick="sendMessage()" aria-label="Send message">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-            </button>
+        <!-- Composer -->
+        <div class="ai-composer">
+            <div class="ai-composer-box">
+                <input
+                    type="text"
+                    id="aiCopilotInput"
+                    class="ai-composer-input"
+                    placeholder="Ask anything about your CRM..."
+                    aria-label="Ask AI Copilot"
+                    onkeypress="handleAIInputKeyPress(event)"
+                    autocomplete="off"
+                >
+                <button class="ai-composer-send" onclick="sendMessage()" aria-label="Send message">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+            </div>
+            <div class="ai-composer-hint">GlassEntials AI · Data from your CRM only</div>
         </div>
     </aside>
 
     <!-- Floating AI Button -->
     <button class="ai-floating-btn" onclick="openAICopilot(event)" aria-label="Open AI Copilot">
-        ✨ AI Copilot
+        <span class="ai-floating-dot"></span>
+        AI Copilot
     </button>
 
-    <!-- AI Copilot Javascript -->
+    <!-- AI Copilot JavaScript -->
     <script>
+        /* ── Panel Controls ── */
         function openAICopilot(e) {
             if (e) e.preventDefault();
             document.getElementById('aiCopilotOverlay').classList.add('active');
             document.getElementById('aiCopilotDrawer').classList.add('active');
-            
-            // Wait for drawer to slide in before focusing
-            setTimeout(() => {
-                document.getElementById('aiCopilotInput').focus();
-            }, 300);
+            setTimeout(() => document.getElementById('aiCopilotInput').focus(), 300);
         }
 
         function closeAICopilot() {
@@ -449,43 +827,44 @@
             document.getElementById('aiCopilotDrawer').classList.remove('active');
         }
 
+        function clearAIChat() {
+            document.getElementById('aiChatMessages').innerHTML = '';
+            const ws = document.getElementById('aiWelcomeState');
+            if (ws) ws.style.display = '';
+            document.getElementById('aiCopilotInput').value = '';
+        }
+
+        /* ── Suggestions ── */
         function handleSuggestionClick(text) {
-            const input = document.getElementById('aiCopilotInput');
-            input.value = text;
-            input.focus();
+            document.getElementById('aiCopilotInput').value = text;
+            sendMessage();
         }
 
+        /* ── Input ── */
         function handleAIInputKeyPress(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                sendMessage();
-            }
+            if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
         }
 
+        /* ── Send ── */
         function sendMessage() {
             const input = document.getElementById('aiCopilotInput');
             const text = input.value.trim();
-            
             if (!text) return;
-            
-            // Hide welcome state on first message
-            const welcomeState = document.getElementById('aiWelcomeState');
-            if (welcomeState) welcomeState.style.display = 'none';
-            
+
+            const ws = document.getElementById('aiWelcomeState');
+            if (ws) ws.style.display = 'none';
+
             addUserMessage(text);
             input.value = '';
             input.disabled = true;
-            document.querySelector('.ai-copilot-send').disabled = true;
+            document.querySelector('.ai-composer-send').disabled = true;
 
-            // Show typing indicator
             const typingId = addTypingIndicator();
 
-            // Call backend
             fetch('/api/ai/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // Include CSRF meta tag value if present in page
                     'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
                 },
                 body: JSON.stringify({ message: text })
@@ -494,202 +873,57 @@
             .then(data => {
                 removeTypingIndicator(typingId);
                 if (data.success) {
-                    addAIMessage(data);
+                    renderAIResponse(data);
                 } else {
-                    addAIMessage({ answer: data.error || 'Something went wrong. Please try again.' });
+                    renderAIResponse({ answer: data.error || 'Something went wrong. Please try again.' });
                 }
             })
             .catch(() => {
                 removeTypingIndicator(typingId);
-                addAIMessage({ answer: 'Unable to connect to AI Copilot. Please check your connection and try again.' });
+                renderAIResponse({ answer: 'Unable to connect to AI Copilot. Please check your connection.' });
             })
             .finally(() => {
                 input.disabled = false;
-                document.querySelector('.ai-copilot-send').disabled = false;
+                document.querySelector('.ai-composer-send').disabled = false;
                 input.focus();
             });
         }
 
-        function addUserMessage(text) {
-            const chatDiv = document.getElementById('aiChatMessages');
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'ai-message user';
-            msgDiv.textContent = text;
-            chatDiv.appendChild(msgDiv);
-            scrollToBottom();
-        }
-
+        /* ── XSS Safety ── */
         function escapeHTML(str) {
             if (!str) return '';
-            return String(str).replace(/[&<>'"]/g, 
-                tag => ({
-                    '&': '&amp;',
-                    '<': '&lt;',
-                    '>': '&gt;',
-                    "'": '&#39;',
-                    '"': '&quot;'
-                }[tag])
+            return String(str).replace(/[&<>'"]/g,
+                t => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[t])
             );
         }
 
-        function addAIMessage(data) {
+        /* ── User Message ── */
+        function addUserMessage(text) {
             const chatDiv = document.getElementById('aiChatMessages');
-            const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 24px; max-width: 100%; width: 100%;';
-
-            // 1. Natural Language Answer / Summary
-            if (data.answer) {
-                const msgDiv = document.createElement('div');
-                msgDiv.className = 'ai-message assistant';
-                msgDiv.style.marginBottom = '12px';
-                msgDiv.style.whiteSpace = 'pre-wrap';
-                msgDiv.textContent = data.answer;
-                wrapper.appendChild(msgDiv);
-            }
-
-            // 2. Structured CRM Data Cards
-            if (data.structured_data && data.structured_data.data) {
-                const sType = data.structured_data.type;
-                const records = Array.isArray(data.structured_data.data) ? data.structured_data.data : [];
-                
-                if (records.length > 0) {
-                    const header = document.createElement('div');
-                    header.style.cssText = 'font-weight: 600; color: var(--primary-color); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; font-size: 0.95rem;';
-                    header.innerHTML = `<span>📊</span> CRM Data: ${sType.charAt(0).toUpperCase() + sType.slice(1)}`;
-                    wrapper.appendChild(header);
-
-                    const cardsContainer = document.createElement('div');
-                    cardsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 10px; width: 100%; margin-bottom: 16px;';
-
-                    records.forEach(record => {
-                        const card = document.createElement('div');
-                        card.style.cssText = 'background: white; border: 1px solid rgba(13,27,42,0.1); border-radius: 8px; padding: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); font-size: 0.85rem; width: 90%;';
-                        
-                        let title = record.title || record.name || record.quotation_number || record.invoice_number;
-                        if (!title && record.action && record.entity_type) {
-                            title = `${record.action} ${record.entity_type} ${record.entity_name || ''}`;
-                        }
-                        if (!title) title = 'Record';
-                        
-                        title = escapeHTML(title);
-                        let subtitleHTML = '';
-                        let descHTML = '';
-
-                        if (record.status) {
-                            subtitleHTML += `<span style="background: rgba(212,175,55,0.1); color: #8a6d1a; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-right: 8px;">${escapeHTML(record.status)}</span>`;
-                        }
-                        if (record.due_date || record.issue_date || record.created_at) {
-                            const dateStr = record.due_date || record.issue_date || record.created_at;
-                            subtitleHTML += `<span style="color: var(--text-muted);">📅 ${escapeHTML(dateStr)}</span>`;
-                        }
-                        if (record.is_paid !== undefined) {
-                            const pStatus = record.is_paid ? 'Paid' : 'Unpaid';
-                            const pColor = record.is_paid ? '#10b981' : '#ef4444';
-                            subtitleHTML += `<span style="background: ${pColor}20; color: ${pColor}; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-right: 8px;">${pStatus}</span>`;
-                        }
-
-                        // Collect other fields safely
-                        const excluded = ['id', 'title', 'name', 'status', 'due_date', 'issue_date', 'created_at', 'description', 'is_paid', 'quotation_number', 'invoice_number'];
-                        const extras = [];
-                        for (const [k, v] of Object.entries(record)) {
-                            if (!excluded.includes(k) && v !== null && v !== '') {
-                                extras.push(`<strong>${escapeHTML(k.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()))}:</strong> ${escapeHTML(v)}`);
-                            }
-                        }
-                        
-                        if (record.description) {
-                            descHTML += `<div style="margin-top: 8px; color: var(--text-color);">${escapeHTML(record.description)}</div>`;
-                        }
-                        if (extras.length > 0) {
-                            descHTML += `<div style="margin-top: 8px; color: var(--text-muted); font-size: 0.8rem;">${extras.join(' | ')}</div>`;
-                        }
-
-                        // Add link if ID exists
-                        let linkHTML = '';
-                        if (record.id) {
-                            let linkUrl = '#';
-                            if (sType === 'tasks') linkUrl = '/tasks';
-                            if (sType === 'customers') linkUrl = `/customers/${record.id}`;
-                            if (sType === 'leads') linkUrl = `/leads/${record.id}`;
-                            if (sType === 'projects') linkUrl = `/projects/${record.id}`;
-                            if (linkUrl !== '#') {
-                                linkHTML = `<div style="margin-top: 10px;"><a href="${linkUrl}" style="color: var(--accent-gold); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">🔗 Open Record</a></div>`;
-                            }
-                        }
-
-                        card.innerHTML = `
-                            <div style="font-weight: 600; font-size: 0.95rem; color: var(--primary-color); margin-bottom: 6px;">${title}</div>
-                            ${subtitleHTML ? `<div style="margin-bottom: 6px;">${subtitleHTML}</div>` : ''}
-                            ${descHTML}
-                            ${linkHTML}
-                        `;
-                        cardsContainer.appendChild(card);
-                    });
-                    wrapper.appendChild(cardsContainer);
-                }
-            }
-
-            // 3. Document Fragments
-            if (data.document_data && data.document_data.length > 0) {
-                const header = document.createElement('div');
-                header.style.cssText = 'font-weight: 600; color: var(--primary-color); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; font-size: 0.95rem;';
-                header.innerHTML = `<span>📎</span> Related Documents`;
-                wrapper.appendChild(header);
-
-                const docContainer = document.createElement('div');
-                docContainer.style.cssText = 'display: flex; flex-direction: column; gap: 8px; width: 100%; margin-bottom: 16px;';
-
-                data.document_data.forEach(doc => {
-                    const meta = doc.metadata || {};
-                    const fname = meta.filename || 'Document';
-                    const score = Math.round((doc.score || 0) * 100);
-                    
-                    const card = document.createElement('div');
-                    card.style.cssText = 'background: white; border: 1px solid rgba(13,27,42,0.1); border-left: 3px solid #3b82f6; border-radius: 4px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); font-size: 0.8rem; width: 90%;';
-                    
-                    let snippet = doc.content || '';
-                    if (snippet.length > 150) snippet = snippet.substring(0, 150) + '...';
-
-                    card.innerHTML = `
-                        <div style="font-weight: 600; color: var(--primary-color); margin-bottom: 4px;">${fname} <span style="color: var(--text-muted); font-weight: normal; font-size: 0.75rem;">(Match: ${score}%)</span></div>
-                        <div style="color: var(--text-muted); font-style: italic;">"${snippet}"</div>
-                    `;
-                    docContainer.appendChild(card);
-                });
-                wrapper.appendChild(docContainer);
-            }
-
-            // 4. Sources
-            if (data.sources && data.sources.length > 0) {
-                const srcHeader = document.createElement('div');
-                srcHeader.style.cssText = 'font-weight: 600; color: var(--primary-color); margin-bottom: 6px; font-size: 0.85rem; margin-top: 8px;';
-                srcHeader.textContent = '🔗 Sources';
-                wrapper.appendChild(srcHeader);
-
-                const srcDiv = document.createElement('div');
-                srcDiv.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;';
-                data.sources.forEach(s => {
-                    const chip = document.createElement('span');
-                    chip.style.cssText = 'background: rgba(13,27,42,0.04); border: 1px solid rgba(13,27,42,0.1); color: var(--text-color); padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500;';
-                    chip.textContent = s.label;
-                    srcDiv.appendChild(chip);
-                });
-                wrapper.appendChild(srcDiv);
-            }
-
-            chatDiv.appendChild(wrapper);
+            const row = document.createElement('div');
+            row.className = 'ai-msg-user';
+            const bubble = document.createElement('div');
+            bubble.className = 'ai-msg-user-bubble';
+            bubble.textContent = text;
+            row.appendChild(bubble);
+            chatDiv.appendChild(row);
             scrollToBottom();
         }
 
+        /* ── Typing Indicator ── */
         function addTypingIndicator() {
             const chatDiv = document.getElementById('aiChatMessages');
             const id = 'typing_' + Date.now();
-            const div = document.createElement('div');
-            div.id = id;
-            div.className = 'ai-message assistant';
-            div.style.cssText = 'color: var(--text-muted); font-style: italic; margin-bottom: 16px;';
-            div.textContent = 'Thinking…';
-            chatDiv.appendChild(div);
+            const el = document.createElement('div');
+            el.id = id;
+            el.className = 'ai-typing';
+            el.innerHTML = `
+                <div class="ai-typing-dot"></div>
+                <div class="ai-typing-dot"></div>
+                <div class="ai-typing-dot"></div>
+                <span class="ai-typing-label">Thinking...</span>
+            `;
+            chatDiv.appendChild(el);
             scrollToBottom();
             return id;
         }
@@ -699,13 +933,218 @@
             if (el) el.remove();
         }
 
+        /* ── Status Color for Badges ── */
+        function statusBadgeClass(status) {
+            if (!status) return 'ai-badge-status';
+            const s = status.toLowerCase();
+            if (s === 'paid') return 'ai-badge-paid';
+            if (s === 'unpaid') return 'ai-badge-unpaid';
+            return 'ai-badge-status';
+        }
+
+        /* ── Main AI Response Renderer ── */
+        function renderAIResponse(data) {
+            const chatDiv = document.getElementById('aiChatMessages');
+            const block = document.createElement('div');
+            block.className = 'ai-msg-ai';
+
+            /* 1. Natural language answer / summary */
+            if (data.answer) {
+                const ans = document.createElement('div');
+                ans.className = 'ai-answer-text';
+                ans.textContent = data.answer;
+                block.appendChild(ans);
+            }
+
+            /* 2. Structured CRM records */
+            const sd = data.structured_data;
+            if (sd && Array.isArray(sd.data) && sd.data.length > 0) {
+                const sType = sd.type || 'records';
+
+                const secHeader = document.createElement('div');
+                secHeader.className = 'ai-section-header';
+                const icons = {tasks:'📋',customers:'👥',leads:'🎯',quotations:'📄',invoices:'💳',projects:'📁',activities:'🕒'};
+                secHeader.innerHTML = `<span>${icons[sType] || '📊'}</span> ${sType.charAt(0).toUpperCase()+sType.slice(1)}`;
+                block.appendChild(secHeader);
+
+                if (sType === 'activities') {
+                    /* Activity timeline */
+                    const timeline = document.createElement('div');
+                    timeline.style.marginBottom = '12px';
+                    sd.data.forEach(rec => {
+                        const item = document.createElement('div');
+                        item.className = 'ai-activity-item';
+                        const dot = document.createElement('div');
+                        dot.className = 'ai-activity-dot';
+                        const content = document.createElement('div');
+                        content.className = 'ai-activity-content';
+                        const actionEl = document.createElement('div');
+                        actionEl.className = 'ai-activity-action';
+                        actionEl.textContent = escapeHTML(rec.action || '');
+                        const entityEl = document.createElement('div');
+                        entityEl.className = 'ai-activity-entity';
+                        entityEl.textContent = escapeHTML(rec.entity_name ? `${rec.entity_type} · ${rec.entity_name}` : (rec.entity_type || ''));
+                        const timeEl = document.createElement('div');
+                        timeEl.className = 'ai-activity-time';
+                        timeEl.textContent = escapeHTML(rec.created_at || '');
+                        content.appendChild(actionEl);
+                        content.appendChild(entityEl);
+                        content.appendChild(timeEl);
+                        item.appendChild(dot);
+                        item.appendChild(content);
+                        timeline.appendChild(item);
+                    });
+                    block.appendChild(timeline);
+                } else {
+                    /* Standard CRM cards */
+                    const cardsWrap = document.createElement('div');
+                    cardsWrap.style.marginBottom = '12px';
+
+                    sd.data.forEach(record => {
+                        const card = document.createElement('div');
+                        card.className = 'ai-crm-card';
+
+                        /* Title */
+                        let title = record.title || record.name || record.quotation_number || record.invoice_number;
+                        if (!title && record.action && record.entity_type) {
+                            title = `${record.action} ${record.entity_type} ${record.entity_name || ''}`;
+                        }
+                        if (!title) title = 'Record';
+
+                        const titleEl = document.createElement('div');
+                        titleEl.className = 'ai-crm-card-title';
+                        titleEl.textContent = title;
+                        card.appendChild(titleEl);
+
+                        /* Meta row: status + date + paid */
+                        const meta = document.createElement('div');
+                        meta.className = 'ai-crm-card-meta';
+
+                        if (record.status) {
+                            const badge = document.createElement('span');
+                            badge.className = 'ai-badge ' + statusBadgeClass(record.status);
+                            badge.textContent = escapeHTML(record.status);
+                            meta.appendChild(badge);
+                        }
+                        if (record.is_paid !== undefined) {
+                            const badge = document.createElement('span');
+                            badge.className = 'ai-badge ' + (record.is_paid ? 'ai-badge-paid' : 'ai-badge-unpaid');
+                            badge.textContent = record.is_paid ? 'Paid' : 'Unpaid';
+                            meta.appendChild(badge);
+                        }
+                        const dateVal = record.due_date || record.issue_date || record.created_at;
+                        if (dateVal) {
+                            const chip = document.createElement('span');
+                            chip.className = 'ai-date-chip';
+                            chip.textContent = '📅 ' + escapeHTML(dateVal);
+                            meta.appendChild(chip);
+                        }
+                        if (meta.children.length) card.appendChild(meta);
+
+                        /* Description */
+                        if (record.description) {
+                            const desc = document.createElement('div');
+                            desc.className = 'ai-crm-card-desc';
+                            desc.textContent = record.description;
+                            card.appendChild(desc);
+                        }
+
+                        /* Extras: other fields */
+                        const excluded = ['id','title','name','status','due_date','issue_date','created_at','description','is_paid','quotation_number','invoice_number','action','entity_type','entity_name'];
+                        const extraParts = [];
+                        for (const [k,v] of Object.entries(record)) {
+                            if (!excluded.includes(k) && v !== null && v !== '') {
+                                const label = k.replace(/_/g,' ').replace(/\b\w/g, l => l.toUpperCase());
+                                extraParts.push(`<strong>${escapeHTML(label)}:</strong> ${escapeHTML(String(v))}`);
+                            }
+                        }
+                        if (extraParts.length) {
+                            const extras = document.createElement('div');
+                            extras.className = 'ai-crm-extras';
+                            extras.innerHTML = extraParts.join('');
+                            card.appendChild(extras);
+                        }
+
+                        /* Open record link */
+                        if (record.id) {
+                            const urlMap = {
+                                customers: `/customers/${record.id}`,
+                                leads:     `/leads/${record.id}`,
+                                projects:  `/projects/${record.id}`,
+                                tasks:     '/tasks'
+                            };
+                            const href = urlMap[sType];
+                            if (href) {
+                                const link = document.createElement('a');
+                                link.className = 'ai-open-link';
+                                link.href = href;
+                                link.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Open Record`;
+                                card.appendChild(link);
+                            }
+                        }
+
+                        cardsWrap.appendChild(card);
+                    });
+                    block.appendChild(cardsWrap);
+                }
+            }
+
+            /* 3. Document chunks */
+            if (data.document_data && data.document_data.length > 0) {
+                const secH = document.createElement('div');
+                secH.className = 'ai-section-header';
+                secH.innerHTML = '<span>📎</span> Related Documents';
+                block.appendChild(secH);
+
+                data.document_data.forEach(doc => {
+                    const meta = doc.metadata || {};
+                    const card = document.createElement('div');
+                    card.className = 'ai-doc-card';
+                    const score = Math.round((doc.score || 0) * 100);
+                    let snippet = doc.content || '';
+                    if (snippet.length > 140) snippet = snippet.substring(0, 140) + '…';
+                    card.innerHTML = `
+                        <div class="ai-doc-name">${escapeHTML(meta.filename || 'Document')}</div>
+                        <div class="ai-doc-snippet">&ldquo;${escapeHTML(snippet)}&rdquo;</div>
+                        <div class="ai-doc-match">Relevance: ${score}%</div>
+                    `;
+                    block.appendChild(card);
+                });
+            }
+
+            /* 4. Sources */
+            if (data.sources && data.sources.length > 0) {
+                const secH = document.createElement('div');
+                secH.className = 'ai-section-header';
+                secH.style.marginTop = '10px';
+                secH.innerHTML = '<span>🔗</span> Sources';
+                block.appendChild(secH);
+
+                const row = document.createElement('div');
+                row.className = 'ai-sources-row';
+                data.sources.forEach(s => {
+                    const chip = document.createElement('span');
+                    chip.className = 'ai-source-chip';
+                    chip.textContent = escapeHTML(s.label);
+                    row.appendChild(chip);
+                });
+                block.appendChild(row);
+            }
+
+            chatDiv.appendChild(block);
+            scrollToBottom();
+        }
+
+        /* Legacy alias kept for any external calls */
+        function addAIMessage(data) { renderAIResponse(data); }
+
         function scrollToBottom() {
             const chat = document.getElementById('aiCopilotChat');
             chat.scrollTop = chat.scrollHeight;
         }
 
-        // Handle Escape key to close
-        document.addEventListener('keydown', function(e) {
+        /* Escape key closes */
+        document.addEventListener('keydown', e => {
             if (e.key === 'Escape' && document.getElementById('aiCopilotDrawer').classList.contains('active')) {
                 closeAICopilot();
             }
