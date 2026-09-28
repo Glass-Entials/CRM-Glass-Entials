@@ -494,14 +494,14 @@
             .then(data => {
                 removeTypingIndicator(typingId);
                 if (data.success) {
-                    addAIMessage(data.answer, data.sources || []);
+                    addAIMessage(data);
                 } else {
-                    addAIMessage(data.error || 'Something went wrong. Please try again.');
+                    addAIMessage({ answer: data.error || 'Something went wrong. Please try again.' });
                 }
             })
             .catch(() => {
                 removeTypingIndicator(typingId);
-                addAIMessage('Unable to connect to AI Copilot. Please check your connection and try again.');
+                addAIMessage({ answer: 'Unable to connect to AI Copilot. Please check your connection and try again.' });
             })
             .finally(() => {
                 input.disabled = false;
@@ -519,27 +519,159 @@
             scrollToBottom();
         }
 
-        function addAIMessage(text, sources) {
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag])
+            );
+        }
+
+        function addAIMessage(data) {
             const chatDiv = document.getElementById('aiChatMessages');
             const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 16px; max-width: 85%;';
+            wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 24px; max-width: 100%; width: 100%;';
 
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'ai-message assistant';
-            msgDiv.style.marginBottom = '0';
-            // Preserve newlines in AI response
-            msgDiv.style.whiteSpace = 'pre-wrap';
-            msgDiv.textContent = text;
-            wrapper.appendChild(msgDiv);
+            // 1. Natural Language Answer / Summary
+            if (data.answer) {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'ai-message assistant';
+                msgDiv.style.marginBottom = '12px';
+                msgDiv.style.whiteSpace = 'pre-wrap';
+                msgDiv.textContent = data.answer;
+                wrapper.appendChild(msgDiv);
+            }
 
-            // Render source references
-            if (sources && sources.length > 0) {
+            // 2. Structured CRM Data Cards
+            if (data.structured_data && data.structured_data.data) {
+                const sType = data.structured_data.type;
+                const records = Array.isArray(data.structured_data.data) ? data.structured_data.data : [];
+                
+                if (records.length > 0) {
+                    const header = document.createElement('div');
+                    header.style.cssText = 'font-weight: 600; color: var(--primary-color); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; font-size: 0.95rem;';
+                    header.innerHTML = `<span>📊</span> CRM Data: ${sType.charAt(0).toUpperCase() + sType.slice(1)}`;
+                    wrapper.appendChild(header);
+
+                    const cardsContainer = document.createElement('div');
+                    cardsContainer.style.cssText = 'display: flex; flex-direction: column; gap: 10px; width: 100%; margin-bottom: 16px;';
+
+                    records.forEach(record => {
+                        const card = document.createElement('div');
+                        card.style.cssText = 'background: white; border: 1px solid rgba(13,27,42,0.1); border-radius: 8px; padding: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); font-size: 0.85rem; width: 90%;';
+                        
+                        let title = record.title || record.name || record.quotation_number || record.invoice_number;
+                        if (!title && record.action && record.entity_type) {
+                            title = `${record.action} ${record.entity_type} ${record.entity_name || ''}`;
+                        }
+                        if (!title) title = 'Record';
+                        
+                        title = escapeHTML(title);
+                        let subtitleHTML = '';
+                        let descHTML = '';
+
+                        if (record.status) {
+                            subtitleHTML += `<span style="background: rgba(212,175,55,0.1); color: #8a6d1a; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-right: 8px;">${escapeHTML(record.status)}</span>`;
+                        }
+                        if (record.due_date || record.issue_date || record.created_at) {
+                            const dateStr = record.due_date || record.issue_date || record.created_at;
+                            subtitleHTML += `<span style="color: var(--text-muted);">📅 ${escapeHTML(dateStr)}</span>`;
+                        }
+                        if (record.is_paid !== undefined) {
+                            const pStatus = record.is_paid ? 'Paid' : 'Unpaid';
+                            const pColor = record.is_paid ? '#10b981' : '#ef4444';
+                            subtitleHTML += `<span style="background: ${pColor}20; color: ${pColor}; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-right: 8px;">${pStatus}</span>`;
+                        }
+
+                        // Collect other fields safely
+                        const excluded = ['id', 'title', 'name', 'status', 'due_date', 'issue_date', 'created_at', 'description', 'is_paid', 'quotation_number', 'invoice_number'];
+                        const extras = [];
+                        for (const [k, v] of Object.entries(record)) {
+                            if (!excluded.includes(k) && v !== null && v !== '') {
+                                extras.push(`<strong>${escapeHTML(k.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()))}:</strong> ${escapeHTML(v)}`);
+                            }
+                        }
+                        
+                        if (record.description) {
+                            descHTML += `<div style="margin-top: 8px; color: var(--text-color);">${escapeHTML(record.description)}</div>`;
+                        }
+                        if (extras.length > 0) {
+                            descHTML += `<div style="margin-top: 8px; color: var(--text-muted); font-size: 0.8rem;">${extras.join(' | ')}</div>`;
+                        }
+
+                        // Add link if ID exists
+                        let linkHTML = '';
+                        if (record.id) {
+                            let linkUrl = '#';
+                            if (sType === 'tasks') linkUrl = '/tasks';
+                            if (sType === 'customers') linkUrl = `/customers/${record.id}`;
+                            if (sType === 'leads') linkUrl = `/leads/${record.id}`;
+                            if (sType === 'projects') linkUrl = `/projects/${record.id}`;
+                            if (linkUrl !== '#') {
+                                linkHTML = `<div style="margin-top: 10px;"><a href="${linkUrl}" style="color: var(--accent-gold); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">🔗 Open Record</a></div>`;
+                            }
+                        }
+
+                        card.innerHTML = `
+                            <div style="font-weight: 600; font-size: 0.95rem; color: var(--primary-color); margin-bottom: 6px;">${title}</div>
+                            ${subtitleHTML ? `<div style="margin-bottom: 6px;">${subtitleHTML}</div>` : ''}
+                            ${descHTML}
+                            ${linkHTML}
+                        `;
+                        cardsContainer.appendChild(card);
+                    });
+                    wrapper.appendChild(cardsContainer);
+                }
+            }
+
+            // 3. Document Fragments
+            if (data.document_data && data.document_data.length > 0) {
+                const header = document.createElement('div');
+                header.style.cssText = 'font-weight: 600; color: var(--primary-color); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; font-size: 0.95rem;';
+                header.innerHTML = `<span>📎</span> Related Documents`;
+                wrapper.appendChild(header);
+
+                const docContainer = document.createElement('div');
+                docContainer.style.cssText = 'display: flex; flex-direction: column; gap: 8px; width: 100%; margin-bottom: 16px;';
+
+                data.document_data.forEach(doc => {
+                    const meta = doc.metadata || {};
+                    const fname = meta.filename || 'Document';
+                    const score = Math.round((doc.score || 0) * 100);
+                    
+                    const card = document.createElement('div');
+                    card.style.cssText = 'background: white; border: 1px solid rgba(13,27,42,0.1); border-left: 3px solid #3b82f6; border-radius: 4px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); font-size: 0.8rem; width: 90%;';
+                    
+                    let snippet = doc.content || '';
+                    if (snippet.length > 150) snippet = snippet.substring(0, 150) + '...';
+
+                    card.innerHTML = `
+                        <div style="font-weight: 600; color: var(--primary-color); margin-bottom: 4px;">${fname} <span style="color: var(--text-muted); font-weight: normal; font-size: 0.75rem;">(Match: ${score}%)</span></div>
+                        <div style="color: var(--text-muted); font-style: italic;">"${snippet}"</div>
+                    `;
+                    docContainer.appendChild(card);
+                });
+                wrapper.appendChild(docContainer);
+            }
+
+            // 4. Sources
+            if (data.sources && data.sources.length > 0) {
+                const srcHeader = document.createElement('div');
+                srcHeader.style.cssText = 'font-weight: 600; color: var(--primary-color); margin-bottom: 6px; font-size: 0.85rem; margin-top: 8px;';
+                srcHeader.textContent = '🔗 Sources';
+                wrapper.appendChild(srcHeader);
+
                 const srcDiv = document.createElement('div');
-                srcDiv.style.cssText = 'margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;';
-                sources.forEach(s => {
+                srcDiv.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;';
+                data.sources.forEach(s => {
                     const chip = document.createElement('span');
-                    chip.style.cssText = 'background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.3); color: #8a6d1a; padding: 2px 8px; border-radius: 12px; font-size: 0.78rem; font-weight: 600;';
-                    chip.textContent = '📎 ' + s.label;
+                    chip.style.cssText = 'background: rgba(13,27,42,0.04); border: 1px solid rgba(13,27,42,0.1); color: var(--text-color); padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500;';
+                    chip.textContent = s.label;
                     srcDiv.appendChild(chip);
                 });
                 wrapper.appendChild(srcDiv);

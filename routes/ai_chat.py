@@ -47,6 +47,8 @@ def chat():
             "answer": result["answer"],
             "sources": result.get("sources", []),
             "type": result.get("query_type", "GENERAL"),
+            "structured_data": result.get("structured_data"),
+            "document_data": result.get("document_data", [])
         })
     except Exception as e:
         logger.error(f"AI chat error for org={org_id}: {e}", exc_info=True)

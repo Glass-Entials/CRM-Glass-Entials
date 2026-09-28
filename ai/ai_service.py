@@ -146,24 +146,30 @@ def process_question(question: str, org_id: int) -> dict:
             "query_type": query_type,
         }
 
-    # Call local LLM
-    try:
-        from ai.llm_provider import get_llm, LLMUnavailableError
-        llm = get_llm()
-        messages = build_llm_messages(question, context_text)
-        answer = llm.chat(messages)
-    except Exception as e:
-        # LLM unavailable — return structured context directly as plain text if available
-        logger.warning(f"LLM unavailable: {e}")
-        if structured_result:
-            answer = _format_fallback_answer(structured_result, question)
-        else:
-            answer = "AI Copilot is temporarily unavailable. The local AI model is not running. Please start Ollama: `ollama serve`"
+    # For pure STRUCTURED queries, skip the LLM to guarantee deterministic card rendering and save time
+    if query_type == "STRUCTURED" and structured_result:
+        answer = structured_result.get("summary", "Here is the data from your CRM.")
+    else:
+        # Call local LLM for GENERAL, DOCUMENT, and HYBRID
+        try:
+            from ai.llm_provider import get_llm, LLMUnavailableError
+            llm = get_llm()
+            messages = build_llm_messages(question, context_text)
+            answer = llm.chat(messages)
+        except Exception as e:
+            # LLM unavailable — return structured context directly as plain text if available
+            logger.warning(f"LLM unavailable: {e}")
+            if structured_result:
+                answer = _format_fallback_answer(structured_result, question)
+            else:
+                answer = "AI Copilot is temporarily unavailable. The local AI model is not running. Please start Ollama: `ollama serve`"
 
     return {
         "answer": answer,
         "sources": sources,
         "query_type": query_type,
+        "structured_data": structured_result,
+        "document_data": doc_chunks if doc_chunks else []
     }
 
 
