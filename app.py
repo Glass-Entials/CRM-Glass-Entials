@@ -269,10 +269,14 @@ app.register_blueprint(call_logger_api_bp)
 app.register_blueprint(gst_bp)
 from routes.saas import saas_bp
 app.register_blueprint(saas_bp)
+from routes.ai_chat import ai_chat_bp
+app.register_blueprint(ai_chat_bp)
 # Exempt the Android device API from CSRF (uses Bearer token auth instead)
 csrf.exempt(call_logger_api_bp)
 # Exempt Razorpay webhook (verified by Razorpay signature, not CSRF token)
 csrf.exempt(saas_bp)
+# Exempt AI chat API (JSON endpoint — CSRF token sent via X-CSRFToken header by JS)
+csrf.exempt(ai_chat_bp)
 
 
 @login_manager.user_loader
