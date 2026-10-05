@@ -576,6 +576,7 @@ def quotation_list():
         doc_type_filter=doc_type_filter,
         search=search,
         settings=settings,
+        now=datetime.datetime.now(),
     )
 
 
@@ -592,19 +593,22 @@ def add_quotation():
 
     if request.method == "POST":
         try:
-            # Use submitted number or auto-generate
+            # Use submitted number or preview the next auto-number (without incrementing yet)
             submitted_number = request.form.get("quotation_number", "").strip()
-            auto_number = generate_quotation_number(org_id)
-            initial_number = submitted_number if submitted_number else auto_number
 
-            # Check uniqueness before creating
-            if Quotation.query.filter_by(
-                quotation_number=initial_number,
-                organization_id=org_id,
-                is_deleted=False
-            ).first():
-                flash(f"Quotation number '{initial_number}' is already in use. Please choose another.", "error")
-                return redirect(url_for("quotations.add_quotation"))
+            if submitted_number:
+                # Check uniqueness of user-supplied number
+                if Quotation.query.filter_by(
+                    quotation_number=submitted_number,
+                    organization_id=org_id,
+                    is_deleted=False
+                ).first():
+                    flash(f"Quotation number '{submitted_number}' is already in use. Please choose another.", "error")
+                    return redirect(url_for("quotations.add_quotation"))
+                initial_number = submitted_number
+            else:
+                # Auto-generate — increments counter atomically
+                initial_number = generate_quotation_number(org_id)
 
             quotation = Quotation(
                 quotation_number=initial_number,
@@ -633,6 +637,9 @@ def add_quotation():
                 f"✅ {quotation.doc_type_display} {quotation.quotation_number} created!",
                 "success",
             )
+            # Save & New support
+            if request.form.get("save_and_new"):
+                return redirect(url_for("quotations.add_quotation"))
             return redirect(
                 url_for("quotations.view_quotation", quotation_id=quotation.id)
             )

@@ -181,7 +181,12 @@ def count_invoices(org_id: int, paid: Optional[bool] = None) -> int:
     return q.count()
 
 
-def get_tasks(org_id: int, limit: int = 10, status: Optional[str] = None) -> List[Dict]:
+def get_tasks(
+    org_id: int, 
+    limit: int = 10, 
+    status: Optional[str] = None,
+    assigned_to_id: Optional[int] = None,
+) -> List[Dict]:
     from model import Task, TaskStatus
     q = Task.query.filter_by(organization_id=org_id, is_deleted=False)
     if status:
@@ -189,6 +194,8 @@ def get_tasks(org_id: int, limit: int = 10, status: Optional[str] = None) -> Lis
             q = q.filter(Task.status == TaskStatus(status))
         except ValueError:
             pass
+    if assigned_to_id is not None:
+        q = q.filter(Task.assigned_to == assigned_to_id)
     tasks = q.order_by(Task.due_date.asc()).limit(limit).all()
     return [
         {
@@ -200,6 +207,22 @@ def get_tasks(org_id: int, limit: int = 10, status: Optional[str] = None) -> Lis
         }
         for t in tasks
     ]
+
+def count_tasks(
+    org_id: int,
+    status: Optional[str] = None,
+    assigned_to_id: Optional[int] = None,
+) -> int:
+    from model import Task, TaskStatus
+    q = Task.query.filter_by(organization_id=org_id, is_deleted=False)
+    if status:
+        try:
+            q = q.filter(Task.status == TaskStatus(status))
+        except ValueError:
+            pass
+    if assigned_to_id is not None:
+        q = q.filter(Task.assigned_to == assigned_to_id)
+    return q.count()
 
 
 def get_overdue_tasks(org_id: int) -> List[Dict]:

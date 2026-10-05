@@ -646,9 +646,9 @@ if (btnDraft) {
         btnDraft.disabled = false;
       }
     } else {
-      // Create mode: FIX C — set status=Draft and submit the form normally
-      const statusSelect = form.querySelector('select[name="status"]');
-      if (statusSelect) statusSelect.value = 'Draft';
+      // Create mode — set status=Draft on the hidden field and submit the form
+      const statusField = document.getElementById('form-status-field') || form.querySelector('[name="status"]');
+      if (statusField) statusField.value = 'Draft';
       
       // Ensure we don't submit a duplicate
       btnDraft.disabled = true;

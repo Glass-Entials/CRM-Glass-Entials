@@ -66,6 +66,7 @@
         enctype="multipart/form-data"
         action="{{ url_for('quotations.edit_quotation', quotation_id=quotation.id) if mode == 'edit' else url_for('quotations.add_quotation') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="status" id="form-status-field" value="{{ quotation.status.value if quotation and quotation.status else 'Draft' }}"/>
 
     <div class="qf-layout">
 
