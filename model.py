@@ -1620,6 +1620,7 @@ class QuotationItem(db.Model):
     discount_type = db.Column(db.String(10), default="flat")  # 'flat' | 'percent'
 
     # Tax
+    hsn_sac = db.Column(db.String(50), nullable=True)
     gst_percentage = db.Column(db.Float, default=18.0)
     sgst_rate = db.Column(db.Float, default=9.0)
     cgst_rate = db.Column(db.Float, default=9.0)

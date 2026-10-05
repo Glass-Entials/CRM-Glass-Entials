@@ -38,8 +38,9 @@ from model import (
 from utils.number_words import number_to_words
 from utils.security import tenant_record_id, validate_upload
 from utils.activity import log_activity
-import datetime, os, uuid, json, base64
+import datetime, os, uuid, json, base64, traceback
 from collections import defaultdict
+from werkzeug.exceptions import HTTPException
 
 quotations_bp = Blueprint("quotations", __name__, url_prefix="/quotations")
 IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
@@ -644,11 +645,14 @@ def add_quotation():
                 url_for("quotations.view_quotation", quotation_id=quotation.id)
             )
 
+        except HTTPException:
+            db.session.rollback()
+            raise  # Let Flask handle 400/404 etc properly
         except Exception as e:
             db.session.rollback()
-
-            current_app.logger.error(f"Error: {str(e)}", exc_info=True)
-            flash("An error occurred. Please try again.", "error")
+            err_detail = traceback.format_exc()
+            current_app.logger.error(f"Quotation create error: {str(e)}\n{err_detail}")
+            flash(f"An error occurred: {str(e)}", "error")
 
     # GET — form data
     settings = _get_or_create_settings(org_id)
@@ -734,11 +738,15 @@ def edit_quotation(quotation_id):
             flash(str(ve), "error")
             return redirect(url_for("quotations.edit_quotation", quotation_id=quotation_id))
 
+        except HTTPException:
+            db.session.rollback()
+            raise  # Let Flask handle 400/404 etc properly
+
         except Exception as e:
             db.session.rollback()
-
-            current_app.logger.error(f"Error: {str(e)}", exc_info=True)
-            flash("An error occurred. Please try again.", "error")
+            err_detail = traceback.format_exc()
+            current_app.logger.error(f"Quotation edit error: {str(e)}\n{err_detail}")
+            flash(f"An error occurred: {str(e)}", "error")
 
 
     settings = _get_or_create_settings(org_id)
@@ -944,6 +952,7 @@ def duplicate_quotation(quotation_id):
                 rate=it.rate,
                 discount=it.discount,
                 discount_type=it.discount_type,
+                hsn_sac=it.hsn_sac,
                 gst_percentage=it.gst_percentage,
                 sgst_rate=it.sgst_rate,
                 cgst_rate=it.cgst_rate,
