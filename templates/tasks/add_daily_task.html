@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -139,6 +139,43 @@
         }
         .cancel-btn:hover {
             color: var(--primary-color);
+        }
+
+        /* Responsive Mobile Styles */
+        @media (max-width: 768px) {
+            .profile-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+                padding: 1.5rem;
+            }
+            .header-actions, .header-actions .btn-action {
+                width: 100%;
+                text-align: center;
+                box-sizing: border-box;
+            }
+            .log-form-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            .profile-card {
+                padding: 1.5rem;
+            }
+            .submit-section {
+                flex-direction: column-reverse;
+                align-items: stretch;
+                gap: 1rem;
+            }
+            .submit-section .btn-action {
+                width: 100%;
+                text-align: center;
+            }
+            .cancel-btn {
+                text-align: center;
+                display: block;
+                width: 100%;
+                padding: 0.8rem 0;
+            }
         }
     </style>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
