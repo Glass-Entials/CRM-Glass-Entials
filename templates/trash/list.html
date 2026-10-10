@@ -116,9 +116,11 @@
     overflow: hidden;
 }
 .trash-panel .customer-table { margin-top: 0; }
+.trash-panel .customer-table th { text-align: left; }
 .trash-panel .customer-table td:first-child {
     color: unset;
     font-weight: unset;
+    width: 40px;
 }
 .trash-pill-restore {
     display: inline-flex; align-items: center; gap: 5px;
@@ -261,7 +263,7 @@
                     {% if record.deleted_by %}
                         <span style="display:inline-flex;align-items:center;gap:5px;">
                             <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            User #{{ record.deleted_by }}
+                            {{ user_map.get(record.deleted_by|string, 'User #' ~ record.deleted_by) }}
                         </span>
                     {% else %}
                         <span style="color:#94a3b8;">System</span>

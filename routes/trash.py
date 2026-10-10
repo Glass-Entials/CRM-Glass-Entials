@@ -22,13 +22,26 @@ def trash_list():
     pagination = get_trashed_records(module, org_id, page, per_page, search)
     records = pagination.items if pagination else []
 
+    from model import Employee
+    
+    # Collect unique deleted_by IDs from the current page of records
+    deleted_by_ids = list({r.deleted_by for r in records if r.deleted_by})
+    
+    # Fetch just those employees (plus org employees as a fallback)
+    employees = Employee.query.filter(
+        (Employee.organization_id == org_id) | (Employee.id.in_(deleted_by_ids))
+    ).all() if deleted_by_ids else Employee.query.filter_by(organization_id=org_id).all()
+    
+    user_map = {str(emp.id): emp.name for emp in employees}
+
     return render_template(
         "trash/list.html",
         records=records,
         pagination=pagination,
         current_module=module,
         search=search,
-        modules=list(TRASH_MODELS.keys())
+        modules=list(TRASH_MODELS.keys()),
+        user_map=user_map
     )
 
 @trash_bp.route("/restore/<string:module>/<int:record_id>", methods=["POST"])
