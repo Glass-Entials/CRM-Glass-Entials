@@ -313,11 +313,9 @@ body.dashboard-page {
     min-width: 0;
 }
 
-.table-responsive {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    width: 100%;
-}
+.table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
+
+@media (min-width: 1024px) { .table-responsive { overflow: visible !important; } }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
