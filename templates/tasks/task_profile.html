@@ -3,363 +3,517 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ task.title }} | GlassEntials CRM</title>
+    <title>{{ task.title }} · Task | GlassEntials</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3\">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3\">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3\">
-    <style>
-        .info-label {
-            display: block;
-            font-size: 0.78rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: var(--text-muted);
-            margin-bottom: 4px;
-            font-weight: 600;
-        }
-        .info-value {
-            font-size: 1rem;
-            font-weight: 500;
-            color: var(--primary-color);
-            margin: 0;
-        }
-        .info-block { margin-bottom: 1.5rem; }
-        .status-pill {
-            display: inline-block;
-            padding: 6px 18px;
-            border-radius: 20px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            letter-spacing: 0.02em;
-        }
-        .status-pending  { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-        .status-progress { background: #cce5ff; color: #004085; border: 1px solid #b8daff; }
-        .status-done     { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .status-cancel   { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .relation-card {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px 16px;
-            border-radius: 10px;
-            border: 1px solid rgba(13,27,42,0.1);
-            background: rgba(13,27,42,0.02);
-            text-decoration: none;
-            color: var(--primary-color);
-            transition: all 0.2s ease;
-        }
-        .relation-card:hover {
-            background: rgba(212,175,55,0.06);
-            border-color: rgba(212,175,55,0.4);
-        }
-        .relation-icon {
-            font-size: 1.5rem;
-            line-height: 1;
-        }
-        .action-bar {
-            display: flex;
-            gap: 10px;
-        }
-        .timeline-dot {
-            width: 10px; height: 10px;
-            border-radius: 50%;
-            background: var(--accent-gold);
-            flex-shrink: 0;
-            margin-top: 5px;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+
+        /* ── Status badges ── */
+        .badge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 14px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+        .badge-pending    { background: rgba(212,175,55,.15); color: #a07d1a; border: 1px solid rgba(212,175,55,.4); }
+        .badge-in-progress{ background: rgba(59,130,246,.1);  color: #1d4ed8; border: 1px solid rgba(59,130,246,.2); }
+        .badge-completed  { background: rgba(16,185,129,.1);  color: #047857; border: 1px solid rgba(16,185,129,.25); }
+        .badge-cancelled  { background: rgba(239,68,68,.08);  color: #b91c1c; border: 1px solid rgba(239,68,68,.2); }
+
+        /* ── Hero banner ── */
+        .task-hero {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1a2f45 100%);
+            border-radius: 20px;
+            padding: 2.2rem 2.5rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .task-hero::before {
+            content: '';
+            position: absolute;
+            top: -60px; right: -60px;
+            width: 260px; height: 260px;
+            border-radius: 50%;
+            background: rgba(212,175,55,0.08);
+        }
+        .task-hero::after {
+            content: '';
+            position: absolute;
+            bottom: -80px; left: 30%;
+            width: 320px; height: 320px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.03);
+        }
+        .hero-back { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 5px; margin-bottom: 0.6rem; transition: color 0.2s; }
+        .hero-back:hover { color: var(--accent-gold); }
+        .hero-title { font-family: 'Playfair Display', serif; font-size: 2rem; color: #fff; margin: 0 0 0.5rem 0; line-height: 1.2; }
+        .hero-meta { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .hero-meta-item { color: rgba(255,255,255,0.55); font-size: 0.82rem; display: flex; align-items: center; gap: 4px; }
+        .hero-divider { color: rgba(255,255,255,0.2); }
+        .hero-actions { display: flex; gap: 0.75rem; position: relative; z-index: 2; flex-shrink: 0; }
+        .btn-hero-outline {
+            padding: 0.6rem 1.25rem;
+            border: 1.5px solid rgba(255,255,255,0.25);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.07);
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            backdrop-filter: blur(4px);
+        }
+        .btn-hero-outline:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.4); }
+        .btn-hero-gold {
+            padding: 0.6rem 1.25rem;
+            background: var(--accent-gold);
+            border: none;
+            border-radius: 10px;
+            color: var(--primary-color);
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(212,175,55,0.35);
+        }
+        .btn-hero-gold:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(212,175,55,0.5); }
+        .btn-hero-danger {
+            padding: 0.6rem 1.25rem;
+            background: rgba(239,68,68,0.15);
+            border: 1.5px solid rgba(239,68,68,0.3);
+            border-radius: 10px;
+            color: #fca5a5;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .btn-hero-danger:hover { background: rgba(239,68,68,0.25); border-color: rgba(239,68,68,0.5); }
+
+        /* ── Main grid ── */
+        .task-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+        @media (max-width: 900px) { .task-grid { grid-template-columns: 1fr; } }
+
+        /* ── Cards ── */
+        .card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(13,27,42,0.06);
+            border: 1px solid rgba(13,27,42,0.06);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        .card:last-child { margin-bottom: 0; }
+        .card-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid rgba(13,27,42,0.06);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-title { font-size: 0.95rem; font-weight: 700; color: var(--primary-color); letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; }
+        .card-title-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }
+        .card-body { padding: 1.5rem; }
+
+        /* ── Info rows ── */
+        .info-row { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.85rem 0; border-bottom: 1px solid rgba(13,27,42,0.05); }
+        .info-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .info-row:first-child { padding-top: 0; }
+        .info-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); font-weight: 600; }
+        .info-value { font-size: 0.92rem; font-weight: 500; color: var(--primary-color); }
+        .info-link { color: var(--accent-gold); text-decoration: none; font-weight: 600; }
+        .info-link:hover { text-decoration: underline; }
+
+        /* ── Avatar ── */
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0; }
+
+        /* ── Description block ── */
+        .desc-block { background: rgba(13,27,42,0.025); border: 1px solid rgba(13,27,42,0.07); border-radius: 10px; padding: 1rem 1.2rem; font-size: 0.88rem; line-height: 1.65; color: #374151; white-space: pre-wrap; }
+
+        /* ── Action icon buttons ── */
+        .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px; border: none; background: transparent; cursor: pointer; transition: all 0.18s; color: #94a3b8; text-decoration: none; font-size: 0.85rem; }
+        .icon-btn:hover { background: rgba(212,175,55,0.12); color: var(--accent-gold); }
+        .icon-btn.danger:hover { background: rgba(239,68,68,0.1); color: #ef4444; }
+
+        /* ── File row ── */
+        .file-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; border-radius: 10px; transition: background 0.15s; }
+        .file-row:hover { background: rgba(13,27,42,0.025); }
+        .file-icon { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; background: rgba(212,175,55,0.1); flex-shrink: 0; }
+        .file-name { font-size: 0.85rem; font-weight: 600; color: var(--primary-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+        .file-meta { font-size: 0.73rem; color: var(--text-muted); margin-top: 2px; }
+
+        /* ── Empty state ── */
+        .empty-state { text-align: center; padding: 3rem 2rem; }
+        .empty-icon { font-size: 2.5rem; opacity: 0.15; margin-bottom: 0.75rem; }
+        .empty-text { font-weight: 600; color: var(--text-muted); font-size: 0.9rem; }
+        .empty-sub { font-size: 0.8rem; color: #b0b9c5; margin-top: 0.3rem; }
+
+        /* ── Timeline ── */
+        .timeline-wrap { position: relative; padding-left: 22px; border-left: 2px solid rgba(212,175,55,0.3); }
+        .timeline-item { position: relative; margin-bottom: 1.75rem; }
+        .timeline-dot { position: absolute; left: -28px; top: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--accent-gold); border: 2px solid white; box-shadow: 0 0 0 2px rgba(212,175,55,0.2); }
+        .timeline-card { background: rgba(13,27,42,0.015); border: 1px solid rgba(13,27,42,0.05); border-radius: 10px; padding: 1.1rem 1.2rem; }
+        .timeline-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .timeline-actor { display: flex; align-items: center; gap: 10px; }
+        .timeline-body { font-size: 0.9rem; line-height: 1.55; color: var(--text-color); white-space: pre-wrap; }
+        .timeline-footer { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.78rem; color: var(--text-muted); border-top: 1px dashed rgba(13,27,42,0.1); padding-top: 8px; margin-top: 10px; }
+
+        /* ── Relation card ── */
+        .relation-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 10px; border: 1px solid rgba(13,27,42,0.1); background: rgba(13,27,42,0.02); text-decoration: none; color: var(--primary-color); transition: all 0.2s ease; }
+        .relation-card:hover { background: rgba(212,175,55,0.06); border-color: rgba(212,175,55,0.4); }
+
+        /* ── Modals ── */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(13,27,42,0.55); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-box { background: #fff; border-radius: 18px; width: 480px; max-width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(13,27,42,0.25); animation: modalIn 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+        .modal-box-lg { width: 560px; }
+        @keyframes modalIn { from { transform: scale(0.92) translateY(10px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+        .modal-head { padding: 1.5rem 1.75rem; border-bottom: 1px solid rgba(13,27,42,0.07); display: flex; justify-content: space-between; align-items: center; }
+        .modal-head h3 { font-size: 1.05rem; font-weight: 700; color: var(--primary-color); margin: 0; }
+        .modal-close { width: 30px; height: 30px; border: none; background: rgba(13,27,42,0.06); border-radius: 50%; cursor: pointer; font-size: 1rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .modal-close:hover { background: rgba(239,68,68,0.1); color: #ef4444; }
+        .modal-body { padding: 1.5rem 1.75rem; }
+        .modal-footer { padding: 1rem 1.75rem 1.5rem; display: flex; gap: 0.75rem; justify-content: flex-end; }
+        .form-label { display: block; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.4rem; }
+        .form-input { width: 100%; padding: 0.7rem 0.9rem; border: 1.5px solid rgba(13,27,42,0.12); border-radius: 9px; font-size: 0.88rem; font-family: 'Inter', sans-serif; color: var(--primary-color); outline: none; transition: border-color 0.2s; background: #fafbfc; box-sizing: border-box; }
+        .form-input:focus { border-color: var(--accent-gold); background: #fff; }
+        .mb-4 { margin-bottom: 1rem; }
+        .btn-sm-outline { padding: 0.55rem 1.1rem; border: 1.5px solid rgba(13,27,42,0.15); border-radius: 9px; background: transparent; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--text-muted); transition: all 0.2s; }
+        .btn-sm-outline:hover { border-color: var(--primary-color); color: var(--primary-color); }
+        .btn-sm-gold { padding: 0.55rem 1.3rem; border: none; border-radius: 9px; background: var(--accent-gold); font-size: 0.85rem; font-weight: 700; cursor: pointer; color: var(--primary-color); transition: all 0.2s; box-shadow: 0 3px 10px rgba(212,175,55,0.3); }
+        .btn-sm-gold:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(212,175,55,0.45); }
+        .btn-sm-danger { padding: 0.55rem 1.1rem; border: none; border-radius: 9px; background: #ef4444; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: #fff; transition: all 0.2s; }
+
+        /* confirm modal */
+        #confirmModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(13,27,42,0.5); z-index:20000; justify-content:center; align-items:center; backdrop-filter:blur(3px); }
+
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* ── Follow-up alert banner ── */
+        .followup-banner {
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .followup-urgent { border: 2px solid #ef4444; background: rgba(239,68,68,0.05); }
+        .followup-normal { border: 2px solid rgba(212,175,55,0.5); background: rgba(212,175,55,0.06); }
+    </style>
 </head>
 <body class="dashboard-page">
-
-    <!-- Top Navbar -->
     {% include 'includes/navbar.html' %}
 
     <!-- Flash Messages -->
-    <div id="flash-toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
         {% with msgs = get_flashed_messages(with_categories=true, category_filter=['tasksuccess','taskerror']) %}
         {% for cat, msg in msgs %}
-        <div class="flash-toast" style="padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; font-size: 14px; color: white; animation: slideInRight 0.3s ease-out; background: {% if cat == 'tasksuccess' %}#10b981{% else %}#ef4444{% endif %};">
-            {% if cat == 'tasksuccess' %}✓{% else %}⚠{% endif %} {{ msg }}
+        <div style="padding: 12px 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); font-weight: 600; font-size: 0.87rem; color: white; animation: slideInRight 0.3s ease-out; background: {% if cat == 'tasksuccess' %}#10b981{% else %}#ef4444{% endif %}; display: flex; align-items: center; gap: 8px;">
+            {{ '✓' if cat == 'tasksuccess' else '⚠' }} {{ msg }}
         </div>
         {% endfor %}
         {% endwith %}
     </div>
-    <style>@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }</style>
 
-    <main class="container" style="max-width: 1020px; padding-top: 2.5rem;">
+    <main class="container" style="max-width: 1100px; padding: 2rem 1.5rem 4rem; margin: 0 auto;">
 
-        <!-- Breadcrumb + Actions -->
-        <div class="top-bar" style="border-bottom: 2px solid rgba(212,175,55,0.2); padding-bottom: 1.5rem; margin-bottom: 2rem; align-items: flex-start;">
-            <div>
-                <a href="{{ url_for('tasks.tasks_list') }}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem; display: inline-block; margin-bottom: 6px;">← Back to Tasks</a>
-                <h1 style="color: var(--primary-color); font-size: 2rem; font-family: var(--font-heading); margin: 0 0 4px 0; line-height: 1.2;">{{ task.title }}</h1>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
-                    Created on {{ task.created_at | ist('%B %d, %Y at %I:%M %p') if task.created_at else '—' }}
-                </p>
+        <!-- ══ Hero Banner ══ -->
+        <div class="task-hero">
+            <div style="position: relative; z-index: 2;">
+                <a href="{{ url_for('tasks.tasks_list') }}" class="hero-back">← Back to Tasks</a>
+                <h1 class="hero-title">{{ task.title }}</h1>
+                <div class="hero-meta">
+                    {% set sd = task.status_display %}
+                    <span class="badge
+                        {% if sd == 'Pending' %}badge-pending
+                        {% elif sd == 'In Progress' %}badge-in-progress
+                        {% elif sd == 'Completed' %}badge-completed
+                        {% else %}badge-cancelled{% endif %}"
+                        style="background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); color: #fff; font-size: 0.72rem;">
+                        {{ sd }}
+                    </span>
+                    <span class="hero-divider">|</span>
+                    <span class="hero-meta-item">🗓 Created {{ task.created_at | ist('%d %b %Y') if task.created_at else '—' }}</span>
+                    {% if task.assignee %}
+                    <span class="hero-divider">|</span>
+                    <span class="hero-meta-item">👤 {{ task.assignee.name }}</span>
+                    {% endif %}
+                    {% if task.due_date %}
+                    <span class="hero-divider">|</span>
+                    <span class="hero-meta-item">📅 Due {{ task.due_date.strftime('%d %b %Y') }}</span>
+                    {% endif %}
+                </div>
             </div>
-            <div class="action-bar">
-                <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" class="btn-action gold" style="text-decoration: none;">✏ Edit Task</a>
-                <form action="{{ url_for('tasks.delete_task', task_id=task.id) }}" method="POST" onsubmit="openConfirmModal(event, this, 'Delete this task permanently?')" style="margin: 0;">
+            <div class="hero-actions">
+                <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" class="btn-hero-gold">✏️ Edit Task</a>
+                <form action="{{ url_for('tasks.delete_task', task_id=task.id) }}" method="POST"
+                    onsubmit="openConfirmModal(event, this, 'Delete this task permanently?')" style="margin:0;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <button type="submit" class="btn-action" style="background: rgba(220,53,69,0.08); color: #dc3545; border: 1px solid rgba(220,53,69,0.2); cursor: pointer;">🗑 Delete</button>
+                    <button type="submit" class="btn-hero-danger">🗑 Delete</button>
                 </form>
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; align-items: start;">
+        <!-- ══ Main Grid ══ -->
+        <div class="task-grid">
 
-            <!-- Main Panel -->
+            <!-- LEFT COLUMN -->
             <div>
-                <!-- Overview Card -->
-                <div class="panel" style="padding: 2.5rem; border-top: 4px solid var(--primary-color); margin-bottom: 1.5rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 10px;">
-                        <h2 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.4rem; margin: 0;">Task Overview</h2>
-                        {% set sd = task.status_display %}
-                        {% if sd == 'Pending' %}
-                            <span class="status-pill status-pending">⏳ Pending</span>
-                        {% elif sd == 'In Progress' %}
-                            <span class="status-pill status-progress">🔄 In Progress</span>
-                        {% elif sd == 'Completed' %}
-                            <span class="status-pill status-done">✅ Completed</span>
-                        {% elif sd == 'Cancelled' %}
-                            <span class="status-pill status-cancel">❌ Cancelled</span>
-                        {% endif %}
-                    </div>
 
-                    <!-- Description -->
-                    <div style="background: rgba(13,27,42,0.02); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(13,27,42,0.06); margin-bottom: 2rem;">
-                        <span class="info-label">Description</span>
-                        <p style="font-size: 1rem; line-height: 1.7; color: var(--text-color); margin: 0; white-space: pre-wrap;">{{ task.description or 'No description provided.' }}</p>
-                    </div>
-
-                    <!-- Due Date -->
-                    <div class="info-block">
-                        <span class="info-label">Due Date</span>
-                        {% if task.due_date %}
-                            {% set today = None %}
-                            <p class="info-value" style="{% if task.status_display not in ['Completed','Cancelled'] %}color: {% if task.due_date.strftime('%Y-%m-%d') < '2099-01-01' %}var(--primary-color){% endif %};{% endif %}">
-                                📅 {{ task.due_date.strftime('%B %d, %Y') }}
-                            </p>
-                        {% else %}
-                            <p class="info-value" style="color: var(--text-muted); font-style:italic;">No due date set</p>
-                        {% endif %}
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- Sidebar -->
-            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-                <!-- Assignment -->
-                <div class="panel" style="padding: 2rem; height: 100%;">
-                    <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.1rem; margin: 0 0 1.5rem 0; border-bottom: 1px solid rgba(13,27,42,0.08); padding-bottom: 0.8rem;">Responsibility</h3>
-
-                    <div class="info-block">
-                        <span class="info-label">Assigned To</span>
-                        {% if task.assignee %}
-                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 6px;">
-                            <div style="width: 38px; height: 38px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(212,175,55,0.35); background: #eee; flex-shrink: 0;">
-                                <img src="{{ get_profile_pic(task.assignee) }}" alt="{{ task.assignee.name }}" style="width:100%; height:100%; object-fit:cover;">
-                            </div>
-                            <div>
-                                <span style="font-weight: 700; display: block; font-size: 0.95rem;">{{ task.assignee.name }}</span>
-                                <span style="font-size: 0.8rem; color: var(--text-muted);">{{ task.assignee.position or 'Staff' }}</span>
-                            </div>
+                <!-- Task Details Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(13,27,42,0.06);">📋</div>
+                            Task Details
                         </div>
-                        {% else %}
-                            <p class="info-value" style="color: var(--text-muted); font-style: italic;">Unassigned</p>
+                    </div>
+                    <div class="card-body" style="padding: 1.25rem 1.5rem;">
+
+                        <div class="info-row">
+                            <span class="info-label">Status</span>
+                            <span>
+                                <span class="badge
+                                    {% if sd == 'Pending' %}badge-pending
+                                    {% elif sd == 'In Progress' %}badge-in-progress
+                                    {% elif sd == 'Completed' %}badge-completed
+                                    {% else %}badge-cancelled{% endif %}">
+                                    {{ sd }}
+                                </span>
+                            </span>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Due Date</span>
+                            <span class="info-value">
+                                {% if task.due_date %}
+                                    📅 {{ task.due_date.strftime('%B %d, %Y') }}
+                                {% else %}
+                                    <span style="color: var(--text-muted); font-style: italic;">No due date</span>
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        {% if task.project %}
+                        <div class="info-row">
+                            <span class="info-label">Project</span>
+                            <a href="{{ url_for('projects.view_project', project_id=task.project.id) }}" class="info-link info-value">
+                                📦 {{ task.project.name }}
+                            </a>
+                        </div>
                         {% endif %}
-                    </div>
 
-                    <div class="info-block">
-                        <span class="info-label">Created By</span>
-                        <p class="info-value">{{ task.creator.username if task.creator else 'System' }}</p>
-                    </div>
+                        {% if task.lead_record %}
+                        <div class="info-row">
+                            <span class="info-label">Lead</span>
+                            <a href="{{ url_for('leads.view_lead', lead_id=task.lead_record.id) }}" class="info-link info-value">
+                                🎯 {{ task.lead_record.name }}
+                            </a>
+                        </div>
+                        {% endif %}
 
-                    <div class="info-block" style="margin-bottom: 0;">
-                        <span class="info-label">Last Updated</span>
-                        <p class="info-value">{{ task.updated_at | ist('%d %b %Y, %I:%M %p') if task.updated_at else '—' }}</p>
+                        {% if not task.project and not task.lead_record %}
+                        <div class="info-row">
+                            <span class="info-label">Type</span>
+                            <span class="info-value" style="color: var(--text-muted); font-style: italic;">Independent Task</span>
+                        </div>
+                        {% endif %}
+
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Middle Grid -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem; align-items: stretch;">
-            <!-- Related To / Independent Task -->
-            <div style="height: 100%;">
-                {% if task.project or task.lead_record %}
-                <div class="panel" style="padding: 2rem; border-top: 4px solid var(--accent-gold); height: 100%; margin-bottom: 0;">
-                    <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0 0 1.2rem 0;">Related To</h3>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        {% if task.project %}
-                        <a href="{{ url_for('projects.view_project', project_id=task.project.id) }}" class="relation-card">
-                            <span class="relation-icon">📦</span>
-                            <div>
-                                <span style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;">Project</span>
-                                <span style="font-weight: 700; font-size: 1rem;">{{ task.project.name }}</span>
-                                {% if task.project.status_display %}
-                                <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px;">• {{ task.project.status_display }}</span>
+                <!-- Responsibility Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(212,175,55,0.1);">👥</div>
+                            Responsibility
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding: 1.25rem 1.5rem;">
+                        <div class="info-row">
+                            <span class="info-label">Assigned To</span>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                                {% if task.assignee %}
+                                <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(212,175,55,0.35);flex-shrink:0;">
+                                    <img src="{{ get_profile_pic(task.assignee) }}" alt="{{ task.assignee.name }}" style="width:100%;height:100%;object-fit:cover;">
+                                </div>
+                                <div>
+                                    <div class="info-value">{{ task.assignee.name }}</div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);">{{ task.assignee.position or 'Staff' }}</div>
+                                </div>
+                                {% else %}
+                                <div class="avatar">?</div>
+                                <span class="info-value" style="color:var(--text-muted);font-style:italic;">Unassigned</span>
                                 {% endif %}
                             </div>
-                        </a>
-                        {% endif %}
-                        {% if task.lead_record %}
-                        <a href="{{ url_for('leads.view_lead', lead_id=task.lead_record.id) }}" class="relation-card">
-                            <span class="relation-icon">🎯</span>
-                            <div>
-                                <span style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;">Lead</span>
-                                <span style="font-weight: 700; font-size: 1rem; display: block; margin-bottom: 6px;">{{ task.lead_record.name }}</span>
-                                <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--text-muted);">
-                                    {% if task.lead_record.phone_number %}
-                                    <span style="display: flex; align-items: center; gap: 6px;">📞 {{ task.lead_record.phone_number }}</span>
-                                    {% endif %}
-                                    {% if task.lead_record.email %}
-                                    <span style="display: flex; align-items: center; gap: 6px; word-break: break-all;">✉️ {{ task.lead_record.email }}</span>
-                                    {% endif %}
-                                    {% if task.lead_record.company %}
-                                    <span style="display: flex; align-items: center; gap: 6px;">🏢 {{ task.lead_record.company }}</span>
-                                    {% endif %}
-                                </div>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Created By</span>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                                <div class="avatar" style="background: #64748b;">{{ task.creator.username[:1].upper() if task.creator else 'S' }}</div>
+                                <span class="info-value">{{ task.creator.username if task.creator else 'System' }}</span>
                             </div>
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-                {% else %}
-                <div class="panel" style="padding: 1.5rem 2rem; border-top: 4px solid #e2e8f0; height: 100%; margin-bottom: 0;">
-                    <div style="display: flex; align-items: center; gap: 12px; color: var(--text-muted); height: 100%;">
-                        <span style="font-size: 1.5rem;">👤</span>
-                        <div>
-                            <span style="font-weight: 600; display: block;">Independent Task</span>
-                            <span style="font-size: 0.87rem;">Not linked to any project or lead.</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Created On</span>
+                            <span class="info-value">{{ task.created_at | ist('%d %b %Y') if task.created_at else '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Last Updated</span>
+                            <span class="info-value">{{ task.updated_at | ist('%d %b %Y, %I:%M %p') if task.updated_at else '—' }}</span>
                         </div>
                     </div>
                 </div>
-                {% endif %}
+
             </div>
 
-            <!-- Quick Status Update -->
-            <div style="height: 100%;">
-                <div class="panel" style="padding: 1.5rem 2rem; height: 100%; margin-bottom: 0;">
-                    <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1rem; margin: 0 0 1rem 0;">Quick Status Update</h3>
-                    <form action="{{ url_for('tasks.edit_task', task_id=task.id) }}" method="POST" id="quickStatusForm" style="height: calc(100% - 2rem); display: flex; flex-direction: column; justify-content: center;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <input type="hidden" name="title" value="{{ task.title }}">
-                        <input type="hidden" name="description" value="{{ task.description or '' }}">
-                        <input type="hidden" name="due_date" value="{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '' }}">
-                        <input type="hidden" name="assigned_to" value="{{ task.assigned_to or 'unassigned' }}">
-                        <input type="hidden" name="project_id" value="{{ task.project_id or 'none' }}">
-                        <input type="hidden" name="lead_id" value="{{ task.lead_id or 'none' }}">
+            <!-- RIGHT COLUMN -->
+            <div>
+
+                <!-- Quick Status Update Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(16,185,129,0.1);">⚡</div>
+                            Quick Status
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding: 1.25rem 1.5rem;">
                         {% set can_edit_status = False %}
                         {% if current_user.employee and (current_user.employee.id == task.created_by or current_user.employee.id == task.assigned_to) %}
                             {% set can_edit_status = True %}
                         {% endif %}
-                        <select name="status" onchange="this.form.submit()" class="form-control" {% if not can_edit_status %}disabled title="Only the task creator or assignee can change the status." style="width: 100%; padding: 0.75rem 1rem; border: 1px solid rgba(13,27,42,0.2); border-radius: 8px; font-size: 0.95rem; background: #f1f5f9; color: var(--text-muted); cursor: not-allowed;"{% else %}style="width: 100%; padding: 0.75rem 1rem; border: 1px solid rgba(13,27,42,0.2); border-radius: 8px; font-size: 0.95rem; cursor: pointer;"{% endif %}>
-                            <option value="Pending"     {% if task.status_display == 'Pending'     %}selected{% endif %}>⏳ Pending</option>
-                            <option value="In Progress" {% if task.status_display == 'In Progress' %}selected{% endif %}>🔄 In Progress</option>
-                            <option value="Completed"   {% if task.status_display == 'Completed'   %}selected{% endif %}>✅ Completed</option>
-                            <option value="Cancelled"   {% if task.status_display == 'Cancelled'   %}selected{% endif %}>❌ Cancelled</option>
-                        </select>
-                    </form>
+                        <form action="{{ url_for('tasks.edit_task', task_id=task.id) }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="title" value="{{ task.title }}">
+                            <input type="hidden" name="description" value="{{ task.description or '' }}">
+                            <input type="hidden" name="due_date" value="{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '' }}">
+                            <input type="hidden" name="assigned_to" value="{{ task.assigned_to or 'unassigned' }}">
+                            <input type="hidden" name="project_id" value="{{ task.project_id or 'none' }}">
+                            <input type="hidden" name="lead_id" value="{{ task.lead_id or 'none' }}">
+                            <select name="status" onchange="this.form.submit()"
+                                {% if not can_edit_status %}disabled title="Only the task creator or assignee can change the status."{% endif %}
+                                style="width:100%; padding:0.75rem 1rem; border:1.5px solid rgba(13,27,42,0.12); border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; background:{% if not can_edit_status %}#f1f5f9{% else %}#fff{% endif %}; color:{% if not can_edit_status %}var(--text-muted){% else %}var(--primary-color){% endif %}; cursor:{% if can_edit_status %}pointer{% else %}not-allowed{% endif %}; outline:none; transition:border-color 0.2s;">
+                                <option value="Pending"     {% if task.status_display == 'Pending'     %}selected{% endif %}>⏳ Pending</option>
+                                <option value="In Progress" {% if task.status_display == 'In Progress' %}selected{% endif %}>🔄 In Progress</option>
+                                <option value="Completed"   {% if task.status_display == 'Completed'   %}selected{% endif %}>✅ Completed</option>
+                                <option value="Cancelled"   {% if task.status_display == 'Cancelled'   %}selected{% endif %}>❌ Cancelled</option>
+                            </select>
+                            {% if not can_edit_status %}
+                            <p style="font-size:0.75rem; color:var(--text-muted); margin:0.5rem 0 0; font-style:italic;">Only the creator or assignee can update status.</p>
+                            {% endif %}
+                        </form>
+                    </div>
                 </div>
+
+                <!-- Description Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(139,92,246,0.1);">📝</div>
+                            Description
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding: 1.25rem 1.5rem;">
+                        {% if task.description %}
+                        <div class="desc-block">{{ task.description }}</div>
+                        {% else %}
+                        <p style="font-size:0.88rem; color:var(--text-muted); font-style:italic; margin:0;">No description provided.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Task Documents Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(16,185,129,0.1);">📁</div>
+                            Task Files
+                        </div>
+                        <button class="btn-sm-gold" onclick="document.getElementById('taskDocModal').style.display='flex'" style="font-size:0.78rem; padding:0.4rem 0.9rem;">
+                            ↑ Upload
+                        </button>
+                    </div>
+
+                    {% set docs = task.documents.all() %}
+                    {% if docs %}
+                    <div class="card-body" style="padding: 0.75rem 1rem;">
+                        {% for doc in docs %}
+                        <div class="file-row">
+                            <div class="file-icon">
+                                {% if doc.file_type in ['pdf'] %}📄
+                                {% elif doc.file_type in ['jpg','jpeg','png','webp'] %}🖼️
+                                {% elif doc.file_type in ['xls','xlsx'] %}📊
+                                {% elif doc.file_type in ['doc','docx'] %}📝
+                                {% else %}📎{% endif %}
+                            </div>
+                            <div style="flex: 1; overflow: hidden;">
+                                <div class="file-name" title="{{ doc.original_name }}">{{ doc.original_name }}</div>
+                                <div class="file-meta">{{ doc.uploaded_at.strftime('%d %b %Y') }}{% if doc.description %} · {{ doc.description }}{% endif %}</div>
+                            </div>
+                            <div style="display: flex; gap: 4px; flex-shrink: 0;">
+                                <a href="#" onclick="openPreviewModal('{{ url_for('documents.view_document', doc_id=doc.id, filename=doc.original_name) }}', '{{ url_for('documents.download_document', doc_id=doc.id) }}', '{{ doc.original_name }}'); return false;" class="icon-btn" title="Preview">👁️</a>
+                                <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" class="icon-btn" title="Download">⬇️</a>
+                                <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="openConfirmModal(event, this, 'Delete this file?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="icon-btn danger" title="Delete">🗑</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">📂</div>
+                        <div class="empty-text">No files uploaded</div>
+                        <div class="empty-sub">Upload documents, images or plans</div>
+                    </div>
+                    {% endif %}
+                </div>
+
             </div>
         </div>
-        <!-- Task Documents Section (Full Width) -->
-        <div class="panel" style="padding: 2rem; margin-top: 1.5rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0;">Task Documents</h3>
-                <button class="btn-action gold" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="document.getElementById('taskDocModal').style.display='flex'">+ Add Document</button>
-            </div>
 
-            {% set docs = task.documents.all() %}
-            {% if docs %}
-                <div class="table-responsive">
-                    <style>
-                        .task-docs-table td:first-child {
-                            width: auto !important;
-                            padding-left: 1.5rem !important; /* Keep the padding for rounded left edge */
-                        }
-                    </style>
-                    <table class="customer-table task-docs-table" style="width: 100%; table-layout: fixed;">
-                        <thead>
-                            <tr>
-                                <th style="padding: 0.8rem 0.8rem 0.8rem 1.5rem; text-align: left; font-size: 0.8rem; width: 50%;">Filename</th>
-                                <th style="padding: 0.8rem; text-align: left; font-size: 0.8rem; width: 25%;">Uploaded At</th>
-                                <th style="padding: 0.8rem; text-align: right; font-size: 0.8rem; width: 25%;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for doc in docs %}
-                            <tr>
-                                <td style="padding: 0.8rem; font-size: 0.9rem;">
-                                    <div style="font-weight: 600; word-break: break-word; line-height: 1.4;">{{ doc.original_name }}</div>
-                                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">{{ doc.description or '' }}</div>
-                                </td>
-                                <td style="padding: 0.8rem; font-size: 0.85rem; color: var(--text-muted);">{{ doc.uploaded_at.strftime('%d %b, %Y') }}</td>
-                                <td style="padding: 0.8rem; text-align: right;">
-                                    <div style="display: flex; gap: 12px; justify-content: flex-end; align-items: center;">
-                                        <a href="#" onclick="openPreviewModal('{{ url_for('documents.view_document', doc_id=doc.id, filename=doc.original_name) }}', '{{ url_for('documents.download_document', doc_id=doc.id) }}', '{{ doc.original_name }}'); return false;" style="text-decoration: none; font-size: 1.1rem; color: var(--primary-color);" title="Preview Document">👁️</a>
-                                        <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="text-decoration: none; font-size: 1.1rem;" title="Download Document">📥</a>
-                                        <form action="{{ url_for('documents.delete_document', doc_id=doc.id) }}" method="POST" onsubmit="openConfirmModal(event, this, 'Delete this document?')" style="margin: 0;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                            <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 1.1rem;" title="Delete Document">🗑️</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <div style="text-align: center; padding: 2rem; background: rgba(13,27,42,0.02); border-radius: 8px; border: 1px dashed rgba(13,27,42,0.2);">
-                    <p style="color: var(--text-muted); margin: 0; font-size: 0.9rem;">No documents attached to this task.</p>
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- Task Document Modal -->
-        <div id="taskDocModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
-            <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-                <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Upload Task Document</h3>
-                <form action="{{ url_for('documents.upload_document') }}" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <input type="hidden" name="entity_type" value="task">
-                    <input type="hidden" name="entity_id" value="{{ task.id }}">
-                    <div style="margin-bottom: 1.2rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Select File</label>
-                        <input type="file" name="file" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
-                    </div>
-                    <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Description (Optional)</label>
-                        <input type="text" name="description" placeholder="Short note..." style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;">
-                    </div>
-                    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                        <button type="button" class="btn-action outline" onclick="document.getElementById('taskDocModal').style.display='none'">Cancel</button>
-                        <button type="submit" class="btn-action gold">Upload Now</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- ============================================================ -->
-        <!-- FOLLOW-UP REQUEST SECTION (Employee View) -->
-        <!-- ============================================================ -->
+        <!-- ══ Pending Follow-up Requests ══ -->
         {% set pending_followups = task.followup_requests.filter_by(status='Pending').all() %}
         {% if pending_followups %}
-        <div style="margin-top: 1.5rem;">
+        <div style="margin-top: 0.5rem;">
             {% for fu in pending_followups %}
-            {% set is_target = current_user.employee and current_user.employee.id == fu.requested_to %}
-            <div style="padding: 1.5rem 2rem; border-radius: 14px; border: 2px solid {% if fu.priority.value == 'Urgent' %}#ef4444{% else %}rgba(212,175,55,0.5){% endif %}; background: {% if fu.priority.value == 'Urgent' %}rgba(239,68,68,0.05){% else %}rgba(212,175,55,0.06){% endif %}; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+            <div class="followup-banner {% if fu.priority.value == 'Urgent' %}followup-urgent{% else %}followup-normal{% endif %}">
                 <div>
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.4rem;">
                         <span style="font-size: 1.1rem;">📢</span>
-                        <span style="font-weight: 700; color: var(--primary-color); font-size: 1rem;">Follow-up Requested{% if fu.priority.value == 'Urgent' %} <span style="color:#ef4444; font-size:0.8rem; font-weight:700; background:rgba(239,68,68,0.1); padding:2px 8px; border-radius:20px;">🚨 URGENT</span>{% endif %}</span>
+                        <span style="font-weight: 700; color: var(--primary-color); font-size: 1rem;">
+                            Follow-up Requested
+                            {% if fu.priority.value == 'Urgent' %}
+                            <span style="color:#ef4444; font-size:0.8rem; font-weight:700; background:rgba(239,68,68,0.1); padding:2px 8px; border-radius:20px; margin-left:6px;">🚨 URGENT</span>
+                            {% endif %}
+                        </span>
                     </div>
                     <div style="font-size:0.85rem; color:#64748b; display:grid; gap:2px;">
                         <span><strong>Requested By:</strong> {{ fu.requester.name }}</span>
@@ -375,13 +529,18 @@
         </div>
         {% endif %}
 
-        <!-- Responded Follow-ups -->
+        <!-- ══ Completed Follow-ups ══ -->
         {% set responded_followups = task.followup_requests.filter_by(status='Responded').all() %}
         {% if responded_followups %}
-        <div class="panel" style="padding:2rem; margin-top:1.5rem;">
-            <h3 style="font-family:var(--font-heading); color:var(--primary-color); font-size:1.2rem; margin:0 0 1.2rem 0; border-bottom:1px solid rgba(13,27,42,0.08); padding-bottom:0.8rem;">✅ Completed Follow-ups ({{ responded_followups|length }})</h3>
-            <div style="display:flex; flex-direction:column; gap:1.2rem;">
-            {% for fu in responded_followups %}
+        <div class="card" style="margin-top: 1.5rem; overflow: visible;">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-title-icon" style="background: rgba(16,185,129,0.1);">✅</div>
+                    Completed Follow-ups ({{ responded_followups|length }})
+                </div>
+            </div>
+            <div class="card-body" style="display: flex; flex-direction: column; gap: 1rem;">
+                {% for fu in responded_followups %}
                 {% set _resp_list = fu.responses.all() %}
                 {% set last_response = (_resp_list | sort(attribute='responded_at', reverse=True) | first) if _resp_list else none %}
                 <div style="border:1px solid rgba(13,27,42,0.08); border-radius:10px; overflow:hidden;">
@@ -392,9 +551,9 @@
                     {% if last_response %}
                     <div style="padding:1rem 1.2rem; display:grid; gap:0.5rem;">
                         <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
-                            <div><span style="font-size:0.75rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">Progress</span><div style="font-size:1.1rem; font-weight:700; color:var(--primary-color);">{{ last_response.progress_percentage }}%</div></div>
-                            {% if last_response.current_status %}<div><span style="font-size:0.75rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">Status</span><div style="font-size:0.9rem; font-weight:600; color:var(--primary-color);">{{ last_response.current_status.value }}</div></div>{% endif %}
-                            <div><span style="font-size:0.75rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">Responded By</span><div style="font-size:0.9rem; font-weight:600;">{{ last_response.responder.name }}</div></div>
+                            <div><span style="font-size:0.72rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">Progress</span><div style="font-size:1.1rem; font-weight:700; color:var(--primary-color);">{{ last_response.progress_percentage }}%</div></div>
+                            {% if last_response.current_status %}<div><span style="font-size:0.72rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">Status</span><div style="font-size:0.9rem; font-weight:600; color:var(--primary-color);">{{ last_response.current_status.value }}</div></div>{% endif %}
+                            <div><span style="font-size:0.72rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">Responded By</span><div style="font-size:0.9rem; font-weight:600;">{{ last_response.responder.name }}</div></div>
                         </div>
                         <div style="font-size:0.88rem; color:#475569; background:#f1f5f9; padding:0.7rem 1rem; border-radius:8px; line-height:1.6;">{{ last_response.remark }}</div>
                         {% if last_response.attachment_path %}
@@ -403,55 +562,332 @@
                     </div>
                     {% endif %}
                 </div>
-            {% endfor %}
+                {% endfor %}
             </div>
         </div>
         {% endif %}
 
-        <!-- ============================================================ -->
-        <!-- SUBMIT FOLLOW-UP RESPONSE MODAL -->
-        <!-- ============================================================ -->
-        <div id="respondModal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(13,27,42,0.55); backdrop-filter:blur(4px); justify-content:center; align-items:center;">
-            <div style="background:#fff; border-radius:16px; padding:2rem; width:100%; max-width:560px; box-shadow:0 20px 60px rgba(0,0,0,0.2); max-height:90vh; overflow-y:auto;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
-                    <h5 style="margin:0; font-weight:700; color:var(--primary-color);">✍️ Submit Follow-up Update</h5>
-                    <button onclick="closeRespondModal()" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#64748b;">&times;</button>
+        <!-- ══ Activity Timeline ══ -->
+        <div class="card" style="margin-top: 1.5rem; overflow: visible;">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-title-icon" style="background: rgba(212,175,55,0.1);">📊</div>
+                    Activity Timeline
                 </div>
-                <div style="display:grid; gap:1rem;">
-                    <div>
-                        <label style="font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-bottom:4px;">Progress Percentage</label>
-                        <div style="display:flex; align-items:center; gap:12px;">
-                            <input type="range" id="resp_progress" min="0" max="100" value="0" oninput="document.getElementById('resp_progress_val').textContent=this.value+'%'" style="flex:1;">
-                            <span id="resp_progress_val" style="font-weight:700; color:var(--primary-color); min-width:45px; text-align:right;">0%</span>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                    <form method="GET" action="{{ url_for('tasks.view_task', task_id=task.id) }}" style="margin:0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                        <input type="text" name="q" value="{{ search_q }}" placeholder="Search…"
+                            style="padding:0.45rem 0.75rem; border:1.5px solid rgba(13,27,42,0.12); border-radius:8px; font-size:0.82rem; width:140px; font-family:'Inter',sans-serif; outline:none;">
+                        <select name="filter" onchange="this.form.submit()"
+                            style="padding:0.45rem 0.75rem; border:1.5px solid rgba(13,27,42,0.12); border-radius:8px; font-size:0.82rem; font-family:'Inter',sans-serif; outline:none; background:#fff;">
+                            <option value="all">All Types</option>
+                            {% for type_enum in TaskActivityType %}
+                                {% set val_fmt = type_enum.value|lower|replace(' ', '_') %}
+                                <option value="{{ val_fmt }}" {% if filter_type == val_fmt %}selected{% endif %}>{{ type_enum.value }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                    <button class="btn-sm-gold" onclick="document.getElementById('taskActivityModal').style.display='flex'" style="font-size:0.78rem;">+ Add Activity</button>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if activities %}
+                <div class="timeline-wrap">
+                    {% for act in activities %}
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-card">
+                            <div class="timeline-header">
+                                <div class="timeline-actor">
+                                    <img src="{{ get_profile_pic(act.employee) }}" alt="{{ act.employee.name }}"
+                                        style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:1px solid rgba(212,175,55,0.3);">
+                                    <div>
+                                        <div style="font-weight:600;font-size:0.9rem;">{{ act.employee.name }}</div>
+                                        <div style="font-size:0.72rem;color:var(--text-muted);">
+                                            <span style="font-weight:600;color:var(--primary-color);">{{ act.activity_type.value }}</span>
+                                            {% if act.call_result %}
+                                            <span style="background:#e2e8f0;padding:1px 6px;border-radius:4px;font-size:0.68rem;margin-left:4px;">{{ act.call_result.value }}</span>
+                                            {% endif %}
+                                            &nbsp;·&nbsp; {{ act.created_at | ist('%d %b %Y, %I:%M %p') }}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% if is_manager or (current_user.employee and act.employee_id == current_user.employee.id) %}
+                                <div style="display:flex;gap:4px;">
+                                    <button onclick="editActivity({{ act.id }}, '{{ act.message|escape }}', '{{ act.next_follow_up_datetime | ist('%Y-%m-%dT%H:%M') if act.next_follow_up_datetime else '' }}')" class="icon-btn" title="Edit">✏️</button>
+                                    <form action="{{ url_for('tasks.delete_task_activity', activity_id=act.id) }}" method="POST" onsubmit="openConfirmModal(event, this, 'Remove this activity?')" style="margin:0;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="icon-btn danger" title="Delete">🗑️</button>
+                                    </form>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="timeline-body">{{ act.message|nl2br }}</div>
+                            {% if act.attachments.count() > 0 or act.next_follow_up_datetime %}
+                            <div class="timeline-footer">
+                                {% if act.next_follow_up_datetime %}
+                                <div>⏰ <span style="font-weight:600;color:#d97706;">Next Follow Up:</span> {{ act.next_follow_up_datetime | ist('%d %b %Y, %I:%M %p') }}</div>
+                                {% endif %}
+                                {% if act.attachments.count() > 0 %}
+                                <div>📎 <span style="font-weight:600;">Attachments:</span>
+                                    {% for doc in act.attachments %}
+                                    <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="color:var(--accent-gold);text-decoration:none;">{{ doc.original_name }}</a>{% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if activity_pagination.pages > 1 %}
+                <div style="display:flex;justify-content:center;gap:5px;margin-top:2rem;">
+                    {% for p in activity_pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if p %}
+                            <a href="{{ url_for('tasks.view_task', task_id=task.id, act_page=p, filter=filter_type, q=search_q) }}"
+                                class="btn-sm-{% if p == activity_pagination.page %}gold{% else %}outline{% endif %}"
+                                style="padding:0.35rem 0.85rem;">{{ p }}</a>
+                        {% else %}
+                            <span style="padding:0.35rem 0.85rem;color:var(--text-muted);">...</span>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">📝</div>
+                    <div class="empty-text">No activity yet</div>
+                    <div class="empty-sub">Start logging calls, meetings, or notes</div>
+                    {% if search_q or filter_type != 'all' %}
+                    <a href="{{ url_for('tasks.view_task', task_id=task.id) }}" style="display:inline-block;margin-top:10px;color:var(--accent-gold);font-size:0.9rem;">Clear Filters</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ══ Document Upload Modal ══ -->
+    <div id="taskDocModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3>📤 Upload Document</h3>
+                <button class="modal-close" onclick="document.getElementById('taskDocModal').style.display='none'">✕</button>
+            </div>
+            <form action="{{ url_for('documents.upload_document') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="entity_type" value="task">
+                <input type="hidden" name="entity_id" value="{{ task.id }}">
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <label class="form-label">Select File(s)</label>
+                        <input type="file" name="file" required multiple class="form-input" style="padding:0.5rem 0.9rem;cursor:pointer;">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Description <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+                        <input type="text" name="description" placeholder="e.g. Site Plan, BOQ…" class="form-input">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-sm-outline" onclick="document.getElementById('taskDocModal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn-sm-gold">Upload File</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ══ Add Activity Modal ══ -->
+    <div id="taskActivityModal" class="modal-overlay">
+        <div class="modal-box modal-box-lg">
+            <div class="modal-head">
+                <h3>📊 Log Activity</h3>
+                <button class="modal-close" onclick="document.getElementById('taskActivityModal').style.display='none'">✕</button>
+            </div>
+            <form action="{{ url_for('tasks.add_task_activity', task_id=task.id) }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body" style="display:grid;gap:1rem;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                        <div>
+                            <label class="form-label">Activity Type *</label>
+                            <select name="activity_type" id="activityTypeSelect" required class="form-input" onchange="toggleCallResult()">
+                                {% for type_enum in TaskActivityType %}
+                                    <option value="{{ type_enum.value }}">{{ type_enum.value }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div id="callResultGroup" style="display:none;">
+                            <label class="form-label">Call Result</label>
+                            <select name="call_result" class="form-input">
+                                <option value="">Select Result…</option>
+                                {% for res_enum in CallResult %}
+                                    <option value="{{ res_enum.value }}">{{ res_enum.value }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
                     <div>
-                        <label style="font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-bottom:4px;">Current Status</label>
-                        <select id="resp_status" style="width:100%; padding:0.65rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem; background:#f8fafc;">
-                            <option value="">-- Select Status --</option>
-                            <option>Pending</option>
-                            <option>In Progress</option>
-                            <option>Completed</option>
-                            <option>Cancelled</option>
-                        </select>
+                        <label class="form-label">Message / Notes *</label>
+                        <textarea name="message" required rows="4" class="form-input" style="resize:vertical;" placeholder="Type your notes here…"></textarea>
                     </div>
                     <div>
-                        <label style="font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-bottom:4px;">Follow-up Remark *</label>
-                        <textarea id="resp_remark" rows="4" placeholder="Describe the current progress, blockers, or next steps..." style="width:100%; padding:0.65rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem; resize:vertical;"></textarea>
+                        <label class="form-label">Next Follow Up (optional)</label>
+                        <input type="datetime-local" name="next_follow_up_datetime" class="form-input">
                     </div>
                     <div>
-                        <label style="font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-bottom:4px;">Attachment (Optional)</label>
-                        <input type="file" id="resp_attachment" accept=".png,.jpg,.jpeg,.pdf,.doc,.docx,.xls,.xlsx" style="width:100%; padding:0.5rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.88rem;">
+                        <label class="form-label">Attachment (optional)</label>
+                        <input type="file" name="attachment" class="form-input" style="padding:0.5rem 0.9rem;cursor:pointer;">
                     </div>
                 </div>
-                <div id="resp_error" style="display:none; color:#e53e3e; font-size:0.85rem; margin-top:0.75rem;"></div>
-                <div style="margin-top:1.5rem; display:flex; justify-content:flex-end; gap:10px;">
-                    <button onclick="closeRespondModal()" style="padding:0.7rem 1.4rem; border:1px solid #e2e8f0; border-radius:8px; background:#fff; cursor:pointer; font-size:0.9rem;">Cancel</button>
-                    <button onclick="submitResponse()" id="resp_submit_btn" style="padding:0.7rem 1.8rem; border:none; border-radius:8px; background:var(--primary-color); color:#fff; cursor:pointer; font-size:0.9rem; font-weight:600;">Submit Update</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn-sm-outline" onclick="document.getElementById('taskActivityModal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn-sm-gold">Log Activity</button>
                 </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ══ Edit Activity Modal ══ -->
+    <div id="editActivityModal" class="modal-overlay">
+        <div class="modal-box modal-box-lg">
+            <div class="modal-head">
+                <h3>✏️ Edit Activity</h3>
+                <button class="modal-close" onclick="document.getElementById('editActivityModal').style.display='none'">✕</button>
+            </div>
+            <form id="editActivityForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body" style="display:grid;gap:1rem;">
+                    <div>
+                        <label class="form-label">Message / Notes *</label>
+                        <textarea name="message" id="editActivityMessage" required rows="4" class="form-input" style="resize:vertical;"></textarea>
+                    </div>
+                    <div>
+                        <label class="form-label">Next Follow Up (optional)</label>
+                        <input type="datetime-local" name="next_follow_up_datetime" id="editActivityFollowUp" class="form-input">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-sm-outline" onclick="document.getElementById('editActivityModal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn-sm-gold">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ══ Follow-up Response Modal ══ -->
+    <div id="respondModal" class="modal-overlay">
+        <div class="modal-box modal-box-lg">
+            <div class="modal-head">
+                <h3>✍️ Submit Follow-up Update</h3>
+                <button class="modal-close" onclick="closeRespondModal()">✕</button>
+            </div>
+            <div class="modal-body" style="display:grid;gap:1rem;">
+                <div>
+                    <label class="form-label">Progress Percentage</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <input type="range" id="resp_progress" min="0" max="100" value="0"
+                            oninput="document.getElementById('resp_progress_val').textContent=this.value+'%'"
+                            style="flex:1;">
+                        <span id="resp_progress_val" style="font-weight:700;color:var(--primary-color);min-width:45px;text-align:right;">0%</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label">Current Status</label>
+                    <select id="resp_status" class="form-input">
+                        <option value="">-- Select Status --</option>
+                        <option>Pending</option>
+                        <option>In Progress</option>
+                        <option>Completed</option>
+                        <option>Cancelled</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Follow-up Remark *</label>
+                    <textarea id="resp_remark" rows="4" class="form-input" style="resize:vertical;" placeholder="Describe the current progress, blockers, or next steps..."></textarea>
+                </div>
+                <div>
+                    <label class="form-label">Attachment (optional)</label>
+                    <input type="file" id="resp_attachment" accept=".png,.jpg,.jpeg,.pdf,.doc,.docx,.xls,.xlsx" class="form-input" style="padding:0.5rem 0.9rem;cursor:pointer;">
+                </div>
+                <div id="resp_error" style="display:none;color:#e53e3e;font-size:0.85rem;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-sm-outline" onclick="closeRespondModal()">Cancel</button>
+                <button onclick="submitResponse()" id="resp_submit_btn" class="btn-sm-gold">Submit Update</button>
             </div>
         </div>
-        <script>
+    </div>
+
+    <!-- ══ Confirm Delete Modal ══ -->
+    <div id="confirmModal">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3 style="color:#ef4444;">⚠️ Confirm Delete</h3>
+            </div>
+            <div class="modal-body">
+                <p id="confirmModalTitle" style="font-size:0.95rem;color:var(--primary-color);font-weight:500;margin-bottom:0.5rem;"></p>
+                <p style="font-size:0.83rem;color:var(--text-muted);">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-sm-outline" onclick="closeConfirmModal()">Cancel</button>
+                <button class="btn-sm-danger" onclick="executeConfirm()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ Document Preview Modal ══ -->
+    <div id="previewModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;justify-content:center;align-items:center;flex-direction:column;">
+        <div style="width:80%;height:80%;background:#fff;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;">
+            <div style="padding:1rem;background:var(--primary-color);color:white;display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="margin:0;font-size:1.1rem;">Document Preview</h3>
+                <button type="button" onclick="closePreviewModal()" style="background:none;border:none;color:white;font-size:1.5rem;cursor:pointer;">&times;</button>
+            </div>
+            <div id="iframeContainer" style="width:100%;height:100%;flex-grow:1;"></div>
+        </div>
+    </div>
+
+    <script>
+        // ── Confirm modal ──────────────────────────────────────────
+        let _pendingForm = null, _pendingUrl = null, _pendingCallback = null;
+        function openConfirmModal(e, form, msg, url=null, callback=null) {
+            if (e) e.preventDefault();
+            _pendingForm = form; _pendingUrl = url; _pendingCallback = callback;
+            document.getElementById('confirmModalTitle').textContent = msg;
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            _pendingForm = null; _pendingUrl = null; _pendingCallback = null;
+        }
+        function executeConfirm() {
+            if (_pendingCallback) { closeConfirmModal(); _pendingCallback(); }
+            else if (_pendingUrl) { window.location.href = _pendingUrl; }
+            else if (_pendingForm) { _pendingForm.submit(); }
+        }
+
+        // ── Activity modals ────────────────────────────────────────
+        function toggleCallResult() {
+            const typeSel = document.getElementById('activityTypeSelect');
+            const resGroup = document.getElementById('callResultGroup');
+            resGroup.style.display = typeSel && typeSel.value === 'Call' ? 'block' : 'none';
+        }
+        toggleCallResult();
+
+        function editActivity(id, message, followup) {
+            const form = document.getElementById('editActivityForm');
+            form.action = "{{ url_for('tasks.tasks_list') }}".replace('/tasks', '/task/activity/' + id + '/edit');
+            const txt = document.createElement("textarea");
+            txt.innerHTML = message;
+            document.getElementById('editActivityMessage').value = txt.value;
+            document.getElementById('editActivityFollowUp').value = followup;
+            document.getElementById('editActivityModal').style.display = 'flex';
+        }
+
+        // ── Follow-up response modal ───────────────────────────────
         let _respondRequestId = null;
         function openRespondModal(requestId) {
             _respondRequestId = requestId;
@@ -471,10 +907,8 @@
             const remark = document.getElementById('resp_remark').value.trim();
             const errEl = document.getElementById('resp_error');
             const btn = document.getElementById('resp_submit_btn');
-            if (!remark) {
-                errEl.textContent = 'Remark is required.'; errEl.style.display = 'block'; return;
-            }
-            btn.disabled = true; btn.textContent = 'Submitting...'; errEl.style.display = 'none';
+            if (!remark) { errEl.textContent = 'Remark is required.'; errEl.style.display = 'block'; return; }
+            btn.disabled = true; btn.textContent = 'Submitting…'; errEl.style.display = 'none';
             const formData = new FormData();
             formData.append('remark', remark);
             formData.append('progress_percentage', document.getElementById('resp_progress').value);
@@ -485,252 +919,21 @@
             try {
                 const res = await fetch(`/task/followup/${_respondRequestId}/respond`, { method: 'POST', body: formData });
                 const data = await res.json();
-                if (data.success) {
-                    closeRespondModal();
-                    window.location.reload();
-                } else {
-                    errEl.textContent = data.error || 'Failed to submit.'; errEl.style.display = 'block';
-                }
+                if (data.success) { closeRespondModal(); window.location.reload(); }
+                else { errEl.textContent = data.error || 'Failed to submit.'; errEl.style.display = 'block'; }
             } catch(e) {
                 errEl.textContent = 'Network error. Please try again.'; errEl.style.display = 'block';
             } finally {
                 btn.disabled = false; btn.textContent = 'Submit Update';
             }
         }
-        document.getElementById('respondModal').addEventListener('click', function(e) {
-            if (e.target === this) closeRespondModal();
-        });
-        </script>
 
-        <!-- Activity Timeline (Full Width) -->
-        <div class="panel" style="padding: 2rem; margin-top: 1.5rem; position: relative;">
-
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
-                        <h3 style="font-family: var(--font-heading); color: var(--primary-color); font-size: 1.2rem; margin: 0;">Activity Timeline</h3>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <form method="GET" action="{{ url_for('tasks.view_task', task_id=task.id) }}" style="margin: 0; display: flex; gap: 10px; flex-wrap: wrap;">
-                                <input type="text" name="q" value="{{ search_q }}" placeholder="Search activities..." style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; max-width: 150px;">
-                                <select name="filter" onchange="this.form.submit()" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; max-width: 130px;">
-                                    <option value="all">All Activities</option>
-                                    {% for type_enum in TaskActivityType %}
-                                        {% set val_fmt = type_enum.value|lower|replace(' ', '_') %}
-                                        <option value="{{ val_fmt }}" {% if filter_type == val_fmt %}selected{% endif %}>{{ type_enum.value }}</option>
-                                    {% endfor %}
-                                </select>
-                            </form>
-                            <button class="btn-action gold" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="document.getElementById('taskActivityModal').style.display='flex'">+ Add Activity</button>
-                        </div>
-                    </div>
-
-                    {% if activities %}
-                        <div style="position: relative; padding-left: 20px; border-left: 2px solid rgba(212,175,55,0.3);">
-                            {% for act in activities %}
-                            <div style="position: relative; margin-bottom: 2rem;">
-                                <!-- Timeline Marker -->
-                                <div style="position: absolute; left: -26.5px; top: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--accent-gold); border: 2px solid white; box-shadow: 0 0 0 2px rgba(212,175,55,0.2);"></div>
-                                
-                                <div style="background: rgba(13,27,42,0.015); border: 1px solid rgba(13,27,42,0.05); border-radius: 8px; padding: 1.2rem;">
-                                    <!-- Header -->
-                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                                        <div style="display: flex; align-items: center; gap: 10px;">
-                                            <img src="{{ get_profile_pic(act.employee) }}" alt="{{ act.employee.name }}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(212,175,55,0.3);">
-                                            <div>
-                                                <div style="font-weight: 600; font-size: 0.95rem;">{{ act.employee.name }}</div>
-                                                <div style="font-size: 0.75rem; color: var(--text-muted);">
-                                                    <span style="font-weight: 600; color: var(--primary-color);">{{ act.activity_type.value }}</span> 
-                                                    {% if act.call_result %}
-                                                        <span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 4px;">{{ act.call_result.value }}</span>
-                                                    {% endif %}
-                                                    • {{ act.created_at | ist('%d %b %Y, %I:%M %p') }}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Actions -->
-                                        {% if is_manager or (current_user.employee and act.employee_id == current_user.employee.id) %}
-                                        <div style="display: flex; gap: 8px;">
-                                            <button onclick="editActivity({{ act.id }}, '{{ act.message|escape }}', '{{ act.next_follow_up_datetime | ist('%Y-%m-%dT%H:%M') if act.next_follow_up_datetime else '' }}')" style="background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 0.9rem;">✏️</button>
-                                            <form action="{{ url_for('tasks.delete_task_activity', activity_id=act.id) }}" method="POST" onsubmit="openConfirmModal(event, this, 'Remove this activity?')" style="margin: 0;">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                                <button type="submit" style="background: none; border: none; cursor: pointer; color: #dc3545; font-size: 0.9rem;">🗑️</button>
-                                            </form>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    
-                                    <!-- Message -->
-                                    <div style="font-size: 0.95rem; line-height: 1.5; color: var(--text-color); margin-bottom: {% if act.attachments.count() > 0 or act.next_follow_up_datetime %}12px{% else %}0{% endif %}; white-space: pre-wrap;">{{ act.message|nl2br }}</div>
-                                    
-                                    <!-- Meta Footer -->
-                                    {% if act.attachments.count() > 0 or act.next_follow_up_datetime %}
-                                    <div style="display: flex; flex-wrap: wrap; gap: 15px; font-size: 0.8rem; color: var(--text-muted); border-top: 1px dashed rgba(13,27,42,0.1); padding-top: 10px;">
-                                        {% if act.next_follow_up_datetime %}
-                                        <div style="display: flex; align-items: center; gap: 5px;">
-                                            ⏰ <span style="font-weight: 600; color: #d97706;">Next Follow Up:</span> {{ act.next_follow_up_datetime | ist('%d %b %Y, %I:%M %p') }}
-                                        </div>
-                                        {% endif %}
-                                        {% if act.attachments.count() > 0 %}
-                                        <div style="display: flex; align-items: center; gap: 5px;">
-                                            📎 <span style="font-weight: 600;">Attachments:</span>
-                                            {% for doc in act.attachments %}
-                                                <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="color: var(--accent-gold); text-decoration: none;">{{ doc.original_name }}</a>{% if not loop.last %}, {% endif %}
-                                            {% endfor %}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-
-                        <!-- Pagination -->
-                        {% if activity_pagination.pages > 1 %}
-                        <div style="display: flex; justify-content: center; gap: 5px; margin-top: 2rem;">
-                            {% for p in activity_pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-                                {% if p %}
-                                    <a href="{{ url_for('tasks.view_task', task_id=task.id, act_page=p, filter=filter_type, q=search_q) }}" class="btn-action {% if p == activity_pagination.page %}gold{% else %}outline{% endif %}" style="padding: 0.3rem 0.8rem;">{{ p }}</a>
-                                {% else %}
-                                    <span style="padding: 0.3rem 0.8rem; color: var(--text-muted);">...</span>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-
-                    {% else %}
-                        <div style="text-align: center; padding: 3rem 2rem; background: rgba(13,27,42,0.02); border-radius: 8px; border: 1px dashed rgba(13,27,42,0.2);">
-                            <div style="font-size: 2rem; margin-bottom: 10px;">📝</div>
-                            <h4 style="margin: 0 0 5px 0; color: var(--primary-color);">No Activity Yet</h4>
-                            <p style="color: var(--text-muted); margin: 0; font-size: 0.9rem;">Start logging calls, meetings, or notes for this task.</p>
-                            {% if search_q or filter_type != 'all' %}
-                                <a href="{{ url_for('tasks.view_task', task_id=task.id) }}" style="display: inline-block; margin-top: 10px; color: var(--accent-gold); font-size: 0.9rem;">Clear Filters</a>
-                            {% endif %}
-                        </div>
-                    {% endif %}
-                </div>
-
-                <!-- Add Activity Modal -->
-                <div id="taskActivityModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
-                    <div style="background: white; padding: 2rem; border-radius: 12px; width: 500px; max-width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-                        <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Log Activity</h3>
-                        <form action="{{ url_for('tasks.add_task_activity', task_id=task.id) }}" method="POST" enctype="multipart/form-data">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.2rem;">
-                                <div>
-                                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Activity Type <span style="color: red;">*</span></label>
-                                    <select name="activity_type" id="activityTypeSelect" required style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;" onchange="toggleCallResult()">
-                                        {% for type_enum in TaskActivityType %}
-                                            <option value="{{ type_enum.value }}">{{ type_enum.value }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div id="callResultGroup" style="display: none;">
-                                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Call Result</label>
-                                    <select name="call_result" style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;">
-                                        <option value="">Select Result...</option>
-                                        {% for res_enum in CallResult %}
-                                            <option value="{{ res_enum.value }}">{{ res_enum.value }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div style="margin-bottom: 1.2rem;">
-                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Message / Notes <span style="color: red;">*</span></label>
-                                <textarea name="message" required rows="4" placeholder="Type your notes here... (Use @Name to mention someone)" style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px; resize: vertical;"></textarea>
-                            </div>
-
-                            <div style="margin-bottom: 1.2rem;">
-                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Next Follow Up (Optional)</label>
-                                <input type="datetime-local" name="next_follow_up_datetime" style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;">
-                            </div>
-
-                            <div style="margin-bottom: 1.5rem;">
-                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Attachment (Optional)</label>
-                                <input type="file" name="attachment" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
-                            </div>
-
-                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                                <button type="button" class="btn-action outline" onclick="document.getElementById('taskActivityModal').style.display='none'">Cancel</button>
-                                <button type="submit" class="btn-action gold">Log Activity</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Edit Activity Modal -->
-                <div id="editActivityModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
-                    <div style="background: white; padding: 2rem; border-radius: 12px; width: 500px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-                        <h3 style="margin-bottom: 1.5rem; color: var(--primary-color);">Edit Activity</h3>
-                        <form id="editActivityForm" method="POST">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            
-                            <div style="margin-bottom: 1.2rem;">
-                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Message / Notes <span style="color: red;">*</span></label>
-                                <textarea name="message" id="editActivityMessage" required rows="4" style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px; resize: vertical;"></textarea>
-                            </div>
-
-                            <div style="margin-bottom: 1.5rem;">
-                                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Next Follow Up (Optional)</label>
-                                <input type="datetime-local" name="next_follow_up_datetime" id="editActivityFollowUp" style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 6px;">
-                            </div>
-
-                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                                <button type="button" class="btn-action outline" onclick="document.getElementById('editActivityModal').style.display='none'">Cancel</button>
-                                <button type="submit" class="btn-action gold">Save Changes</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <script>
-                    function toggleCallResult() {
-                        const typeSel = document.getElementById('activityTypeSelect');
-                        const resGroup = document.getElementById('callResultGroup');
-                        if (typeSel.value === 'Call') {
-                            resGroup.style.display = 'block';
-                        } else {
-                            resGroup.style.display = 'none';
-                        }
-                    }
-                    // Run once on load
-                    toggleCallResult();
-
-                    function editActivity(id, message, followup) {
-                        const form = document.getElementById('editActivityForm');
-                        form.action = "{{ url_for('tasks.tasks_list') }}".replace('/tasks', '/task/activity/' + id + '/edit');
-                        
-                        // Parse HTML entities that might be in message due to escaping
-                        const txt = document.createElement("textarea");
-                        txt.innerHTML = message;
-                        document.getElementById('editActivityMessage').value = txt.value;
-                        
-                        document.getElementById('editActivityFollowUp').value = followup;
-                        document.getElementById('editActivityModal').style.display = 'flex';
-                    }
-                </script>
-
-    </main>
-    
-    <!-- Document Preview Modal -->
-    <div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;">
-        <div style="width: 80%; height: 80%; background: #fff; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;">
-            <div style="padding: 1rem; background: var(--primary-color); color: white; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0; font-size: 1.2rem;">Document Preview</h3>
-                <button type="button" onclick="closePreviewModal()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;">&times;</button>
-            </div>
-            <div id="iframeContainer" style="width: 100%; height: 100%; flex-grow: 1;"></div>
-        </div>
-    </div>
-
-    <script>
+        // ── Document preview ───────────────────────────────────────
         function openPreviewModal(viewUrl, downloadUrl, filename) {
             let ext = filename.split('.').pop().toLowerCase();
             let contentHtml = '';
-            let imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
-            let officeExts = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
-
+            const imageExts = ['jpg','jpeg','png','gif','webp','bmp'];
+            const officeExts = ['doc','docx','xls','xlsx','ppt','pptx'];
             if (imageExts.includes(ext)) {
                 contentHtml = '<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#f5f5f5;">'
                             + '<img src="' + viewUrl + '" style="max-width:95%;max-height:95%;object-fit:contain;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,0.15);">'
@@ -740,14 +943,16 @@
             } else if (officeExts.includes(ext)) {
                 contentHtml = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:20px;background:#f9f9f9;padding:2rem;text-align:center;">'
                             + '<div style="font-size:4rem;">📄</div>'
-                            + '<h3 style="margin:0;color:#1a1a2e;font-size:1.2rem;">Cannot Preview in Browser</h3>'
-                            + '<p style="margin:0;color:#666;max-width:350px;">Browser cannot display <strong>.' + ext + '</strong> files directly. Please download the file and open it in Microsoft Office or compatible software.</p>'
-                            + '<a href="' + downloadUrl + '" style="margin-top:10px;padding:12px 28px;background:#c9a227;color:white;text-decoration:none;border-radius:6px;font-weight:600;font-size:1rem;">⬇️ Download File</a>'
+                            + '<h3 style="margin:0;color:#1a1a2e;">Cannot Preview in Browser</h3>'
+                            + '<p style="margin:0;color:#666;max-width:350px;">Download the file to view it.</p>'
+                            + '<a href="' + downloadUrl + '" style="padding:10px 24px;background:#0d1b2a;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">⬇️ Download</a>'
                             + '</div>';
             } else {
-                contentHtml = '<iframe src="' + viewUrl + '" style="width:100%;height:100%;border:none;"></iframe>';
+                contentHtml = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:20px;padding:2rem;">'
+                            + '<div style="font-size:4rem;">📎</div>'
+                            + '<a href="' + downloadUrl + '" style="padding:10px 24px;background:#0d1b2a;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">⬇️ Download File</a>'
+                            + '</div>';
             }
-
             document.getElementById('iframeContainer').innerHTML = contentHtml;
             document.getElementById('previewModal').style.display = 'flex';
         }
@@ -755,38 +960,22 @@
             document.getElementById('previewModal').style.display = 'none';
             document.getElementById('iframeContainer').innerHTML = '';
         }
+
+        // ── Close modals on backdrop click ─────────────────────────
+        ['taskDocModal','taskActivityModal','editActivityModal','respondModal'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('click', function(e) { if (e.target === this) this.style.display = 'none'; });
+        });
+
+        // ── Auto-dismiss flash toasts ──────────────────────────────
+        window.onload = function() {
+            setTimeout(() => {
+                document.querySelectorAll('.flash-message').forEach(el => {
+                    el.style.transition = 'opacity 0.5s'; el.style.opacity = '0';
+                    setTimeout(() => el.remove(), 500);
+                });
+            }, 3500);
+        };
     </script>
 </body>
-
-<!-- Shared Confirm Modal -->
-<div id="confirmModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:20000;justify-content:center;align-items:center;">
-    <div style="background:white;padding:2rem;border-radius:12px;width:400px;max-width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.2);text-align:center;">
-        <div style="font-size:3rem;color:#ef4444;margin-bottom:1rem;">⚠️</div>
-        <h3 id="confirmModalTitle" style="margin-bottom:1rem;color:var(--primary-color);font-size:1.3rem;"></h3>
-        <p style="color:var(--text-muted);margin-bottom:1.5rem;font-size:0.95rem;line-height:1.5;">This action cannot be undone.</p>
-        <div style="display:flex;gap:1rem;justify-content:center;">
-            <button type="button" class="btn-action outline" onclick="closeConfirmModal()">Cancel</button>
-            <button type="button" class="btn-action" style="background:#ef4444;color:white;" onclick="executeConfirm()">Confirm</button>
-        </div>
-    </div>
-</div>
-<script>
-    let _pendingForm = null;
-    function openConfirmModal(e, form, msg) {
-        e.preventDefault();
-        _pendingForm = form;
-        document.getElementById('confirmModalTitle').textContent = msg;
-        document.getElementById('confirmModal').style.display = 'flex';
-    }
-    function closeConfirmModal() {
-        document.getElementById('confirmModal').style.display = 'none';
-        _pendingForm = null;
-    }
-    function executeConfirm() {
-        if (_pendingForm) { _pendingForm.submit(); }
-    }
-</script>
 </html>
-
-
-
