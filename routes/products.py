@@ -107,7 +107,6 @@ def products_list():
 # ─────────────────────────────────────────────────────────
 @products_bp.route("/add", methods=["GET", "POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def add_product():
     org_id = current_user.organization_id
 
@@ -208,7 +207,6 @@ def view_product(product_id):
 # ─────────────────────────────────────────────────────────
 @products_bp.route("/edit/<int:product_id>", methods=["GET", "POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def edit_product(product_id):
     org_id = current_user.organization_id
     product = Product.query.filter_by(
@@ -295,7 +293,6 @@ def edit_product(product_id):
 # ─────────────────────────────────────────────────────────
 @products_bp.route("/delete/<int:product_id>", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def delete_product(product_id):
     org_id = current_user.organization_id
     product = Product.query.filter_by(
@@ -318,7 +315,6 @@ def delete_product(product_id):
 # ─────────────────────────────────────────────────────────
 @products_bp.route("/stock/<int:product_id>", methods=["POST"])
 @login_required
-@require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def adjust_stock(product_id):
     org_id = current_user.organization_id
     product = Product.query.filter_by(
