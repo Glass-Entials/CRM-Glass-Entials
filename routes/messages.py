@@ -635,11 +635,15 @@ def get_attachment(msg_id, filename=None):
     if not msg.attachment_url:
         abort(404)
 
-    # Extract stored disk filename
-    disk_file = msg.attachment_url.rsplit("/", 1)[-1]
+    # Extract stored disk filename safely
+    disk_file = os.path.basename(msg.attachment_url.rsplit("/", 1)[-1])
     upload_root = current_app.config.get("UPLOAD_FOLDER") or os.path.join(current_app.root_path, "static", "uploads")
-    upload_dir = os.path.join(upload_root, "messages")
-    file_path = os.path.normpath(os.path.join(upload_dir, disk_file))
+    upload_dir = os.path.abspath(os.path.join(upload_root, "messages"))
+    file_path = os.path.abspath(os.path.join(upload_dir, disk_file))
+
+    # Path traversal guard: ensure resolved path is strictly inside upload_dir
+    if not file_path.startswith(upload_dir + os.sep) and file_path != upload_dir:
+        abort(403)
 
     if not os.path.exists(file_path):
         abort(404)
@@ -648,12 +652,14 @@ def get_attachment(msg_id, filename=None):
     download_requested = request.args.get("download", "0") == "1"
     as_attachment = download_requested or not is_image
 
-    return send_file(
+    resp = send_file(
         file_path,
         mimetype=msg.attachment_type or "application/octet-stream",
         as_attachment=as_attachment,
         download_name=msg.attachment_name or disk_file,
     )
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
 
 
 @messages_bp.route("/api/messages/<int:colleague_id>/read", methods=["POST"])

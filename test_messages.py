@@ -875,3 +875,123 @@ class TestPhase4FileAndImageSharingAndSmoothness:
             assert mock_emit.called
 
 
+# ── Tests: Schema Migration & Attachment Security ─────────────────────────────
+
+class TestAttachmentSchemaMigration:
+    def test_migration_file_exists_and_revises_phase2(self):
+        import importlib.util
+        import os
+        mig_path = "migrations/versions/2a0680deca16_add_attachment_fields_to_msg_message.py"
+        assert os.path.exists(mig_path), "Migration 2a0680deca16 file must exist"
+        spec = importlib.util.spec_from_file_location("mig_module", mig_path)
+        mig = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mig)
+        assert mig.revision == "2a0680deca16"
+        assert mig.down_revision == "a3f8e1c2d9b0"
+        assert hasattr(mig, "upgrade")
+        assert hasattr(mig, "downgrade")
+
+    def test_message_model_has_required_attachment_columns(self):
+        from model import Message
+        assert hasattr(Message, "attachment_url")
+        assert hasattr(Message, "attachment_name")
+        assert hasattr(Message, "attachment_type")
+        assert hasattr(Message, "attachment_size")
+
+        table = Message.__table__
+        assert table.c.attachment_url.nullable is True
+        assert table.c.attachment_url.type.length == 500
+        assert table.c.attachment_name.nullable is True
+        assert table.c.attachment_name.type.length == 255
+        assert table.c.attachment_type.nullable is True
+        assert table.c.attachment_type.type.length == 100
+        assert table.c.attachment_size.nullable is True
+
+    def test_db_has_attachment_columns(self):
+        from model import db
+        import sqlalchemy as sa
+        with app.app_context():
+            insp = sa.inspect(db.engine)
+            cols = {c["name"] for c in insp.get_columns("msg_message")}
+            assert "attachment_url" in cols
+            assert "attachment_name" in cols
+            assert "attachment_type" in cols
+            assert "attachment_size" in cols
+
+    def test_messages_page_renders_with_message_rows_without_500(self, client):
+        """
+        Verify /messages renders successfully (HTTP 200) without 500
+        when conversations and messages are queried.
+        """
+        emp = _make_mock_employee()
+        emp.id = 10
+        mock_user = _make_mock_user(emp=emp, org_id=1)
+
+        with patch("flask_login.utils._get_user", return_value=mock_user), \
+             patch("routes.messages.current_user", mock_user):
+            resp = client.get("/messages")
+            assert resp.status_code == 200
+
+
+class TestAttachmentSecurityAndAccess:
+    def test_attachment_download_path_traversal_blocked(self, client):
+        emp = _make_mock_employee()
+        emp.id = 10
+        mock_user = _make_mock_user(emp=emp, org_id=1)
+
+        with patch("flask_login.utils._get_user", return_value=mock_user), \
+             patch("routes.messages.current_user", mock_user), \
+             patch("routes.messages.Message.query") as mock_msg_q, \
+             patch("routes.messages.Conversation.query") as mock_conv_q, \
+             patch("routes.messages.ConversationMember.query") as mock_mem_q:
+
+            mock_msg = MagicMock()
+            mock_msg.id = 1
+            mock_msg.conversation_id = 100
+            # Path traversal attempt in attachment_url
+            mock_msg.attachment_url = "/attachment/1/../../../../etc/passwd"
+            mock_msg.attachment_name = "passwd"
+            mock_msg.attachment_type = "text/plain"
+            mock_msg_q.get_or_404.return_value = mock_msg
+
+            mock_conv = MagicMock()
+            mock_conv.id = 100
+            mock_conv.organization_id = 1
+            mock_conv_q.filter_by.return_value.first_or_404.return_value = mock_conv
+
+            mock_mem = MagicMock()
+            mock_mem_q.filter_by.return_value.first.return_value = mock_mem
+
+            resp = client.get("/attachment/1/passwd")
+            # Should be 403 or 404, definitely not 200 serving system file
+            assert resp.status_code in (403, 404)
+
+    def test_attachment_non_member_forbidden(self, client):
+        emp = _make_mock_employee()
+        emp.id = 10
+        mock_user = _make_mock_user(emp=emp, org_id=1)
+
+        with patch("flask_login.utils._get_user", return_value=mock_user), \
+             patch("routes.messages.current_user", mock_user), \
+             patch("routes.messages.Message.query") as mock_msg_q, \
+             patch("routes.messages.Conversation.query") as mock_conv_q, \
+             patch("routes.messages.ConversationMember.query") as mock_mem_q:
+
+            mock_msg = MagicMock()
+            mock_msg.id = 1
+            mock_msg.conversation_id = 100
+            mock_msg.attachment_url = "/attachment/1/test.pdf"
+            mock_msg_q.get_or_404.return_value = mock_msg
+
+            mock_conv = MagicMock()
+            mock_conv.id = 100
+            mock_conv.organization_id = 1
+            mock_conv_q.filter_by.return_value.first_or_404.return_value = mock_conv
+
+            # User is NOT a member of this conversation
+            mock_mem_q.filter_by.return_value.first.return_value = None
+
+            resp = client.get("/attachment/1/test.pdf")
+            assert resp.status_code == 403
+
+
