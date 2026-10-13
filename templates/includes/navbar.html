@@ -41,7 +41,8 @@
 
         <div class="dropdown">
             <a href="#" {% if request.blueprint=='accounts' or request.blueprint=='quotations' or
-                request.blueprint=='expenses' or request.blueprint=='payments' or request.blueprint=='gst_reports' %}class="active" {% endif %}>Finance
+                request.blueprint=='expenses' or request.blueprint=='payments' or request.blueprint=='gst_reports'
+                %}class="active" {% endif %}>Finance
                 ▾</a>
             <div class="dropdown-content">
                 <!-- Hover Flyout Sales Menu -->
@@ -91,7 +92,7 @@
                     </div>
                 </div>
                 <a href="{{ url_for('expenses.expenses_list') }}">Expenses</a>
-                
+
                 <!-- Reports submenu -->
                 <div class="nested-dropdown-hover"
                     style="position: relative; border-top: 1px solid rgba(13, 27, 42, 0.04);">
@@ -125,13 +126,12 @@
         <a href="{{ url_for('call_logger.dashboard') }}" {% if request.blueprint=='call_logger' %}class="active" {%
             endif %}>📞 Calls</a>
 
-
     </nav>
 
     <!-- AI Copilot Button -->
-    <a href="#" onclick="openAICopilot(event)" class="ai-copilot-nav-btn" style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--accent-gold); text-decoration: none; padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(212, 175, 55, 0.4); background: rgba(212, 175, 55, 0.05); margin-left: auto; margin-right: 15px; transition: all 0.2s ease; font-size: 0.9rem;">
+    <!-- <a href="#" onclick="openAICopilot(event)" class="ai-copilot-nav-btn" style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--accent-gold); text-decoration: none; padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(212, 175, 55, 0.4); background: rgba(212, 175, 55, 0.05); margin-left: auto; margin-right: 15px; transition: all 0.2s ease; font-size: 0.9rem;">
         <span>✨</span> AI Copilot
-    </a>
+    </a> -->
 
     <!-- Column 3: Profile + Bell (right-aligned, flex: 1) -->
     <div class="user-profile"
@@ -151,6 +151,9 @@
                 </a>
                 <a href="{{ url_for('auth.user_profile') }}">
                     <span class="icon">👤</span> Manage Profile
+                </a>
+                <a href="{{ url_for('auth.settings') }}">
+                    <span class="icon">⚙️</span> Settings
                 </a>
 
                 <form action="{{ url_for('auth.logout') }}" method="POST" style="display:inline; margin:0; padding:0;">
@@ -193,17 +196,19 @@
             </div>
         </div>
 
-        <!-- Settings Icon -->
-        <a href="{{ url_for('auth.settings') }}" class="settings-icon" title="Settings"
-            style="text-decoration: none; position: relative; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: #fdfcf9; border: 1px solid rgba(212, 175, 55, 0.2); transition: all 0.3s ease; margin-left: 5px;"
-            onmouseover="this.style.background='#f4efe1'" onmouseout="this.style.background='#fdfcf9'">
+        <!-- Messages icon button -->
+        <a href="{{ url_for('messages.messages_page') }}"
+            class="messages-icon{% if request.blueprint=='messages' %} active{% endif %}" title="Messages"
+            aria-label="Messages"
+            style="text-decoration: none; position: relative; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: {% if request.blueprint=='messages' %}rgba(212,175,55,0.15){% else %}#fdfcf9{% endif %}; border: 1px solid rgba(212, 175, 55, 0.2); transition: all 0.3s ease; margin-left: 5px;"
+            onmouseover="this.style.background='#f4efe1'"
+            onmouseout="this.style.background='{% if request.blueprint=='messages' %}rgba(212,175,55,0.15){% else %}#fdfcf9{% endif %}'">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-color);">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path
-                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-                </path>
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
+            <span id="nav-messages-badge"
+                style="display: none; position: absolute; top: -3px; right: -3px; background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; border-radius: 9999px; min-width: 17px; height: 17px; padding: 0 4px; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); line-height: 1;"></span>
         </a>
 
     </div>
@@ -364,6 +369,46 @@
                 setTimeout(() => toast.remove(), 400);
             }, 6000);
         }
+
+        // ── Phase 3: Global Navbar Messages Unread Badge ────────────
+        function updateNavMessagesBadge(count) {
+            const badge = document.getElementById('nav-messages-badge');
+            if (!badge) return;
+            if (typeof count === 'number' && count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // Fetch initial unread count on page load
+        fetch("{{ url_for('messages.total_unread_count') }}")
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.success && typeof data.unread_count === 'number') {
+                    updateNavMessagesBadge(data.unread_count);
+                }
+            })
+            .catch(() => { });
+
+        socket.on('messaging:unread_updated', (data) => {
+            if (data && typeof data.unread_count === 'number') {
+                updateNavMessagesBadge(data.unread_count);
+            }
+        });
+
+        socket.on('messaging:new_message', (data) => {
+            // Update badge globally when new message arrives
+            fetch("{{ url_for('messages.total_unread_count') }}")
+                .then(res => res.json())
+                .then(resData => {
+                    if (resData && resData.success) {
+                        updateNavMessagesBadge(resData.unread_count);
+                    }
+                })
+                .catch(() => { });
+        });
 
         // Clean up socket on page unload — prevents stale connections from
         // exhausting the single eventlet worker and causing 503s.

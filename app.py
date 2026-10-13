@@ -42,6 +42,7 @@ from routes.org import org_bp
 from routes.call_logger import call_logger_bp
 from routes.call_logger_api import call_logger_api_bp
 from routes.gst_reports import gst_bp
+from routes.messages import messages_bp
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -100,12 +101,73 @@ socketio.init_app(
     async_mode=_async_mode
 )
 
-from flask_socketio import join_room
+from flask_socketio import join_room, emit as sio_emit
+
 @socketio.on('join')
 def on_join(data):
+    """
+    Join the per-employee notification room.
+    Called by navbar.html on connect. Room name derived entirely server-side.
+    """
     if current_user.is_authenticated and current_user.employee:
         room = f"org_{current_user.organization_id}_user_{current_user.employee.id}"
         join_room(room)
+
+
+@socketio.on('messaging:resync')
+def on_messaging_resync(data):
+    """
+    Phase 3: Client requests resync after reconnect.
+    Server emits messaging:resync_required so the frontend re-fetches via REST.
+    Identity is always derived from the authenticated session, never the payload.
+    """
+    if not current_user.is_authenticated or not current_user.employee:
+        return  # Silently ignore — unauthenticated connection
+    room = f"org_{current_user.organization_id}_user_{current_user.employee.id}"
+    sio_emit('messaging:resync_required', {
+        'reason': 'client_requested',
+    }, room=room)
+
+
+@socketio.on('messaging:typing')
+def on_messaging_typing(data):
+    """
+    Phase 4: Client emits typing notification.
+    Derives sender from session. Validates recipient is in the same organization.
+    Emits to recipient's private room only. Does not persist to database.
+    """
+    if not current_user.is_authenticated or not current_user.employee:
+        return
+    org_id = current_user.organization_id
+    sender_emp_id = current_user.employee.id
+
+    recipient_id = data.get('recipient_id') if isinstance(data, dict) else None
+    if not recipient_id:
+        return
+    try:
+        recipient_id = int(recipient_id)
+    except (ValueError, TypeError):
+        return
+
+    if recipient_id == sender_emp_id:
+        return
+
+    try:
+        from model import Employee
+        recipient = Employee.query.filter_by(
+            id=recipient_id, organization_id=org_id, is_deleted=False
+        ).first()
+        if not recipient:
+            return
+
+        is_typing = bool(data.get('typing', True))
+        recipient_room = f"org_{org_id}_user_{recipient_id}"
+        sio_emit('messaging:user_typing', {
+            'sender_id': sender_emp_id,
+            'typing': is_typing,
+        }, room=recipient_room)
+    except Exception:
+        pass
 
 @app.route("/health")
 @csrf.exempt
@@ -271,6 +333,7 @@ from routes.saas import saas_bp
 app.register_blueprint(saas_bp)
 from routes.ai_chat import ai_chat_bp
 app.register_blueprint(ai_chat_bp)
+app.register_blueprint(messages_bp)
 # Exempt the Android device API from CSRF (uses Bearer token auth instead)
 csrf.exempt(call_logger_api_bp)
 # Exempt Razorpay webhook (verified by Razorpay signature, not CSRF token)

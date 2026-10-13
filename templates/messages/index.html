@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages | GlassEntials CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/messages.css') }}?v=51">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+</head>
+
+<body class="dashboard-page" style="overflow: hidden;">
+
+    {% include 'includes/navbar.html' %}
+
+    {#
+    PHASE 1 NOTE:
+    ─────────────
+    This page uses employee data from the server (names, positions, avatars),
+    with in-memory client-side messaging for Phase 1 UI preview.
+    • Messages disappear on page reload.
+    • No database tables are read or written for messages.
+    • Zero Socket.IO events are emitted.
+    #}
+
+    {% set emp_json = [] %}
+    {% for emp in colleagues %}
+    {% set _ = emp_json.append({
+    'slug': emp.id | string,
+    'name': emp.name,
+    'position': emp.position or 'Staff',
+    'avatar': get_profile_pic(emp)
+    }) %}
+    {% endfor %}
+
+    <div id="msg-shell" class="msg-shell" role="main">
+
+        <!-- ══════════════════════════════════════════════════════════
+             LEFT PANEL — Directory & Conversations
+        ══════════════════════════════════════════════════════════ -->
+        <aside class="msg-list-panel" aria-label="Conversations">
+
+            <div class="msg-list-header">
+                <div class="msg-list-brand">
+                    <div class="msg-brand-left">
+                        <h2>Messages</h2>
+                    </div>
+                    <span class="msg-brand-subtitle">GlassEntials Team</span>
+                </div>
+
+                <!-- Search -->
+                <div class="msg-search-wrap" role="search">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input id="msg-search" type="search" class="msg-search-input"
+                        placeholder="Search team members by name…" autocomplete="off" aria-label="Search employees"
+                        aria-controls="msg-emp-list">
+                    <button id="msg-search-clear" class="msg-search-clear" type="button" aria-label="Clear search"
+                        title="Clear search">×</button>
+                </div>
+
+                <!-- Quick Filter Pills -->
+                <div class="msg-filter-bar">
+                    <button type="button" class="msg-filter-btn active" data-filter="all">All Chats</button>
+                    <button type="button" class="msg-filter-btn" data-filter="recent">Recent</button>
+                </div>
+            </div>
+
+            <!-- Section Label -->
+            <div class="msg-section-header">
+                <span>Direct Team Chats</span>
+                <span class="msg-section-count" id="msg-colleague-count">{{ colleagues | length }}</span>
+            </div>
+
+            <!-- Scrollable List -->
+            <ul id="msg-emp-list" class="msg-list-scroll" role="listbox" aria-label="Employees">
+                {% if colleagues %}
+                {% for emp in colleagues %}
+                <li role="none">
+                    <button class="msg-emp-row" role="option" aria-selected="false" data-emp-slug="{{ emp.id }}"
+                        data-emp-name="{{ emp.name | e }}" data-emp-pos="{{ emp.position or 'Staff' | e }}"
+                        data-emp-avatar="{{ get_profile_pic(emp) }}" data-search-name="{{ emp.name | lower | e }}"
+                        tabindex="0">
+                        <div class="msg-avatar-container">
+                            <img src="{{ get_profile_pic(emp) }}" alt="{{ emp.name | e }}" class="msg-avatar"
+                                onerror="this.replaceWith(makeInitialsAvatar('{{ emp.name | e }}'))">
+                        </div>
+                        <div class="msg-emp-info">
+                            <div class="msg-emp-name">{{ emp.name }}</div>
+                            <div class="msg-emp-bottom-row">
+                                <span class="msg-role-tag">{{ emp.position or 'Staff' }}</span>
+                                <span class="msg-emp-preview" id="preview-{{ emp.id }}">Click to start
+                                    conversation</span>
+                            </div>
+                        </div>
+                        <div class="msg-emp-meta">
+                            <span class="msg-emp-time" id="time-{{ emp.id }}"></span>
+                            <span class="msg-unread-badge" id="badge-{{ emp.id }}" style="display:none;"
+                                aria-label="unread messages"></span>
+                        </div>
+                    </button>
+                </li>
+                {% endfor %}
+                {% else %}
+                <!-- Empty employee list state -->
+                <li>
+                    <div class="msg-empty-state" id="msg-no-employees">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5" aria-hidden="true">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <strong>No colleagues yet</strong>
+                        <span>Once employees are added to your organisation, they will appear here.</span>
+                    </div>
+                </li>
+                {% endif %}
+            </ul>
+
+            <!-- Search no-results state (hidden by default) -->
+            <div id="msg-no-results" class="msg-empty-state" style="display:none;" aria-live="polite">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                    aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <strong>No employees found</strong>
+                <span id="msg-no-results-term"></span>
+                <button class="msg-clear-search-btn" type="button" id="msg-no-results-clear">
+                    Clear search
+                </button>
+            </div>
+
+        </aside>
+
+        <!-- ══════════════════════════════════════════════════════════
+             RIGHT PANEL — Active Conversation & Welcome State
+        ══════════════════════════════════════════════════════════ -->
+        <section id="msg-convo-panel" class="msg-convo-panel" aria-label="Conversation">
+
+            <!-- Drag and Drop Overlay -->
+            <div id="msg-drag-overlay" class="msg-drag-overlay" style="display:none;" aria-hidden="true">
+                <div class="msg-drag-overlay-card">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <h4>Drop file here to send</h4>
+                    <p>Images, PDFs, and Office files up to 25 MB</p>
+                </div>
+            </div>
+
+            <!-- Initial Welcome / Empty State -->
+            <div id="msg-welcome" class="msg-welcome">
+                <div class="msg-welcome-card">
+                    <div class="msg-welcome-emblem">
+                        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z">
+                            </path>
+                        </svg>
+                    </div>
+                    <h3>Select a conversation</h3>
+                    <p>Connect instantly with your team. Select a colleague from the directory to coordinate projects,
+                        schedule site visits, or send direct messages.</p>
+                    <div class="msg-welcome-badges">
+                        <span class="msg-welcome-pill">🔒 Enterprise Workspace Encrypted</span>
+                        <span class="msg-welcome-pill">⚡ Instant Real-Time Preview</span>
+                        <span class="msg-welcome-pill">💼 Direct CRM Integration</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Conversation Header -->
+            <header id="msg-convo-header" class="msg-convo-header" style="display:none;"
+                aria-label="Active conversation">
+                <div class="msg-convo-header-left">
+                    <!-- Mobile Back Button -->
+                    <button id="msg-back-btn" class="msg-back-btn" type="button" aria-label="Back to employee list"
+                        title="Back to directory">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+
+                    <div id="msg-convo-avatar-wrap" class="msg-avatar-container"></div>
+
+                    <div class="msg-convo-header-info">
+                        <div id="msg-convo-name" class="msg-convo-name"></div>
+                        <div class="msg-convo-sublabel">
+                            <span id="msg-convo-role">Staff</span> • GlassEntials CRM
+                            <span id="msg-socket-status" class="msg-socket-dot msg-socket-connecting"
+                                title="Connecting…" aria-label="Connection status"></span>
+                            <span id="msg-typing-status" class="msg-typing-status" style="display:none;"
+                                aria-live="polite">
+                                <span class="msg-typing-dot-pill"></span>
+                                <span id="msg-typing-label">typing…</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Header Action Buttons -->
+                <div class="msg-convo-header-actions">
+                    <button type="button" class="msg-header-icon-btn" id="msg-action-clear" title="Clear chat history"
+                        aria-label="Clear chat">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                            </path>
+                        </svg>
+                    </button>
+                    <button type="button" class="msg-header-icon-btn" id="msg-action-search" title="Search conversation"
+                        aria-label="Search conversation">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </button>
+                    <button type="button" class="msg-header-icon-btn" id="msg-action-drawer"
+                        title="View Colleague Details" aria-label="View Colleague Details">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Message History Container -->
+            <div id="msg-history" class="msg-history" role="log" aria-live="polite" aria-relevant="additions"
+                style="display:none;">
+                <!-- Skeleton Loader for history fetching -->
+                <div id="msg-skeleton" class="msg-skeleton" style="display:none;" aria-hidden="true">
+                    <div class="msg-skeleton-bubble incoming"></div>
+                    <div class="msg-skeleton-bubble outgoing"></div>
+                    <div class="msg-skeleton-bubble incoming short"></div>
+                </div>
+
+                <!-- Empty Conversation State -->
+                <div id="msg-empty-convo" class="msg-empty-convo" style="display:none;">
+                    <div class="msg-empty-convo-icon" aria-hidden="true">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </div>
+                    <h4>No messages yet</h4>
+                    <p id="msg-empty-convo-text">Send a message to start the conversation.</p>
+                    <button type="button" id="msg-empty-say-hello" class="msg-empty-convo-chip">👋 Say Hello</button>
+                </div>
+
+                <!-- Dynamic History Stream -->
+                <div id="msg-history-stream" class="msg-history-stream">
+                    <!-- Populated dynamically by JS -->
+                </div>
+
+                <!-- Floating Scroll-To-Bottom Pill -->
+                <button id="msg-scroll-pill" class="msg-scroll-bottom-btn" type="button"
+                    aria-label="Scroll to new messages" style="display:none;">
+                    <span>New messages ↓</span>
+                </button>
+
+                <!-- Non-Intrusive Floating Toast -->
+                <div id="msg-toast" class="msg-toast" role="status" aria-live="polite" style="display:none;"></div>
+            </div>
+
+            <!-- Composer Wrapper (Docked Card) -->
+            <div id="msg-composer-wrap" class="msg-composer-wrapper" style="display:none;">
+                <form id="msg-composer" class="msg-composer" autocomplete="off" aria-label="Compose message">
+                    <!-- Emoji Picker Drawer -->
+                    <div id="msg-emoji-drawer" class="msg-emoji-drawer" aria-label="Emoji Picker">
+                        <button type="button" class="msg-emoji-item" data-emoji="👍">👍</button>
+                        <button type="button" class="msg-emoji-item" data-emoji="❤️">❤️</button>
+                        <button type="button" class="msg-emoji-item" data-emoji="😊">😊</button>
+                        <button type="button" class="msg-emoji-item" data-emoji="🙌">🙌</button>
+                        <button type="button" class="msg-emoji-item" data-emoji="🔥">🔥</button>
+                        <button type="button" class="msg-emoji-item" data-emoji="✅">✅</button>
+                        <button type="button" class="msg-emoji-item" data-emoji="🚀">🚀</button>
+                        <button type="button" class="msg-emoji-item" data-emoji="👏">👏</button>
+                        <button type="button" class="msg-emoji-item" data-emoji="🎯">🎯</button>
+                        <button type="button" class="msg-emoji-item" data-emoji="⚡">⚡</button>
+                        <button type="button" class="msg-emoji-item" data-emoji="🤝">🤝</button>
+                        <button type="button" class="msg-emoji-item" data-emoji="💼">💼</button>
+                    </div>
+
+                    <div class="msg-composer-actions-left">
+                        <button type="button" id="msg-emoji-btn" class="msg-composer-tool-btn" title="Add emoji"
+                            aria-label="Add emoji">
+                            😀
+                        </button>
+                        <button type="button" id="msg-attach-btn" class="msg-composer-tool-btn"
+                            title="Attach image or document" aria-label="Attach file">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path
+                                    d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Hidden File Input for Real-Time File & Image Sharing -->
+                    <input type="file" id="msg-file-input" style="display:none;"
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip" aria-label="Upload file attachment">
+
+                    <!-- Attachment Staging Card -->
+                    <div id="msg-attachment-staging" class="msg-attachment-staging" style="display:none;"
+                        aria-live="polite">
+                        <div id="msg-staging-thumb-wrap" class="msg-staging-thumb-wrap"></div>
+                        <div class="msg-staging-info">
+                            <div id="msg-staging-name" class="msg-staging-name"></div>
+                            <div id="msg-staging-size" class="msg-staging-size"></div>
+                        </div>
+                        <button type="button" id="msg-staging-remove" class="msg-staging-remove-btn"
+                            title="Remove attachment" aria-label="Remove attachment">✕</button>
+                    </div>
+
+                    <label for="msg-input" class="sr-only"
+                        style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">
+                        Type a message
+                    </label>
+                    <textarea id="msg-input" class="msg-composer-input"
+                        placeholder="Type a message… (Enter to send, Shift+Enter for new line)" rows="1"
+                        aria-label="Message input" aria-required="true" maxlength="4000"></textarea>
+
+                    <button id="msg-send-btn" type="submit" class="msg-send-btn" disabled aria-label="Send message"
+                        title="Send message">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                        <span class="msg-send-spinner" aria-hidden="true"></span>
+                    </button>
+                </form>
+
+                <!-- Phase 1 Security / Privacy Notice -->
+                <p id="msg-phase-notice" class="msg-phase-notice">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    Phase 1, Phase 2 &amp; Phase 3 Verified — Direct messages are securely stored &amp; delivered in
+                    real-time with Socket.IO.
+                </p>
+            </div>
+
+        </section>
+
+        <!-- ══════════════════════════════════════════════════════════
+             COLLEAGUE PROFILE DRAWER (Collapsible Right Side)
+        ══════════════════════════════════════════════════════════ -->
+        <aside id="msg-drawer" class="msg-drawer" aria-label="Colleague Details">
+            <div class="msg-drawer-header">
+                <h4>Colleague Profile</h4>
+                <button type="button" id="msg-drawer-close" class="msg-drawer-close"
+                    aria-label="Close details">&times;</button>
+            </div>
+            <div class="msg-drawer-profile">
+                <div id="msg-drawer-avatar-wrap"></div>
+                <div id="msg-drawer-name" class="msg-drawer-name"></div>
+                <span id="msg-drawer-role" class="msg-drawer-role">Staff</span>
+            </div>
+            <div class="msg-drawer-section">
+                <span class="msg-drawer-section-title">Directory Details</span>
+                <div class="msg-drawer-info-row">
+                    <span class="msg-drawer-info-label">Organization</span>
+                    <span class="msg-drawer-info-val">GlassEntials CRM</span>
+                </div>
+                <div class="msg-drawer-info-row">
+                    <span class="msg-drawer-info-label">Role</span>
+                    <span class="msg-drawer-info-val" id="msg-drawer-role-val">Staff</span>
+                </div>
+                <div class="msg-drawer-info-row">
+                    <span class="msg-drawer-info-label">Security</span>
+                    <span class="msg-drawer-info-val">Verified Internal Employee</span>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- Lightbox Modal for Fullscreen Image Preview -->
+    <div id="msg-lightbox-modal" class="msg-lightbox-modal" style="display:none;" role="dialog" aria-modal="true"
+        aria-label="Image preview">
+        <div class="msg-lightbox-backdrop" id="msg-lightbox-backdrop"></div>
+        <div class="msg-lightbox-content">
+            <img id="msg-lightbox-img" class="msg-lightbox-img" src="" alt="Attachment Preview">
+            <div class="msg-lightbox-bar">
+                <span id="msg-lightbox-title"></span>
+                <a id="msg-lightbox-dl" class="msg-lightbox-dl-btn" href="#" download target="_blank" rel="noopener">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Download
+                </a>
+                <button type="button" id="msg-lightbox-close" class="msg-lightbox-close-btn">Close ✕</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            /* ────────────────────────────────────────────────────────────────
+               PHASE 2: Persistent database-backed messaging.
+               Messages are stored in MySQL and retrieved via REST API.
+            ──────────────────────────────────────────────────────────────── */
+
+            const COLLEAGUES = {{ emp_json | tojson
+        }};
+        const INITIAL_CONVOS = {{ (initial_convos or { }) | tojson }};
+        const CURRENT_USER_NAME = {{ (current_employee.name if current_employee else 'You') | tojson }};
+        const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+        // Persistent database-backed conversation cache: slug -> Array<message>
+        const convos = {};
+        COLLEAGUES.forEach(emp => {
+            convos[emp.slug] = [];
+        });
+
+        // ── DOM References ────────────────────────────────────────────
+        const shell = document.getElementById('msg-shell');
+        const empList = document.getElementById('msg-emp-list');
+        const searchInput = document.getElementById('msg-search');
+        const searchClear = document.getElementById('msg-search-clear');
+        const noResults = document.getElementById('msg-no-results');
+        const noResultsTerm = document.getElementById('msg-no-results-term');
+        const noResClear = document.getElementById('msg-no-results-clear');
+        const welcome = document.getElementById('msg-welcome');
+        const convoHeader = document.getElementById('msg-convo-header');
+        const avatarWrap = document.getElementById('msg-convo-avatar-wrap');
+        const convoName = document.getElementById('msg-convo-name');
+        const convoRole = document.getElementById('msg-convo-role');
+        const history = document.getElementById('msg-history');
+        const historyStream = document.getElementById('msg-history-stream');
+        const composerWrap = document.getElementById('msg-composer-wrap');
+        const composer = document.getElementById('msg-composer');
+        const input = document.getElementById('msg-input');
+        const sendBtn = document.getElementById('msg-send-btn');
+        const backBtn = document.getElementById('msg-back-btn');
+        const phaseNotice = document.getElementById('msg-phase-notice');
+        const emojiBtn = document.getElementById('msg-emoji-btn');
+        const emojiDrawer = document.getElementById('msg-emoji-drawer');
+        const attachBtn = document.getElementById('msg-attach-btn');
+        const fileInput = document.getElementById('msg-file-input');
+        const stagingBar = document.getElementById('msg-attachment-staging');
+        const stagingThumbWrap = document.getElementById('msg-staging-thumb-wrap');
+        const stagingName = document.getElementById('msg-staging-name');
+        const stagingSize = document.getElementById('msg-staging-size');
+        const stagingRemove = document.getElementById('msg-staging-remove');
+        const dragOverlay = document.getElementById('msg-drag-overlay');
+        const convoPanel = document.getElementById('msg-convo-panel');
+        const lightboxModal = document.getElementById('msg-lightbox-modal');
+        const lightboxImg = document.getElementById('msg-lightbox-img');
+        const lightboxTitle = document.getElementById('msg-lightbox-title');
+        const lightboxDl = document.getElementById('msg-lightbox-dl');
+        const lightboxClose = document.getElementById('msg-lightbox-close');
+        const lightboxBackdrop = document.getElementById('msg-lightbox-backdrop');
+        const clearChatBtn = document.getElementById('msg-action-clear');
+        const drawer = document.getElementById('msg-drawer');
+        const drawerBtn = document.getElementById('msg-action-drawer');
+        const drawerClose = document.getElementById('msg-drawer-close');
+        const drawerAvatar = document.getElementById('msg-drawer-avatar-wrap');
+        const drawerName = document.getElementById('msg-drawer-name');
+        const drawerRole = document.getElementById('msg-drawer-role');
+        const drawerRoleVal = document.getElementById('msg-drawer-role-val');
+        const typingStatus = document.getElementById('msg-typing-status');
+        const typingLabel = document.getElementById('msg-typing-label');
+        const skeletonEl = document.getElementById('msg-skeleton');
+        const emptyConvoEl = document.getElementById('msg-empty-convo');
+        const emptyConvoTxt = document.getElementById('msg-empty-convo-text');
+        const sayHelloBtn = document.getElementById('msg-empty-say-hello');
+        const scrollPill = document.getElementById('msg-scroll-pill');
+        const toastEl = document.getElementById('msg-toast');
+
+        let activeSlug = null;
+        let activeEmpObj = null;
+        let _toastTimer = null;
+        let stagedFile = null;
+        let stagedObjectUrl = null;
+
+        // ── Utility: Initials Avatar ──────────────────────────────────
+        window.makeInitialsAvatar = function (name) {
+            const div = document.createElement('div');
+            div.className = 'msg-avatar-initials';
+            div.setAttribute('aria-hidden', 'true');
+            const parts = name.trim().split(/\s+/);
+            div.textContent = parts.length > 1
+                ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+                : name.slice(0, 2).toUpperCase();
+            return div;
+        };
+
+        function buildAvatar(emp, size, isDrawer) {
+            const img = document.createElement('img');
+            img.src = emp.avatar;
+            img.alt = emp.name;
+            img.className = isDrawer ? 'msg-drawer-avatar' : 'msg-avatar';
+            if (size) { img.style.width = size; img.style.height = size; }
+            img.onerror = () => {
+                const init = makeInitialsAvatar(emp.name);
+                if (isDrawer) {
+                    init.className = 'msg-drawer-avatar-initials';
+                }
+                img.replaceWith(init);
+            };
+            return img;
+        }
+
+        // ── Time Formatting ───────────────────────────────────────────
+        function fmtTime(date) {
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function fmtDateSep(date) {
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(today.getDate() - 1);
+            if (isSameDay(date, today)) return 'Today';
+            if (isSameDay(date, yesterday)) return 'Yesterday';
+            return date.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function isSameDay(a, b) {
+            return a.getFullYear() === b.getFullYear() &&
+                a.getMonth() === b.getMonth() &&
+                a.getDate() === b.getDate();
+        }
+
+        // ── Initial previews in sidebar ───────────────────────────────
+        function updateAllSidebarPreviews() {
+            COLLEAGUES.forEach(emp => {
+                const meta = INITIAL_CONVOS[emp.slug] || {};
+                const msgs = convos[emp.slug] || [];
+                const prevEl = document.getElementById('preview-' + emp.slug);
+                const timeEl = document.getElementById('time-' + emp.slug);
+                const badgeEl = document.getElementById('badge-' + emp.slug);
+
+                if (msgs.length > 0) {
+                    const last = msgs[msgs.length - 1];
+                    if (prevEl) {
+                        prevEl.textContent = (last.from === 'self' ? 'You: ' : '') + last.text;
+                    }
+                    if (timeEl && last.ts) {
+                        timeEl.textContent = fmtTime(last.ts);
+                    }
+                } else if (meta.last_message) {
+                    if (prevEl) {
+                        prevEl.textContent = (meta.last_message_from === 'self' ? 'You: ' : '') + meta.last_message;
+                    }
+                    if (timeEl && meta.last_message_ts) {
+                        timeEl.textContent = fmtTime(new Date(meta.last_message_ts));
+                    }
+                } else {
+                    if (prevEl) prevEl.textContent = 'Click to start conversation';
+                    if (timeEl) timeEl.textContent = '';
+                }
+
+                if (badgeEl) {
+                    const unread = meta.unread_count || 0;
+                    if (unread > 0 && activeSlug !== emp.slug) {
+                        badgeEl.textContent = unread;
+                        badgeEl.style.display = 'inline-flex';
+                    } else {
+                        badgeEl.style.display = 'none';
+                    }
+                }
+            });
+        }
+        updateAllSidebarPreviews();
+
+        // ── Message Status Receipt Element (Single = Sent, Double = Received, Triple = Read) ──
+        function createReceiptElement(status, msgId) {
+            const receipt = document.createElement('span');
+            receipt.className = 'msg-receipt-icon ' + (status || 'sent');
+            if (msgId) receipt.dataset.msgId = msgId;
+
+            if (status === 'read') {
+                receipt.innerHTML = '&nbsp;&#10003;&#10003;&#10003;';
+                receipt.title = 'Read';
+            } else if (status === 'delivered') {
+                receipt.innerHTML = '&nbsp;&#10003;&#10003;';
+                receipt.title = 'Received';
+            } else {
+                receipt.innerHTML = '&nbsp;&#10003;';
+                receipt.title = 'Sent';
+            }
+            return receipt;
+        }
+
+        // ── Attachment Helpers & Lightbox ─────────────────────────────
+        function formatBytes(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function openImageLightbox(url, name) {
+            if (!lightboxModal) return;
+            lightboxImg.src = url;
+            lightboxTitle.textContent = name || 'Image Preview';
+            lightboxDl.href = url + (url.includes('?') ? '&' : '?') + 'download=1';
+            lightboxDl.download = name || 'image';
+            lightboxModal.style.display = 'flex';
+        }
+
+        function closeLightbox() {
+            if (lightboxModal) lightboxModal.style.display = 'none';
+        }
+        if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
+        if (lightboxBackdrop) lightboxBackdrop.addEventListener('click', closeLightbox);
+        window.openImageLightbox = openImageLightbox;
+
+        function buildBubbleElement(msg, isNew = false) {
+            const bubble = document.createElement('div');
+            bubble.className = 'msg-bubble' + (isNew ? ' is-local' : '');
+
+            const hasText = Boolean(msg.text && msg.text.trim());
+            let isImg = false;
+            let imgWrap = null;
+
+            // Attachment rendering
+            if (msg.attachment_url) {
+                isImg = (msg.attachment_type && msg.attachment_type.startsWith('image/')) ||
+                    /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(msg.attachment_name || msg.attachment_url);
+                if (isImg) {
+                    imgWrap = document.createElement('div');
+                    imgWrap.className = 'msg-attachment-img-wrap';
+                    imgWrap.style.cursor = 'zoom-in';
+                    const imgEl = document.createElement('img');
+                    imgEl.className = 'msg-attachment-img';
+                    imgEl.src = msg.attachment_url;
+                    imgEl.alt = msg.attachment_name || 'Attached Image';
+                    imgEl.loading = 'lazy';
+                    imgEl.style.cursor = 'zoom-in';
+                    const _openLightbox = (e) => {
+                        if (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
+                        openImageLightbox(imgEl.src, msg.attachment_name || 'Image');
+                    };
+                    imgWrap.onclick = _openLightbox;
+                    imgEl.onclick = _openLightbox;
+                    imgWrap.appendChild(imgEl);
+                    bubble.appendChild(imgWrap);
+
+                    if (!hasText) {
+                        bubble.classList.add('is-photo-only');
+                    }
+                } else {
+                    const fileCard = document.createElement('a');
+                    fileCard.className = 'msg-attachment-file-card';
+                    fileCard.href = msg.attachment_url + (msg.attachment_url.includes('?') ? '&' : '?') + 'download=1';
+                    fileCard.download = msg.attachment_name || 'download';
+                    fileCard.target = '_blank';
+                    fileCard.rel = 'noopener';
+
+                    const ext = (msg.attachment_name || '').split('.').pop().toLowerCase();
+                    const badge = document.createElement('div');
+                    badge.className = 'msg-file-icon-badge ' + (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'zip', 'rar'].includes(ext) ? ext : 'default');
+                    badge.textContent = ext.slice(0, 4) || 'FILE';
+                    fileCard.appendChild(badge);
+
+                    const metaCol = document.createElement('div');
+                    metaCol.className = 'msg-file-meta-col';
+                    const nameEl = document.createElement('div');
+                    nameEl.className = 'msg-file-card-name';
+                    nameEl.textContent = msg.attachment_name || 'Document';
+                    nameEl.title = msg.attachment_name || 'Document';
+                    metaCol.appendChild(nameEl);
+
+                    if (msg.attachment_size) {
+                        const sizeEl = document.createElement('div');
+                        sizeEl.className = 'msg-file-card-size';
+                        sizeEl.textContent = formatBytes(msg.attachment_size);
+                        metaCol.appendChild(sizeEl);
+                    }
+                    fileCard.appendChild(metaCol);
+
+                    const dlBtn = document.createElement('div');
+                    dlBtn.className = 'msg-file-download-btn';
+                    dlBtn.innerHTML = `
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    `;
+                    fileCard.appendChild(dlBtn);
+                    bubble.appendChild(fileCard);
+                }
+            }
+
+            if (!msg.attachment_url) {
+                bubble.textContent = msg.text;
+            } else if (hasText) {
+                const textSpan = document.createElement('span');
+                textSpan.className = 'msg-text-content';
+                textSpan.textContent = msg.text;
+                bubble.appendChild(textSpan);
+            }
+
+            const meta = document.createElement('span');
+            meta.className = 'msg-meta-inline';
+            meta.textContent = fmtTime(msg.ts);
+
+            if (msg.from === 'self') {
+                meta.appendChild(createReceiptElement(msg.status, msg.id));
+            }
+
+            if (isImg && !hasText && imgWrap) {
+                imgWrap.appendChild(meta);
+            } else {
+                bubble.appendChild(meta);
+            }
+            return bubble;
+        }
+
+        // ── Non-Intrusive Floating Toast Helper ───────────────────────
+        function showToast(message, isError = false, retryFn = null) {
+            if (!toastEl) return;
+            clearTimeout(_toastTimer);
+            toastEl.className = 'msg-toast' + (isError ? ' error' : '');
+            toastEl.innerHTML = '';
+
+            const span = document.createElement('span');
+            span.textContent = message;
+            toastEl.appendChild(span);
+
+            if (retryFn) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'msg-toast-retry-btn';
+                btn.textContent = 'Retry';
+                btn.onclick = () => {
+                    toastEl.style.display = 'none';
+                    retryFn();
+                };
+                toastEl.appendChild(btn);
+            }
+            toastEl.style.display = 'flex';
+            _toastTimer = setTimeout(() => {
+                toastEl.style.display = 'none';
+            }, 4000);
+        }
+
+        // ── Smart Scroll Management ───────────────────────────────────
+        function isUserNearBottom() {
+            const threshold = 120;
+            return (history.scrollHeight - history.scrollTop - history.clientHeight) <= threshold;
+        }
+
+        function scrollToBottom(smooth = true) {
+            if (smooth) {
+                history.scrollTo({ top: history.scrollHeight, behavior: 'smooth' });
+            } else {
+                history.scrollTop = history.scrollHeight;
+            }
+            if (scrollPill) scrollPill.style.display = 'none';
+        }
+
+        history.addEventListener('scroll', () => {
+            if (isUserNearBottom() && scrollPill) {
+                scrollPill.style.display = 'none';
+            }
+        });
+
+        if (scrollPill) {
+            scrollPill.addEventListener('click', () => {
+                scrollToBottom(true);
+            });
+        }
+
+        if (sayHelloBtn) {
+            sayHelloBtn.addEventListener('click', () => {
+                input.value = 'Hello! 👋';
+                input.dispatchEvent(new Event('input'));
+                input.focus();
+            });
+        }
+
+        // ── Render conversation history (Compact, clean, no replay animations) ─
+        function renderHistory(slug) {
+            historyStream.innerHTML = '';
+
+            // Add Conversation Introduction Card at the top
+            if (activeEmpObj) {
+                const intro = document.createElement('div');
+                intro.className = 'msg-convo-intro';
+
+                const introAvatarWrap = document.createElement('div');
+                introAvatarWrap.className = 'msg-convo-intro-avatar';
+                introAvatarWrap.appendChild(buildAvatar(activeEmpObj, '48px', false));
+                intro.appendChild(introAvatarWrap);
+
+                const introTitle = document.createElement('h4');
+                introTitle.textContent = activeEmpObj.name;
+                intro.appendChild(introTitle);
+
+                const introRole = document.createElement('div');
+                introRole.className = 'msg-convo-intro-role';
+                introRole.textContent = (activeEmpObj.position || 'Staff') + ' • GlassEntials CRM';
+                intro.appendChild(introRole);
+
+                const introDesc = document.createElement('p');
+                introDesc.textContent = 'Direct messages with ' + activeEmpObj.name + '.';
+                intro.appendChild(introDesc);
+
+                const introDiv = document.createElement('div');
+                introDiv.className = 'msg-convo-intro-divider';
+                intro.appendChild(introDiv);
+
+                historyStream.appendChild(intro);
+            }
+
+            const msgs = convos[slug] || [];
+
+            // Empty state handling
+            if (msgs.length === 0) {
+                if (emptyConvoEl) {
+                    emptyConvoEl.style.display = 'flex';
+                    if (emptyConvoTxt) {
+                        emptyConvoTxt.textContent = 'Send a message to start coordinating with ' + (activeEmpObj ? activeEmpObj.name : 'colleague') + '.';
+                    }
+                }
+                return;
+            } else {
+                if (emptyConvoEl) emptyConvoEl.style.display = 'none';
+            }
+
+            let lastDate = null;
+            let lastFrom = null;
+
+            msgs.forEach((msg) => {
+                if (!lastDate || !isSameDay(lastDate, msg.ts)) {
+                    const sep = document.createElement('div');
+                    sep.className = 'msg-date-sep';
+                    sep.dataset.date = msg.ts.toISOString();
+                    sep.setAttribute('aria-label', 'Date: ' + fmtDateSep(msg.ts));
+                    const span = document.createElement('span');
+                    span.textContent = fmtDateSep(msg.ts);
+                    sep.appendChild(span);
+                    historyStream.appendChild(sep);
+                    lastDate = msg.ts;
+                    lastFrom = null;
+                }
+
+                if (msg.from !== lastFrom) {
+                    const grp = document.createElement('div');
+                    grp.className = 'msg-group ' + (msg.from === 'self' ? 'outgoing' : 'incoming');
+                    grp.dataset.from = msg.from;
+                    historyStream.appendChild(grp);
+                }
+
+                const grp = historyStream.lastElementChild;
+                const wrap = document.createElement('div');
+                wrap.className = 'msg-bubble-wrap'; // No entrance animation on bulk historical render
+
+                const actions = document.createElement('div');
+                actions.className = 'msg-bubble-actions';
+                ['👍', '❤️', '👏'].forEach(emoji => {
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.className = 'msg-action-reaction-btn';
+                    b.textContent = emoji;
+                    b.title = 'React ' + emoji;
+                    b.onclick = (e) => {
+                        e.stopPropagation();
+                        b.style.transform = 'scale(1.4)';
+                        setTimeout(() => { b.style.transform = 'none'; }, 200);
+                    };
+                    actions.appendChild(b);
+                });
+                wrap.appendChild(actions);
+
+                const bubble = buildBubbleElement(msg, false);
+                wrap.appendChild(bubble);
+                grp.appendChild(wrap);
+
+                lastFrom = msg.from;
+            });
+
+            // Instant scroll to bottom on initial load
+            scrollToBottom(false);
+        }
+
+        // ── Open a conversation ───────────────────────────────────────
+        function openConvo(emp) {
+            empList.querySelectorAll('.msg-emp-row').forEach(r => {
+                r.classList.remove('selected');
+                r.setAttribute('aria-selected', 'false');
+            });
+
+            const row = empList.querySelector(`[data-emp-slug="${emp.slug}"]`);
+            if (row) {
+                row.classList.add('selected');
+                row.setAttribute('aria-selected', 'true');
+                const badge = document.getElementById('badge-' + emp.slug);
+                if (badge) badge.style.display = 'none';
+                if (INITIAL_CONVOS[emp.slug]) INITIAL_CONVOS[emp.slug].unread_count = 0;
+            }
+
+            activeSlug = emp.slug;
+            activeEmpObj = emp;
+
+            // Reset typing indicators
+            if (typingStatus) typingStatus.style.display = 'none';
+            const existingTyping = document.getElementById('msg-typing-bubble-wrap');
+            if (existingTyping) existingTyping.remove();
+
+            // Populate header
+            avatarWrap.innerHTML = '';
+            avatarWrap.appendChild(buildAvatar(emp, '40px', false));
+            convoName.textContent = emp.name;
+            convoRole.textContent = emp.position || 'Staff';
+
+            // Populate side drawer
+            drawerAvatar.innerHTML = '';
+            drawerAvatar.appendChild(buildAvatar(emp, '72px', true));
+            drawerName.textContent = emp.name;
+            drawerRole.textContent = emp.position || 'Staff';
+            if (drawerRoleVal) drawerRoleVal.textContent = emp.position || 'Staff';
+
+            // Show conversation elements smoothly with fluid animations
+            welcome.style.display = 'none';
+            convoHeader.style.display = 'flex';
+            history.style.display = 'flex';
+            composerWrap.style.display = 'block';
+
+            // Fluid conversation transition animations
+            historyStream.classList.remove('is-switching');
+            void historyStream.offsetWidth;
+            historyStream.classList.add('is-switching');
+
+            convoHeader.classList.remove('is-animating');
+            void convoHeader.offsetWidth;
+            convoHeader.classList.add('is-animating');
+
+            if (convos[emp.slug] && convos[emp.slug].length > 0) {
+                if (skeletonEl) skeletonEl.style.display = 'none';
+                renderHistory(emp.slug);
+            } else {
+                historyStream.innerHTML = '';
+                if (emptyConvoEl) emptyConvoEl.style.display = 'none';
+                if (skeletonEl) skeletonEl.style.display = 'flex';
+            }
+
+            input.focus();
+
+            // Mobile slide
+            shell.classList.add('convo-open');
+
+            // Load persistent message history from database
+            loadHistory(emp.slug);
+        }
+
+        function loadHistory(slug) {
+            fetch('/api/messages/' + slug + '/history', {
+                headers: { 'Accept': 'application/json' }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (activeSlug === slug && skeletonEl) {
+                        skeletonEl.style.display = 'none';
+                    }
+                    if (data.success && Array.isArray(data.messages)) {
+                        convos[slug] = data.messages.map(m => ({
+                            id: m.id,
+                            from: m.from,
+                            text: m.text,
+                            status: m.status || 'sent',
+                            ts: new Date(m.ts),
+                            attachment_url: m.attachment_url,
+                            attachment_name: m.attachment_name,
+                            attachment_type: m.attachment_type,
+                            attachment_size: m.attachment_size,
+                        }));
+                        if (activeSlug === slug) {
+                            renderHistory(slug);
+                        }
+                        if (convos[slug].length > 0) {
+                            const last = convos[slug][convos[slug].length - 1];
+                            const prevEl = document.getElementById('preview-' + slug);
+                            if (prevEl) {
+                                const previewTxt = last.text ? last.text : ('📎 ' + (last.attachment_name || 'Attachment'));
+                                prevEl.textContent = (last.from === 'self' ? 'You: ' : '') + previewTxt;
+                            }
+                            const timeEl = document.getElementById('time-' + slug);
+                            if (timeEl && last.ts) timeEl.textContent = fmtTime(last.ts);
+                        }
+                    }
+                })
+                .catch(err => {
+                    if (activeSlug === slug && skeletonEl) {
+                        skeletonEl.style.display = 'none';
+                    }
+                    showToast('Failed to load message history.', true, () => loadHistory(slug));
+                    console.error('Failed to load message history:', err);
+                });
+        }
+
+        // ── Clear Chat Handler ────────────────────────────────────────
+        if (clearChatBtn) {
+            clearChatBtn.addEventListener('click', () => {
+                if (!activeSlug) return;
+                convos[activeSlug] = [];
+                renderHistory(activeSlug);
+                updateAllSidebarPreviews();
+            });
+        }
+
+        // ── Employee Row Click Listeners ──────────────────────────────
+        function attachRowHandlers() {
+            empList.querySelectorAll('.msg-emp-row').forEach(row => {
+                row.addEventListener('click', () => {
+                    const emp = {
+                        slug: row.dataset.empSlug,
+                        name: row.dataset.empName,
+                        position: row.dataset.empPos,
+                        avatar: row.dataset.empAvatar,
+                    };
+                    openConvo(emp);
+                });
+
+                row.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        row.click();
+                    }
+                });
+            });
+        }
+        attachRowHandlers();
+
+        // ── Search & Filter ───────────────────────────────────────────
+        let activeFilter = 'all';
+
+        function filterList() {
+            const q = searchInput.value.trim().toLowerCase();
+            const rows = empList.querySelectorAll('.msg-emp-row');
+            let visible = 0;
+
+            rows.forEach(row => {
+                const name = row.dataset.searchName || '';
+                const slug = row.dataset.empSlug;
+                const matchesSearch = !q || name.includes(q);
+
+                let matchesFilter = true;
+                if (activeFilter === 'recent') {
+                    matchesFilter = convos[slug] && convos[slug].length > 0;
+                }
+
+                const show = matchesSearch && matchesFilter;
+                row.parentElement.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+
+            searchClear.style.display = q ? 'flex' : 'none';
+
+            if (q && visible === 0) {
+                noResults.style.display = 'flex';
+                noResultsTerm.textContent = `"${searchInput.value}" did not match any colleagues.`;
+            } else {
+                noResults.style.display = 'none';
+            }
+        }
+
+        searchInput.addEventListener('input', filterList);
+
+        function clearSearch() {
+            searchInput.value = '';
+            filterList();
+            searchInput.focus();
+        }
+
+        searchClear.addEventListener('click', clearSearch);
+        noResClear.addEventListener('click', clearSearch);
+
+        // Filter pills click
+        document.querySelectorAll('.msg-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.msg-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                activeFilter = btn.dataset.filter;
+                filterList();
+            });
+        });
+
+        // ── Composer: Auto-Resize, Input Validation & Typing Emit ─────
+        let _lastTypingEmit = 0;
+        let _typingEmitTimer = null;
+
+        input.addEventListener('input', () => {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+            sendBtn.disabled = input.value.trim() === '';
+
+            // Emit debounced typing event via Socket.IO
+            if (activeSlug && window.appSocket && window.appSocket.connected) {
+                const now = Date.now();
+                if (now - _lastTypingEmit > 2200) {
+                    window.appSocket.emit('messaging:typing', {
+                        recipient_id: Number(activeSlug),
+                        typing: true
+                    });
+                    _lastTypingEmit = now;
+                }
+                clearTimeout(_typingEmitTimer);
+                _typingEmitTimer = setTimeout(() => {
+                    if (activeSlug && window.appSocket && window.appSocket.connected) {
+                        window.appSocket.emit('messaging:typing', {
+                            recipient_id: Number(activeSlug),
+                            typing: false
+                        });
+                    }
+                }, 2800);
+            }
+        });
+
+        input.addEventListener('blur', () => {
+            if (activeSlug && window.appSocket && window.appSocket.connected) {
+                clearTimeout(_typingEmitTimer);
+                window.appSocket.emit('messaging:typing', {
+                    recipient_id: Number(activeSlug),
+                    typing: false
+                });
+            }
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!sendBtn.disabled) sendMessage();
+            }
+        });
+
+        composer.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!sendBtn.disabled) sendMessage();
+        });
+
+        // ── Emoji Picker Drawer ───────────────────────────────────────
+        emojiBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const isVisible = emojiDrawer.style.display === 'grid';
+            emojiDrawer.style.display = isVisible ? 'none' : 'grid';
+        });
+
+        document.querySelectorAll('.msg-emoji-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const em = item.dataset.emoji;
+                input.value += em;
+                input.dispatchEvent(new Event('input'));
+                input.focus();
+                emojiDrawer.style.display = 'none';
+            });
+        });
+
+        // Close emoji drawer on outside click
+        document.addEventListener('click', (e) => {
+            if (!emojiDrawer.contains(e.target) && e.target !== emojiBtn) {
+                emojiDrawer.style.display = 'none';
+            }
+        });
+
+        // ── Attachment Staging & Upload Management ────────────────────
+        function validateSendState() {
+            const hasText = input.value.trim().length > 0;
+            const hasFile = stagedFile !== null;
+            sendBtn.disabled = !hasText && !hasFile;
+        }
+
+        function stageFile(file) {
+            if (!file) return;
+            if (file.size > 25 * 1024 * 1024) {
+                showToast('File exceeds 25 MB limit.', true);
+                return;
+            }
+            stagedFile = file;
+            if (stagedObjectUrl) URL.revokeObjectURL(stagedObjectUrl);
+
+            stagingThumbWrap.innerHTML = '';
+            const isImg = file.type.startsWith('image/');
+            if (isImg) {
+                stagedObjectUrl = URL.createObjectURL(file);
+                const img = document.createElement('img');
+                img.className = 'msg-staging-thumb';
+                img.src = stagedObjectUrl;
+                img.alt = 'Preview';
+                stagingThumbWrap.appendChild(img);
+            } else {
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'msg-staging-file-icon';
+                iconSpan.textContent = '📄';
+                stagingThumbWrap.appendChild(iconSpan);
+            }
+
+            stagingName.textContent = file.name;
+            stagingSize.textContent = formatBytes(file.size);
+            stagingBar.style.display = 'flex';
+            input.placeholder = 'Add a caption… (optional)';
+            validateSendState();
+        }
+
+        function unstageFile() {
+            stagedFile = null;
+            if (stagedObjectUrl) {
+                URL.revokeObjectURL(stagedObjectUrl);
+                stagedObjectUrl = null;
+            }
+            if (fileInput) fileInput.value = '';
+            if (stagingBar) stagingBar.style.display = 'none';
+            input.placeholder = 'Type a message… (Enter to send, Shift+Enter for new line)';
+            validateSendState();
+        }
+
+        if (stagingRemove) stagingRemove.addEventListener('click', unstageFile);
+        if (attachBtn) {
+            attachBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (fileInput) fileInput.click();
+            });
+        }
+        if (fileInput) {
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files && fileInput.files[0]) {
+                    stageFile(fileInput.files[0]);
+                }
+            });
+        }
+
+        // Drag & Drop
+        if (convoPanel) {
+            convoPanel.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (activeSlug) {
+                    convoPanel.classList.add('msg-drag-over');
+                    if (dragOverlay) dragOverlay.style.display = 'flex';
+                }
+            });
+            convoPanel.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.relatedTarget && !convoPanel.contains(e.relatedTarget)) {
+                    convoPanel.classList.remove('msg-drag-over');
+                    if (dragOverlay) dragOverlay.style.display = 'none';
+                }
+            });
+            convoPanel.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                convoPanel.classList.remove('msg-drag-over');
+                if (dragOverlay) dragOverlay.style.display = 'none';
+                if (activeSlug && e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    stageFile(e.dataTransfer.files[0]);
+                }
+            });
+        }
+
+        // Paste event on composer input (Ctrl+V image screenshot / image file)
+        input.addEventListener('paste', (e) => {
+            if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+                const file = e.clipboardData.files[0];
+                if (file.type.startsWith('image/')) {
+                    e.preventDefault();
+                    stageFile(file);
+                }
+            }
+        });
+
+        // ── Colleague Profile Drawer ──────────────────────────────────
+        drawerBtn.addEventListener('click', () => {
+            drawer.classList.toggle('open');
+            drawerBtn.classList.toggle('active', drawer.classList.contains('open'));
+        });
+
+        drawerClose.addEventListener('click', () => {
+            drawer.classList.remove('open');
+            drawerBtn.classList.remove('active');
+        });
+
+        // ── Send Message Logic (Optimistic UI with Server Reconciliation) ─
+        function sendMessage() {
+            const text = input.value.trim();
+            const fileToSend = stagedFile;
+            if ((!text && !fileToSend) || !activeSlug || sendBtn.classList.contains('is-sending')) return;
+
+            const currentSlug = activeSlug;
+            sendBtn.classList.add('is-sending');
+            sendBtn.disabled = true;
+
+            // Clear typing state
+            if (window.appSocket && window.appSocket.connected) {
+                clearTimeout(_typingEmitTimer);
+                window.appSocket.emit('messaging:typing', {
+                    recipient_id: Number(currentSlug),
+                    typing: false
+                });
+            }
+
+            const tempId = 'temp-' + Date.now();
+            let tempBlobUrl = null;
+            if (fileToSend && fileToSend.type.startsWith('image/')) {
+                tempBlobUrl = URL.createObjectURL(fileToSend);
+            }
+
+            const localMsg = {
+                id: tempId,
+                from: 'self',
+                text: text,
+                status: 'sent',
+                ts: new Date(),
+                attachment_url: tempBlobUrl,
+                attachment_name: fileToSend ? fileToSend.name : null,
+                attachment_type: fileToSend ? fileToSend.type : null,
+                attachment_size: fileToSend ? fileToSend.size : null,
+            };
+
+            if (!convos[currentSlug]) convos[currentSlug] = [];
+            convos[currentSlug].push(localMsg);
+
+            // Hide empty conversation placeholder if present
+            if (emptyConvoEl) emptyConvoEl.style.display = 'none';
+
+            // Append with spring entrance animation
+            appendMessage(localMsg, true);
+
+            // Update sidebar row preview immediately
+            const previewEl = document.getElementById('preview-' + currentSlug);
+            if (previewEl) {
+                const previewTxt = text ? text : ('📎 ' + (fileToSend ? fileToSend.name : 'Attachment'));
+                previewEl.textContent = 'You: ' + previewTxt;
+            }
+
+            const timeEl = document.getElementById('time-' + currentSlug);
+            if (timeEl) timeEl.textContent = fmtTime(localMsg.ts);
+
+            // Reset input and staged file
+            input.value = '';
+            input.style.height = 'auto';
+            unstageFile();
+            input.focus();
+
+            // Persist to server database via REST API
+            const formData = new FormData();
+            formData.append('text', text);
+            if (fileToSend) {
+                formData.append('file', fileToSend);
+            }
+
+            fetch('/api/messages/' + currentSlug + '/send', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': CSRF_TOKEN
+                },
+                body: formData
+            })
+                .then(res => res.json())
+                .then(data => {
+                    sendBtn.classList.remove('is-sending');
+                    validateSendState();
+                    if (data.success && data.message) {
+                        // Server reconciliation
+                        localMsg.id = data.message.id;
+                        localMsg.status = data.message.status || 'sent';
+                        localMsg.ts = new Date(data.message.ts);
+                        if (data.message.attachment_url) {
+                            localMsg.attachment_url = data.message.attachment_url;
+                        }
+
+                        // Update DOM receipt element with confirmed ID and status
+                        const tempEl = historyStream.querySelector(`[data-msg-id="${tempId}"]`);
+                        if (tempEl) {
+                            const bubbleEl = tempEl.closest('.msg-bubble');
+                            if (bubbleEl && data.message.attachment_url) {
+                                const img = bubbleEl.querySelector('.msg-attachment-img');
+                                if (img) img.src = data.message.attachment_url;
+                            }
+                            const newReceipt = createReceiptElement(localMsg.status, localMsg.id);
+                            tempEl.replaceWith(newReceipt);
+                        }
+                    } else if (!data.success) {
+                        showToast('Failed to send: ' + (data.error || 'Server rejected message'), true, () => {
+                            input.value = text;
+                            if (fileToSend) stageFile(fileToSend);
+                            input.focus();
+                        });
+                    }
+                })
+                .catch(err => {
+                    sendBtn.classList.remove('is-sending');
+                    validateSendState();
+                    showToast('Network error while sending message.', true, () => {
+                        input.value = text;
+                        if (fileToSend) stageFile(fileToSend);
+                        input.focus();
+                    });
+                    console.error('Send message network error:', err);
+                });
+        }
+
+        function appendMessage(msg, isNew) {
+            // Deduplicate if already rendered
+            if (msg.id && typeof msg.id === 'number') {
+                const existingEl = historyStream.querySelector(`[data-msg-id="${msg.id}"]`);
+                if (existingEl) return;
+            }
+
+            // Remove inline typing indicator bubble when new message arrives
+            const typingBubble = document.getElementById('msg-typing-bubble-wrap');
+            if (typingBubble) typingBubble.remove();
+
+            if (emptyConvoEl) emptyConvoEl.style.display = 'none';
+
+            const allSeps = historyStream.getElementsByClassName('msg-date-sep');
+            const lastDateSep = allSeps.length > 0 ? allSeps[allSeps.length - 1] : null;
+            const needSep = !lastDateSep || !isSameDay(new Date(lastDateSep.dataset.date || 0), msg.ts);
+
+            if (needSep) {
+                const sep = document.createElement('div');
+                sep.className = 'msg-date-sep';
+                sep.dataset.date = msg.ts.toISOString();
+                const span = document.createElement('span');
+                span.textContent = fmtDateSep(msg.ts);
+                sep.appendChild(span);
+                historyStream.appendChild(sep);
+            }
+
+            // Check if last group is from same sender
+            const allGroups = historyStream.getElementsByClassName('msg-group');
+            const lastGroup = allGroups.length > 0 ? allGroups[allGroups.length - 1] : null;
+            let grp;
+            if (lastGroup && !needSep && lastGroup.dataset.from === msg.from) {
+                grp = lastGroup;
+            } else {
+                grp = document.createElement('div');
+                grp.className = 'msg-group ' + (msg.from === 'self' ? 'outgoing' : 'incoming');
+                grp.dataset.from = msg.from;
+                historyStream.appendChild(grp);
+            }
+
+            const wrap = document.createElement('div');
+            wrap.className = 'msg-bubble-wrap' + (isNew ? ' msg-entering' : '');
+
+            const actions = document.createElement('div');
+            actions.className = 'msg-bubble-actions';
+            ['👍', '❤️', '👏'].forEach(emoji => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'msg-action-reaction-btn';
+                b.textContent = emoji;
+                b.title = 'React ' + emoji;
+                b.onclick = (e) => {
+                    e.stopPropagation();
+                    b.style.transform = 'scale(1.4)';
+                    setTimeout(() => { b.style.transform = 'none'; }, 200);
+                };
+                actions.appendChild(b);
+            });
+            wrap.appendChild(actions);
+
+            const bubble = buildBubbleElement(msg, isNew);
+            wrap.appendChild(bubble);
+            grp.appendChild(wrap);
+
+            // Smart scroll: scroll down if sender is self, or if recipient is near bottom
+            if (msg.from === 'self') {
+                scrollToBottom(true);
+            } else {
+                if (isUserNearBottom()) {
+                    scrollToBottom(true);
+                } else if (scrollPill) {
+                    scrollPill.style.display = 'flex';
+                }
+            }
+        }
+
+        // ── Mobile Back Button ────────────────────────────────────────
+        backBtn.addEventListener('click', () => {
+            shell.classList.remove('convo-open');
+            activeSlug = null;
+            activeEmpObj = null;
+
+            welcome.style.display = 'flex';
+            convoHeader.style.display = 'none';
+            history.style.display = 'none';
+            composerWrap.style.display = 'none';
+            drawer.classList.remove('open');
+
+            empList.querySelectorAll('.msg-emp-row').forEach(r => {
+                r.classList.remove('selected');
+                r.setAttribute('aria-selected', 'false');
+            });
+
+            searchInput.focus();
+        });
+
+        // ── Keyboard Navigation (Arrow Keys) ───────────────────────────
+        empList.addEventListener('keydown', (e) => {
+            const rows = [...empList.querySelectorAll('.msg-emp-row')]
+                .filter(r => r.parentElement.style.display !== 'none');
+            const idx = rows.indexOf(document.activeElement);
+
+            if (e.key === 'ArrowDown' && idx < rows.length - 1) {
+                e.preventDefault();
+                rows[idx + 1].focus();
+            } else if (e.key === 'ArrowUp' && idx > 0) {
+                e.preventDefault();
+                rows[idx - 1].focus();
+            }
+        });
+
+        // ── Background Multi-User Polling Sync ────────────────────────
+        function pollSync() {
+            // 1. Update active chat if open
+            if (activeSlug) {
+                fetch('/api/messages/' + activeSlug + '/history', {
+                    headers: { 'Accept': 'application/json' }
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && Array.isArray(data.messages)) {
+                            const newMsgs = data.messages.map(m => ({
+                                id: m.id,
+                                from: m.from,
+                                text: m.text,
+                                status: m.status || 'sent',
+                                ts: new Date(m.ts)
+                            }));
+                            const oldMsgs = convos[activeSlug] || [];
+                            const hasChanges = newMsgs.length !== oldMsgs.length ||
+                                newMsgs.some((m, idx) => !oldMsgs[idx] || oldMsgs[idx].status !== m.status || oldMsgs[idx].id !== m.id);
+                            if (hasChanges) {
+                                convos[activeSlug] = newMsgs;
+                                renderHistory(activeSlug);
+                            }
+                        }
+                    })
+                    .catch(() => { });
+            }
+
+            // 2. Refresh sidebar unread counters & last message previews
+            fetch('/api/messages/conversations', {
+                headers: { 'Accept': 'application/json' }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && Array.isArray(data.conversations)) {
+                        data.conversations.forEach(c => {
+                            const slug = String(c.colleague_id);
+                            if (!INITIAL_CONVOS[slug]) INITIAL_CONVOS[slug] = {};
+                            INITIAL_CONVOS[slug].last_message = c.last_message;
+                            INITIAL_CONVOS[slug].last_message_from = c.last_message_from;
+                            INITIAL_CONVOS[slug].last_message_ts = c.last_message_ts;
+                            INITIAL_CONVOS[slug].unread_count = c.unread_count;
+
+                            const prevEl = document.getElementById('preview-' + slug);
+                            const timeEl = document.getElementById('time-' + slug);
+                            const badgeEl = document.getElementById('badge-' + slug);
+
+                            if (c.last_message && (!convos[slug] || convos[slug].length === 0)) {
+                                if (prevEl) prevEl.textContent = (c.last_message_from === 'self' ? 'You: ' : '') + c.last_message;
+                                if (timeEl && c.last_message_ts) timeEl.textContent = fmtTime(new Date(c.last_message_ts));
+                            }
+                            if (badgeEl) {
+                                if (c.unread_count > 0 && activeSlug !== slug) {
+                                    badgeEl.textContent = c.unread_count;
+                                    badgeEl.style.display = 'inline-flex';
+                                } else {
+                                    badgeEl.style.display = 'none';
+                                }
+                            }
+                        });
+                    }
+                })
+                .catch(() => { });
+        }
+
+        // Poll every 4 seconds — reduced to 30s when socket is live (reconciliation fallback only)
+        let _pollInterval = setInterval(pollSync, 4000);
+
+        /* ═══════════════════════════════════════════════════════════════════
+           PHASE 3: Real-Time Socket.IO Integration
+           Uses the shared window.appSocket established by navbar.html.
+           Identity is derived server-side; we never send emp IDs to the server.
+        ═══════════════════════════════════════════════════════════════════ */
+        (function initMessagingSocket() {
+            // ── Connection Status Indicator ──────────────────────────────────
+            const statusDot = document.getElementById('msg-socket-status');
+
+            function setSocketStatus(state) {
+                if (!statusDot) return;
+                statusDot.className = 'msg-socket-dot msg-socket-' + state;
+                statusDot.title = { connecting: 'Connecting…', connected: 'Connected', reconnecting: 'Reconnecting…', disconnected: 'Offline' }[state] || state;
+            }
+
+            // Wait until the global socket is available (navbar.html sets it up)
+            const socket = window.appSocket;
+            if (!socket) return;
+
+            setSocketStatus(socket.connected ? 'connected' : 'connecting');
+
+            socket.on('connect', () => {
+                setSocketStatus('connected');
+                // Slow down polling — socket handles real-time now
+                clearInterval(_pollInterval);
+                _pollInterval = setInterval(pollSync, 30000);
+                // Re-join room (handles reconnects)
+                socket.emit('join', {});
+                // Request resync to catch any missed events
+                socket.emit('messaging:resync', {});
+            });
+
+            socket.on('disconnect', () => {
+                setSocketStatus('disconnected');
+                // Speed polling back up when offline
+                clearInterval(_pollInterval);
+                _pollInterval = setInterval(pollSync, 4000);
+            });
+
+            socket.io.on('reconnect_attempt', () => setSocketStatus('reconnecting'));
+            socket.io.on('reconnect_failed', () => setSocketStatus('disconnected'));
+
+            // ── New incoming message ─────────────────────────────────────────
+            socket.on('messaging:new_message', (msg) => {
+                // msg = { id, conversation_id, sender_id, sender_name, text, ts, from, status }
+                const slug = String(msg.sender_id);
+
+                // Ignore if we sent it ourselves (sender gets a REST response already)
+                if (msg.from === 'self') return;
+
+                // Deduplicate: skip if we already have this message by ID
+                const existing = (convos[slug] || []).find(m => m.id === msg.id);
+                if (existing) return;
+
+                const msgObj = {
+                    id: msg.id,
+                    from: 'other',
+                    text: msg.text,          // rendered with textContent — XSS safe
+                    status: msg.status || 'sent',
+                    ts: new Date(msg.ts),
+                    attachment_url: msg.attachment_url,
+                    attachment_name: msg.attachment_name,
+                    attachment_type: msg.attachment_type,
+                    attachment_size: msg.attachment_size,
+                };
+
+                if (!convos[slug]) convos[slug] = [];
+                convos[slug].push(msgObj);
+
+                // If this conversation is currently open, append to stream
+                if (activeSlug === slug) {
+                    appendMessage(msgObj, true); // true = entrance animation
+                    // Mark as read immediately since user is watching
+                    fetch('/api/messages/' + slug + '/read', {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': CSRF_TOKEN }
+                    }).catch(() => { });
+                } else {
+                    // Update unread badge with pop animation
+                    const meta = INITIAL_CONVOS[slug] || {};
+                    meta.unread_count = (meta.unread_count || 0) + 1;
+                    INITIAL_CONVOS[slug] = meta;
+                    const badgeEl = document.getElementById('badge-' + slug);
+                    if (badgeEl) {
+                        badgeEl.textContent = meta.unread_count;
+                        badgeEl.style.display = 'inline-flex';
+                        badgeEl.classList.remove('msg-badge-pop');
+                        void badgeEl.offsetWidth;
+                        badgeEl.classList.add('msg-badge-pop');
+                        setTimeout(() => badgeEl.classList.remove('msg-badge-pop'), 300);
+                    }
+                }
+
+                // Gentle highlight animation on conversation row in sidebar
+                const rowEl = empList.querySelector(`[data-emp-slug="${slug}"]`);
+                if (rowEl) {
+                    rowEl.classList.remove('msg-row-highlight');
+                    void rowEl.offsetWidth;
+                    rowEl.classList.add('msg-row-highlight');
+                    setTimeout(() => rowEl.classList.remove('msg-row-highlight'), 1500);
+                }
+
+                // Update sidebar preview
+                const prevEl = document.getElementById('preview-' + slug);
+                if (prevEl) {
+                    prevEl.textContent = msg.text ? msg.text : ('📎 ' + (msg.attachment_name || 'Attachment'));
+                }
+                const timeEl = document.getElementById('time-' + slug);
+                if (timeEl) timeEl.textContent = fmtTime(new Date(msg.ts));
+            });
+
+            // ── Real-Time Typing Notification ────────────────────────────────
+            let _typingHideTimer = null;
+            socket.on('messaging:user_typing', (data) => {
+                // data = { sender_id, typing }
+                const senderSlug = String(data.sender_id);
+                if (activeSlug === senderSlug) {
+                    if (data.typing) {
+                        if (typingStatus) {
+                            if (typingLabel) typingLabel.textContent = (activeEmpObj ? activeEmpObj.name.split(' ')[0] : 'Colleague') + ' is typing…';
+                            typingStatus.style.display = 'inline-flex';
+                        }
+                        let typingBubble = document.getElementById('msg-typing-bubble-wrap');
+                        if (!typingBubble) {
+                            typingBubble = document.createElement('div');
+                            typingBubble.id = 'msg-typing-bubble-wrap';
+                            typingBubble.className = 'msg-typing-bubble-wrap';
+                            typingBubble.innerHTML = `
+                                <div class="msg-typing-bubble" aria-label="Typing">
+                                    <span class="msg-typing-bubble-dot"></span>
+                                    <span class="msg-typing-bubble-dot"></span>
+                                    <span class="msg-typing-bubble-dot"></span>
+                                </div>
+                            `;
+                            historyStream.appendChild(typingBubble);
+                            if (isUserNearBottom()) scrollToBottom(true);
+                        }
+                        clearTimeout(_typingHideTimer);
+                        _typingHideTimer = setTimeout(() => {
+                            if (typingStatus) typingStatus.style.display = 'none';
+                            const b = document.getElementById('msg-typing-bubble-wrap');
+                            if (b) b.remove();
+                        }, 3500);
+                    } else {
+                        if (typingStatus) typingStatus.style.display = 'none';
+                        const b = document.getElementById('msg-typing-bubble-wrap');
+                        if (b) b.remove();
+                    }
+                }
+            });
+
+            // ── Conversation preview update ──────────────────────────────────
+            socket.on('messaging:conversation_updated', (data) => {
+                // data = { conversation_id, colleague_id, last_message, last_message_ts, last_message_from, unread_count }
+                const slug = String(data.colleague_id);
+                if (!INITIAL_CONVOS[slug]) INITIAL_CONVOS[slug] = {};
+                INITIAL_CONVOS[slug].last_message = data.last_message;
+                INITIAL_CONVOS[slug].last_message_from = data.last_message_from;
+                INITIAL_CONVOS[slug].last_message_ts = data.last_message_ts;
+
+                // Only update unread if not the active conversation
+                if (activeSlug !== slug) {
+                    INITIAL_CONVOS[slug].unread_count = data.unread_count || 0;
+                }
+
+                const prevEl = document.getElementById('preview-' + slug);
+                if (prevEl) {
+                    prevEl.textContent = (data.last_message_from === 'self' ? 'You: ' : '') + (data.last_message || '');
+                }
+                const timeEl = document.getElementById('time-' + slug);
+                if (timeEl && data.last_message_ts) timeEl.textContent = fmtTime(new Date(data.last_message_ts));
+
+                // Badge
+                const badgeEl = document.getElementById('badge-' + slug);
+                if (badgeEl) {
+                    const unread = (activeSlug === slug) ? 0 : (data.unread_count || 0);
+                    if (unread > 0) {
+                        badgeEl.textContent = unread;
+                        badgeEl.style.display = 'inline-flex';
+                    } else {
+                        badgeEl.style.display = 'none';
+                    }
+                }
+            });
+
+            // ── Unread count push update ─────────────────────────────────────
+            socket.on('messaging:unread_updated', (data) => {
+                // Global unread badge — update nav-messages-badge if present
+                const navBadge = document.getElementById('nav-messages-badge');
+                if (navBadge && typeof data.unread_count === 'number') {
+                    if (data.unread_count > 0) {
+                        navBadge.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+                        navBadge.style.display = 'inline-flex';
+                    } else {
+                        navBadge.style.display = 'none';
+                    }
+                }
+            });
+
+            // ── Read-state update: our sent messages turn to triple tick ─────
+            socket.on('messaging:read_updated', (data) => {
+                // data = { conversation_id, read_by_id, read_at }
+                // Find the colleague slug from conversation_id
+                const slug = Object.keys(convos).find(s => {
+                    const msgs = convos[s] || [];
+                    return msgs.some(m => m.id && true); // We match by active conversation
+                });
+
+                // Simpler: if our active conversation is with read_by_id
+                const readBySlug = String(data.read_by_id);
+                if (activeSlug === readBySlug) {
+                    // Reload the conversation to refresh tick statuses
+                    loadHistory(activeSlug);
+                } else if (convos[readBySlug] && convos[readBySlug].length > 0) {
+                    // Update in cache and re-render if opened
+                    convos[readBySlug].forEach(m => {
+                        if (m.from === 'self') m.status = 'read';
+                    });
+                }
+            });
+
+            // ── Message status confirmation (sender's tick upgrade) ──────────
+            socket.on('messaging:message_status', (data) => {
+                // data = { id, conversation_id, status }
+                // Update the cached message status
+                Object.keys(convos).forEach(slug => {
+                    const msg = (convos[slug] || []).find(m => m.id === data.id);
+                    if (msg) {
+                        msg.status = data.status;
+                        // If this slug is the active conversation, re-render
+                        if (activeSlug === slug) {
+                            // Find the receipt icon by data-msg-id and update it
+                            const el = historyStream.querySelector(`[data-msg-id="${data.id}"]`);
+                            if (el) {
+                                const newReceipt = createReceiptElement(data.status, data.id);
+                                el.replaceWith(newReceipt);
+                            }
+                        }
+                    }
+                });
+            });
+
+            // ── Resync request from server ───────────────────────────────────
+            socket.on('messaging:resync_required', () => {
+                // Re-fetch conversation list and active history from REST API
+                if (activeSlug) loadHistory(activeSlug);
+                pollSync();
+            });
+        })();
+
+    }) ();
+    </script>
+
+</body>
+
+</html>

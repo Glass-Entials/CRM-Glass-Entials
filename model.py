@@ -2628,3 +2628,162 @@ class SaaSWebhookEvent(db.Model):
 
     def __repr__(self):
         return f"<SaaSWebhookEvent {self.event_id} type={self.event_type}>"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 2: Internal Employee Messaging — Persistent DB-backed models
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Conversation(db.Model):
+    """
+    A private direct-message conversation between two employees in the same org.
+
+    Design decisions:
+    - Scoped to organization_id to enforce tenant isolation.
+    - conversation_type reserved for future group chats (currently always 'direct').
+    - last_message_at is denormalised and updated on each new message for
+      efficient sidebar sorting without an aggregate query.
+    - The uniqueness of the two-participant pair is enforced by a unique
+      constraint on ConversationMember (handled with get_or_create logic in
+      the API with ON DUPLICATE KEY / exception handling for concurrency safety).
+    """
+    __tablename__ = "msg_conversation"
+
+    id              = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"),
+                                nullable=False, index=True)
+    conversation_type = db.Column(db.String(20), nullable=False, default="direct",
+                                  server_default="direct")
+    created_at      = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at      = db.Column(db.DateTime, default=datetime.utcnow,
+                                onupdate=datetime.utcnow)
+    last_message_at = db.Column(db.DateTime, nullable=True, index=True)
+
+    organization = db.relationship("Organization",
+                                   backref=db.backref("msg_conversations", lazy="dynamic"))
+    members      = db.relationship("ConversationMember", back_populates="conversation",
+                                   cascade="all, delete-orphan")
+    messages     = db.relationship("Message", back_populates="conversation",
+                                   lazy="dynamic", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        db.Index("ix_msg_conv_org_last", "organization_id", "last_message_at"),
+    )
+
+    def __repr__(self):
+        return f"<Conversation id={self.id} org={self.organization_id}>"
+
+
+class ConversationMember(db.Model):
+    """
+    Tracks participants in a conversation and their last-read state.
+
+    - One row per (conversation, employee) pair.
+    - last_read_at: the timestamp up to which this member has read messages.
+      Used to compute per-member unread counts.
+    - UniqueConstraint on (conversation_id, employee_id) prevents duplicate
+      membership rows.
+    """
+    __tablename__ = "msg_conversation_member"
+
+    id              = db.Column(db.Integer, primary_key=True)
+    conversation_id = db.Column(db.Integer, db.ForeignKey("msg_conversation.id"),
+                                nullable=False, index=True)
+    employee_id     = db.Column(db.Integer, db.ForeignKey("employee.id"),
+                                nullable=False, index=True)
+    joined_at       = db.Column(db.DateTime, default=datetime.utcnow)
+    # last_read_at: nullable — NULL means user has never explicitly read this chat
+    last_read_at    = db.Column(db.DateTime, nullable=True)
+    # last_delivered_at: nullable — timestamp when user polled or loaded messages
+    last_delivered_at = db.Column(db.DateTime, nullable=True)
+
+    conversation = db.relationship("Conversation", back_populates="members")
+    employee     = db.relationship("Employee",
+                                   backref=db.backref("msg_memberships", lazy="dynamic"))
+
+    __table_args__ = (
+        db.UniqueConstraint("conversation_id", "employee_id",
+                            name="uq_msg_conv_member"),
+        db.Index("ix_msg_conv_member_emp", "employee_id", "conversation_id"),
+    )
+
+    def __repr__(self):
+        return f"<ConversationMember conv={self.conversation_id} emp={self.employee_id}>"
+
+
+class Message(db.Model):
+    """
+    A single persisted message in a conversation.
+
+    Security notes:
+    - sender_employee_id is derived server-side from current_user.employee.id;
+      clients cannot supply it.
+    - body is stored as plain text; rendering is done with textContent (not innerHTML)
+      in the frontend, and Jinja2 templates escape it by default.
+    - Indexes on (conversation_id, created_at) for efficient paginated history queries.
+    """
+    __tablename__ = "msg_message"
+
+    id                 = db.Column(db.Integer, primary_key=True)
+    conversation_id    = db.Column(db.Integer, db.ForeignKey("msg_conversation.id"),
+                                   nullable=False, index=True)
+    sender_employee_id = db.Column(db.Integer, db.ForeignKey("employee.id"),
+                                   nullable=False, index=True)
+    body               = db.Column(db.Text, nullable=False)
+    created_at         = db.Column(db.DateTime, default=datetime.utcnow)
+    # updated_at reserved for future message-edit support
+    updated_at         = db.Column(db.DateTime, nullable=True)
+    attachment_url     = db.Column(db.String(500), nullable=True)
+    attachment_name    = db.Column(db.String(255), nullable=True)
+    attachment_type    = db.Column(db.String(100), nullable=True)
+    attachment_size    = db.Column(db.Integer, nullable=True)
+
+    conversation = db.relationship("Conversation", back_populates="messages")
+    sender       = db.relationship("Employee",
+                                   foreign_keys=[sender_employee_id],
+                                   backref=db.backref("sent_messages", lazy="dynamic"))
+
+    __table_args__ = (
+        # Primary query pattern: messages for a conversation in chronological order
+        db.Index("ix_msg_message_conv_created", "conversation_id", "created_at"),
+    )
+
+    def to_dict(self, current_employee_id=None, recipient_member=None):
+        """Minimal safe serialisation for API responses with tick status (sent, delivered, read)."""
+        is_self = (self.sender_employee_id == current_employee_id)
+        status = "sent"
+        if is_self and recipient_member:
+            if recipient_member.last_read_at and recipient_member.last_read_at >= self.created_at:
+                status = "read"
+            elif recipient_member.last_delivered_at and recipient_member.last_delivered_at >= self.created_at:
+                status = "delivered"
+            else:
+                status = "sent"
+
+        attachment = None
+        if self.attachment_url:
+            is_img = bool(self.attachment_type and self.attachment_type.startswith("image/"))
+            attachment = {
+                "url": self.attachment_url,
+                "name": self.attachment_name or "attachment",
+                "type": self.attachment_type or "",
+                "size": self.attachment_size or 0,
+                "is_image": is_img,
+            }
+
+        return {
+            "id":              self.id,
+            "from":            "self" if is_self else "other",
+            "sender_id":       self.sender_employee_id,
+            "text":            self.body,          # plain text — never HTML
+            "ts":              self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "status":          status,
+            "attachment":      attachment,
+            "attachment_url":  self.attachment_url,
+            "attachment_name": self.attachment_name,
+            "attachment_type": self.attachment_type,
+            "attachment_size": self.attachment_size,
+        }
+
+    def __repr__(self):
+        return f"<Message id={self.id} conv={self.conversation_id}>"
