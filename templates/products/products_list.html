@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -308,7 +308,6 @@
                                 <a href="{{ url_for('products.edit_product', product_id=product.id) }}">
                                     <span class="icon">✏️</span> Edit
                                 </a>
-                                {% if current_user.role.value in ['admin', 'manager'] %}
                                 <form action="{{ url_for('products.delete_product', product_id=product.id) }}" method="POST"
                                       onsubmit="openConfirmModal(event, this, \'Delete this product?\')">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -316,7 +315,6 @@
                                         <span class="icon">🗑</span> Delete
                                     </button>
                                 </form>
-                                {% endif %}
                             </div>
                         </div>
                     </td>
