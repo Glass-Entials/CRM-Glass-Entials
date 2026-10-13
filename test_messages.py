@@ -170,6 +170,13 @@ class TestNavbarTemplate:
             "Navbar .messages-icon element not found"
         )
 
+    def test_navbar_has_message_floating_notification(self):
+        """Navbar must include floating notification toast handler for direct messages."""
+        content = self._get_navbar_content()
+        assert "spawnMessageToast" in content
+        assert "realtime-toast-message" in content
+        assert "messaging:new_message" in content
+
 
 # ── Tests: Messages Template Content ─────────────────────────────────────────
 

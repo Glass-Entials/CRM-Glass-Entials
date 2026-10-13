@@ -932,6 +932,7 @@
             }
 
             activeSlug = emp.slug;
+            window.activeSlug = emp.slug;
             activeEmpObj = emp;
 
             // Reset typing indicators
@@ -1062,6 +1063,18 @@
             });
         }
         attachRowHandlers();
+
+        // ── Auto-Open Conversation from URL Parameter (e.g. from Toast Click) ─
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetSlug = urlParams.get('user') || urlParams.get('colleague');
+            if (targetSlug) {
+                const targetEmp = COLLEAGUES.find(e => String(e.slug) === String(targetSlug));
+                if (targetEmp) {
+                    openConvo(targetEmp);
+                }
+            }
+        } catch (_) {}
 
         // ── Search & Filter ───────────────────────────────────────────
         let activeFilter = 'all';
@@ -1512,6 +1525,7 @@
         backBtn.addEventListener('click', () => {
             shell.classList.remove('convo-open');
             activeSlug = null;
+            window.activeSlug = null;
             activeEmpObj = null;
 
             welcome.style.display = 'flex';

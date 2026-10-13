@@ -215,6 +215,17 @@
 </header>
 
 <!-- Real-time notifications container -->
+<style>
+    .realtime-toast-message {
+        border-left: 4px solid #0284c7 !important;
+        cursor: pointer;
+        transition: all 0.35s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.2s ease, box-shadow 0.2s ease !important;
+    }
+    .realtime-toast-message:hover {
+        transform: translateY(-2px) scale(1.015) !important;
+        box-shadow: 0 14px 35px rgba(0, 0, 0, 0.2) !important;
+    }
+</style>
 <div id="realtime-toast-container"></div>
 
 <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
@@ -398,6 +409,124 @@
             }
         });
 
+        // ── Floating Notification for Direct Messages ───────────────
+        function spawnMessageToast(msgData) {
+            const container = document.getElementById('realtime-toast-container');
+            if (!container) return;
+
+            // If user is currently on /messages and actively chatting with this sender, skip popup
+            if (window.location.pathname.startsWith('/messages') && window.activeSlug === String(msgData.sender_id)) {
+                return;
+            }
+
+            // Play notification audio chime
+            try {
+                notifSound.play().catch(e => console.log('[Msg] Audio blocked:', e));
+            } catch (_) {}
+
+            // Desktop push notification if allowed
+            if ("Notification" in window && Notification.permission === "granted") {
+                try {
+                    const iconUrl = "{{ url_for('static', filename='img/logo.png', _external=True) }}";
+                    const senderTitle = msgData.sender_name || 'New Message';
+                    let previewBody = msgData.text || '';
+                    if (!previewBody && msgData.attachment_name) {
+                        previewBody = '📎 ' + msgData.attachment_name;
+                    } else if (!previewBody) {
+                        previewBody = 'Sent an attachment';
+                    }
+                    const n = new Notification(senderTitle, {
+                        body: previewBody,
+                        icon: iconUrl,
+                        tag: 'crm-msg-' + (msgData.id || Date.now()),
+                        renotify: true,
+                    });
+                    n.onclick = () => {
+                        window.focus();
+                        window.location.href = "{{ url_for('messages.messages_page') }}" + (msgData.sender_id ? ('?user=' + msgData.sender_id) : '');
+                    };
+                } catch (e) {
+                    console.error('[Msg] Desktop notification failed:', e);
+                }
+            }
+
+            const toast = document.createElement('div');
+            toast.className = 'realtime-toast realtime-toast-message';
+            toast.onclick = () => {
+                window.location.href = "{{ url_for('messages.messages_page') }}" + (msgData.sender_id ? ('?user=' + msgData.sender_id) : '');
+            };
+
+            const sender = msgData.sender_name || 'Colleague';
+            let preview = msgData.text || '';
+            if (!preview && msgData.attachment_name) {
+                preview = '📎 ' + msgData.attachment_name;
+            } else if (!preview) {
+                preview = 'Sent an attachment';
+            }
+            if (preview.length > 85) {
+                preview = preview.slice(0, 82) + '...';
+            }
+
+            const time = msgData.ts ? new Date(msgData.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const titleEl = document.createElement('div');
+            titleEl.className = 'realtime-toast-title';
+            titleEl.style.cssText = 'display: flex; align-items: center; justify-content: space-between;';
+
+            const titleLeft = document.createElement('div');
+            titleLeft.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+
+            const iconSpan = document.createElement('span');
+            iconSpan.textContent = '💬';
+            iconSpan.style.fontSize = '1.15rem';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = sender;
+            nameSpan.style.fontWeight = '700';
+            nameSpan.style.color = 'var(--primary-color, #0d1b2a)';
+
+            titleLeft.appendChild(iconSpan);
+            titleLeft.appendChild(nameSpan);
+
+            const badgeSpan = document.createElement('span');
+            badgeSpan.textContent = 'Message';
+            badgeSpan.style.cssText = 'font-size: 0.7rem; background: rgba(2, 132, 199, 0.12); color: #0284c7; font-weight: 600; padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(2, 132, 199, 0.25);';
+
+            titleEl.appendChild(titleLeft);
+            titleEl.appendChild(badgeSpan);
+
+            const msgEl = document.createElement('div');
+            msgEl.className = 'realtime-toast-msg';
+            msgEl.textContent = preview;
+            msgEl.style.cssText = 'color: #334155; font-size: 0.88rem; line-height: 1.4;';
+
+            const footerEl = document.createElement('div');
+            footerEl.className = 'realtime-toast-time';
+            footerEl.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 4px;';
+
+            const replyHint = document.createElement('span');
+            replyHint.textContent = 'Click to reply →';
+            replyHint.style.cssText = 'color: #0284c7; font-size: 0.74rem; font-weight: 600;';
+
+            const timeSpan = document.createElement('span');
+            timeSpan.textContent = time;
+
+            footerEl.appendChild(replyHint);
+            footerEl.appendChild(timeSpan);
+
+            toast.appendChild(titleEl);
+            toast.appendChild(msgEl);
+            toast.appendChild(footerEl);
+
+            container.appendChild(toast);
+
+            setTimeout(() => { toast.classList.add('show'); }, 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, 6000);
+        }
+
         socket.on('messaging:new_message', (data) => {
             // Update badge globally when new message arrives
             fetch("{{ url_for('messages.total_unread_count') }}")
@@ -408,6 +537,11 @@
                     }
                 })
                 .catch(() => { });
+
+            // Show floating notification in CRM
+            if (data) {
+                spawnMessageToast(data);
+            }
         });
 
         // Clean up socket on page unload — prevents stale connections from
