@@ -157,19 +157,31 @@
                             <td class="customer-city">{{ customer.city or '—' }}</td>
                             <td>{{ customer.company or '—' }}</td>
                             <td>
-                                {% set active_stages = ['Completed', 'Installation Done', 'Installation Scheduled', 'Ready for Dispatch', 'In Production', 'Order Confirmed'] %}
-                                {% set warning_stages = ['Requirement Understood', 'Measurement Scheduled', 'Quotation Sent', 'Follow Up'] %}
-                                
-                                {% if customer.status_display in active_stages %}
-                                <span class="status-badge status-active">{{ customer.status_display }}</span>
-                                {% elif customer.status_display == 'Cancelled' %}
-                                <span class="status-badge" style="background: rgba(220, 53, 69, 0.08); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2);">{{ customer.status_display }}</span>
-                                {% elif customer.status_display in warning_stages %}
-                                <span class="status-badge" style="color: #b45309; background: #fffbeb; border: 1px solid #fde68a;">{{ customer.status_display }}</span>
+                                {% set s = customer.status_display %}
+                                {% if s in ['Completed', 'Installation Done', 'Installation Scheduled', 'Ready for Dispatch', 'In Production', 'Order Confirmed'] %}
+                                  {% set sc = 'cs-active' %}
+                                {% elif s == 'Cancelled' %}
+                                  {% set sc = 'cs-cancelled' %}
+                                {% elif s in ['Requirement Understood', 'Measurement Scheduled', 'Quotation Sent', 'Follow Up'] %}
+                                  {% set sc = 'cs-warning' %}
                                 {% else %}
-                                <span class="status-badge status-pending">{{ customer.status_display }}</span>
+                                  {% set sc = 'cs-new' %}
                                 {% endif %}
-                                <span class="raw-status" style="display:none;">{{ customer.status_display }}</span>
+                                <div class="cs-wrap" data-customer-id="{{ customer.id }}">
+                                    <button class="cs-badge {{ sc }}" type="button"
+                                            onclick="toggleCsDropdown(this)" title="Click to change status">
+                                        {{ s }} <span class="cs-arrow">▾</span>
+                                    </button>
+                                    <div class="cs-dropdown" style="display:none;">
+                                        {% for status in ['New','Requirement Understood','Measurement Scheduled','Quotation Sent','Follow Up','Order Confirmed','In Production','Ready for Dispatch','Installation Scheduled','Installation Done','Completed','Cancelled'] %}
+                                        <div class="cs-option {% if status == s %}cs-option-active{% endif %}"
+                                             onclick="setCustomerStatus(this, '{{ status }}')">
+                                            {{ status }}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <span class="raw-status" style="display:none;">{{ s }}</span>
                             </td>
                             <td class="customer-assignee">
                                 {% if customer.assignee %}
@@ -259,6 +271,42 @@
             </div>
         </div>
     </main>
+
+    <!-- Inline status CSS -->
+    <style>
+        .cs-wrap { position: relative; display: inline-block; }
+        .cs-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: .35rem .85rem; border-radius: 20px;
+            font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+            border: 1.5px solid transparent; cursor: pointer;
+            transition: all .2s ease; white-space: nowrap;
+            font-family: var(--font-body);
+        }
+        .cs-badge:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.12); }
+        .cs-arrow { font-size: .6rem; opacity: .7; }
+        /* status colors */
+        .cs-new       { background: rgba(249,115,22,.1);  color: #c2410c; border-color: rgba(249,115,22,.25); }
+        .cs-active    { background: rgba(16,185,129,.1);  color: #059669; border-color: rgba(16,185,129,.25); }
+        .cs-warning   { background: #fffbeb;              color: #b45309; border-color: #fde68a; }
+        .cs-cancelled { background: rgba(220,53,69,.08);  color: #dc3545; border-color: rgba(220,53,69,.2); }
+        /* dropdown */
+        .cs-dropdown {
+            position: absolute; top: calc(100% + 6px); left: 0; z-index: 9999;
+            background: #fff; border: 1px solid rgba(13,27,42,.1);
+            border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.12);
+            min-width: 190px; overflow: hidden;
+            animation: csFadeIn .15s ease;
+        }
+        @keyframes csFadeIn { from { opacity:0; transform: translateY(-4px); } to { opacity:1; transform: translateY(0); } }
+        .cs-option {
+            padding: .55rem 1rem; font-size: .82rem; font-weight: 500;
+            color: var(--primary-color); cursor: pointer;
+            transition: background .15s;
+        }
+        .cs-option:hover { background: rgba(212,175,55,.08); }
+        .cs-option-active { background: rgba(13,27,42,.04); font-weight: 700; }
+    </style>
 
     <!-- Custom Delete Customer Modal -->
     <div id="deleteCustomerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
@@ -351,6 +399,62 @@
             urlParams.set('page', 1); // Reset to first page
             window.location.search = urlParams.toString();
         }
+
+        /* ── Inline customer status ── */
+        function toggleCsDropdown(btn) {
+            const wrap = btn.closest('.cs-wrap');
+            const dd   = wrap.querySelector('.cs-dropdown');
+            const isOpen = dd.style.display !== 'none';
+            // close all others first
+            document.querySelectorAll('.cs-dropdown').forEach(d => d.style.display = 'none');
+            dd.style.display = isOpen ? 'none' : 'block';
+        }
+
+        function setCustomerStatus(optionEl, newStatus) {
+            const wrap  = optionEl.closest('.cs-wrap');
+            const dd    = wrap.querySelector('.cs-dropdown');
+            const btn   = wrap.querySelector('.cs-badge');
+            const rawEl = wrap.closest('td').querySelector('.raw-status');
+            const customerId = wrap.dataset.customerId;
+
+            const activeStatuses   = ['Completed','Installation Done','Installation Scheduled','Ready for Dispatch','In Production','Order Confirmed'];
+            const warningStatuses  = ['Requirement Understood','Measurement Scheduled','Quotation Sent','Follow Up'];
+            const cancelledStatus  = 'Cancelled';
+
+            fetch(`/customer/${customerId}/quick-status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                body: JSON.stringify({ status: newStatus })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    // update badge text
+                    btn.childNodes[0].textContent = newStatus + ' ';
+                    // update badge color class
+                    btn.classList.remove('cs-new','cs-active','cs-warning','cs-cancelled');
+                    if (activeStatuses.includes(newStatus))        btn.classList.add('cs-active');
+                    else if (newStatus === cancelledStatus)        btn.classList.add('cs-cancelled');
+                    else if (warningStatuses.includes(newStatus))  btn.classList.add('cs-warning');
+                    else                                           btn.classList.add('cs-new');
+                    // update hidden raw-status for filter
+                    if (rawEl) rawEl.textContent = newStatus;
+                    // update active highlight inside dropdown
+                    wrap.querySelectorAll('.cs-option').forEach(o => {
+                        o.classList.toggle('cs-option-active', o.textContent.trim() === newStatus);
+                    });
+                }
+                dd.style.display = 'none';
+            })
+            .catch(() => { dd.style.display = 'none'; });
+        }
+
+        // close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.cs-wrap')) {
+                document.querySelectorAll('.cs-dropdown').forEach(d => d.style.display = 'none');
+            }
+        });
     </script>
 </body>
 

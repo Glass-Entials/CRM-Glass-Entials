@@ -10,6 +10,7 @@ from flask import (
     Response,
     send_file,
     current_app,
+    jsonify,
 )
 from flask_login import login_required, current_user
 from model import db, Customer, Employee, LeadSource, CustomerStatus, CustomerDocument
@@ -72,6 +73,29 @@ def customers_list():
         CustomerStatus=CustomerStatus,
         per_page=per_page
     )
+
+
+@customers_bp.route("/customer/<int:customer_id>/quick-status", methods=["POST"])
+@login_required
+def quick_status_update(customer_id):
+    customer = tenant_record_id(Customer, customer_id)
+    if not customer:
+        return jsonify({"success": False, "error": "Customer not found"}), 404
+    new_status_val = request.json.get("status", "").strip()
+    status_map = {e.value: e for e in CustomerStatus}
+    if new_status_val not in status_map:
+        return jsonify({"success": False, "error": "Invalid status"}), 400
+    old_status = customer.status_display
+    customer.status = status_map[new_status_val]
+    customer.updated_at = datetime.utcnow()
+    db.session.commit()
+    log_activity(
+        entity_type="Customer",
+        entity_id=customer_id,
+        action="updated",
+        changes=build_changes({"status": old_status}, {"status": new_status_val}),
+    )
+    return jsonify({"success": True, "new_status": new_status_val})
 
 
 @customers_bp.route("/export-customers/<string:format>")
