@@ -198,6 +198,43 @@ class PaymentMode(Enum):
     CARD         = "Card"
 
 
+# ---------------------------------------------------------------------------
+# Organisation Customer Module Enums  (CRM entity — NOT the SaaS tenant)
+# ---------------------------------------------------------------------------
+
+class OrgCustomerStatus(Enum):
+    ACTIVE   = "Active"
+    INACTIVE = "Inactive"
+
+
+class OrgCustomerCoverageType(Enum):
+    PAN_INDIA      = "Pan India"
+    SELECTED_CITIES = "Selected Cities"
+
+
+class OrgCustomerType(Enum):
+    ARCHITECT_FIRM     = "Architect Firm"
+    BUILDER_DEVELOPER  = "Builder / Developer"
+    CONTRACTOR         = "Contractor"
+    CORPORATE          = "Corporate"
+    GOVERNMENT         = "Government"
+    HOTEL_HOSPITALITY  = "Hotel / Hospitality"
+    INTERIOR_DESIGNER  = "Interior Designer"
+    MANUFACTURING      = "Manufacturing"
+    RETAIL             = "Retail"
+    OTHER              = "Other"
+
+
+class OrgCustomerMemberRole(Enum):
+    OWNER              = "Owner / Director"
+    PURCHASE_MANAGER   = "Purchase Manager"
+    ACCOUNTS_MANAGER   = "Accounts Manager"
+    PROJECT_MANAGER    = "Project Manager"
+    ARCHITECT_CONSULTANT = "Architect / Consultant"
+    DECISION_MAKER     = "Decision Maker"
+    OTHER              = "Other"
+
+
 class OrganizationStatus(Enum):
     PENDING   = "pending"     # Awaiting SaaS payment
     ACTIVE    = "active"
@@ -952,7 +989,7 @@ class Task(db.Model):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
-    is_deleted = db.Column(db.Boolean, default=False)
+    is_deleted = db.Column(db.Boolean, default=False, server_default=db.text('0'))
     deleted_at = db.Column(db.DateTime, nullable=True)
     deleted_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
 
@@ -1128,9 +1165,17 @@ class Project(db.Model):
         db.Integer, db.ForeignKey("organization.id"), nullable=True, index=True
     )
 
-    # Optional link to customer
+    # Optional link to individual customer
     customer_id = db.Column(
         db.Integer, db.ForeignKey("customer.id"), nullable=True, index=True
+    )
+
+    # Optional link to org customer + responsible member
+    org_customer_id = db.Column(
+        db.Integer, db.ForeignKey("org_customer.id"), nullable=True, index=True
+    )
+    org_customer_member_id = db.Column(
+        db.Integer, db.ForeignKey("org_customer_member.id"), nullable=True, index=True
     )
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -1157,6 +1202,16 @@ class Project(db.Model):
     # Relationships
     customer = db.relationship(
         "Customer", backref=db.backref("projects", lazy="dynamic")
+    )
+    org_customer = db.relationship(
+        "OrgCustomer",
+        foreign_keys=[org_customer_id],
+        backref=db.backref("projects", lazy="dynamic"),
+    )
+    org_customer_member = db.relationship(
+        "OrgCustomerMember",
+        foreign_keys=[org_customer_member_id],
+        backref=db.backref("projects", lazy="dynamic"),
     )
     assignee = db.relationship(
         "Employee", foreign_keys=[assigned_to], backref="assigned_projects"
@@ -2787,3 +2842,232 @@ class Message(db.Model):
 
     def __repr__(self):
         return f"<Message id={self.id} conv={self.conversation_id}>"
+
+
+# ---------------------------------------------------------------------------
+# Organisation Customer Module  (CRM entity — NOT the SaaS tenant org)
+# ---------------------------------------------------------------------------
+
+class OrgCustomer(db.Model):
+    """A business/organisation that is a customer of GlassEntials."""
+    __tablename__ = "org_customer"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Code — auto-generated, human-readable, e.g. ORG-00042
+    code = db.Column(db.String(20), nullable=True, index=True)
+
+    # Identity
+    name = db.Column(db.String(150), nullable=False, index=True)
+    legal_name = db.Column(db.String(200), nullable=True)
+    org_type = db.Column(
+        db.Enum(OrgCustomerType, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+    )
+    website = db.Column(db.String(255), nullable=True)
+    industry = db.Column(db.String(100), nullable=True)
+
+    # Compliance
+    gstin = db.Column(db.String(15), nullable=True, index=True)
+    pan = db.Column(db.String(10), nullable=True)
+
+    # Address
+    address = db.Column(db.String(300), nullable=True)
+    city = db.Column(db.String(100), nullable=True)
+    state = db.Column(db.String(100), nullable=True)
+    pincode = db.Column(db.String(10), nullable=True)
+    country = db.Column(db.String(100), nullable=True, default="India")
+
+    # Primary contact (denormalised for quick display)
+    primary_phone = db.Column(db.String(20), nullable=True)
+    primary_email = db.Column(db.String(120), nullable=True)
+
+    # Coverage
+    coverage_type = db.Column(
+        db.Enum(OrgCustomerCoverageType, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=OrgCustomerCoverageType.PAN_INDIA,
+        index=True,
+    )
+
+    # Status & notes
+    status = db.Column(
+        db.Enum(OrgCustomerStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=OrgCustomerStatus.ACTIVE,
+        index=True,
+    )
+    notes = db.Column(db.Text, nullable=True)
+
+    # Multi-tenant
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
+    )
+
+    # Audit
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
+    updated_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
+
+    # Relationships
+    tenant_org = db.relationship(
+        "Organization",
+        foreign_keys=[organization_id],
+        backref=db.backref("org_customers", lazy="dynamic"),
+    )
+    creator = db.relationship("Employee", foreign_keys=[created_by], backref="org_customers_created")
+    updater = db.relationship("Employee", foreign_keys=[updated_by], backref="org_customers_updated")
+    members = db.relationship(
+        "OrgCustomerMember",
+        backref="org_customer",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+        foreign_keys="OrgCustomerMember.org_customer_id",
+    )
+    cities = db.relationship(
+        "OrgCustomerCity",
+        backref="org_customer",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        db.Index("ix_org_customer_org_name", "organization_id", "name"),
+    )
+
+    @property
+    def status_display(self):
+        return self.status.value if self.status else ""
+
+    @property
+    def coverage_display(self):
+        return self.coverage_type.value if self.coverage_type else ""
+
+    @property
+    def org_type_display(self):
+        return self.org_type.value if self.org_type else ""
+
+    @property
+    def primary_contact(self):
+        """Return the primary member, or first active member."""
+        m = self.members.filter_by(is_primary=True, is_active=True, is_deleted=False).first()
+        if not m:
+            m = self.members.filter_by(is_active=True, is_deleted=False).first()
+        return m
+
+    @property
+    def member_count(self):
+        return self.members.filter_by(is_active=True, is_deleted=False).count()
+
+    @property
+    def project_count(self):
+        return self.projects.filter_by(is_deleted=False).count()
+
+    @property
+    def primary_member(self):
+        return self.primary_contact
+
+    @property
+    def active_members_count(self):
+        return self.member_count
+
+    @property
+    def projects_count(self):
+        return self.project_count
+
+    @property
+    def city_names(self):
+        return [c.city for c in self.cities]
+
+    @property
+    def phone(self):
+        return self.primary_phone
+
+    @property
+    def email(self):
+        return self.primary_email
+
+    @property
+    def address_line1(self):
+        return self.address
+
+    @property
+    def address_line2(self):
+        return ""
+
+    def __repr__(self):
+        return f"<OrgCustomer {self.name}>"
+
+
+class OrgCustomerCity(db.Model):
+    """Normalised city coverage for an OrgCustomer (Selected Cities mode)."""
+    __tablename__ = "org_customer_city"
+
+    id = db.Column(db.Integer, primary_key=True)
+    org_customer_id = db.Column(
+        db.Integer, db.ForeignKey("org_customer.id"), nullable=False, index=True
+    )
+    city = db.Column(db.String(100), nullable=False)
+    state = db.Column(db.String(100), nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint("org_customer_id", "city", name="uq_org_customer_city"),
+    )
+
+    def __repr__(self):
+        return f"<OrgCustomerCity {self.city} for OrgCustomer {self.org_customer_id}>"
+
+
+class OrgCustomerMember(db.Model):
+    """A contact / decision-maker inside an OrgCustomer."""
+    __tablename__ = "org_customer_member"
+
+    id = db.Column(db.Integer, primary_key=True)
+    org_customer_id = db.Column(
+        db.Integer, db.ForeignKey("org_customer.id"), nullable=False, index=True
+    )
+
+    # Identity
+    name = db.Column(db.String(100), nullable=False)
+    mobile = db.Column(db.String(20), nullable=True)
+    email = db.Column(db.String(120), nullable=True)
+    designation = db.Column(db.String(100), nullable=True)
+    department = db.Column(db.String(100), nullable=True)
+    role = db.Column(
+        db.Enum(OrgCustomerMemberRole, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+    )
+    notes = db.Column(db.Text, nullable=True)
+
+    # Flags
+    is_primary = db.Column(db.Boolean, default=False, index=True)
+    is_active = db.Column(db.Boolean, default=True, index=True)
+    is_deleted = db.Column(db.Boolean, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+
+    # Multi-tenant for fast filtering
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
+    )
+
+    # Audit
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
+
+    # Relationships
+    creator = db.relationship("Employee", foreign_keys=[created_by], backref="org_members_created")
+
+    __table_args__ = (
+        db.Index("ix_org_customer_member_org", "organization_id", "org_customer_id"),
+    )
+
+    @property
+    def role_display(self):
+        return self.role.value if self.role else ""
+
+    def __repr__(self):
+        return f"<OrgCustomerMember {self.name} in OrgCustomer {self.org_customer_id}>"

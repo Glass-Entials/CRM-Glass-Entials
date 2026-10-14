@@ -230,7 +230,11 @@
                     {% endif %}
                     {% if project.customer %}
                     <span class="hero-divider">|</span>
-                    <span class="hero-meta-item">🏢 {{ project.customer.name }}</span>
+                    <span class="hero-meta-item">👤 {{ project.customer.name }}</span>
+                    {% endif %}
+                    {% if project.org_customer %}
+                    <span class="hero-divider">|</span>
+                    <span class="hero-meta-item">🏢 <a href="{{ url_for('org_customers.org_customer_detail', oc_id=project.org_customer.id) }}" style="color: inherit; text-decoration: underline;">{{ project.org_customer.name }}</a>{% if project.org_customer_member %} ({{ project.org_customer_member.name }}){% endif %}</span>
                     {% endif %}
                 </div>
             </div>
@@ -269,9 +273,23 @@
                         </div>
 
                         <div class="info-row">
-                            <span class="info-label">Customer</span>
+                            <span class="info-label">Individual Customer</span>
                             {% if project.customer %}
                                 <a href="{{ url_for('customers.view_customer', customer_id=project.customer.id) }}" class="info-link info-value">{{ project.customer.name }}</a>
+                            {% else %}
+                                <span class="info-value" style="color: var(--text-muted); font-style: italic;">Not linked</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Organization Customer</span>
+                            {% if project.org_customer %}
+                                <a href="{{ url_for('org_customers.org_customer_detail', oc_id=project.org_customer.id) }}" class="info-link info-value">🏢 {{ project.org_customer.name }}</a>
+                                {% if project.org_customer_member %}
+                                <div style="font-size: 0.82rem; color: #64748b; margin-top: 4px;">
+                                    👤 Contact: <strong>{{ project.org_customer_member.name }}</strong> ({{ project.org_customer_member.designation or project.org_customer_member.role_display }})
+                                </div>
+                                {% endif %}
                             {% else %}
                                 <span class="info-value" style="color: var(--text-muted); font-style: italic;">Not linked</span>
                             {% endif %}

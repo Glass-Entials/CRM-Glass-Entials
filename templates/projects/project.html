@@ -154,7 +154,22 @@
                                 <span class="raw-category" style="display:none;">{{ project.category.value }}</span>
                                 {% else %}—{% endif %}
                             </td>
-                            <td>{{ project.customer.name if project.customer else '—' }}</td>
+                            <td>
+                                {% if project.org_customer %}
+                                <div style="font-weight: 600; color: var(--primary-color);">
+                                    🏢 {{ project.org_customer.name }}
+                                </div>
+                                {% if project.org_customer_member %}
+                                <div style="font-size: 0.78rem; color: #64748b;">
+                                    👤 {{ project.org_customer_member.name }}
+                                </div>
+                                {% endif %}
+                                {% elif project.customer %}
+                                👤 {{ project.customer.name }}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
                             <td>
                                 {% set active_stages = ['In Progress'] %}
                                 {% set warning_stages = ['On Hold'] %}

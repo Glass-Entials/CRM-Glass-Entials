@@ -18,8 +18,13 @@
     <nav class="dash-menu">
         <a href="{{ url_for('home_page') }}" {% if request.endpoint=='home_page' %}class="active" {% endif
             %}>Dashboard</a>
-        <a href="{{ url_for('customers.customers_list') }}" {% if request.blueprint=='customers' %}class="active" {%
-            endif %}>Customers</a>
+        <div class="dropdown">
+            <a href="#" {% if request.blueprint=='customers' or request.blueprint=='org_customers' %}class="active" {% endif %}>Customers ▾</a>
+            <div class="dropdown-content">
+                <a href="{{ url_for('customers.customers_list') }}">Individual Customers</a>
+                <a href="{{ url_for('org_customers.org_customers_list') }}">Organization Customers</a>
+            </div>
+        </div>
 
         <div class="dropdown">
             <a href="#" {% if request.blueprint=='leads' %}class="active" {% endif %}>Leads ▾</a>

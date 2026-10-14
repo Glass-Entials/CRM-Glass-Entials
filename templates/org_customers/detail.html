@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ oc.name }} | Organization Customer Profile</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .profile-container {
+            max-width: 1240px;
+            margin: 2rem auto;
+            padding: 0 20px;
+        }
+        .profile-header {
+            background: #fff;
+            padding: 2rem 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.02);
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-top: 5px solid var(--accent-gold);
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+        .profile-identity {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .identity-avatar {
+            width: 72px;
+            height: 72px;
+            background: rgba(212, 175, 55, 0.12);
+            color: #b89628;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 700;
+            font-family: var(--font-heading);
+            border: 1px solid rgba(212, 175, 55, 0.25);
+        }
+        .identity-text h1 {
+            font-size: 1.85rem;
+            margin: 0;
+            color: var(--primary-color);
+            font-family: var(--font-heading);
+        }
+        .identity-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+        .profile-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: #fff;
+            padding: 1.25rem 1.5rem;
+            border-radius: 10px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .stat-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.35rem;
+        }
+        .stat-icon.gold { background: rgba(212, 175, 55, 0.12); color: #b89628; }
+        .stat-icon.blue { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
+        .stat-icon.green { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+        .stat-icon.purple { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
+        .stat-val {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 0;
+        }
+        .stat-label {
+            font-size: 0.82rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0.25rem 0.65rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-active { background: #dcfce7; color: #166534; }
+        .badge-inactive { background: #fee2e2; color: #991b1b; }
+        .badge-pan-india { background: #e0e7ff; color: #3730a3; }
+        .badge-cities { background: #fef3c7; color: #92400e; }
+        .badge-type { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+        .badge-role { background: #eff6ff; color: #1e40af; }
+        .badge-primary-member { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+
+        /* Tabs */
+        .tabs-container {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.02);
+            overflow: hidden;
+        }
+        .tab-nav {
+            display: flex;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0 1rem;
+        }
+        .tab-btn {
+            padding: 1.1rem 1.75rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.92rem;
+            color: #64748b;
+            position: relative;
+            font-family: var(--font-body);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: color 0.2s;
+        }
+        .tab-btn:hover {
+            color: var(--primary-color);
+        }
+        .tab-btn.active {
+            color: var(--primary-color);
+        }
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent-gold);
+            border-radius: 3px 3px 0 0;
+        }
+        .tab-content {
+            display: none;
+            padding: 2rem;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        .info-card {
+            background: #fff;
+            border: 1px solid #f1f5f9;
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+        .info-card-title {
+            font-family: var(--font-heading);
+            font-size: 1.1rem;
+            color: var(--primary-color);
+            margin: 0 0 1.25rem;
+            padding-bottom: 0.6rem;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .info-row {
+            display: flex;
+            margin-bottom: 0.9rem;
+            font-size: 0.92rem;
+        }
+        .info-label {
+            width: 150px;
+            color: #64748b;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+        .info-value {
+            color: #1e293b;
+            font-weight: 600;
+            flex: 1;
+            word-break: break-word;
+        }
+        .city-pill {
+            display: inline-block;
+            background: #f1f5f9;
+            color: #334155;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            margin: 0 6px 6px 0;
+            border: 1px solid #e2e8f0;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-body);
+        }
+        .custom-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.9rem 1.25rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .custom-table td {
+            padding: 0.9rem 1.25rem;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.9rem;
+            color: #1e293b;
+            vertical-align: middle;
+        }
+        .custom-table tr:hover {
+            background: #fdfdfb;
+        }
+        .action-btn-sm {
+            padding: 0.35rem 0.65rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #334155;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+        .action-btn-sm:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+        }
+        .empty-placeholder {
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            color: #64748b;
+        }
+        @media (max-width: 768px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            .profile-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body class="dashboard-page">
+    {% include 'includes/navbar.html' %}
+
+    <main class="profile-container">
+        <!-- Flashes -->
+        {% with messages = get_flashed_messages(category_filter=["oc_success"]) %}
+        {% if messages %}
+        {% for message in messages %}
+        <div style="padding: 12px 16px; background-color: #dcfce7; border-left: 4px solid #10b981; color: #166534; display: flex; align-items: center; gap: 8px; margin-bottom: 1.5rem; border-radius: 6px; font-weight: 500;">
+            <span>✓</span> {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% with messages = get_flashed_messages(category_filter=["oc_error"]) %}
+        {% if messages %}
+        {% for message in messages %}
+        <div style="padding: 12px 16px; background-color: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; display: flex; align-items: center; gap: 8px; margin-bottom: 1.5rem; border-radius: 6px; font-weight: 500;">
+            <span>⚠</span> {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <!-- Header -->
+        <div class="profile-header">
+            <div class="profile-identity">
+                <div class="identity-avatar">
+                    {{ oc.name[:2]|upper }}
+                </div>
+                <div class="identity-text">
+                    <h1>{{ oc.name }}</h1>
+                    <div class="identity-meta">
+                        <code style="font-size: 0.85rem; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; color: #334155; font-weight: 600;">{{ oc.code }}</code>
+                        {% if oc.org_type %}
+                        <span class="badge badge-type">{{ oc.org_type_display }}</span>
+                        {% endif %}
+                        {% if oc.coverage_type.value == 'pan_india' %}
+                        <span class="badge badge-pan-india">🇮🇳 Pan India</span>
+                        {% else %}
+                        <span class="badge badge-cities">🏙 {{ cities|length }} Operational Cities</span>
+                        {% endif %}
+                        {% if oc.status.value == 'active' %}
+                        <span class="badge badge-active">● Active</span>
+                        {% else %}
+                        <span class="badge badge-inactive">● Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-actions">
+                <a href="{{ url_for('org_customers.org_customers_list') }}" class="btn-action outline" style="text-decoration: none;">
+                    ← All Organizations
+                </a>
+                <a href="{{ url_for('org_customers.edit_org_customer', oc_id=oc.id) }}" class="btn-action outline" style="text-decoration: none;">
+                    ✏ Edit Organization
+                </a>
+                <a href="{{ url_for('org_customers.add_member', oc_id=oc.id) }}" class="btn-action gold" style="text-decoration: none;">
+                    ➕ Add Member
+                </a>
+                <a href="{{ url_for('projects.add_project', org_customer_id=oc.id) }}" class="btn-action outline" style="text-decoration: none;">
+                    📁 New Project
+                </a>
+
+                <form method="POST" action="{{ url_for('org_customers.delete_org_customer', oc_id=oc.id) }}" onsubmit="return confirm('Are you sure you want to delete organization {{ oc.name }}? This action cannot be undone.');" style="display: inline; margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-action outline" style="color: #ef4444; border-color: #fca5a5; cursor: pointer;">
+                        🗑 Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Stats Overview Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon gold">👥</div>
+                <div>
+                    <h3 class="stat-val">{{ members|length }}</h3>
+                    <span class="stat-label">Total Members</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue">📁</div>
+                <div>
+                    <h3 class="stat-val">{{ projects|length }}</h3>
+                    <span class="stat-label">Linked Projects</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green">⭐</div>
+                <div>
+                    <h3 class="stat-val" style="font-size: 1.15rem; font-weight: 600;">
+                        {{ oc.primary_member.name if oc.primary_member else 'None' }}
+                    </h3>
+                    <span class="stat-label">Primary Contact</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon purple">🌐</div>
+                <div>
+                    <h3 class="stat-val" style="font-size: 1.15rem; font-weight: 600;">
+                        {{ 'Pan India' if oc.coverage_type.value == 'pan_india' else (cities|length ~ ' Cities') }}
+                    </h3>
+                    <span class="stat-label">Coverage Territory</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Container -->
+        <div class="tabs-container">
+            <div class="tab-nav">
+                <button class="tab-btn active" onclick="switchTab(event, 'overviewTab')">
+                    🏢 Overview
+                </button>
+                <button class="tab-btn" onclick="switchTab(event, 'membersTab')">
+                    👥 Members & Contacts ({{ members|length }})
+                </button>
+                <button class="tab-btn" onclick="switchTab(event, 'projectsTab')">
+                    📁 Projects ({{ projects|length }})
+                </button>
+                <button class="tab-btn" onclick="switchTab(event, 'quotationsTab')">
+                    📄 Quotations ({{ quotations|length }})
+                </button>
+            </div>
+
+            <!-- TAB 1: Overview -->
+            <div id="overviewTab" class="tab-content active">
+                <div class="info-grid">
+                    <!-- Column 1: Business Profile & Compliance -->
+                    <div class="info-card">
+                        <div class="info-card-title">
+                            <span>📄</span> Corporate & Compliance
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Organization Name:</span>
+                            <span class="info-value">{{ oc.name }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Legal Name:</span>
+                            <span class="info-value">{{ oc.legal_name or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Code:</span>
+                            <span class="info-value"><code>{{ oc.code }}</code></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Organization Type:</span>
+                            <span class="info-value">{{ oc.org_type_display or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Industry:</span>
+                            <span class="info-value">{{ oc.industry or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">GSTIN:</span>
+                            <span class="info-value">{{ oc.gstin or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">PAN:</span>
+                            <span class="info-value">{{ oc.pan or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Website:</span>
+                            <span class="info-value">
+                                {% if oc.website %}
+                                <a href="{{ oc.website }}" target="_blank" rel="noopener" style="color: #0284c7; text-decoration: none;">{{ oc.website }} ↗</a>
+                                {% else %}
+                                —
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Registered Date:</span>
+                            <span class="info-value">{{ oc.created_at.strftime('%d %b %Y') if oc.created_at else '—' }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Contact & Address & Coverage -->
+                    <div class="info-card">
+                        <div class="info-card-title">
+                            <span>📍</span> Head Office & Contact
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Phone:</span>
+                            <span class="info-value">{{ oc.phone or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Email:</span>
+                            <span class="info-value">{{ oc.email or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Address Line 1:</span>
+                            <span class="info-value">{{ oc.address_line1 or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Address Line 2:</span>
+                            <span class="info-value">{{ oc.address_line2 or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">City, State:</span>
+                            <span class="info-value">{{ oc.city or '' }}{% if oc.city and oc.state %}, {% endif %}{{ oc.state or '' }}{% if not oc.city and not oc.state %}—{% endif %}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Pincode:</span>
+                            <span class="info-value">{{ oc.pincode or '—' }}</span>
+                        </div>
+
+                        <!-- Coverage Box inside Info Card -->
+                        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #f1f5f9;">
+                            <div style="font-weight: 600; font-size: 0.88rem; color: #475569; margin-bottom: 8px;">
+                                🌐 Operational Territory:
+                            </div>
+                            {% if oc.coverage_type.value == 'pan_india' %}
+                            <div style="display: flex; align-items: center; gap: 8px; color: #3730a3; background: #e0e7ff; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.88rem;">
+                                <span>🇮🇳</span> Pan India Operations (All States & Cities)
+                            </div>
+                            {% else %}
+                            <div style="margin-bottom: 8px; font-size: 0.82rem; color: #64748b;">
+                                Specific cities covered ({{ cities|length }}):
+                            </div>
+                            <div>
+                                {% for c in cities %}
+                                <span class="city-pill">🏙 {{ c.city }}</span>
+                                {% else %}
+                                <span style="color: #94a3b8; font-size: 0.88rem;">No cities assigned yet.</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if oc.notes %}
+                <div style="margin-top: 1.5rem; background: #fdfcf9; border-left: 4px solid var(--accent-gold); padding: 1.25rem 1.5rem; border-radius: 8px;">
+                    <strong style="color: var(--primary-color); display: block; margin-bottom: 4px; font-size: 0.9rem;">📝 Internal Notes:</strong>
+                    <p style="margin: 0; color: #475569; font-size: 0.92rem; line-height: 1.6;">{{ oc.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- TAB 2: Members -->
+            <div id="membersTab" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                    <div>
+                        <h3 style="margin: 0; color: var(--primary-color); font-family: var(--font-heading);">Organization Members & Contacts</h3>
+                        <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;">Project managers, directors, billing contacts, and site coordinators.</p>
+                    </div>
+                    <a href="{{ url_for('org_customers.add_member', oc_id=oc.id) }}" class="btn-action gold" style="text-decoration: none; font-size: 0.85rem;">
+                        ➕ Add Member
+                    </a>
+                </div>
+
+                {% if members %}
+                <div class="table-responsive">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Designation</th>
+                                <th>Department</th>
+                                <th>Role</th>
+                                <th>Contact Details</th>
+                                <th>Status</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in members %}
+                            <tr>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="font-weight: 600; color: var(--primary-color);">{{ m.name }}</div>
+                                        {% if m.is_primary %}
+                                        <span class="badge badge-primary-member" title="Designated Primary Contact">⭐ Primary</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>{{ m.designation or '—' }}</td>
+                                <td>{{ m.department or '—' }}</td>
+                                <td>
+                                    {% if m.role %}
+                                    <span class="badge badge-role">{{ m.role_display }}</span>
+                                    {% else %}
+                                    <span style="color: #94a3b8;">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if m.mobile %}
+                                    <div>📞 {{ m.mobile }}</div>
+                                    {% endif %}
+                                    {% if m.email %}
+                                    <div style="font-size: 0.82rem; color: #64748b;">✉ {{ m.email }}</div>
+                                    {% endif %}
+                                    {% if not m.mobile and not m.email %}
+                                    <span style="color: #94a3b8;">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if m.is_active %}
+                                    <span class="badge badge-active">● Active</span>
+                                    {% else %}
+                                    <span class="badge badge-inactive">● Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: right; white-space: nowrap;">
+                                    <a href="{{ url_for('org_customers.edit_member', oc_id=oc.id, member_id=m.id) }}" class="action-btn-sm" title="Edit Member">
+                                        ✏ Edit
+                                    </a>
+                                    <form method="POST" action="{{ url_for('org_customers.toggle_member', oc_id=oc.id, member_id=m.id) }}" style="display: inline; margin: 0 4px;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="action-btn-sm" title="{{ 'Deactivate' if m.is_active else 'Activate' }}">
+                                            {{ '⏸' if m.is_active else '▶' }}
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('org_customers.delete_member', oc_id=oc.id, member_id=m.id) }}" onsubmit="return confirm('Remove member {{ m.name }}?');" style="display: inline; margin: 0;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="action-btn-sm" style="color: #ef4444;" title="Delete Member">
+                                            🗑
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-placeholder">
+                    <div style="font-size: 2.5rem; margin-bottom: 8px;">👥</div>
+                    <h4 style="margin: 0 0 6px; color: var(--primary-color);">No Members Added Yet</h4>
+                    <p style="margin: 0 0 1rem; font-size: 0.88rem;">Add contacts, directors, purchase managers, or site heads for this organization.</p>
+                    <a href="{{ url_for('org_customers.add_member', oc_id=oc.id) }}" class="btn-action gold" style="text-decoration: none; font-size: 0.85rem;">
+                        ➕ Add First Member
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- TAB 3: Projects -->
+            <div id="projectsTab" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                    <div>
+                        <h3 style="margin: 0; color: var(--primary-color); font-family: var(--font-heading);">Linked Projects</h3>
+                        <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;">All commercial and residential projects linked to this organization.</p>
+                    </div>
+                    <a href="{{ url_for('projects.add_project', org_customer_id=oc.id) }}" class="btn-action gold" style="text-decoration: none; font-size: 0.85rem;">
+                        📁 Create New Project
+                    </a>
+                </div>
+
+                {% if projects %}
+                <div class="table-responsive">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Project Name</th>
+                                <th>Responsible Member</th>
+                                <th>Status</th>
+                                <th>Created Date</th>
+                                <th style="text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in projects %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('projects.view_project', project_id=p.id) }}" style="font-weight: 600; color: var(--primary-color); text-decoration: none;">
+                                        {{ p.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if p.org_customer_member %}
+                                    <div style="font-weight: 500; color: #1e293b;">
+                                        👤 {{ p.org_customer_member.name }}
+                                    </div>
+                                    <div style="font-size: 0.78rem; color: #64748b;">
+                                        {{ p.org_customer_member.designation or p.org_customer_member.role_display }}
+                                    </div>
+                                    {% else %}
+                                    <span style="color: #94a3b8; font-size: 0.82rem;">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge" style="background: #e2e8f0; color: #334155;">
+                                        {{ p.status.value|title if p.status else 'Active' }}
+                                    </span>
+                                </td>
+                                <td>{{ p.created_at.strftime('%d %b %Y') if p.created_at else '—' }}</td>
+                                <td style="text-align: right;">
+                                    <a href="{{ url_for('projects.view_project', project_id=p.id) }}" class="action-btn-sm" style="color: #0284c7;">
+                                        View Project →
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-placeholder">
+                    <div style="font-size: 2.5rem; margin-bottom: 8px;">📁</div>
+                    <h4 style="margin: 0 0 6px; color: var(--primary-color);">No Projects Linked Yet</h4>
+                    <p style="margin: 0 0 1rem; font-size: 0.88rem;">Create a project and link it to this organization customer and responsible member.</p>
+                    <a href="{{ url_for('projects.add_project', org_customer_id=oc.id) }}" class="btn-action gold" style="text-decoration: none; font-size: 0.85rem;">
+                        📁 Create First Project
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- TAB 4: Quotations -->
+            <div id="quotationsTab" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                    <div>
+                        <h3 style="margin: 0; color: var(--primary-color); font-family: var(--font-heading);">Related Quotations</h3>
+                        <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;">Quotations generated for projects linked to this organization.</p>
+                    </div>
+                </div>
+
+                {% if quotations %}
+                <div class="table-responsive">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Quotation #</th>
+                                <th>Project</th>
+                                <th>Issue Date</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th style="text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for q in quotations %}
+                            <tr>
+                                <td>
+                                    <strong style="color: var(--primary-color);">{{ q.quotation_number }}</strong>
+                                </td>
+                                <td>
+                                    {% if q.project %}
+                                    <a href="{{ url_for('projects.view_project', project_id=q.project.id) }}" style="color: #0284c7; text-decoration: none; font-weight: 500;">
+                                        {{ q.project.name }}
+                                    </a>
+                                    {% else %}
+                                    —
+                                    {% endif %}
+                                </td>
+                                <td>{{ q.issue_date.strftime('%d %b %Y') if q.issue_date else '—' }}</td>
+                                <td><strong>₹{{ "{:,.2f}".format(q.final_amount or q.total_amount or 0) }}</strong></td>
+                                <td>
+                                    <span class="badge" style="background: #f1f5f9; color: #334155;">
+                                        {{ q.status.value|title if q.status else 'Draft' }}
+                                    </span>
+                                </td>
+                                <td style="text-align: right;">
+                                    <a href="{{ url_for('quotations.view_quotation', quotation_id=q.id) }}" class="action-btn-sm" style="color: #0284c7;">
+                                        View Quotation →
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-placeholder">
+                    <div style="font-size: 2.5rem; margin-bottom: 8px;">📄</div>
+                    <h4 style="margin: 0 0 6px; color: var(--primary-color);">No Quotations Found</h4>
+                    <p style="margin: 0; font-size: 0.88rem;">No quotations have been generated for this organization's projects yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function switchTab(evt, tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            evt.currentTarget.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+    </script>
+</body>
+</html>

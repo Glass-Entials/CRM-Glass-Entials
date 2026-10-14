@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if member %}Edit {{ member.name }}{% else %}Add Member{% endif %} | {{ oc.name }} | GlassEntials</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .form-container {
+            max-width: 760px;
+            margin: 2rem auto;
+            padding: 0 20px;
+        }
+        .form-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            overflow: hidden;
+        }
+        .form-header {
+            padding: 1.75rem 2rem;
+            background: #fdfdfb;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 5px solid var(--accent-gold);
+        }
+        .form-header h1 {
+            font-family: var(--font-heading);
+            color: var(--primary-color);
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .form-body {
+            padding: 2rem;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.25rem;
+        }
+        .form-grid-full {
+            grid-column: 1 / -1;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #334155;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .form-group label .required {
+            color: #ef4444;
+        }
+        .form-control {
+            padding: 0.65rem 0.9rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-family: var(--font-body);
+            font-size: 0.92rem;
+            color: #1e293b;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .form-control:focus {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+        }
+        .checkbox-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .checkbox-card input[type="checkbox"] {
+            margin-top: 3px;
+            accent-color: var(--accent-gold);
+            width: 18px;
+            height: 18px;
+        }
+        .form-actions {
+            padding: 1.5rem 2rem;
+            background: #f8fafc;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+        @media (max-width: 600px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="dashboard-page">
+    {% include 'includes/navbar.html' %}
+
+    <main class="form-container">
+        <!-- Flashes -->
+        {% with messages = get_flashed_messages(category_filter=["oc_error"]) %}
+        {% if messages %}
+        {% for message in messages %}
+        <div style="padding: 12px 16px; background-color: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; display: flex; align-items: center; gap: 8px; margin-bottom: 1.5rem; border-radius: 6px; font-weight: 500;">
+            <span>⚠</span> {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="form-card">
+            <div class="form-header">
+                <div>
+                    <h1>{% if member %}✏ Edit Member: {{ member.name }}{% else %}➕ Add Member to {{ oc.name }}{% endif %}</h1>
+                    <p style="margin: 4px 0 0; color: #64748b; font-size: 0.88rem;">
+                        Organization: <strong>{{ oc.name }}</strong> ({{ oc.code }})
+                    </p>
+                </div>
+                <a href="{{ url_for('org_customers.org_customer_detail', oc_id=oc.id) }}" class="btn-action outline" style="text-decoration: none;">
+                    ← Back to Org
+                </a>
+            </div>
+
+            <form method="POST" action="{% if member %}{{ url_for('org_customers.edit_member', oc_id=oc.id, member_id=member.id) }}{% else %}{{ url_for('org_customers.add_member', oc_id=oc.id) }}{% endif %}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="form-body">
+                    <div class="form-grid">
+                        <div class="form-group form-grid-full">
+                            <label for="name">Full Name <span class="required">*</span></label>
+                            <input type="text" id="name" name="name" class="form-control" value="{{ member.name if member else request.form.get('name', '') }}" required placeholder="e.g. Rajesh Sharma">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="mobile">Mobile / Phone</label>
+                            <input type="tel" id="mobile" name="mobile" class="form-control" value="{{ member.mobile if member else request.form.get('mobile', '') }}" placeholder="e.g. +91 98765 43210">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Email Address</label>
+                            <input type="email" id="email" name="email" class="form-control" value="{{ member.email if member else request.form.get('email', '') }}" placeholder="e.g. rajesh@organization.com">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="designation">Designation / Title</label>
+                            <input type="text" id="designation" name="designation" class="form-control" value="{{ member.designation if member else request.form.get('designation', '') }}" placeholder="e.g. Vice President - Procurement">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="department">Department</label>
+                            <input type="text" id="department" name="department" class="form-control" value="{{ member.department if member else request.form.get('department', '') }}" placeholder="e.g. Procurement, Projects, Executive">
+                        </div>
+
+                        <div class="form-group form-grid-full">
+                            <label for="role">Contact Role</label>
+                            <select id="role" name="role" class="form-control">
+                                <option value="">Select Role</option>
+                                {% for r in OrgCustomerMemberRole %}
+                                <option value="{{ r.value }}" {% if (member and member.role and member.role.value == r.value) or (request.form.get('role') == r.value) %}selected{% endif %}>
+                                    {{ r.value|replace('_', ' ')|title }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group form-grid-full">
+                            <label class="checkbox-card">
+                                <input type="checkbox" name="is_primary" value="1" {% if (member and member.is_primary) or (request.form.get('is_primary')) %}checked{% endif %}>
+                                <div>
+                                    <div style="font-weight: 600; color: #1e293b; font-size: 0.92rem;">⭐ Set as Primary Contact</div>
+                                    <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">
+                                        Designates this person as the main point of contact for {{ oc.name }}. Any previous primary contact will be un-designated.
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        {% if member %}
+                        <div class="form-group form-grid-full">
+                            <label class="checkbox-card">
+                                <input type="checkbox" name="is_active" value="1" {% if member.is_active %}checked{% endif %}>
+                                <div>
+                                    <div style="font-weight: 600; color: #1e293b; font-size: 0.92rem;">Active Member</div>
+                                    <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">
+                                        Uncheck to deactivate this contact without deleting their history.
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                        {% endif %}
+
+                        <div class="form-group form-grid-full">
+                            <label for="notes">Notes / Background</label>
+                            <textarea id="notes" name="notes" rows="3" class="form-control" placeholder="Direct line extension, availability hours, or preferred communication channels...">{{ member.notes if member else request.form.get('notes', '') }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a href="{{ url_for('org_customers.org_customer_detail', oc_id=oc.id) }}" class="btn-action outline" style="text-decoration: none;">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn-action gold" style="cursor: pointer;">
+                        {% if member %}💾 Save Member{% else %}✓ Add Member{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+</body>
+</html>

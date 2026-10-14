@@ -47,12 +47,31 @@
                         </div>
                         
                         <div class="form-group">
-                            <label>Customer</label>
+                            <label>Individual Customer (Optional)</label>
                             <select name="customer_id" class="form-control">
                                 <option value="none">None</option>
                                 {% for cus in customers %}
                                     <option value="{{ cus.id }}" {% if project.customer_id == cus.id %}selected{% endif %}>{{ cus.name }} ({{ cus.company if cus.company else 'N/A' }})</option>
                                 {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Organization Customer (Optional)</label>
+                            <select name="org_customer_id" id="org_customer_select" class="form-control" onchange="loadOrgMembers(this.value)">
+                                <option value="">None (Individual Customer Project)</option>
+                                {% for oc in org_customers %}
+                                <option value="{{ oc.id }}" {% if project.org_customer_id == oc.id %}selected{% endif %}>
+                                    {{ oc.name }} ({{ oc.code }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group" id="org_member_group" style="display: {% if project.org_customer_id %}block{% else %}none{% endif %};">
+                            <label>Responsible Org Member</label>
+                            <select name="org_customer_member_id" id="org_customer_member_select" class="form-control">
+                                <option value="">Select Member (Optional)</option>
                             </select>
                         </div>
 
@@ -112,6 +131,57 @@
             </div>
         </div>
     </main>
+
+    <script>
+        function loadOrgMembers(orgId, selectedMemberId) {
+            const memberGroup = document.getElementById('org_member_group');
+            const memberSelect = document.getElementById('org_customer_member_select');
+            if (!orgId) {
+                memberGroup.style.display = 'none';
+                memberSelect.innerHTML = '<option value="">Select Member (Optional)</option>';
+                return;
+            }
+            memberGroup.style.display = 'block';
+            memberSelect.innerHTML = '<option value="">Loading members...</option>';
+
+            fetch(`/api/org-customers/${orgId}/members`)
+                .then(res => res.json())
+                .then(members => {
+                    memberSelect.innerHTML = '<option value="">None / Unassigned</option>';
+                    if (members.length === 0) {
+                        const opt = document.createElement('option');
+                        opt.value = "";
+                        opt.text = "No members available";
+                        opt.disabled = true;
+                        memberSelect.appendChild(opt);
+                        return;
+                    }
+                    members.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id;
+                        let text = m.name;
+                        if (m.designation) text += ` (${m.designation})`;
+                        else if (m.role) text += ` (${m.role})`;
+                        if (m.is_primary) text += " ⭐ Primary";
+                        opt.text = text;
+                        if (selectedMemberId && selectedMemberId == m.id) {
+                            opt.selected = true;
+                        }
+                        memberSelect.appendChild(opt);
+                    });
+                })
+                .catch(err => {
+                    console.error('Failed to load org members:', err);
+                    memberSelect.innerHTML = '<option value="">Failed to load members</option>';
+                });
+        }
+
+        {% if project.org_customer_id %}
+        window.addEventListener('DOMContentLoaded', () => {
+            loadOrgMembers("{{ project.org_customer_id }}", "{{ project.org_customer_member_id or '' }}");
+        });
+        {% endif %}
+    </script>
 </body>
 </html>
 

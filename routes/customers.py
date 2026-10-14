@@ -78,7 +78,11 @@ def customers_list():
 @customers_bp.route("/customer/<int:customer_id>/quick-status", methods=["POST"])
 @login_required
 def quick_status_update(customer_id):
-    customer = tenant_record_id(Customer, customer_id)
+    customer = Customer.query.filter_by(
+        id=customer_id,
+        organization_id=current_user.organization_id,
+        is_deleted=False
+    ).first()
     if not customer:
         return jsonify({"success": False, "error": "Customer not found"}), 404
     new_status_val = request.json.get("status", "").strip()
@@ -90,10 +94,12 @@ def quick_status_update(customer_id):
     customer.updated_at = datetime.utcnow()
     db.session.commit()
     log_activity(
-        entity_type="Customer",
-        entity_id=customer_id,
         action="updated",
-        changes=build_changes({"status": old_status}, {"status": new_status_val}),
+        entity_type="customer",
+        entity_name=customer.name,
+        org_id=current_user.organization_id,
+        entity_id=customer_id,
+        changes=build_changes([("Status", old_status, new_status_val)]),
     )
     return jsonify({"success": True, "new_status": new_status_val})
 

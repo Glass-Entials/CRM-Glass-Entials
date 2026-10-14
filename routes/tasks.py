@@ -15,7 +15,7 @@ def tasks_list():
     from datetime import date
     org_id = current_user.organization_id
     
-    query = Task.query.filter_by(organization_id=org_id, is_deleted=False)
+    query = Task.query.filter_by(organization_id=org_id).filter(Task.is_deleted.isnot(True))
     
     assigned_to = request.args.get("assigned_to")
     if assigned_to:

@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if oc %}Edit {{ oc.name }}{% else %}Add Organization Customer{% endif %} | GlassEntials</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .form-container {
+            max-width: 960px;
+            margin: 2rem auto;
+            padding: 0 20px;
+        }
+        .form-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            overflow: hidden;
+        }
+        .form-header {
+            padding: 1.75rem 2rem;
+            background: #fdfdfb;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 5px solid var(--accent-gold);
+        }
+        .form-header h1 {
+            font-family: var(--font-heading);
+            color: var(--primary-color);
+            margin: 0;
+            font-size: 1.6rem;
+        }
+        .form-body {
+            padding: 2rem;
+        }
+        .form-section-title {
+            font-family: var(--font-heading);
+            font-size: 1.15rem;
+            color: var(--primary-color);
+            margin: 1.75rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .form-section-title:first-of-type {
+            margin-top: 0;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.25rem;
+        }
+        .form-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+        }
+        .form-grid-full {
+            grid-column: 1 / -1;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #334155;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .form-group label .required {
+            color: #ef4444;
+        }
+        .form-control {
+            padding: 0.65rem 0.9rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-family: var(--font-body);
+            font-size: 0.92rem;
+            color: #1e293b;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .form-control:focus {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+        }
+        .form-help {
+            font-size: 0.78rem;
+            color: #64748b;
+        }
+        .coverage-toggle-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .coverage-options {
+            display: flex;
+            gap: 1.5rem;
+        }
+        .coverage-radio-card {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.65rem 1rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        .coverage-radio-card:hover {
+            border-color: var(--accent-gold);
+        }
+        .coverage-radio-card input[type="radio"] {
+            accent-color: var(--accent-gold);
+        }
+        .city-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+        .city-tag .remove-btn {
+            cursor: pointer;
+            color: #b45309;
+            font-weight: bold;
+        }
+        .form-actions {
+            padding: 1.5rem 2rem;
+            background: #f8fafc;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+        @media (max-width: 768px) {
+            .form-grid, .form-grid-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="dashboard-page">
+    {% include 'includes/navbar.html' %}
+
+    <main class="form-container">
+        <!-- Flashes -->
+        {% with messages = get_flashed_messages(category_filter=["oc_error"]) %}
+        {% if messages %}
+        {% for message in messages %}
+        <div style="padding: 12px 16px; background-color: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; display: flex; align-items: center; gap: 8px; margin-bottom: 1.5rem; border-radius: 6px; font-weight: 500;">
+            <span>⚠</span> {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="form-card">
+            <div class="form-header">
+                <div>
+                    <h1>{% if oc %}✏ Edit Organization: {{ oc.name }}{% else %}➕ Add Organization Customer{% endif %}</h1>
+                    <p style="margin: 4px 0 0; color: #64748b; font-size: 0.88rem;">
+                        {% if oc %}Update corporate details, coverage area, and addresses.{% else %}Create a new corporate customer profile and assign its coverage.{% endif %}
+                    </p>
+                </div>
+                <a href="{% if oc %}{{ url_for('org_customers.org_customer_detail', oc_id=oc.id) }}{% else %}{{ url_for('org_customers.org_customers_list') }}{% endif %}" class="btn-action outline" style="text-decoration: none;">
+                    ← Back
+                </a>
+            </div>
+
+            <form method="POST" action="{% if oc %}{{ url_for('org_customers.edit_org_customer', oc_id=oc.id) }}{% else %}{{ url_for('org_customers.add_org_customer') }}{% endif %}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="form-body">
+                    <!-- SECTION 1: Identity -->
+                    <div class="form-section-title">
+                        <span>🏢</span> Organization Identity
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group form-grid-full">
+                            <label for="name">Organization Name <span class="required">*</span></label>
+                            <input type="text" id="name" name="name" class="form-control" value="{{ oc.name if oc else request.form.get('name', '') }}" required placeholder="e.g. DLF Developers Ltd.">
+                            <span class="form-help">Primary business name displayed throughout projects and reports.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="legal_name">Legal / Registered Name</label>
+                            <input type="text" id="legal_name" name="legal_name" class="form-control" value="{{ oc.legal_name if oc else request.form.get('legal_name', '') }}" placeholder="e.g. DLF Universal Enterprises Pvt Ltd">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="org_type">Organization Type</label>
+                            <select id="org_type" name="org_type" class="form-control">
+                                <option value="">Select Type</option>
+                                {% for t in OrgCustomerType %}
+                                <option value="{{ t.value }}" {% if (oc and oc.org_type and oc.org_type.value == t.value) or (request.form.get('org_type') == t.value) %}selected{% endif %}>
+                                    {{ t.value|replace('_', ' ')|title }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="industry">Industry / Sector</label>
+                            <input type="text" id="industry" name="industry" class="form-control" value="{{ oc.industry if oc else request.form.get('industry', '') }}" placeholder="e.g. Real Estate, Hospitality, Construction">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="website">Website</label>
+                            <input type="text" id="website" name="website" class="form-control" value="{{ oc.website if oc else request.form.get('website', '') }}" placeholder="e.g. https://example.com">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="status">Account Status</label>
+                            <select id="status" name="status" class="form-control">
+                                {% for s in OrgCustomerStatus %}
+                                <option value="{{ s.value }}" {% if (oc and oc.status.value == s.value) or (not oc and s.value == 'active') or (request.form.get('status') == s.value) %}selected{% endif %}>
+                                    {{ s.value|title }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 2: Coverage Territory -->
+                    <div class="form-section-title">
+                        <span>🌐</span> Business Coverage Territory
+                    </div>
+
+                    <div class="coverage-toggle-box">
+                        <div class="coverage-options">
+                            <label class="coverage-radio-card">
+                                <input type="radio" name="coverage_type" value="pan_india" {% if not oc or oc.coverage_type.value == 'pan_india' %}checked{% endif %} onchange="toggleCoverageMode()">
+                                <span>🇮🇳 Pan India</span>
+                            </label>
+
+                            <label class="coverage-radio-card">
+                                <input type="radio" name="coverage_type" value="selected_cities" {% if oc and oc.coverage_type.value == 'selected_cities' %}checked{% endif %} onchange="toggleCoverageMode()">
+                                <span>🏙 Selected Cities Only</span>
+                            </label>
+                        </div>
+
+                        <div id="selectedCitiesBox" style="display: {% if oc and oc.coverage_type.value == 'selected_cities' %}block{% else %}none{% endif %};">
+                            <div class="form-group">
+                                <label for="cities_input">Operational Cities (Comma Separated)</label>
+                                <input type="text" id="cities_input" name="cities" class="form-control" value="{{ cities_str }}" placeholder="e.g. Mumbai, Delhi, Bengaluru, Pune, Ahmedabad">
+                                <span class="form-help">Enter the cities where this organization operates, separated by commas.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 3: Tax & Compliance -->
+                    <div class="form-section-title">
+                        <span>📄</span> Business & Tax Compliance
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="gstin">GSTIN</label>
+                            <input type="text" id="gstin" name="gstin" class="form-control" value="{{ oc.gstin if oc else request.form.get('gstin', '') }}" placeholder="15-character GSTIN (optional)">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pan">PAN</label>
+                            <input type="text" id="pan" name="pan" class="form-control" value="{{ oc.pan if oc else request.form.get('pan', '') }}" placeholder="10-character PAN (optional)">
+                        </div>
+                    </div>
+
+                    <!-- SECTION 4: Head Office / Registered Address -->
+                    <div class="form-section-title">
+                        <span>📍</span> Registered / Head Office Address
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="phone">Corporate Phone / Landline</label>
+                            <input type="tel" id="phone" name="phone" class="form-control" value="{{ oc.phone if oc else request.form.get('phone', '') }}" placeholder="e.g. +91 22 2847 0000">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Corporate Email</label>
+                            <input type="email" id="email" name="email" class="form-control" value="{{ oc.email if oc else request.form.get('email', '') }}" placeholder="e.g. info@organization.com">
+                        </div>
+
+                        <div class="form-group form-grid-full">
+                            <label for="address_line1">Address Line 1</label>
+                            <input type="text" id="address_line1" name="address_line1" class="form-control" value="{{ oc.address_line1 if oc else request.form.get('address_line1', '') }}" placeholder="Building, Suite, Street name">
+                        </div>
+
+                        <div class="form-group form-grid-full">
+                            <label for="address_line2">Address Line 2</label>
+                            <input type="text" id="address_line2" name="address_line2" class="form-control" value="{{ oc.address_line2 if oc else request.form.get('address_line2', '') }}" placeholder="Landmark, Area, Sector">
+                        </div>
+                    </div>
+
+                    <div class="form-grid-3" style="margin-top: 1.25rem;">
+                        <div class="form-group">
+                            <label for="city">City</label>
+                            <input type="text" id="city" name="city" class="form-control" value="{{ oc.city if oc else request.form.get('city', '') }}" placeholder="e.g. Gurugram">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="state">State</label>
+                            <input type="text" id="state" name="state" class="form-control" value="{{ oc.state if oc else request.form.get('state', '') }}" placeholder="e.g. Haryana">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pincode">Pincode</label>
+                            <input type="text" id="pincode" name="pincode" class="form-control" value="{{ oc.pincode if oc else request.form.get('pincode', '') }}" placeholder="e.g. 122002">
+                        </div>
+                    </div>
+
+                    <!-- SECTION 5: Notes -->
+                    <div class="form-section-title">
+                        <span>📝</span> Internal Notes & Profile Details
+                    </div>
+
+                    <div class="form-group">
+                        <textarea id="notes" name="notes" rows="3" class="form-control" placeholder="Any internal background, credit terms, project notes, or special requirements...">{{ oc.notes if oc else request.form.get('notes', '') }}</textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a href="{% if oc %}{{ url_for('org_customers.org_customer_detail', oc_id=oc.id) }}{% else %}{{ url_for('org_customers.org_customers_list') }}{% endif %}" class="btn-action outline" style="text-decoration: none;">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn-action gold" style="cursor: pointer;">
+                        {% if oc %}💾 Save Changes{% else %}✓ Create Organization{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        function toggleCoverageMode() {
+            const selectedRadio = document.querySelector('input[name="coverage_type"]:checked');
+            const box = document.getElementById('selectedCitiesBox');
+            if (selectedRadio && selectedRadio.value === 'selected_cities') {
+                box.style.display = 'block';
+            } else {
+                box.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

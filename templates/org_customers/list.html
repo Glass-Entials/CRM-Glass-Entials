@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organization Customers | GlassEntials Staff Portal</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .org-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .org-header h1 {
+            font-family: var(--font-heading);
+            color: var(--primary-color);
+            margin: 0;
+            font-size: 1.85rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .metric-card {
+            background: #fff;
+            padding: 1.25rem 1.5rem;
+            border-radius: 10px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .metric-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        .metric-icon.gold { background: rgba(212, 175, 55, 0.12); color: #b89628; }
+        .metric-icon.green { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+        .metric-icon.blue { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
+        .metric-info h3 {
+            margin: 0;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        .metric-info span {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .filter-container {
+            background: #fff;
+            padding: 1.25rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .filter-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+            flex: 1;
+        }
+        .filter-input {
+            padding: 0.55rem 0.9rem;
+            border: 1px solid rgba(13, 27, 42, 0.15);
+            border-radius: 6px;
+            font-size: 0.88rem;
+            font-family: var(--font-body);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .filter-input:focus {
+            border-color: var(--accent-gold);
+        }
+        .table-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+            overflow: hidden;
+        }
+        .org-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-body);
+        }
+        .org-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 1rem 1.25rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .org-table td {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.9rem;
+            color: #1e293b;
+            vertical-align: middle;
+        }
+        .org-table tr:hover {
+            background: #fdfdfb;
+        }
+        .org-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            background: rgba(13, 27, 42, 0.06);
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            flex-shrink: 0;
+            border: 1px solid rgba(13, 27, 42, 0.1);
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0.25rem 0.65rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-active { background: #dcfce7; color: #166534; }
+        .badge-inactive { background: #fee2e2; color: #991b1b; }
+        .badge-pan-india { background: #e0e7ff; color: #3730a3; }
+        .badge-cities { background: #fef3c7; color: #92400e; }
+        .badge-type { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+        .action-link {
+            padding: 0.4rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+        .action-link.view { background: #f8fafc; color: #0284c7; border: 1px solid #e2e8f0; }
+        .action-link.view:hover { background: #0284c7; color: #fff; }
+        .action-link.edit { background: #f8fafc; color: #d97706; border: 1px solid #e2e8f0; margin-left: 4px; }
+        .action-link.edit:hover { background: #d97706; color: #fff; }
+        .empty-state {
+            padding: 3rem 1.5rem;
+            text-align: center;
+            color: #64748b;
+        }
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            background: #fff;
+            border-top: 1px solid #f1f5f9;
+        }
+        .page-btn {
+            padding: 0.45rem 0.9rem;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #334155;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .page-btn:hover { background: #f8fafc; border-color: #94a3b8; }
+        .page-btn.disabled { opacity: 0.5; pointer-events: none; }
+    </style>
+</head>
+<body class="dashboard-page">
+    {% include 'includes/navbar.html' %}
+
+    <main class="container" style="max-width: 1300px; margin: 1.5rem auto; padding: 0 20px;">
+        <!-- Flashes -->
+        {% with messages = get_flashed_messages(category_filter=["oc_success"]) %}
+        {% if messages %}
+        {% for message in messages %}
+        <div style="padding: 12px 16px; background-color: #dcfce7; border-left: 4px solid #10b981; color: #166534; display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; border-radius: 6px; font-weight: 500;">
+            <span>✓</span> {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% with messages = get_flashed_messages(category_filter=["oc_error"]) %}
+        {% if messages %}
+        {% for message in messages %}
+        <div style="padding: 12px 16px; background-color: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; border-radius: 6px; font-weight: 500;">
+            <span>⚠</span> {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <!-- Header -->
+        <div class="org-header">
+            <div>
+                <h1>🏢 Organization Customers</h1>
+                <p style="margin: 4px 0 0; color: #64748b; font-size: 0.92rem;">
+                    Manage enterprise clients, corporate partners, architects, builders, and their associated members & projects.
+                </p>
+            </div>
+            <div>
+                <a href="{{ url_for('org_customers.add_org_customer') }}" class="btn-action gold" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                    ➕ Add Organization
+                </a>
+            </div>
+        </div>
+
+        <!-- Metrics -->
+        <div class="metrics-row">
+            <div class="metric-card">
+                <div class="metric-icon gold">🏢</div>
+                <div class="metric-info">
+                    <h3>{{ total_count }}</h3>
+                    <span>Total Organizations</span>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon green">✓</div>
+                <div class="metric-info">
+                    <h3>{{ active_count }}</h3>
+                    <span>Active Organizations</span>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon blue">🌐</div>
+                <div class="metric-info">
+                    <h3>{{ org_customers|length }}</h3>
+                    <span>Showing on Page</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div class="filter-container">
+            <form method="GET" action="{{ url_for('org_customers.org_customers_list') }}" class="filter-form">
+                <input type="text" name="q" value="{{ q }}" placeholder="Search name, code, GSTIN, city..." class="filter-input" style="min-width: 260px;">
+                
+                <select name="status" class="filter-input">
+                    <option value="">All Statuses</option>
+                    {% for s in OrgCustomerStatus %}
+                    <option value="{{ s.value }}" {% if status_filter == s.value %}selected{% endif %}>{{ s.value|title }}</option>
+                    {% endfor %}
+                </select>
+
+                <select name="coverage" class="filter-input">
+                    <option value="">All Coverage</option>
+                    {% for c in OrgCustomerCoverageType %}
+                    <option value="{{ c.value }}" {% if coverage_filter == c.value %}selected{% endif %}>
+                        {{ "Pan India" if c.value == "pan_india" else "Selected Cities" }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <select name="org_type" class="filter-input">
+                    <option value="">All Types</option>
+                    {% for t in OrgCustomerType %}
+                    <option value="{{ t.value }}" {% if type_filter == t.value %}selected{% endif %}>{{ t.value|replace('_', ' ')|title }}</option>
+                    {% endfor %}
+                </select>
+
+                <button type="submit" class="btn-action gold" style="padding: 0.55rem 1rem; font-size: 0.88rem; cursor: pointer;">
+                    🔍 Filter
+                </button>
+                {% if q or status_filter or coverage_filter or type_filter %}
+                <a href="{{ url_for('org_customers.org_customers_list') }}" class="btn-action outline" style="padding: 0.55rem 0.9rem; font-size: 0.88rem; text-decoration: none;">
+                    Reset
+                </a>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- Table Card -->
+        <div class="table-card">
+            {% if org_customers %}
+            <div style="overflow-x: auto;">
+                <table class="org-table">
+                    <thead>
+                        <tr>
+                            <th>Organization</th>
+                            <th>Code</th>
+                            <th>Type</th>
+                            <th>Coverage</th>
+                            <th>Primary Contact</th>
+                            <th>Members</th>
+                            <th>Projects</th>
+                            <th>Status</th>
+                            <th style="text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for oc in org_customers %}
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div class="org-avatar">
+                                        {{ oc.name[:2]|upper }}
+                                    </div>
+                                    <div>
+                                        <a href="{{ url_for('org_customers.org_customer_detail', oc_id=oc.id) }}" style="color: var(--primary-color); font-weight: 600; text-decoration: none;">
+                                            {{ oc.name }}
+                                        </a>
+                                        {% if oc.city %}
+                                        <div style="font-size: 0.78rem; color: #64748b;">
+                                            📍 {{ oc.city }}{% if oc.state %}, {{ oc.state }}{% endif %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <code style="font-size: 0.82rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #334155;">{{ oc.code }}</code>
+                            </td>
+                            <td>
+                                {% if oc.org_type %}
+                                <span class="badge badge-type">{{ oc.org_type_display }}</span>
+                                {% else %}
+                                <span style="color: #94a3b8;">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if oc.coverage_type.value == 'pan_india' %}
+                                <span class="badge badge-pan-india">🇮🇳 Pan India</span>
+                                {% else %}
+                                <span class="badge badge-cities" title="Cities: {{ oc.city_names|join(', ') }}">
+                                    🏙 {{ oc.cities.count() }} Cities
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set primary = oc.primary_member %}
+                                {% if primary %}
+                                <div style="font-weight: 500; font-size: 0.86rem; color: #1e293b;">
+                                    ⭐ {{ primary.name }}
+                                </div>
+                                {% if primary.mobile %}
+                                <div style="font-size: 0.78rem; color: #64748b;">
+                                    📞 {{ primary.mobile }}
+                                </div>
+                                {% endif %}
+                                {% else %}
+                                <span style="color: #94a3b8; font-size: 0.82rem;">None designated</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span style="font-weight: 600; color: #334155;">{{ oc.active_members_count }}</span>
+                            </td>
+                            <td>
+                                <span style="font-weight: 600; color: #334155;">{{ oc.projects_count }}</span>
+                            </td>
+                            <td>
+                                {% if oc.status.value == 'active' %}
+                                <span class="badge badge-active">● Active</span>
+                                {% else %}
+                                <span class="badge badge-inactive">● Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: right; white-space: nowrap;">
+                                <a href="{{ url_for('org_customers.org_customer_detail', oc_id=oc.id) }}" class="action-link view" title="View Profile">
+                                    👁 View
+                                </a>
+                                <a href="{{ url_for('org_customers.edit_org_customer', oc_id=oc.id) }}" class="action-link edit" title="Edit">
+                                    ✏ Edit
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if pagination.pages > 1 %}
+            <div class="pagination-container">
+                <span style="font-size: 0.85rem; color: #64748b;">
+                    Page {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} total organizations)
+                </span>
+                <div style="display: flex; gap: 8px;">
+                    <a href="{{ url_for('org_customers.org_customers_list', page=pagination.prev_num, q=q, status=status_filter, coverage=coverage_filter, org_type=type_filter) if pagination.has_prev else '#' }}" class="page-btn {% if not pagination.has_prev %}disabled{% endif %}">
+                        ← Previous
+                    </a>
+                    <a href="{{ url_for('org_customers.org_customers_list', page=pagination.next_num, q=q, status=status_filter, coverage=coverage_filter, org_type=type_filter) if pagination.has_next else '#' }}" class="page-btn {% if not pagination.has_next %}disabled{% endif %}">
+                        Next →
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="empty-state">
+                <span class="empty-state-icon">🏢</span>
+                <h3 style="margin: 0 0 6px; color: var(--primary-color);">No Organizations Found</h3>
+                <p style="margin: 0 0 1.25rem; font-size: 0.9rem;">
+                    {% if q or status_filter or coverage_filter or type_filter %}
+                    Try clearing or adjusting your search filters.
+                    {% else %}
+                    Start managing your corporate accounts, builders, and architects.
+                    {% endif %}
+                </p>
+                {% if q or status_filter or coverage_filter or type_filter %}
+                <a href="{{ url_for('org_customers.org_customers_list') }}" class="btn-action outline" style="text-decoration: none;">
+                    Clear Filters
+                </a>
+                {% else %}
+                <a href="{{ url_for('org_customers.add_org_customer') }}" class="btn-action gold" style="text-decoration: none;">
+                    ➕ Add First Organization
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </main>
+</body>
+</html>

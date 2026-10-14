@@ -5,6 +5,8 @@ from model import (
     Project,
     Employee,
     Customer,
+    OrgCustomer,
+    OrgCustomerMember,
     ProjectStatus,
     ProjectWorkType,
     ProjectCategory,
@@ -52,6 +54,8 @@ def add_project():
         status_val = request.form.get("status", "Planning")
         assigned_to_id = request.form.get("assigned_to")
         customer_id = request.form.get("customer_id")
+        org_customer_id = request.form.get("org_customer_id")
+        org_customer_member_id = request.form.get("org_customer_member_id")
 
         assigned_to_id = tenant_record_id(
             Employee, assigned_to_id, org_id, is_deleted=False
@@ -59,6 +63,30 @@ def add_project():
         customer_id = tenant_record_id(
             Customer, customer_id, org_id, is_deleted=False
         )
+
+        validated_org_customer_id = None
+        validated_member_id = None
+
+        if org_customer_id and str(org_customer_id).strip() not in ("", "none", "0"):
+            org_cust = OrgCustomer.query.filter_by(
+                id=int(org_customer_id), organization_id=org_id, is_deleted=False
+            ).first()
+            if not org_cust:
+                flash("Selected organization customer does not exist or access is denied.", "projecterror")
+                return redirect(url_for("projects.add_project"))
+            validated_org_customer_id = org_cust.id
+
+            if org_customer_member_id and str(org_customer_member_id).strip() not in ("", "none", "0"):
+                member = OrgCustomerMember.query.filter_by(
+                    id=int(org_customer_member_id),
+                    org_customer_id=org_cust.id,
+                    organization_id=org_id,
+                    is_deleted=False,
+                ).first()
+                if not member:
+                    flash("Selected member does not belong to the selected organization customer.", "projecterror")
+                    return redirect(url_for("projects.add_project"))
+                validated_member_id = member.id
 
         if not name:
             flash("Project name is required.", "projecterror")
@@ -79,6 +107,8 @@ def add_project():
                 request.form.get("category", "Commercial"), ProjectCategory.COMMERCIAL
             ),
             customer_id=customer_id,
+            org_customer_id=validated_org_customer_id,
+            org_customer_member_id=validated_member_id,
             assigned_to=assigned_to_id,
             organization_id=org_id,
             created_by=current_user.employee.id,
@@ -136,17 +166,21 @@ def add_project():
 
     employees = Employee.query.filter_by(organization_id=org_id, is_deleted=False).all()
     customers = Customer.query.filter_by(organization_id=org_id, is_deleted=False).all()
+    org_customers = OrgCustomer.query.filter_by(organization_id=org_id, is_deleted=False).order_by(OrgCustomer.name).all()
 
-    # Pre-select customer if customer_id is provided in query params
+    # Pre-select customer or org_customer if provided in query params
     query_customer_id = tenant_record_id(
         Customer, request.args.get("customer_id"), org_id, is_deleted=False
     )
+    query_org_customer_id = request.args.get("org_customer_id", type=int)
 
     return render_template(
         "projects/addproject.html",
         employees=employees,
         customers=customers,
+        org_customers=org_customers,
         pre_selected_customer_id=query_customer_id,
+        pre_selected_org_customer_id=query_org_customer_id,
     )
 
 
@@ -173,6 +207,35 @@ def edit_project(project_id):
         project.customer_id = tenant_record_id(
             Customer, customer_id, org_id, is_deleted=False
         )
+
+        org_customer_id = request.form.get("org_customer_id")
+        org_customer_member_id = request.form.get("org_customer_member_id")
+
+        if org_customer_id and str(org_customer_id).strip() not in ("", "none", "0"):
+            org_cust = OrgCustomer.query.filter_by(
+                id=int(org_customer_id), organization_id=org_id, is_deleted=False
+            ).first()
+            if not org_cust:
+                flash("Selected organization customer does not exist.", "projecterror")
+                return redirect(url_for("projects.edit_project", project_id=project_id))
+            project.org_customer_id = org_cust.id
+
+            if org_customer_member_id and str(org_customer_member_id).strip() not in ("", "none", "0"):
+                member = OrgCustomerMember.query.filter_by(
+                    id=int(org_customer_member_id),
+                    org_customer_id=org_cust.id,
+                    organization_id=org_id,
+                    is_deleted=False,
+                ).first()
+                if not member:
+                    flash("Selected member does not belong to the selected organization.", "projecterror")
+                    return redirect(url_for("projects.edit_project", project_id=project_id))
+                project.org_customer_member_id = member.id
+            else:
+                project.org_customer_member_id = None
+        else:
+            project.org_customer_id = None
+            project.org_customer_member_id = None
 
         status_map = {e.value: e for e in ProjectStatus}
         work_type_map = {e.value: e for e in ProjectWorkType}
@@ -254,11 +317,13 @@ def edit_project(project_id):
 
     employees = Employee.query.filter_by(organization_id=org_id, is_deleted=False).all()
     customers = Customer.query.filter_by(organization_id=org_id, is_deleted=False).all()
+    org_customers = OrgCustomer.query.filter_by(organization_id=org_id, is_deleted=False).order_by(OrgCustomer.name).all()
     return render_template(
         "projects/editproject.html",
         project=project,
         employees=employees,
         customers=customers,
+        org_customers=org_customers,
     )
 
 
