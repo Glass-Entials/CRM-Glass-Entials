@@ -58,19 +58,19 @@
                     Import
                 </a>
                 {% if current_user.role.value in ['admin','manager'] %}
-                <div style="position:relative;display:inline-block;" id="exportWrap">
-                    <button class="btn-hero-ghost" onclick="document.getElementById('exportDrop').classList.toggle('open')" style="border:none;cursor:pointer;">
+                <div class="vnd-hero-drop-wrap" id="exportWrap">
+                    <button type="button" class="btn-hero-ghost" id="exportBtn" onclick="toggleExportMenu(event)">
                         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         Export
                         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
                     </button>
-                    <div id="exportDrop" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,0.12);min-width:160px;z-index:200;overflow:hidden;">
-                        <a href="{{ url_for('vendors.export_vendors', q=q, status=status_filter, category=category_filter, city=city_filter, verification=verification_filter) }}" style="display:flex;align-items:center;gap:8px;padding:0.7rem 1rem;font-size:0.855rem;font-weight:500;color:#1e293b;text-decoration:none;border-bottom:1px solid #f1f5f9;transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <div id="exportDrop" class="vnd-hero-dropdown">
+                        <a href="{{ url_for('vendors.export_vendors', q=q, status=status_filter, category=category_filter, city=city_filter, verification=verification_filter) }}">
+                            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                             Export CSV
                         </a>
-                        <a href="{{ url_for('vendors.export_vendors', q=q, status=status_filter, category=category_filter, city=city_filter, verification=verification_filter, format='xlsx') }}" style="display:flex;align-items:center;gap:8px;padding:0.7rem 1rem;font-size:0.855rem;font-weight:500;color:#1e293b;text-decoration:none;transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        <a href="{{ url_for('vendors.export_vendors', q=q, status=status_filter, category=category_filter, city=city_filter, verification=verification_filter, format='xlsx') }}">
+                            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                             Export Excel
                         </a>
                     </div>
@@ -353,26 +353,25 @@
                 .catch(() => { dropdown.style.display = 'none'; });
         }
 
+        window.toggleExportMenu = function(e) {
+            e.stopPropagation();
+            const drop = document.getElementById('exportDrop');
+            if (drop) {
+                drop.classList.toggle('open');
+            }
+        };
+
         document.addEventListener('click', function(e) {
-            if (!document.getElementById('searchWrap').contains(e.target)) {
+            const searchWrap = document.getElementById('searchWrap');
+            if (searchWrap && !searchWrap.contains(e.target)) {
                 dropdown.style.display = 'none';
             }
             const exportWrap = document.getElementById('exportWrap');
             const exportDrop = document.getElementById('exportDrop');
             if (exportWrap && exportDrop && !exportWrap.contains(e.target)) {
-                exportDrop.style.display = 'none';
                 exportDrop.classList.remove('open');
             }
         });
-
-        // Export dropdown toggle
-        const exportDrop = document.getElementById('exportDrop');
-        if (exportDrop) {
-            const observer = new MutationObserver(() => {
-                exportDrop.style.display = exportDrop.classList.contains('open') ? 'block' : 'none';
-            });
-            observer.observe(exportDrop, { attributes: true, attributeFilter: ['class'] });
-        }
     })();
     </script>
 </body>

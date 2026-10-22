@@ -12,7 +12,10 @@
 
 /* ── Page Hero Header ── */
 .vnd-hero {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #1a2f4a 60%, #0f2035 100%);
+    background: 
+        radial-gradient(circle at 90% 10%, rgba(212,175,55,0.12) 0%, transparent 45%),
+        radial-gradient(circle at 35% 100%, rgba(255,255,255,0.04) 0%, transparent 45%),
+        linear-gradient(135deg, var(--primary-color) 0%, #1a2f4a 60%, #0f2035 100%);
     border-radius: 16px;
     padding: 2rem 2.5rem;
     margin-bottom: 1.75rem;
@@ -23,25 +26,7 @@
     gap: 1.5rem;
     box-shadow: 0 8px 32px rgba(13,27,42,0.18);
     position: relative;
-    overflow: hidden;
-}
-.vnd-hero::before {
-    content: '';
-    position: absolute;
-    top: -40px; right: -40px;
-    width: 220px; height: 220px;
-    border-radius: 50%;
-    background: rgba(212,175,55,0.08);
-    pointer-events: none;
-}
-.vnd-hero::after {
-    content: '';
-    position: absolute;
-    bottom: -60px; left: 30%;
-    width: 280px; height: 280px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.03);
-    pointer-events: none;
+    z-index: 40;
 }
 .vnd-hero-text h1 {
     font-family: var(--font-heading);
@@ -80,7 +65,7 @@
     gap: 10px;
     flex-wrap: wrap;
     position: relative;
-    z-index: 1;
+    z-index: 10;
 }
 .btn-hero-primary {
     background: var(--accent-gold);
@@ -121,11 +106,72 @@
     transition: all 0.2s;
     backdrop-filter: blur(4px);
     font-family: var(--font-body);
+    cursor: pointer;
 }
 .btn-hero-ghost:hover {
     background: rgba(255,255,255,0.18);
     color: #fff;
     border-color: rgba(255,255,255,0.3);
+}
+
+/* ── Hero Dropdown Menu ── */
+.vnd-hero-drop-wrap {
+    position: relative;
+    display: inline-block;
+}
+.vnd-hero-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: #ffffff;
+    border: 1px solid rgba(13, 27, 42, 0.09);
+    border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.06);
+    min-width: 175px;
+    z-index: 9999;
+    overflow: hidden;
+    animation: vndDropFade 0.15s ease-out;
+}
+.vnd-hero-dropdown.open {
+    display: block;
+}
+@keyframes vndDropFade {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.vnd-hero-dropdown a {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0.75rem 1.15rem;
+    font-size: 0.865rem;
+    font-weight: 500;
+    color: #1e293b;
+    text-decoration: none;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.12s, color 0.12s;
+    font-family: var(--font-body);
+}
+.vnd-hero-dropdown a:last-child {
+    border-bottom: none;
+}
+.vnd-hero-dropdown a:hover {
+    background: #f8fafc;
+    color: var(--accent-gold);
+}
+.vnd-hero-dropdown a svg {
+    color: #64748b;
+    transition: color 0.12s;
+}
+.vnd-hero-dropdown a:hover svg {
+    color: var(--accent-gold);
 }
 
 /* ── Stat Cards ── */
