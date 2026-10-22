@@ -330,6 +330,22 @@
             </div>
             <div class="stat-icon">💰</div>
         </div>
+        <div class="stat-card" style="position: relative; overflow: visible; cursor: pointer;"
+            onclick="window.location.href='{{ url_for('vendors.vendor_list') }}{% if vendor_filter and vendor_filter != 'Total' %}?status={{ vendor_filter|urlencode }}{% endif %}'">
+            <div class="stat-info">
+                <h3 style="margin-bottom: 2px;">{{ total_vendors }}</h3>
+                <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-muted);">{{ vendor_filter }} Vendors</p>
+
+                <select onchange="dashboardFilter('vendor', this.value)" class="stat-filter-select"
+                    onclick="event.stopPropagation()">
+                    <option value="Total" {% if vendor_filter=='Total' %}selected{% endif %}>All Vendors</option>
+                    <option value="Active" {% if vendor_filter=='Active' %}selected{% endif %}>Active</option>
+                    <option value="Pending" {% if vendor_filter=='Pending' %}selected{% endif %}>Pending</option>
+                    <option value="Inactive" {% if vendor_filter=='Inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="stat-icon">🏭</div>
+        </div>
     </div>
 
     <!-- My Workspace Section -->

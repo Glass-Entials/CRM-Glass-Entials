@@ -680,6 +680,18 @@ def home_page():
 
 
 
+    # --- Vendor Metrics ---
+    from model import Vendor, VendorStatus
+    vendor_filter = request.args.get("vendor_status", "Total")
+    vendor_query = Vendor.query.filter_by(organization_id=org_id, is_deleted=False)
+
+    if vendor_filter != "Total":
+        status_map = {e.value: e for e in VendorStatus}
+        if vendor_filter in status_map:
+            vendor_query = vendor_query.filter(Vendor.status == status_map[vendor_filter])
+
+    total_vendors = vendor_query.count()
+
     return render_template(
         "home/home.html",
         total_customers=total_customers,
@@ -702,6 +714,8 @@ def home_page():
         total_contacts=total_contacts,
         payment_filter=payment_filter,
         total_payments=total_payments,
+        total_vendors=total_vendors,
+        vendor_filter=vendor_filter,
     )
 
 
