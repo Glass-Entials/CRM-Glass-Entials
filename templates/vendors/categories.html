@@ -6,265 +6,92 @@
     <title>Vendor Categories | GlassEntials CRM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/vendors.css') }}?v=1">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
     <style>
-        .vnd-cat-container {
-            max-width: 1120px;
-            margin: 1.75rem auto;
-            padding: 0 20px 3rem;
-        }
-        .breadcrumb-nav {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.85rem;
-            color: #64748b;
-            margin-bottom: 1.25rem;
-        }
-        .breadcrumb-nav a {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .breadcrumb-nav a:hover {
-            color: var(--accent-gold);
-        }
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.75rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .page-header h1 {
-            font-family: var(--font-heading);
-            color: var(--primary-color);
-            margin: 0 0 4px;
-            font-size: 1.7rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .page-header p {
-            margin: 0;
-            color: #64748b;
-            font-size: 0.88rem;
-        }
-
-        .cat-grid {
-            display: grid;
-            grid-template-columns: 340px 1fr;
-            gap: 1.5rem;
-            align-items: start;
-        }
-        @media (max-width: 860px) {
-            .cat-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .cat-card {
-            background: #fff;
-            border-radius: 12px;
-            border: 1px solid rgba(13, 27, 42, 0.08);
-            box-shadow: 0 3px 14px rgba(0,0,0,0.03);
-            overflow: hidden;
-        }
-        .cat-card-header {
-            padding: 1.25rem 1.5rem;
-            background: #fdfdfb;
-            border-bottom: 1px solid #f1f5f9;
-            border-top: 4px solid var(--accent-gold);
-        }
-        .cat-card-header h2 {
-            font-family: var(--font-heading);
-            color: var(--primary-color);
-            font-size: 1.2rem;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .cat-card-body {
-            padding: 1.5rem;
-        }
-
-        .form-group {
-            margin-bottom: 1.15rem;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .form-group label {
-            font-size: 0.82rem;
-            font-weight: 600;
-            color: #334155;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .form-control {
-            padding: 0.65rem 0.85rem;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            font-family: var(--font-body);
-            font-size: 0.9rem;
-            outline: none;
-            transition: all 0.2s;
-        }
-        .form-control:focus {
-            border-color: var(--accent-gold);
-            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
-        }
-
-        .btn-submit {
-            width: 100%;
-            padding: 0.7rem;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #fff;
-            background: var(--primary-color);
-            border: none;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .btn-submit:hover {
-            background: #1b2d42;
-        }
-
-        .cat-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .cat-table th {
-            text-align: left;
-            padding: 0.75rem 1rem;
-            background: #f8fafc;
-            color: #64748b;
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .cat-table td {
-            padding: 0.9rem 1rem;
-            border-bottom: 1px solid #f1f5f9;
-            font-size: 0.88rem;
-            vertical-align: middle;
-        }
-        .cat-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 0.74rem;
-            font-weight: 600;
-        }
-        .pill-active { background: #dcfce7; color: #15803d; }
-        .pill-inactive { background: #fee2e2; color: #b91c1c; }
-
-        .btn-toggle {
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 0.78rem;
-            font-weight: 600;
-            background: #fff;
-            border: 1px solid #cbd5e1;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-        .btn-toggle:hover {
-            background: #f8fafc;
-        }
-
-        .alert-box {
-            padding: 0.85rem 1.2rem;
-            border-radius: 8px;
-            margin-bottom: 1.25rem;
-            font-size: 0.88rem;
-        }
-        .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-        .alert-warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
-        .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .cat-table { width:100%; border-collapse:collapse; }
+        .cat-table th { text-align:left; padding:0.75rem 1rem; background:#f8fafc; color:#64748b; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; border-bottom:1.5px solid #edf0f5; }
+        .cat-table td { padding:0.9rem 1rem; border-bottom:1px solid #f4f6f9; font-size:0.875rem; vertical-align:middle; }
+        .cat-table tbody tr:last-child td { border-bottom:none; }
+        .cat-table tbody tr:hover td { background:#fafbfe; }
+        .vnd-flash-alert { padding:0.85rem 1.15rem; border-radius:10px; margin-bottom:1.25rem; font-size:0.875rem; border-left:4px solid transparent; font-weight:500; }
+        .vnd-flash-error { background:#fef2f2; border-color:#ef4444; color:#991b1b; }
+        .vnd-flash-warning { background:#fffbeb; border-color:#f59e0b; color:#92400e; }
+        .vnd-flash-success { background:#f0fdf4; border-color:#22c55e; color:#166534; }
     </style>
 </head>
 <body class="dashboard-page">
     {% include 'includes/navbar.html' %}
 
-    <main class="vnd-cat-container">
+    <main class="vnd-cat-page">
         <!-- Breadcrumb -->
-        <div class="breadcrumb-nav">
+        <div class="vnd-breadcrumb">
             <a href="{{ url_for('vendors.vendor_list') }}">Vendors</a>
-            <span>/</span>
-            <span>Vendor Categories</span>
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            <span style="color:#1e293b;font-weight:500;">Vendor Categories</span>
         </div>
 
         <!-- Flash messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    {% if category in ['vendor_error', 'error'] %}
-                        <div class="alert-box alert-error">{{ message }}</div>
-                    {% elif category in ['vendor_warning', 'warning'] %}
-                        <div class="alert-box alert-warning">{{ message }}</div>
-                    {% elif category in ['vendor_success', 'success'] %}
-                        <div class="alert-box alert-success">{{ message }}</div>
-                    {% endif %}
-                {% endfor %}
-            {% endif %}
+            {% if messages %}{% for category, message in messages %}
+                {% if category in ['vendor_error', 'error'] %}<div class="vnd-flash-alert vnd-flash-error">{{ message }}</div>
+                {% elif category in ['vendor_warning', 'warning'] %}<div class="vnd-flash-alert vnd-flash-warning">{{ message }}</div>
+                {% elif category in ['vendor_success', 'success'] %}<div class="vnd-flash-alert vnd-flash-success">{{ message }}</div>
+                {% endif %}
+            {% endfor %}{% endif %}
         {% endwith %}
 
-        <div class="page-header">
+        <!-- Page Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.75rem;flex-wrap:wrap;gap:1rem;">
             <div>
-                <h1>Vendor Categories</h1>
-                <p>Organize and classify suppliers by procurement type (e.g. Glass Suppliers, Hardware, Logistics)</p>
+                <h1 style="font-family:var(--font-heading);color:var(--primary-color);margin:0 0 4px;font-size:1.7rem;letter-spacing:-0.02em;">Vendor Categories</h1>
+                <p style="margin:0;color:#64748b;font-size:0.875rem;">Organize and classify suppliers by procurement type</p>
             </div>
-            <a href="{{ url_for('vendors.vendor_list') }}" class="btn-toggle" style="text-decoration:none; padding:8px 16px;">
-                ← Back to Vendors
+            <a href="{{ url_for('vendors.vendor_list') }}" class="btn-vnd btn-vnd-outline">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+                Back to Vendors
             </a>
         </div>
 
-        <div class="cat-grid">
-            <!-- Add Category Card -->
+        <div class="vnd-cat-grid">
+            <!-- Add Category Form -->
             {% if current_user.role.value in ['admin', 'manager'] %}
-            <div class="cat-card">
-                <div class="cat-card-header">
-                    <h2>New Category</h2>
+            <div class="vnd-cat-card">
+                <div class="vnd-cat-card-hd">
+                    <div>
+                        <h3>New Category</h3>
+                        <p>Create a vendor classification</p>
+                    </div>
                 </div>
-                <div class="cat-card-body">
+                <div class="vnd-cat-body">
                     <form method="POST" action="{{ url_for('vendors.add_vendor_category') }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                        <div class="form-group">
-                            <label for="name">Category Name <span style="color:#ef4444;">*</span></label>
-                            <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Glass Manufacturers" required>
+                        <div class="vnd-field" style="margin-bottom:1rem;">
+                            <label class="vnd-label" for="name">Category Name <span class="req">*</span></label>
+                            <input type="text" id="name" name="name" class="vnd-input" placeholder="e.g. Glass Manufacturers" required>
                         </div>
-
-                        <div class="form-group">
-                            <label for="description">Description</label>
-                            <textarea id="description" name="description" class="form-control" rows="3" placeholder="Brief note on what vendors fit this category"></textarea>
+                        <div class="vnd-field" style="margin-bottom:1.25rem;">
+                            <label class="vnd-label" for="description">Description</label>
+                            <textarea id="description" name="description" class="vnd-textarea" rows="3" placeholder="Brief note on what vendors fit this category"></textarea>
                         </div>
-
-                        <button type="submit" class="btn-submit">+ Create Category</button>
+                        <button type="submit" class="btn-vnd btn-vnd-primary" style="width:100%;justify-content:center;">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Create Category
+                        </button>
                     </form>
                 </div>
             </div>
             {% endif %}
 
-            <!-- Categories List Table -->
-            <div class="cat-card" style="{% if current_user.role.value not in ['admin', 'manager'] %}grid-column: 1 / -1;{% endif %}">
-                <div class="cat-card-header" style="border-top-color: var(--primary-color);">
-                    <h2>Existing Categories ({{ categories|length }})</h2>
+            <!-- Categories Table -->
+            <div class="vnd-cat-card" style="{% if current_user.role.value not in ['admin', 'manager'] %}grid-column:1/-1;{% endif %}">
+                <div class="vnd-cat-table-hd">
+                    <h3>All Categories</h3>
+                    <span class="table-count-badge">{{ categories|length }}</span>
                 </div>
                 <div style="overflow-x:auto;">
                     {% if categories %}
@@ -284,28 +111,31 @@
                             {% for cat in categories %}
                             <tr>
                                 <td>
-                                    <div style="font-weight:600; color:var(--primary-color);">{{ cat.name }}</div>
+                                    <div style="display:flex;align-items:center;gap:10px;">
+                                        <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,rgba(212,175,55,0.18),rgba(212,175,55,0.05));color:#9c7c1b;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.78rem;border:1px solid rgba(212,175,55,0.2);">
+                                            {{ cat.name[:1].upper() }}
+                                        </div>
+                                        <span style="font-weight:600;color:var(--primary-color);">{{ cat.name }}</span>
+                                    </div>
                                 </td>
-                                <td style="color:#64748b; font-size:0.83rem;">
-                                    {{ cat.description or '—' }}
-                                </td>
+                                <td style="color:#64748b;font-size:0.84rem;">{{ cat.description or '—' }}</td>
                                 <td>
-                                    <span style="font-weight:600; font-size:0.85rem; color:#475569;">
+                                    <span style="display:inline-flex;align-items:center;justify-content:center;min-width:28px;padding:3px 10px;background:#f1f5f9;border-radius:12px;font-weight:700;font-size:0.8rem;color:#334155;">
                                         {{ cat.vendors.filter_by(is_deleted=False).count() }}
                                     </span>
                                 </td>
                                 <td>
                                     {% if cat.is_active %}
-                                        <span class="pill pill-active">Active</span>
+                                        <span class="pill pill-active"><span class="dot"></span>Active</span>
                                     {% else %}
-                                        <span class="pill pill-inactive">Inactive</span>
+                                        <span class="pill pill-inactive"><span class="dot"></span>Inactive</span>
                                     {% endif %}
                                 </td>
                                 {% if current_user.role.value in ['admin', 'manager'] %}
                                 <td style="text-align:right;">
                                     <form method="POST" action="{{ url_for('vendors.toggle_vendor_category', cat_id=cat.id) }}" style="display:inline;">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn-toggle">
+                                        <button type="submit" class="act-btn {% if cat.is_active %}act-btn-edit{% else %}act-btn-view{% endif %}">
                                             {% if cat.is_active %}Deactivate{% else %}Activate{% endif %}
                                         </button>
                                     </form>
@@ -316,9 +146,12 @@
                         </tbody>
                     </table>
                     {% else %}
-                    <div style="padding:3rem 1rem; text-align:center; color:#64748b;">
-                        <div style="font-weight:600;">No Categories Defined Yet</div>
-                        <p style="font-size:0.83rem; margin-top:4px;">Use the form to create your first vendor category.</p>
+                    <div class="vnd-empty" style="padding:3rem 2rem;">
+                        <div class="vnd-empty-icon">
+                            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                        </div>
+                        <h3>No Categories Defined Yet</h3>
+                        <p>Use the form on the left to create your first vendor category.</p>
                     </div>
                     {% endif %}
                 </div>

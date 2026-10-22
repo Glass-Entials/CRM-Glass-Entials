@@ -4,258 +4,132 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Import Results | GlassEntials CRM</title>
+    <meta name="description" content="Outcome and summary of bulk vendor import.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/vendors.css') }}?v=1">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
     <style>
-        .vnd-result-container {
-            max-width: 960px;
-            margin: 2rem auto;
-            padding: 0 20px 3rem;
-        }
-        .breadcrumb-nav {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.85rem;
-            color: #64748b;
-            margin-bottom: 1.25rem;
-        }
-        .breadcrumb-nav a {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .result-card {
-            background: #fff;
-            border-radius: 14px;
-            border: 1px solid rgba(13, 27, 42, 0.08);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-            overflow: hidden;
-        }
-        .result-header {
-            padding: 1.75rem 2rem;
-            background: #fdfdfb;
-            border-bottom: 1px solid #f1f5f9;
-            border-top: 5px solid var(--accent-gold);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .result-header h1 {
-            font-family: var(--font-heading);
-            color: var(--primary-color);
-            margin: 0 0 4px;
-            font-size: 1.6rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .result-header p {
-            margin: 0;
-            color: #64748b;
-            font-size: 0.88rem;
-        }
-        .result-body {
-            padding: 2rem;
-        }
-
-        .summary-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-        .stat-box {
-            padding: 1.25rem;
-            border-radius: 10px;
-            border: 1px solid #e2e8f0;
-            background: #f8fafc;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-        .stat-box.success {
-            background: #f0fdf4;
-            border-color: #bbf7d0;
-        }
-        .stat-box.warning {
-            background: #fffbeb;
-            border-color: #fde68a;
-        }
-        .stat-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .stat-icon svg {
-            width: 20px;
-            height: 20px;
-        }
-        .stat-box.success .stat-icon {
-            background: rgba(16,185,129,0.15);
-            color: #15803d;
-        }
-        .stat-box.warning .stat-icon {
-            background: rgba(245,158,11,0.15);
-            color: #b45309;
-        }
-        .stat-num {
-            font-size: 1.6rem;
-            font-weight: 700;
-            line-height: 1.1;
-            color: var(--primary-color);
-        }
-        .stat-label {
-            font-size: 0.78rem;
-            color: #64748b;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .preview-table {
+        .vnd-result-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 1rem;
         }
-        .preview-table th {
+        .vnd-result-table th {
             text-align: left;
             padding: 0.75rem 1rem;
             background: #f8fafc;
             color: #64748b;
             font-size: 0.72rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid #e2e8f0;
+            letter-spacing: 0.06em;
+            border-bottom: 1.5px solid #edf0f5;
         }
-        .preview-table td {
+        .vnd-result-table td {
             padding: 0.85rem 1rem;
             border-bottom: 1px solid #f1f5f9;
-            font-size: 0.88rem;
+            font-size: 0.875rem;
+            vertical-align: middle;
         }
-
-        .error-log-card {
+        .vnd-result-table tbody tr:hover td {
+            background: #fafbfe;
+        }
+        .vnd-error-box {
             background: #fef2f2;
             border: 1px solid #fecaca;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 1.25rem 1.5rem;
-            margin-top: 2rem;
+            margin-top: 1.75rem;
         }
-        .error-log-card h4 {
+        .vnd-error-box h4 {
             margin: 0 0 10px;
             color: #991b1b;
             font-size: 0.92rem;
             display: flex;
             align-items: center;
             gap: 8px;
+            font-weight: 700;
         }
-        .error-log-list {
+        .vnd-error-list {
             margin: 0;
             padding-left: 1.25rem;
             color: #7f1d1d;
-            font-size: 0.85rem;
+            font-size: 0.855rem;
             line-height: 1.6;
         }
-
-        .result-footer {
+        .vnd-result-actions {
             display: flex;
             justify-content: flex-end;
             gap: 12px;
             padding-top: 1.5rem;
-            border-top: 1px solid #e8edf3;
+            border-top: 1px solid #edf2f7;
             margin-top: 2rem;
-        }
-        .btn-action {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 0.65rem 1.4rem;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-        .btn-secondary {
-            background: #fff;
-            color: #334155;
-            border: 1px solid #cbd5e1;
-        }
-        .btn-primary {
-            background: var(--primary-color);
-            color: #fff;
-            border: 1px solid var(--primary-color);
-        }
-        .btn-primary:hover {
-            background: #1b2d42;
         }
     </style>
 </head>
 <body class="dashboard-page">
     {% include 'includes/navbar.html' %}
 
-    <main class="vnd-result-container">
+    <main class="vnd-import-page" style="max-width:960px;">
         <!-- Breadcrumb -->
-        <div class="breadcrumb-nav">
+        <div class="vnd-breadcrumb">
             <a href="{{ url_for('vendors.vendor_list') }}">Vendors</a>
-            <span>/</span>
-            <a href="{{ url_for('vendors.import_vendors') }}">Import</a>
-            <span>/</span>
-            <span>Results</span>
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            <a href="{{ url_for('vendors.import_vendors') }}">Import Vendors</a>
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            <span style="color:#1e293b;font-weight:500;">Results</span>
         </div>
 
-        <div class="result-card">
-            <div class="result-header">
+        <div class="vnd-import-card">
+            <div class="vnd-import-header">
                 <div>
-                    <h1>Import Summary</h1>
-                    <p>Review the outcome of your CSV vendor bulk upload.</p>
+                    <h1>
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Import Outcome Summary
+                    </h1>
+                    <p>Review the completed results of your CSV supplier upload</p>
                 </div>
+                <span style="background:rgba(212,175,55,0.2);color:#fff;border:1px solid rgba(212,175,55,0.4);padding:0.35rem 0.85rem;border-radius:20px;font-size:0.75rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">
+                    Processed
+                </span>
             </div>
 
-            <div class="result-body">
-                <!-- Stat Cards -->
-                <div class="summary-stats">
-                    <div class="stat-box success">
-                        <div class="stat-icon">
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
-                        </div>
-                        <div>
-                            <div class="stat-num" style="color:#15803d;">{{ results.created }}</div>
-                            <div class="stat-label">Vendors Created</div>
-                        </div>
+            <div class="vnd-import-body">
+                <!-- Result Stat Cards -->
+                <div class="vnd-result-grid">
+                    <div class="vnd-result-card rc-success">
+                        <div class="vnd-result-num">{{ results.created }}</div>
+                        <div class="vnd-result-label">Vendors Created</div>
                     </div>
-
-                    <div class="stat-box warning">
-                        <div class="stat-icon">
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
-                        </div>
-                        <div>
-                            <div class="stat-num" style="color:#b45309;">{{ results.skipped }}</div>
-                            <div class="stat-label">Skipped / Duplicates</div>
-                        </div>
+                    <div class="vnd-result-card rc-skip">
+                        <div class="vnd-result-num">{{ results.skipped }}</div>
+                        <div class="vnd-result-label">Skipped / Duplicates</div>
+                    </div>
+                    <div class="vnd-result-card rc-total">
+                        <div class="vnd-result-num">{{ results.created + results.skipped }}</div>
+                        <div class="vnd-result-label">Total Processed</div>
                     </div>
                 </div>
 
-                <!-- Newly Created Preview -->
+                <!-- Newly Created Vendors Preview -->
                 {% if rows_preview %}
-                <div style="margin-top:1.5rem;">
-                    <h3 style="font-family:var(--font-heading); color:var(--primary-color); font-size:1.15rem; margin:0 0 10px;">
-                        Newly Created Vendors ({{ rows_preview|length }})
-                    </h3>
-                    <div style="border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;">
-                        <table class="preview-table">
+                <div style="margin-top:2rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.85rem;">
+                        <h3 style="font-family:var(--font-heading);color:var(--primary-color);font-size:1.15rem;margin:0;">
+                            Newly Registered Vendors
+                        </h3>
+                        <span style="font-size:0.78rem;font-weight:700;color:var(--accent-gold);background:rgba(212,175,55,0.1);padding:0.25rem 0.7rem;border-radius:12px;">
+                            {{ rows_preview|length }} Added
+                        </span>
+                    </div>
+
+                    <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.02);">
+                        <table class="vnd-result-table">
                             <thead>
                                 <tr>
                                     <th>Vendor Code</th>
@@ -267,14 +141,21 @@
                                 {% for row in rows_preview %}
                                 <tr>
                                     <td>
-                                        <span style="font-family:monospace; font-weight:700; color:var(--accent-gold);">
+                                        <span style="font-family:monospace;font-weight:700;color:var(--accent-gold);font-size:0.85rem;">
                                             {{ row.code }}
                                         </span>
                                     </td>
-                                    <td style="font-weight:600; color:var(--primary-color);">
-                                        {{ row.name }}
+                                    <td>
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,rgba(13,27,42,0.08),rgba(13,27,42,0.03));display:flex;align-items:center;justify-content:center;color:var(--primary-color);font-weight:700;font-size:0.75rem;flex-shrink:0;">
+                                                {{ row.name[:2]|upper }}
+                                            </div>
+                                            <span style="font-weight:600;color:var(--primary-color);">
+                                                {{ row.name }}
+                                            </span>
+                                        </div>
                                     </td>
-                                    <td style="color:#64748b;">
+                                    <td style="color:#64748b;font-size:0.85rem;">
                                         {{ row.city or '—' }}
                                     </td>
                                 </tr>
@@ -287,9 +168,16 @@
 
                 <!-- Errors / Skipped Log -->
                 {% if results.errors %}
-                <div class="error-log-card">
-                    <h4>Skipped Rows & Issues ({{ results.errors|length }})</h4>
-                    <ul class="error-log-list">
+                <div class="vnd-error-box">
+                    <h4>
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        Skipped Rows &amp; Validation Messages ({{ results.errors|length }})
+                    </h4>
+                    <ul class="vnd-error-list">
                         {% for err in results.errors %}
                         <li>{{ err }}</li>
                         {% endfor %}
@@ -297,12 +185,23 @@
                 </div>
                 {% endif %}
 
-                <div class="result-footer">
-                    <a href="{{ url_for('vendors.import_vendors') }}" class="btn-action btn-secondary">
+                <div class="vnd-result-actions">
+                    <a href="{{ url_for('vendors.import_vendors') }}" class="btn-vnd btn-vnd-outline">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
                         Import Another File
                     </a>
-                    <a href="{{ url_for('vendors.vendor_list') }}" class="btn-action btn-primary">
-                        Go to Vendor Directory
+                    <a href="{{ url_for('vendors.vendor_list') }}" class="btn-vnd btn-vnd-primary">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <rect x="3" y="3" width="7" height="7"/>
+                            <rect x="14" y="3" width="7" height="7"/>
+                            <rect x="14" y="14" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/>
+                        </svg>
+                        Vendor Directory
                     </a>
                 </div>
             </div>

@@ -4,511 +4,84 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ vendor.company_name }} | Vendor Profile | GlassEntials CRM</title>
+    <meta name="description" content="Vendor profile for {{ vendor.company_name }} — GlassEntials CRM">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/vendors.css') }}?v=1">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
     <style>
-        .vnd-detail-container {
-            max-width: 1280px;
-            margin: 1.75rem auto;
-            padding: 0 20px 3rem;
-        }
-        .breadcrumb-nav {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.85rem;
-            color: #64748b;
-            margin-bottom: 1.25rem;
-        }
-        .breadcrumb-nav a {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .breadcrumb-nav a:hover {
-            color: var(--accent-gold);
-        }
-
-        /* Profile Header */
-        .profile-header-card {
-            background: #fff;
-            padding: 2rem 2.25rem;
-            border-radius: 14px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-            border: 1px solid rgba(13, 27, 42, 0.08);
-            border-top: 5px solid var(--accent-gold);
-            margin-bottom: 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-wrap: wrap;
-            gap: 1.5rem;
-        }
-        .profile-identity-group {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        .profile-avatar-large {
-            width: 76px;
-            height: 76px;
-            background: linear-gradient(135deg, rgba(212,175,55,0.18), rgba(212,175,55,0.06));
-            color: #9c7c1b;
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.1rem;
-            font-weight: 700;
-            font-family: var(--font-heading);
-            border: 1px solid rgba(212,175,55,0.3);
-            flex-shrink: 0;
-        }
-        .profile-title-block h1 {
-            font-size: 1.85rem;
-            margin: 0 0 4px;
-            color: var(--primary-color);
-            font-family: var(--font-heading);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-        .profile-code-badge {
-            font-size: 0.8rem;
-            font-family: var(--font-body);
-            font-weight: 600;
-            background: #f1f5f9;
-            color: #475569;
-            padding: 3px 10px;
-            border-radius: 6px;
-            letter-spacing: 0.05em;
-        }
-        .profile-sub-title {
-            color: #64748b;
-            font-size: 0.9rem;
-            margin-bottom: 8px;
-        }
-        .profile-badges-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 0.74rem;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        .pill .dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-        }
-        .pill-active { background: #dcfce7; color: #15803d; } .pill-active .dot { background: #22c55e; }
-        .pill-inactive { background: #fee2e2; color: #b91c1c; } .pill-inactive .dot { background: #f87171; }
-        .pill-pending { background: #fff7ed; color: #c2410c; } .pill-pending .dot { background: #fb923c; }
-        .pill-verified { background: #dbeafe; color: #1d4ed8; }
-        .pill-unverified { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-        .pill-rejected { background: #fee2e2; color: #991b1b; }
-        .pill-gold { background: rgba(212,175,55,0.12); color: #8a6a00; border: 1px solid rgba(212,175,55,0.25); }
-
-        .header-actions-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        .btn-action {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 0.55rem 1.15rem;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.15s;
-            font-family: var(--font-body);
-            border: 1px solid transparent;
-        }
-        .btn-primary-action {
-            background: var(--primary-color);
-            color: #fff;
-            border-color: var(--primary-color);
-        }
-        .btn-primary-action:hover {
-            background: #1b2d42;
-            color: #fff;
-        }
-        .btn-outline-action {
-            background: #fff;
-            color: #334155;
-            border-color: #cbd5e1;
-        }
-        .btn-outline-action:hover {
-            background: #f8fafc;
-            border-color: #94a3b8;
-        }
-        .btn-danger-action {
-            background: #fff;
-            color: #dc2626;
-            border-color: #fecaca;
-        }
-        .btn-danger-action:hover {
-            background: #fee2e2;
-        }
-
-        /* Metric Highlights */
-        .metrics-strip {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.75rem;
-        }
-        .metric-mini-card {
-            background: #fff;
-            border-radius: 10px;
-            padding: 1.1rem 1.25rem;
-            border: 1px solid rgba(13, 27, 42, 0.08);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .metric-mini-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .metric-mini-icon svg { width: 20px; height: 20px; }
-        .metric-mini-icon.gold { background: rgba(212,175,55,0.12); color: #8a6a00; }
-        .metric-mini-icon.blue { background: rgba(59,130,246,0.1); color: #2563eb; }
-        .metric-mini-icon.green { background: rgba(16,185,129,0.1); color: #059669; }
-        .metric-mini-icon.purple { background: rgba(139,92,246,0.1); color: #7c3aed; }
-        .metric-mini-title {
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            font-weight: 600;
-            color: #64748b;
-            letter-spacing: 0.05em;
-        }
-        .metric-mini-val {
-            font-size: 1.05rem;
-            font-weight: 700;
-            color: var(--primary-color);
-            margin-top: 2px;
-        }
-
-        /* Tabs */
-        .tab-nav {
-            display: flex;
-            gap: 4px;
-            border-bottom: 2px solid #e2e8f0;
-            margin-bottom: 1.5rem;
-            overflow-x: auto;
-        }
-        .tab-btn {
-            padding: 0.75rem 1.5rem;
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #64748b;
-            background: transparent;
-            border: none;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-            cursor: pointer;
-            transition: all 0.15s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            white-space: nowrap;
-            font-family: var(--font-body);
-        }
-        .tab-btn:hover {
-            color: var(--primary-color);
-        }
-        .tab-btn.active {
-            color: var(--primary-color);
-            border-bottom-color: var(--accent-gold);
-            font-weight: 700;
-        }
-        .tab-badge {
-            background: #f1f5f9;
-            color: #475569;
-            font-size: 0.72rem;
-            padding: 2px 7px;
-            border-radius: 12px;
-        }
-        .tab-btn.active .tab-badge {
-            background: rgba(212,175,55,0.15);
-            color: #8a6a00;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
-
-        /* Card Sections */
-        .content-card {
-            background: #fff;
-            border-radius: 12px;
-            border: 1px solid rgba(13, 27, 42, 0.08);
-            box-shadow: 0 3px 12px rgba(0,0,0,0.02);
-            padding: 1.75rem;
-            margin-bottom: 1.5rem;
-        }
-        .card-header-line {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.25rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid #f1f5f9;
-        }
-        .card-header-line h3 {
-            font-family: var(--font-heading);
-            color: var(--primary-color);
-            font-size: 1.18rem;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.25rem;
-        }
-        .info-item {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .info-label {
-            font-size: 0.73rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #64748b;
-            font-weight: 600;
-        }
-        .info-value {
-            font-size: 0.92rem;
-            color: #1e293b;
-            font-weight: 500;
-            word-break: break-word;
-        }
-        .info-value a {
-            color: var(--primary-color);
-            text-decoration: none;
-        }
-        .info-value a:hover {
-            color: var(--accent-gold);
-            text-decoration: underline;
-        }
-        .empty-dash {
-            color: #cbd5e1;
-            font-style: italic;
-        }
-
-        /* Documents Table */
-        .doc-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .doc-table th {
-            text-align: left;
-            padding: 0.75rem 1rem;
-            background: #f8fafc;
-            color: #64748b;
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .doc-table td {
-            padding: 0.85rem 1rem;
-            border-bottom: 1px solid #f1f5f9;
-            font-size: 0.88rem;
-            vertical-align: middle;
-        }
-        .doc-file-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 600;
-            color: var(--primary-color);
-        }
-        .file-type-pill {
-            padding: 3px 8px;
-            border-radius: 5px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            background: #f1f5f9;
-            color: #475569;
-            border: 1px solid #e2e8f0;
-        }
-
-        /* Timeline / Activity */
-        .timeline {
-            position: relative;
-            padding-left: 28px;
-        }
-        .timeline::before {
-            content: '';
-            position: absolute;
-            left: 10px;
-            top: 4px;
-            bottom: 4px;
-            width: 2px;
-            background: #e2e8f0;
-        }
-        .timeline-item {
-            position: relative;
-            margin-bottom: 1.5rem;
-        }
-        .timeline-item:last-child {
-            margin-bottom: 0;
-        }
-        .timeline-dot {
-            position: absolute;
-            left: -28px;
-            top: 3px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #fff;
-            border: 3px solid var(--accent-gold);
-            box-sizing: border-box;
-        }
-        .timeline-content {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 0.9rem 1.1rem;
-        }
-        .timeline-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 4px;
-        }
-        .timeline-action {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--primary-color);
-            text-transform: capitalize;
-        }
-        .timeline-time {
-            font-size: 0.75rem;
-            color: #94a3b8;
-        }
-        .timeline-desc {
-            font-size: 0.85rem;
-            color: #475569;
-        }
-
-        /* Modal */
+        /* Supplemental detail styles */
         .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            padding: 20px;
+            position: fixed; top:0;left:0;right:0;bottom:0;
+            background: rgba(13,27,42,0.55);
+            display: none; align-items: center; justify-content: center;
+            z-index: 9999; padding: 20px;
         }
-        .modal-overlay.active {
-            display: flex;
-        }
+        .modal-overlay.active { display: flex; }
         .modal-dialog {
-            background: #fff;
-            border-radius: 12px;
-            max-width: 520px;
-            width: 100%;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            overflow: hidden;
-            animation: modalFadeIn 0.2s ease-out;
+            background: #fff; border-radius: 14px; max-width: 520px; width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+            animation: mfIn 0.2s ease-out;
         }
-        @keyframes modalFadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes mfIn { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:translateY(0); } }
         .modal-header {
             padding: 1.25rem 1.5rem;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background: linear-gradient(135deg, var(--primary-color), #1a2f4a);
+            border-radius: 14px 14px 0 0;
+            display: flex; justify-content: space-between; align-items: center;
         }
-        .modal-header h3 {
-            margin: 0;
-            font-size: 1.15rem;
-            color: var(--primary-color);
-            font-family: var(--font-heading);
+        .modal-header h3 { margin:0; font-size:1.1rem; color:#fff; font-family:var(--font-heading); }
+        .modal-close { background:rgba(255,255,255,0.15); border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; color:#fff; font-size:1.1rem; display:flex; align-items:center; justify-content:center; transition:background 0.15s; }
+        .modal-close:hover { background:rgba(255,255,255,0.25); }
+        .modal-body { padding: 1.5rem; }
+        .modal-footer { padding:1rem 1.5rem; background:#fafbfd; border-top:1px solid #f1f5f9; display:flex; justify-content:flex-end; gap:10px; border-radius:0 0 14px 14px; }
+        .modal-field { margin-bottom: 1rem; }
+        .modal-field label { font-size:0.8rem; font-weight:700; color:#374151; margin-bottom:5px; display:block; }
+        .modal-field select,
+        .modal-field input[type="text"],
+        .modal-field input[type="file"] {
+            width:100%; padding:0.65rem 0.9rem; border:1.5px solid #e2e8f0; border-radius:8px;
+            font-size:0.875rem; font-family:var(--font-body); background:#f9fafb; outline:none;
+            transition:border-color 0.2s, box-shadow 0.2s; box-sizing:border-box;
         }
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 1.3rem;
-            cursor: pointer;
-            color: #64748b;
+        .modal-field select:focus, .modal-field input:focus {
+            border-color:var(--accent-gold); background:#fff; box-shadow:0 0 0 3px rgba(212,175,55,0.12);
         }
-        .modal-body {
-            padding: 1.5rem;
-        }
-        .modal-footer {
-            padding: 1rem 1.5rem;
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
+        .modal-hint { font-size:0.73rem; color:#94a3b8; margin-top:4px; }
 
-        /* Alerts */
-        .alert-box {
-            padding: 0.85rem 1.2rem;
-            border-radius: 8px;
-            margin-bottom: 1.25rem;
-            font-size: 0.88rem;
-        }
-        .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-        .alert-warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
-        .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        /* doc table */
+        .doc-table { width:100%; border-collapse:collapse; }
+        .doc-table th { text-align:left; padding:0.75rem 1rem; background:#f8fafc; color:#64748b; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.07em; border-bottom:1.5px solid #edf0f5; }
+        .doc-table td { padding:0.85rem 1rem; border-bottom:1px solid #f4f6f9; font-size:0.875rem; vertical-align:middle; }
+        .doc-table tbody tr:last-child td { border-bottom:none; }
+        .doc-table tbody tr:hover td { background:#fafbfe; }
+        .doc-type-pill { padding:3px 9px; border-radius:5px; font-size:0.68rem; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+
+        /* alert boxes for flash */
+        .vnd-flash-alert { padding:0.85rem 1.15rem; border-radius:10px; margin-bottom:1.25rem; font-size:0.875rem; border-left:4px solid transparent; display:flex; align-items:center; gap:8px; font-weight:500; }
+        .vnd-flash-error { background:#fef2f2; border-color:#ef4444; color:#991b1b; }
+        .vnd-flash-warning { background:#fffbeb; border-color:#f59e0b; color:#92400e; }
+        .vnd-flash-success { background:#f0fdf4; border-color:#22c55e; color:#166534; }
+
+        /* meta footer */
+        .vnd-record-meta { font-size:0.74rem; color:#94a3b8; padding:0.25rem 0.5rem; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
     </style>
 </head>
 <body class="dashboard-page">
     {% include 'includes/navbar.html' %}
 
-    <main class="vnd-detail-container">
+    <main class="vnd-detail-page">
+
         <!-- Breadcrumb -->
-        <div class="breadcrumb-nav">
+        <div class="vnd-breadcrumb">
             <a href="{{ url_for('vendors.vendor_list') }}">Vendors</a>
-            <span>/</span>
-            <span>{{ vendor.company_name }}</span>
-            <span class="profile-code-badge">{{ vendor.code }}</span>
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            <span style="color:#1e293b;font-weight:500;">{{ vendor.company_name }}</span>
+            <span class="code-chip" style="font-size:0.72rem;">{{ vendor.code }}</span>
         </div>
 
         <!-- Flash messages -->
@@ -516,283 +89,273 @@
             {% if messages %}
                 {% for category, message in messages %}
                     {% if category in ['vendor_error', 'error'] %}
-                        <div class="alert-box alert-error">{{ message }}</div>
+                        <div class="vnd-flash-alert vnd-flash-error">{{ message }}</div>
                     {% elif category in ['vendor_warning', 'warning'] %}
-                        <div class="alert-box alert-warning">{{ message }}</div>
+                        <div class="vnd-flash-alert vnd-flash-warning">{{ message }}</div>
                     {% elif category in ['vendor_success', 'success'] %}
-                        <div class="alert-box alert-success">{{ message }}</div>
+                        <div class="vnd-flash-alert vnd-flash-success">{{ message }}</div>
                     {% endif %}
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
-        <!-- Header Card -->
-        <div class="profile-header-card">
-            <div class="profile-identity-group">
-                <div class="profile-avatar-large">
-                    {{ vendor.company_name[:2].upper() }}
-                </div>
-                <div class="profile-title-block">
-                    <h1>
+        <!-- Profile Card -->
+        <div class="vnd-profile-card">
+            <div class="vnd-profile-left">
+                <div class="vnd-profile-avatar">{{ vendor.company_name[:2].upper() }}</div>
+                <div>
+                    <div class="vnd-profile-name">
                         {{ vendor.company_name }}
-                        <span class="profile-code-badge">{{ vendor.code }}</span>
-                    </h1>
+                        <span class="code-chip">{{ vendor.code }}</span>
+                    </div>
                     {% if vendor.legal_name and vendor.legal_name != vendor.company_name %}
-                    <div class="profile-sub-title">Legal Name: <strong>{{ vendor.legal_name }}</strong></div>
+                    <div class="vnd-profile-sub">Legal Name: <strong>{{ vendor.legal_name }}</strong></div>
                     {% endif %}
-                    <div class="profile-badges-row">
-                        <!-- Status Pill -->
+                    <div class="vnd-badges-row">
                         {% if vendor.status.value == 'Active' %}
-                            <span class="pill pill-active"><span class="dot"></span> Active</span>
+                            <span class="pill pill-active"><span class="dot"></span>Active</span>
                         {% elif vendor.status.value == 'Inactive' %}
-                            <span class="pill pill-inactive"><span class="dot"></span> Inactive</span>
+                            <span class="pill pill-inactive"><span class="dot"></span>Inactive</span>
                         {% else %}
-                            <span class="pill pill-pending"><span class="dot"></span> {{ vendor.status_display }}</span>
+                            <span class="pill pill-pending"><span class="dot"></span>{{ vendor.status_display }}</span>
                         {% endif %}
 
-                        <!-- Verification Pill -->
                         {% if vendor.verification_status.value == 'Verified' %}
                             <span class="pill pill-verified">Verified</span>
                         {% elif vendor.verification_status.value == 'Rejected' %}
-                            <span class="pill pill-rejected">Rejected</span>
+                            <span class="pill pill-inactive">Rejected</span>
                         {% else %}
                             <span class="pill pill-unverified">{{ vendor.verification_display }}</span>
                         {% endif %}
 
-                        <!-- Category -->
                         {% if vendor.category %}
-                            <span class="pill pill-gold">{{ vendor.category.name }}</span>
+                            <span class="pill pill-cat">{{ vendor.category.name }}</span>
                         {% endif %}
-
-                        <!-- Business Type -->
                         {% if vendor.business_type %}
                             <span class="pill pill-unverified">{{ vendor.business_type_display }}</span>
                         {% endif %}
                     </div>
                 </div>
             </div>
-
-            <div class="header-actions-group">
-                <button class="btn-action btn-outline-action" onclick="openDocModal()">
+            <div class="vnd-profile-actions">
+                <button class="btn-vnd btn-vnd-outline" onclick="openDocModal()">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     Upload Document
                 </button>
-                <a href="{{ url_for('vendors.edit_vendor', vendor_id=vendor.id) }}" class="btn-action btn-primary-action">
+                <a href="{{ url_for('vendors.edit_vendor', vendor_id=vendor.id) }}" class="btn-vnd btn-vnd-primary">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     Edit Vendor
                 </a>
                 {% if current_user.role.value in ['admin', 'manager'] %}
-                <button class="btn-action btn-danger-action" onclick="openDeleteModal()">
+                <button class="btn-vnd btn-vnd-danger" onclick="openDeleteModal()">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                     Delete
                 </button>
                 {% endif %}
             </div>
         </div>
 
-        <!-- Metric Highlights -->
-        <div class="metrics-strip">
-            <div class="metric-mini-card">
-                <div class="metric-mini-icon gold">
+        <!-- Metric Strip -->
+        <div class="vnd-metrics-strip">
+            <div class="vnd-metric-mini">
+                <div class="vnd-mini-icon gold">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                 </div>
                 <div>
-                    <div class="metric-mini-title">Payment Terms</div>
-                    <div class="metric-mini-val">
+                    <div class="vnd-mini-label">Payment Terms</div>
+                    <div class="vnd-mini-val">
                         {{ vendor.payment_terms_display or 'Not Set' }}
-                        {% if vendor.credit_period_days %}<span style="font-size:0.8rem; font-weight:500; color:#64748b;">({{ vendor.credit_period_days }}d)</span>{% endif %}
+                        {% if vendor.credit_period_days %}<span style="font-size:0.78rem;font-weight:500;color:#64748b;"> ({{ vendor.credit_period_days }}d)</span>{% endif %}
                     </div>
                 </div>
             </div>
-
-            <div class="metric-mini-card">
-                <div class="metric-mini-icon blue">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <div class="vnd-metric-mini">
+                <div class="vnd-mini-icon blue">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 </div>
                 <div>
-                    <div class="metric-mini-title">GSTIN</div>
-                    <div class="metric-mini-val" style="font-family:monospace; font-size:0.95rem;">
-                        {{ vendor.gstin or 'Not Registered' }}
-                    </div>
+                    <div class="vnd-mini-label">GSTIN</div>
+                    <div class="vnd-mini-val" style="font-family:monospace;font-size:0.92rem;">{{ vendor.gstin or 'Not Registered' }}</div>
                 </div>
             </div>
-
-            <div class="metric-mini-card">
-                <div class="metric-mini-icon green">
+            <div class="vnd-metric-mini">
+                <div class="vnd-mini-icon green">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                 </div>
                 <div>
-                    <div class="metric-mini-title">Location</div>
-                    <div class="metric-mini-val">
-                        {{ vendor.city or '—' }}{% if vendor.state %}, {{ vendor.state }}{% endif %}
-                    </div>
+                    <div class="vnd-mini-label">Location</div>
+                    <div class="vnd-mini-val">{{ vendor.city or '—' }}{% if vendor.state %}, {{ vendor.state }}{% endif %}</div>
                 </div>
             </div>
-
-            <div class="metric-mini-card">
-                <div class="metric-mini-icon purple">
+            <div class="vnd-metric-mini">
+                <div class="vnd-mini-icon purple">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
                 <div>
-                    <div class="metric-mini-title">Assigned Manager</div>
-                    <div class="metric-mini-val" style="font-size:0.95rem;">
-                        {{ vendor.assignee.name if vendor.assignee else 'Unassigned' }}
-                    </div>
+                    <div class="vnd-mini-label">Assigned Manager</div>
+                    <div class="vnd-mini-val">{{ vendor.assignee.name if vendor.assignee else 'Unassigned' }}</div>
                 </div>
             </div>
         </div>
 
-        <!-- Tabs Navigation -->
-        <div class="tab-nav">
-            <button class="tab-btn active" onclick="switchTab('overview', this)">
-                Overview & Details
+        <!-- Tab Navigation -->
+        <div class="vnd-tab-nav">
+            <button class="vnd-tab-btn active" onclick="switchTab('overview', this)">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                Overview &amp; Details
             </button>
-            <button class="tab-btn" onclick="switchTab('documents', this)">
-                Documents <span class="tab-badge">{{ documents|length }}</span>
+            <button class="vnd-tab-btn" onclick="switchTab('documents', this)">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Documents <span class="vnd-tab-badge">{{ documents|length }}</span>
             </button>
-            <button class="tab-btn" onclick="switchTab('activity', this)">
-                Activity Trail <span class="tab-badge">{{ activities|length }}</span>
+            <button class="vnd-tab-btn" onclick="switchTab('activity', this)">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                Activity Trail <span class="vnd-tab-badge">{{ activities|length }}</span>
             </button>
         </div>
 
         <!-- TAB 1: OVERVIEW -->
-        <div id="tab-overview" class="tab-content active">
-            <!-- Contact Card -->
-            <div class="content-card">
-                <div class="card-header-line">
-                    <h3>Contact Person & Communication</h3>
+        <div id="tab-overview" class="vnd-tab-content active">
+
+            <!-- Contact & Communication -->
+            <div class="vnd-content-card">
+                <div class="vnd-card-head">
+                    <h3>
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        Contact Person &amp; Communication
+                    </h3>
                 </div>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">Contact Person</span>
-                        <span class="info-value">{{ vendor.contact_person or '—' }}</span>
+                <div class="vnd-info-grid">
+                    <div class="vnd-info-item">
+                        <div class="vnd-info-label">Contact Person</div>
+                        <div class="vnd-info-val">{{ vendor.contact_person or '<span class="empty-val">—</span>' }}</div>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Designation</span>
-                        <span class="info-value">{{ vendor.designation or '—' }}</span>
+                    <div class="vnd-info-item">
+                        <div class="vnd-info-label">Designation</div>
+                        <div class="vnd-info-val">{{ vendor.designation or '<span class="empty-val">—</span>' }}</div>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Phone / Mobile</span>
-                        <span class="info-value">
-                            {% if vendor.phone %}
-                                <a href="tel:{{ vendor.phone }}">{{ vendor.phone }}</a>
-                            {% else %}
-                                <span class="empty-dash">—</span>
-                            {% endif %}
-                        </span>
+                    <div class="vnd-info-item">
+                        <div class="vnd-info-label">Phone / Mobile</div>
+                        <div class="vnd-info-val">
+                            {% if vendor.phone %}<a href="tel:{{ vendor.phone }}">{{ vendor.phone }}</a>
+                            {% else %}<span class="empty-val">—</span>{% endif %}
+                        </div>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Alternate Phone</span>
-                        <span class="info-value">
-                            {% if vendor.alt_phone %}
-                                <a href="tel:{{ vendor.alt_phone }}">{{ vendor.alt_phone }}</a>
-                            {% else %}
-                                <span class="empty-dash">—</span>
-                            {% endif %}
-                        </span>
+                    <div class="vnd-info-item">
+                        <div class="vnd-info-label">Alternate Phone</div>
+                        <div class="vnd-info-val">
+                            {% if vendor.alt_phone %}<a href="tel:{{ vendor.alt_phone }}">{{ vendor.alt_phone }}</a>
+                            {% else %}<span class="empty-val">—</span>{% endif %}
+                        </div>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Email Address</span>
-                        <span class="info-value">
-                            {% if vendor.email %}
-                                <a href="mailto:{{ vendor.email }}">{{ vendor.email }}</a>
-                            {% else %}
-                                <span class="empty-dash">—</span>
-                            {% endif %}
-                        </span>
+                    <div class="vnd-info-item">
+                        <div class="vnd-info-label">Email Address</div>
+                        <div class="vnd-info-val">
+                            {% if vendor.email %}<a href="mailto:{{ vendor.email }}">{{ vendor.email }}</a>
+                            {% else %}<span class="empty-val">—</span>{% endif %}
+                        </div>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Website</span>
-                        <span class="info-value">
-                            {% if vendor.website %}
-                                <a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a>
-                            {% else %}
-                                <span class="empty-dash">—</span>
-                            {% endif %}
-                        </span>
+                    <div class="vnd-info-item">
+                        <div class="vnd-info-label">Website</div>
+                        <div class="vnd-info-val">
+                            {% if vendor.website %}<a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a>
+                            {% else %}<span class="empty-val">—</span>{% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Tax & Bank Details -->
-            <div class="content-card">
-                <div class="card-header-line">
-                    <h3>Tax, Banking & Commercial Details</h3>
+            <!-- Tax & Banking -->
+            <div class="vnd-content-card">
+                <div class="vnd-card-head">
+                    <h3>
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                        Tax, Banking &amp; Commercial Details
+                    </h3>
                 </div>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">GSTIN</span>
-                        <span class="info-value" style="font-family:monospace; font-weight:600;">{{ vendor.gstin or '—' }}</span>
+                <div class="vnd-info-grid">
+                    <div class="vnd-info-item">
+                        <div class="vnd-info-label">GSTIN</div>
+                        <div class="vnd-info-val" style="font-family:monospace;font-weight:600;">{{ vendor.gstin or '<span class="empty-val">—</span>' }}</div>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">PAN</span>
-                        <span class="info-value" style="font-family:monospace; font-weight:600;">{{ vendor.pan or '—' }}</span>
+                    <div class="vnd-info-item">
+                        <div class="vnd-info-label">PAN</div>
+                        <div class="vnd-info-val" style="font-family:monospace;font-weight:600;">{{ vendor.pan or '<span class="empty-val">—</span>' }}</div>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Bank Name</span>
-                        <span class="info-value">{{ vendor.bank_name or '—' }}</span>
+                    <div class="vnd-info-item">
+                        <div class="vnd-info-label">Bank Name</div>
+                        <div class="vnd-info-val">{{ vendor.bank_name or '<span class="empty-val">—</span>' }}</div>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Bank Account Number</span>
-                        <span class="info-value" style="font-family:monospace;">{{ vendor.bank_account_no or '—' }}</span>
+                    <div class="vnd-info-item">
+                        <div class="vnd-info-label">Account Number</div>
+                        <div class="vnd-info-val" style="font-family:monospace;">{{ vendor.bank_account_no or '<span class="empty-val">—</span>' }}</div>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">IFSC Code</span>
-                        <span class="info-value" style="font-family:monospace; font-weight:600;">{{ vendor.bank_ifsc or '—' }}</span>
+                    <div class="vnd-info-item">
+                        <div class="vnd-info-label">IFSC Code</div>
+                        <div class="vnd-info-val" style="font-family:monospace;font-weight:600;">{{ vendor.bank_ifsc or '<span class="empty-val">—</span>' }}</div>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Payment Terms</span>
-                        <span class="info-value">{{ vendor.payment_terms_display or '—' }}</span>
+                    <div class="vnd-info-item">
+                        <div class="vnd-info-label">Payment Terms</div>
+                        <div class="vnd-info-val">{{ vendor.payment_terms_display or '<span class="empty-val">—</span>' }}</div>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Credit Period</span>
-                        <span class="info-value">{% if vendor.credit_period_days %}{{ vendor.credit_period_days }} Days{% else %}—{% endif %}</span>
+                    <div class="vnd-info-item">
+                        <div class="vnd-info-label">Credit Period</div>
+                        <div class="vnd-info-val">{% if vendor.credit_period_days %}{{ vendor.credit_period_days }} Days{% else %}<span class="empty-val">—</span>{% endif %}</div>
                     </div>
                 </div>
             </div>
 
             <!-- Addresses & Products -->
-            <div class="content-card">
-                <div class="card-header-line">
-                    <h3>Addresses & Supplied Items</h3>
+            <div class="vnd-content-card">
+                <div class="vnd-card-head">
+                    <h3>
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                        Addresses &amp; Supplied Items
+                    </h3>
                 </div>
-                <div class="info-grid">
-                    <div class="info-item" style="grid-column: span 2;">
-                        <span class="info-label">Billing / Head Office Address</span>
-                        <span class="info-value">
-                            {{ vendor.address or '—' }}
-                            {% if vendor.city %}<br>{{ vendor.city }}{% endif %}{% if vendor.state %}, {{ vendor.state }}{% endif %}{% if vendor.pincode %} - {{ vendor.pincode }}{% endif %}
-                            {% if vendor.country %}, {{ vendor.country }}{% endif %}
-                        </span>
+                <div class="vnd-info-grid">
+                    <div class="vnd-info-item" style="grid-column:1/-1;">
+                        <div class="vnd-info-label">Billing / Head Office Address</div>
+                        <div class="vnd-info-val">
+                            {{ vendor.address or '' }}{% if vendor.city %}<br>{{ vendor.city }}{% endif %}{% if vendor.state %}, {{ vendor.state }}{% endif %}{% if vendor.pincode %} - {{ vendor.pincode }}{% endif %}{% if vendor.country %}, {{ vendor.country }}{% endif %}
+                            {% if not vendor.address and not vendor.city %}<span class="empty-val">—</span>{% endif %}
+                        </div>
                     </div>
-                    <div class="info-item" style="grid-column: span 2;">
-                        <span class="info-label">Warehouse / Dispatch Address</span>
-                        <span class="info-value">{{ vendor.warehouse_address or '—' }}</span>
+                    <div class="vnd-info-item" style="grid-column:1/-1;">
+                        <div class="vnd-info-label">Warehouse / Dispatch Address</div>
+                        <div class="vnd-info-val">{{ vendor.warehouse_address or '<span class="empty-val">—</span>' }}</div>
                     </div>
-                    <div class="info-item" style="grid-column: 1 / -1;">
-                        <span class="info-label">Supplied Products & Services</span>
-                        <span class="info-value" style="white-space: pre-wrap;">{{ vendor.products_services or '—' }}</span>
+                    <div class="vnd-info-item" style="grid-column:1/-1;">
+                        <div class="vnd-info-label">Supplied Products &amp; Services</div>
+                        <div class="vnd-info-val" style="white-space:pre-wrap;">{{ vendor.products_services or '<span class="empty-val">—</span>' }}</div>
                     </div>
                     {% if vendor.notes %}
-                    <div class="info-item" style="grid-column: 1 / -1; background:#fefdf8; padding:1rem; border-radius:8px; border:1px solid #fef3c7;">
-                        <span class="info-label" style="color:#b45309;">Internal Notes & Remarks</span>
-                        <span class="info-value" style="white-space: pre-wrap; color:#78350f;">{{ vendor.notes }}</span>
+                    <div class="vnd-info-item" style="grid-column:1/-1;background:#fefdf8;padding:1rem;border-radius:10px;border:1px solid rgba(212,175,55,0.2);">
+                        <div class="vnd-info-label" style="color:#b45309;">Internal Notes &amp; Remarks</div>
+                        <div class="vnd-info-val" style="white-space:pre-wrap;color:#78350f;">{{ vendor.notes }}</div>
                     </div>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Record Meta -->
-            <div style="font-size:0.75rem; color:#94a3b8; padding:0 0.5rem; display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-                <div>Created: {{ vendor.created_at.strftime('%d %b %Y, %I:%M %p') if vendor.created_at else '—' }} {% if vendor.creator %}by {{ vendor.creator.name }}{% endif %}</div>
-                <div>Last Updated: {{ vendor.updated_at.strftime('%d %b %Y, %I:%M %p') if vendor.updated_at else '—' }} {% if vendor.updater %}by {{ vendor.updater.name }}{% endif %}</div>
+            <!-- Record meta -->
+            <div class="vnd-record-meta">
+                <div>Created: {{ vendor.created_at.strftime('%d %b %Y, %I:%M %p') if vendor.created_at else '—' }}{% if vendor.creator %} &middot; by {{ vendor.creator.name }}{% endif %}</div>
+                <div>Last Updated: {{ vendor.updated_at.strftime('%d %b %Y, %I:%M %p') if vendor.updated_at else '—' }}{% if vendor.updater %} &middot; by {{ vendor.updater.name }}{% endif %}</div>
             </div>
         </div>
 
         <!-- TAB 2: DOCUMENTS -->
-        <div id="tab-documents" class="tab-content">
-            <div class="content-card">
-                <div class="card-header-line">
-                    <h3>Attached Documents</h3>
-                    <button class="btn-action btn-primary-action" onclick="openDocModal()" style="font-size:0.8rem; padding:4px 12px;">
-                        + Upload Document
+        <div id="tab-documents" class="vnd-tab-content">
+            <div class="vnd-content-card">
+                <div class="vnd-card-head">
+                    <h3>
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        Attached Documents
+                    </h3>
+                    <button class="btn-vnd btn-vnd-primary" onclick="openDocModal()" style="padding:0.45rem 1rem;font-size:0.8rem;">
+                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Upload Document
                     </button>
                 </div>
 
@@ -805,7 +368,7 @@
                                 <th>Category</th>
                                 <th>Size</th>
                                 <th>Uploaded By</th>
-                                <th>Uploaded Date</th>
+                                <th>Date</th>
                                 <th style="text-align:right;">Actions</th>
                             </tr>
                         </thead>
@@ -813,42 +376,31 @@
                             {% for doc in documents %}
                             <tr>
                                 <td>
-                                    <div class="doc-file-badge">
-                                        <span class="file-type-pill">{{ doc.file_type or 'DOC' }}</span>
+                                    <div style="display:flex;align-items:center;gap:10px;">
+                                        <span class="doc-type-pill">{{ doc.file_type or 'DOC' }}</span>
                                         <div>
-                                            <div>{{ doc.original_name }}</div>
+                                            <div style="font-weight:600;color:var(--primary-color);font-size:0.875rem;">{{ doc.original_name }}</div>
                                             {% if doc.description %}
-                                            <div style="font-size:0.75rem; color:#64748b; font-weight:400;">{{ doc.description }}</div>
+                                            <div style="font-size:0.73rem;color:#94a3b8;margin-top:1px;">{{ doc.description }}</div>
                                             {% endif %}
                                         </div>
                                     </div>
                                 </td>
-                                <td>
-                                    <span class="pill pill-gold">{{ doc.document_type or 'Other' }}</span>
-                                </td>
-                                <td style="color:#64748b; font-size:0.82rem;">
+                                <td><span class="pill pill-cat">{{ doc.document_type or 'Other' }}</span></td>
+                                <td style="color:#64748b;font-size:0.82rem;">
                                     {% if doc.file_size %}
-                                        {% if doc.file_size > 1048576 %}
-                                            {{ (doc.file_size / 1048576)|round(1) }} MB
-                                        {% else %}
-                                            {{ (doc.file_size / 1024)|round(1) }} KB
-                                        {% endif %}
-                                    {% else %}
-                                        —
-                                    {% endif %}
+                                        {% if doc.file_size > 1048576 %}{{ (doc.file_size / 1048576)|round(1) }} MB
+                                        {% else %}{{ (doc.file_size / 1024)|round(1) }} KB{% endif %}
+                                    {% else %}—{% endif %}
                                 </td>
-                                <td>{{ doc.uploader.name if doc.uploader else 'System' }}</td>
-                                <td style="color:#64748b; font-size:0.82rem;">{{ doc.uploaded_at.strftime('%d %b %Y') if doc.uploaded_at else '—' }}</td>
+                                <td style="font-size:0.855rem;">{{ doc.uploader.name if doc.uploader else 'System' }}</td>
+                                <td style="color:#64748b;font-size:0.82rem;">{{ doc.uploaded_at.strftime('%d %b %Y') if doc.uploaded_at else '—' }}</td>
                                 <td style="text-align:right;">
-                                    <div style="display:flex; justify-content:flex-end; gap:6px;">
-                                        <a href="{{ url_for('vendors.download_vendor_document', doc_id=doc.id) }}" class="btn-action btn-outline-action" style="padding:4px 10px; font-size:0.78rem;">
-                                            Download
-                                        </a>
+                                    <div style="display:flex;justify-content:flex-end;gap:6px;">
+                                        <a href="{{ url_for('vendors.download_vendor_document', doc_id=doc.id) }}" class="act-btn act-btn-view">Download</a>
                                         <form method="POST" action="{{ url_for('vendors.delete_vendor_document', vendor_id=vendor.id, doc_id=doc.id) }}" onsubmit="return confirm('Delete this document?');" style="display:inline;">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="btn-action btn-danger-action" style="padding:4px 10px; font-size:0.78rem;">
-                                                Delete
-                                            </button>
+                                            <button type="submit" class="act-btn" style="background:#fef2f2;color:#dc2626;border-color:#fecaca;">Delete</button>
                                         </form>
                                     </div>
                                 </td>
@@ -858,47 +410,68 @@
                     </table>
                 </div>
                 {% else %}
-                <div style="text-align:center; padding:3rem 1rem; color:#64748b;">
-                    <div style="font-weight:600; font-size:1rem; color:var(--primary-color);">No Documents Attached Yet</div>
-                    <p style="font-size:0.85rem; margin:6px 0 16px;">Attach GST certificate, PAN card, contracts, or rate catalogues for this vendor.</p>
-                    <button class="btn-action btn-primary-action" onclick="openDocModal()">+ Upload First Document</button>
+                <div class="vnd-empty" style="padding:3rem 2rem;">
+                    <div class="vnd-empty-icon">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <h3>No Documents Attached Yet</h3>
+                    <p>Attach GST certificates, PAN cards, contracts, or rate catalogues for this vendor.</p>
+                    <button class="btn-vnd btn-vnd-primary" onclick="openDocModal()">Upload First Document</button>
                 </div>
                 {% endif %}
             </div>
         </div>
 
         <!-- TAB 3: ACTIVITY -->
-        <div id="tab-activity" class="tab-content">
-            <div class="content-card">
-                <div class="card-header-line">
-                    <h3>Audit & Activity Trail</h3>
+        <div id="tab-activity" class="vnd-tab-content">
+            <div class="vnd-content-card">
+                <div class="vnd-card-head">
+                    <h3>
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        Audit &amp; Activity Trail
+                    </h3>
                 </div>
 
                 {% if activities %}
-                <div class="timeline">
+                <div class="vnd-timeline">
                     {% for act in activities %}
-                    <div class="timeline-item">
-                        <div class="timeline-dot"></div>
-                        <div class="timeline-content">
-                            <div class="timeline-header">
-                                <span class="timeline-action">{{ act.action.replace('_', ' ') }}</span>
-                                <span class="timeline-time">{{ act.created_at.strftime('%d %b %Y, %I:%M %p') if act.created_at else '' }}</span>
-                            </div>
-                            <div class="timeline-desc">{{ act.description or '' }}</div>
-                            {% if act.actor %}
-                            <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">By {{ act.actor.name }}</div>
+                    <div class="vnd-timeline-item">
+                        <div class="vnd-timeline-dot {% if 'create' in act.action %}tl-green{% elif 'update' in act.action or 'edit' in act.action %}tl-blue{% else %}tl-gold{% endif %}">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                {% if 'create' in act.action %}
+                                <polyline points="20 6 9 17 4 12"/>
+                                {% elif 'update' in act.action or 'edit' in act.action %}
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                {% else %}
+                                <circle cx="12" cy="12" r="10"/>
+                                {% endif %}
+                            </svg>
+                        </div>
+                        <div class="vnd-timeline-body">
+                            <div class="vnd-timeline-action">{{ act.action.replace('_', ' ').title() }}</div>
+                            {% if act.description %}
+                            <div class="vnd-timeline-detail">{{ act.description }}</div>
                             {% endif %}
+                            <div class="vnd-timeline-time">
+                                {{ act.created_at.strftime('%d %b %Y, %I:%M %p') if act.created_at else '' }}
+                                {% if act.actor %} &middot; by <strong>{{ act.actor.name }}</strong>{% endif %}
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
-                <div style="text-align:center; padding:2.5rem; color:#64748b;">
-                    No recorded activities yet.
+                <div class="vnd-empty" style="padding:2.5rem 2rem;">
+                    <div class="vnd-empty-icon">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    </div>
+                    <h3>No Activity Recorded Yet</h3>
+                    <p>Activity events will appear here as changes are made to this vendor profile.</p>
                 </div>
                 {% endif %}
             </div>
         </div>
+
     </main>
 
     <!-- Upload Document Modal -->
@@ -911,29 +484,27 @@
             <form method="POST" action="{{ url_for('vendors.upload_vendor_document', vendor_id=vendor.id) }}" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
-                    <div class="form-group" style="margin-bottom:1rem;">
-                        <label style="font-size:0.8rem; font-weight:600; color:#334155; margin-bottom:4px; display:block;">Document Category</label>
-                        <select name="document_type" class="form-control" style="width:100%;">
+                    <div class="modal-field">
+                        <label>Document Category</label>
+                        <select name="document_type">
                             {% for dt in VENDOR_DOCUMENT_TYPES %}
                             <option value="{{ dt }}">{{ dt }}</option>
                             {% endfor %}
                         </select>
                     </div>
-
-                    <div class="form-group" style="margin-bottom:1rem;">
-                        <label style="font-size:0.8rem; font-weight:600; color:#334155; margin-bottom:4px; display:block;">Label / Description</label>
-                        <input type="text" name="doc_description" class="form-control" placeholder="e.g. FY 2025-26 Rate Quotation" style="width:100%;">
+                    <div class="modal-field">
+                        <label>Label / Description</label>
+                        <input type="text" name="doc_description" placeholder="e.g. FY 2025-26 Rate Quotation">
                     </div>
-
-                    <div class="form-group">
-                        <label style="font-size:0.8rem; font-weight:600; color:#334155; margin-bottom:4px; display:block;">Choose File(s) <span style="color:#ef4444;">*</span></label>
-                        <input type="file" name="documents" multiple required class="form-control" style="width:100%;">
-                        <span style="font-size:0.73rem; color:#94a3b8; margin-top:3px; display:block;">PDF, PNG, JPG, DOC, DOCX, XLS, XLSX (Max 5MB each)</span>
+                    <div class="modal-field">
+                        <label>Choose File(s) <span style="color:#ef4444;">*</span></label>
+                        <input type="file" name="documents" multiple required>
+                        <div class="modal-hint">PDF, PNG, JPG, DOC, DOCX, XLS, XLSX &mdash; max 5MB each</div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-action btn-outline-action" onclick="closeDocModal()">Cancel</button>
-                    <button type="submit" class="btn-action btn-primary-action">Upload</button>
+                    <button type="button" class="btn-vnd btn-vnd-outline" onclick="closeDocModal()">Cancel</button>
+                    <button type="submit" class="btn-vnd btn-vnd-primary">Upload Document</button>
                 </div>
             </form>
         </div>
@@ -942,23 +513,23 @@
     <!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="modal-overlay">
         <div class="modal-dialog">
-            <div class="modal-header">
-                <h3 style="color:#dc2626;">Delete Vendor</h3>
+            <div class="modal-header" style="background:linear-gradient(135deg,#991b1b,#b91c1c);">
+                <h3>Delete Vendor</h3>
                 <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="margin:0 0 10px; font-size:0.95rem; color:#334155;">
-                    Are you sure you want to delete vendor <strong>{{ vendor.company_name }}</strong> ({{ vendor.code }})?
+                <p style="margin:0 0 10px;font-size:0.95rem;color:#334155;">
+                    Are you sure you want to delete <strong>{{ vendor.company_name }}</strong> ({{ vendor.code }})?
                 </p>
-                <p style="margin:0; font-size:0.82rem; color:#64748b;">
+                <p style="margin:0;font-size:0.82rem;color:#64748b;">
                     This vendor will be moved to deleted status and hidden from the active directory.
                 </p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-action btn-outline-action" onclick="closeDeleteModal()">Cancel</button>
+                <button type="button" class="btn-vnd btn-vnd-outline" onclick="closeDeleteModal()">Cancel</button>
                 <form method="POST" action="{{ url_for('vendors.delete_vendor', vendor_id=vendor.id) }}" style="display:inline;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn-action" style="background:#dc2626; color:#fff; border-color:#dc2626;">
+                    <button type="submit" class="btn-vnd" style="background:#dc2626;color:#fff;border-color:#dc2626;box-shadow:0 3px 12px rgba(220,38,38,0.25);">
                         Yes, Delete Vendor
                     </button>
                 </form>
@@ -968,26 +539,16 @@
 
     <script>
         function switchTab(tabName, btn) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.vnd-tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.vnd-tab-content').forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
-            const target = document.getElementById('tab-' + tabName);
-            if (target) target.classList.add('active');
+            const t = document.getElementById('tab-' + tabName);
+            if (t) t.classList.add('active');
         }
-
-        function openDocModal() {
-            document.getElementById('docModal').classList.add('active');
-        }
-        function closeDocModal() {
-            document.getElementById('docModal').classList.remove('active');
-        }
-        function openDeleteModal() {
-            document.getElementById('deleteModal').classList.add('active');
-        }
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('active');
-        }
-
+        function openDocModal() { document.getElementById('docModal').classList.add('active'); }
+        function closeDocModal() { document.getElementById('docModal').classList.remove('active'); }
+        function openDeleteModal() { document.getElementById('deleteModal').classList.add('active'); }
+        function closeDeleteModal() { document.getElementById('deleteModal').classList.remove('active'); }
         window.addEventListener('click', function(e) {
             const docM = document.getElementById('docModal');
             const delM = document.getElementById('deleteModal');

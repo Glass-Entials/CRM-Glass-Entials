@@ -6,274 +6,53 @@
     <title>{% if vendor %}Edit {{ vendor.company_name }}{% else %}Add New Vendor{% endif %} | GlassEntials CRM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/vendors.css') }}?v=1">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
     <style>
-        .vnd-form-container {
-            max-width: 1040px;
-            margin: 2rem auto;
-            padding: 0 20px 3rem;
-        }
-        .form-breadcrumb {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.85rem;
-            color: #64748b;
-            margin-bottom: 1.25rem;
-        }
-        .form-breadcrumb a {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .form-breadcrumb a:hover {
-            color: var(--accent-gold);
-        }
-        .form-card {
-            background: #fff;
-            border-radius: 14px;
-            border: 1px solid rgba(13, 27, 42, 0.08);
-            box-shadow: 0 4px 24px rgba(0,0,0,0.04);
-            overflow: hidden;
-        }
-        .form-header {
-            padding: 1.75rem 2.25rem;
-            background: linear-gradient(to right, #fcfbf9, #ffffff);
-            border-bottom: 1px solid #f1f5f9;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-top: 5px solid var(--accent-gold);
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .form-header h1 {
-            font-family: var(--font-heading);
-            color: var(--primary-color);
-            margin: 0 0 4px;
-            font-size: 1.6rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .form-header p {
-            margin: 0;
-            color: #64748b;
-            font-size: 0.88rem;
-        }
-        .form-header-badge {
-            background: rgba(212, 175, 55, 0.12);
-            color: #8a6a00;
-            padding: 5px 14px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-        }
-        .form-body {
-            padding: 2.25rem;
-        }
-        .form-section {
-            margin-bottom: 2.25rem;
-            padding-bottom: 2rem;
-            border-bottom: 1px dashed #e2e8f0;
-        }
-        .form-section:last-of-type {
-            border-bottom: none;
-            margin-bottom: 1rem;
-            padding-bottom: 0;
-        }
-        .form-section-title {
-            font-family: var(--font-heading);
-            font-size: 1.15rem;
-            color: var(--primary-color);
-            margin: 0 0 1.25rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .form-grid-2 {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1.25rem;
-        }
-        .form-grid-3 {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1.25rem;
-        }
-        .form-grid-full {
-            grid-column: 1 / -1;
-        }
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .form-group label {
-            font-size: 0.82rem;
-            font-weight: 600;
-            color: #334155;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .form-group label .required {
-            color: #ef4444;
-            margin-left: 2px;
-        }
-        .form-control {
-            padding: 0.65rem 0.9rem;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            font-family: var(--font-body);
-            font-size: 0.9rem;
-            color: #1e293b;
-            outline: none;
-            background: #fff;
-            transition: all 0.2s;
-            box-sizing: border-box;
-        }
-        .form-control:focus {
-            border-color: var(--accent-gold);
-            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
-        }
-        textarea.form-control {
-            resize: vertical;
-            min-height: 85px;
-            line-height: 1.45;
-        }
-        .input-hint {
-            font-size: 0.74rem;
-            color: #94a3b8;
-            margin-top: 2px;
-        }
-        .uppercase-input {
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        /* Upload area */
-        .upload-dropzone {
+        .uppercase-input { text-transform: uppercase; letter-spacing: 0.05em; }
+        .vnd-upload-dropzone {
             border: 2px dashed #cbd5e1;
             background: #f8fafc;
-            border-radius: 10px;
-            padding: 1.5rem;
+            border-radius: 12px;
+            padding: 2rem 1.5rem;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
         }
-        .upload-dropzone:hover {
-            border-color: var(--accent-gold);
-            background: #fffef8;
-        }
-        .upload-icon {
-            width: 42px;
-            height: 42px;
-            margin: 0 auto 0.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            background: rgba(13,27,42,0.06);
-            color: var(--primary-color);
-        }
-        .upload-icon svg {
-            width: 22px;
-            height: 22px;
-        }
-
-        /* Form footer */
-        .form-footer {
-            padding: 1.5rem 2.25rem;
-            background: #f8fafc;
-            border-top: 1px solid #e8edf3;
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            gap: 12px;
-        }
-        .btn-cancel {
-            padding: 0.65rem 1.4rem;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            text-decoration: none;
-            color: #64748b;
-            background: #fff;
-            border: 1px solid #cbd5e1;
-            transition: all 0.15s;
-        }
-        .btn-cancel:hover {
-            background: #f1f5f9;
-            color: #334155;
-        }
-        .btn-submit {
-            padding: 0.65rem 1.8rem;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #fff;
-            background: var(--primary-color);
-            border: 1px solid var(--primary-color);
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(13, 27, 42, 0.15);
-            transition: all 0.2s;
-        }
-        .btn-submit:hover {
-            background: #1b2d42;
-            box-shadow: 0 6px 16px rgba(13, 27, 42, 0.22);
-            transform: translateY(-1px);
-        }
-
-        /* Flash messages */
-        .alert-box {
-            padding: 0.9rem 1.25rem;
-            border-radius: 8px;
-            margin-bottom: 1.25rem;
-            font-size: 0.88rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .alert-error {
-            background: #fef2f2;
-            color: #991b1b;
-            border: 1px solid #fecaca;
-        }
-        .alert-warning {
-            background: #fffbeb;
-            color: #92400e;
-            border: 1px solid #fde68a;
-        }
-        .alert-success {
-            background: #f0fdf4;
-            color: #166534;
-            border: 1px solid #bbf7d0;
-        }
-
+        .vnd-upload-dropzone:hover { border-color: var(--accent-gold); background: #fffef8; }
+        .vnd-drop-icon { width:44px;height:44px;margin:0 auto 0.65rem;display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(13,27,42,0.06);color:var(--primary-color); }
+        .vnd-drop-icon svg { width:22px;height:22px; }
+        .vnd-flash-alert { padding:0.85rem 1.15rem; border-radius:10px; margin-bottom:1.25rem; font-size:0.875rem; border-left:4px solid transparent; font-weight:500; }
+        .vnd-flash-error { background:#fef2f2; border-color:#ef4444; color:#991b1b; }
+        .vnd-flash-warning { background:#fffbeb; border-color:#f59e0b; color:#92400e; }
+        .vnd-flash-success { background:#f0fdf4; border-color:#22c55e; color:#166534; }
         @media (max-width: 768px) {
-            .form-grid-2, .form-grid-3 {
-                grid-template-columns: 1fr;
-            }
-            .form-header, .form-body, .form-footer {
-                padding: 1.25rem;
-            }
+            .vnd-field-grid { grid-template-columns: 1fr !important; }
+            .vnd-form-header, .vnd-form-body, .vnd-form-footer { padding: 1.25rem !important; }
+            .vnd-field-grid .span-2 { grid-column: 1 !important; }
         }
     </style>
 </head>
 <body class="dashboard-page">
     {% include 'includes/navbar.html' %}
 
-    <main class="vnd-form-container">
+    <main class="vnd-form-page">
+
         <!-- Breadcrumb -->
-        <div class="form-breadcrumb">
+        <div class="vnd-breadcrumb">
             <a href="{{ url_for('vendors.vendor_list') }}">Vendors</a>
-            <span>/</span>
-            <span>{% if vendor %}Edit {{ vendor.company_name }}{% else %}Add Vendor{% endif %}</span>
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            {% if vendor %}
+            <a href="{{ url_for('vendors.vendor_detail', vendor_id=vendor.id) }}">{{ vendor.company_name }}</a>
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            <span style="color:#1e293b;font-weight:500;">Edit Vendor</span>
+            {% else %}
+            <span style="color:#1e293b;font-weight:500;">Add New Vendor</span>
+            {% endif %}
         </div>
 
         <!-- Flash messages -->
@@ -281,251 +60,240 @@
             {% if messages %}
                 {% for category, message in messages %}
                     {% if category in ['vendor_error', 'error'] %}
-                        <div class="alert-box alert-error">{{ message }}</div>
+                        <div class="vnd-flash-alert vnd-flash-error">{{ message }}</div>
                     {% elif category in ['vendor_warning', 'warning'] %}
-                        <div class="alert-box alert-warning">{{ message }}</div>
+                        <div class="vnd-flash-alert vnd-flash-warning">{{ message }}</div>
                     {% elif category in ['vendor_success', 'success'] %}
-                        <div class="alert-box alert-success">{{ message }}</div>
+                        <div class="vnd-flash-alert vnd-flash-success">{{ message }}</div>
                     {% endif %}
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
-        <div class="form-card">
-            <div class="form-header">
+        <div class="vnd-form-card">
+            <!-- Form Header -->
+            <div class="vnd-form-header">
                 <div>
                     <h1>
-                        {% if vendor %}
-                            Edit Vendor
-                        {% else %}
-                            Add New Vendor
-                        {% endif %}
+                        <svg width="26" height="26" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 21h18M3 7v14M21 7v14M6 7V3h12v4M9 11h2M9 15h2M13 11h2M13 15h2"/></svg>
+                        {% if vendor %}Edit Vendor{% else %}Add New Vendor{% endif %}
                     </h1>
-                    <p>{% if vendor %}Update vendor information, commercial details, and documents{% else %}Enter organization details, contact person, tax IDs, and payment terms{% endif %}</p>
+                    <p>{% if vendor %}Update vendor information, commercial details, and documents{% else %}Enter supplier details, contact person, tax identifiers, and commercial terms{% endif %}</p>
                 </div>
                 {% if vendor %}
-                <span class="form-header-badge">{{ vendor.code }}</span>
+                <span class="vnd-form-header-badge">{{ vendor.code }}</span>
+                {% else %}
+                <span class="vnd-form-header-badge">New Vendor</span>
                 {% endif %}
             </div>
 
             <form method="POST" enctype="multipart/form-data" id="vendorForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                <div class="form-body">
-                    <!-- Section 1: Basic & Category -->
-                    <div class="form-section">
-                        <h2 class="form-section-title">Company & Classification</h2>
-                        <div class="form-grid-2">
-                            <div class="form-group">
-                                <label for="company_name">Company Name <span class="required">*</span></label>
-                                <input type="text" id="company_name" name="company_name" class="form-control"
+                <div class="vnd-form-body">
+
+                    <!-- Section 1: Company & Classification -->
+                    <div class="vnd-form-section">
+                        <div class="vnd-section-title">
+                            <span class="vnd-section-num">1</span>
+                            <h2>Company &amp; Classification</h2>
+                        </div>
+                        <div class="vnd-field-grid">
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="company_name">Company Name <span class="req">*</span></label>
+                                <input type="text" id="company_name" name="company_name" class="vnd-input"
                                        value="{{ vendor.company_name if vendor else '' }}"
                                        placeholder="e.g. Saint-Gobain India Pvt Ltd" required>
-                                <span class="input-hint">The primary trade name of the supplier</span>
+                                <div class="vnd-hint">The primary trade name of the supplier</div>
                             </div>
-
-                            <div class="form-group">
-                                <label for="legal_name">Legal / Registered Name</label>
-                                <input type="text" id="legal_name" name="legal_name" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="legal_name">Legal / Registered Name</label>
+                                <input type="text" id="legal_name" name="legal_name" class="vnd-input"
                                        value="{{ vendor.legal_name if vendor and vendor.legal_name else '' }}"
                                        placeholder="Official legal entity name if different">
                             </div>
-
-                            <div class="form-group">
-                                <label for="category_id">Category</label>
-                                <select id="category_id" name="category_id" class="form-control">
-                                    <option value="">-- Select Category --</option>
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="category_id">Category</label>
+                                <select id="category_id" name="category_id" class="vnd-select">
+                                    <option value="">— Select Category —</option>
                                     {% for cat in categories %}
-                                    <option value="{{ cat.id }}" {% if vendor and vendor.category_id == cat.id %}selected{% endif %}>
-                                        {{ cat.name }}
-                                    </option>
+                                    <option value="{{ cat.id }}" {% if vendor and vendor.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
                                     {% endfor %}
                                 </select>
-                                <span class="input-hint">
-                                    Manage categories in <a href="{{ url_for('vendors.vendor_categories') }}" target="_blank" style="color:var(--accent-gold);text-decoration:none;">Category Settings</a>
-                                </span>
+                                <div class="vnd-hint">Manage in <a href="{{ url_for('vendors.vendor_categories') }}" target="_blank" style="color:var(--accent-gold);text-decoration:none;font-weight:600;">Category Settings</a></div>
                             </div>
-
-                            <div class="form-group">
-                                <label for="business_type">Business Type</label>
-                                <select id="business_type" name="business_type" class="form-control">
-                                    <option value="">-- Select Business Type --</option>
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="business_type">Business Type</label>
+                                <select id="business_type" name="business_type" class="vnd-select">
+                                    <option value="">— Select Business Type —</option>
                                     {% for bt in VendorBusinessType %}
-                                    <option value="{{ bt.value }}" {% if vendor and vendor.business_type and vendor.business_type.value == bt.value %}selected{% endif %}>
-                                        {{ bt.value }}
-                                    </option>
+                                    <option value="{{ bt.value }}" {% if vendor and vendor.business_type and vendor.business_type.value == bt.value %}selected{% endif %}>{{ bt.value }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-
-                            <div class="form-group form-grid-full">
-                                <label for="products_services">Supplied Products / Services</label>
-                                <textarea id="products_services" name="products_services" class="form-control" rows="2"
+                            <div class="vnd-field span-2">
+                                <label class="vnd-label" for="products_services">Supplied Products / Services</label>
+                                <textarea id="products_services" name="products_services" class="vnd-textarea" rows="2"
                                           placeholder="e.g. Toughened glass, float glass, architectural hardware, silicones, fittings">{{ vendor.products_services if vendor and vendor.products_services else '' }}</textarea>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Section 2: Contact Person -->
-                    <div class="form-section">
-                        <h2 class="form-section-title">Primary Contact & Communication</h2>
-                        <div class="form-grid-3">
-                            <div class="form-group">
-                                <label for="contact_person">Contact Person</label>
-                                <input type="text" id="contact_person" name="contact_person" class="form-control"
+                    <!-- Section 2: Contact -->
+                    <div class="vnd-form-section">
+                        <div class="vnd-section-title">
+                            <span class="vnd-section-num">2</span>
+                            <h2>Primary Contact &amp; Communication</h2>
+                        </div>
+                        <div class="vnd-field-grid" style="grid-template-columns:repeat(3,1fr);">
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="contact_person">Contact Person</label>
+                                <input type="text" id="contact_person" name="contact_person" class="vnd-input"
                                        value="{{ vendor.contact_person if vendor and vendor.contact_person else '' }}"
                                        placeholder="e.g. Ramesh Patel">
                             </div>
-
-                            <div class="form-group">
-                                <label for="designation">Designation</label>
-                                <input type="text" id="designation" name="designation" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="designation">Designation</label>
+                                <input type="text" id="designation" name="designation" class="vnd-input"
                                        value="{{ vendor.designation if vendor and vendor.designation else '' }}"
                                        placeholder="e.g. Sales Director">
                             </div>
-
-                            <div class="form-group">
-                                <label for="phone">Phone / Mobile</label>
-                                <input type="tel" id="phone" name="phone" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="phone">Phone / Mobile</label>
+                                <input type="tel" id="phone" name="phone" class="vnd-input"
                                        value="{{ vendor.phone if vendor and vendor.phone else '' }}"
-                                       placeholder="e.g. +91 98765 43210">
+                                       placeholder="+91 98765 43210">
                             </div>
-
-                            <div class="form-group">
-                                <label for="alt_phone">Alternate Phone</label>
-                                <input type="tel" id="alt_phone" name="alt_phone" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="alt_phone">Alternate Phone</label>
+                                <input type="tel" id="alt_phone" name="alt_phone" class="vnd-input"
                                        value="{{ vendor.alt_phone if vendor and vendor.alt_phone else '' }}"
                                        placeholder="Landline or second contact">
                             </div>
-
-                            <div class="form-group">
-                                <label for="email">Email Address</label>
-                                <input type="email" id="email" name="email" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="email">Email Address</label>
+                                <input type="email" id="email" name="email" class="vnd-input"
                                        value="{{ vendor.email if vendor and vendor.email else '' }}"
                                        placeholder="e.g. orders@supplier.com">
                             </div>
-
-                            <div class="form-group">
-                                <label for="website">Website</label>
-                                <input type="url" id="website" name="website" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="website">Website</label>
+                                <input type="url" id="website" name="website" class="vnd-input"
                                        value="{{ vendor.website if vendor and vendor.website else '' }}"
                                        placeholder="https://www.example.com">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Section 3: Tax & Identification -->
-                    <div class="form-section">
-                        <h2 class="form-section-title">Tax & Compliance Identifiers</h2>
-                        <div class="form-grid-2">
-                            <div class="form-group">
-                                <label for="gstin">GSTIN (15 Digits)</label>
-                                <input type="text" id="gstin" name="gstin" class="form-control uppercase-input"
+                    <!-- Section 3: Tax & Compliance -->
+                    <div class="vnd-form-section">
+                        <div class="vnd-section-title">
+                            <span class="vnd-section-num">3</span>
+                            <h2>Tax &amp; Compliance Identifiers</h2>
+                        </div>
+                        <div class="vnd-field-grid">
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="gstin">GSTIN (15 Digits)</label>
+                                <input type="text" id="gstin" name="gstin" class="vnd-input uppercase-input"
                                        maxlength="15"
                                        value="{{ vendor.gstin if vendor and vendor.gstin else '' }}"
                                        placeholder="27ABCDE1234F1Z5">
-                                <span class="input-hint">Standard 15-character Goods & Services Tax Identification Number</span>
+                                <div class="vnd-hint">Standard 15-character GST Identification Number</div>
                             </div>
-
-                            <div class="form-group">
-                                <label for="pan">Permanent Account Number (PAN)</label>
-                                <input type="text" id="pan" name="pan" class="form-control uppercase-input"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="pan">PAN Number</label>
+                                <input type="text" id="pan" name="pan" class="vnd-input uppercase-input"
                                        maxlength="10"
                                        value="{{ vendor.pan if vendor and vendor.pan else '' }}"
                                        placeholder="ABCDE1234F">
-                                <span class="input-hint">10-digit income tax identification code</span>
+                                <div class="vnd-hint">10-digit income tax identification code</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Section 4: Address Details -->
-                    <div class="form-section">
-                        <h2 class="form-section-title">Address & Locations</h2>
-                        <div class="form-grid-3">
-                            <div class="form-group form-grid-full">
-                                <label for="address">Billing / Head Office Address</label>
-                                <textarea id="address" name="address" class="form-control" rows="2"
+                    <!-- Section 4: Address -->
+                    <div class="vnd-form-section">
+                        <div class="vnd-section-title">
+                            <span class="vnd-section-num">4</span>
+                            <h2>Address &amp; Locations</h2>
+                        </div>
+                        <div class="vnd-field-grid" style="grid-template-columns:repeat(3,1fr);">
+                            <div class="vnd-field" style="grid-column:1/-1;">
+                                <label class="vnd-label" for="address">Billing / Head Office Address</label>
+                                <textarea id="address" name="address" class="vnd-textarea" rows="2"
                                           placeholder="Building name, street, industrial area">{{ vendor.address if vendor and vendor.address else '' }}</textarea>
                             </div>
-
-                            <div class="form-group">
-                                <label for="city">City</label>
-                                <input type="text" id="city" name="city" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="city">City</label>
+                                <input type="text" id="city" name="city" class="vnd-input"
                                        value="{{ vendor.city if vendor and vendor.city else '' }}"
                                        placeholder="e.g. Mumbai">
                             </div>
-
-                            <div class="form-group">
-                                <label for="state">State</label>
-                                <input type="text" id="state" name="state" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="state">State</label>
+                                <input type="text" id="state" name="state" class="vnd-input"
                                        value="{{ vendor.state if vendor and vendor.state else '' }}"
                                        placeholder="e.g. Maharashtra">
                             </div>
-
-                            <div class="form-group">
-                                <label for="pincode">PIN / Postal Code</label>
-                                <input type="text" id="pincode" name="pincode" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="pincode">PIN / Postal Code</label>
+                                <input type="text" id="pincode" name="pincode" class="vnd-input"
                                        value="{{ vendor.pincode if vendor and vendor.pincode else '' }}"
-                                       placeholder="e.g. 400001">
+                                       placeholder="400001">
                             </div>
-
-                            <div class="form-group">
-                                <label for="country">Country</label>
-                                <input type="text" id="country" name="country" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="country">Country</label>
+                                <input type="text" id="country" name="country" class="vnd-input"
                                        value="{{ vendor.country if vendor and vendor.country else 'India' }}"
                                        placeholder="India">
                             </div>
-
-                            <div class="form-group" style="grid-column: span 2;">
-                                <label for="warehouse_address">Factory / Warehouse / Dispatch Address</label>
-                                <input type="text" id="warehouse_address" name="warehouse_address" class="form-control"
+                            <div class="vnd-field" style="grid-column:span 2;">
+                                <label class="vnd-label" for="warehouse_address">Factory / Warehouse / Dispatch Address</label>
+                                <input type="text" id="warehouse_address" name="warehouse_address" class="vnd-input"
                                        value="{{ vendor.warehouse_address if vendor and vendor.warehouse_address else '' }}"
                                        placeholder="Loading point / manufacturing unit address">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Section 5: Commercial Terms & Bank Details -->
-                    <div class="form-section">
-                        <h2 class="form-section-title">Commercial & Banking Terms</h2>
-                        <div class="form-grid-3">
-                            <div class="form-group">
-                                <label for="payment_terms">Payment Terms</label>
-                                <select id="payment_terms" name="payment_terms" class="form-control">
-                                    <option value="">-- Select Payment Terms --</option>
+                    <!-- Section 5: Commercial & Banking -->
+                    <div class="vnd-form-section">
+                        <div class="vnd-section-title">
+                            <span class="vnd-section-num">5</span>
+                            <h2>Commercial &amp; Banking Terms</h2>
+                        </div>
+                        <div class="vnd-field-grid" style="grid-template-columns:repeat(3,1fr);">
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="payment_terms">Payment Terms</label>
+                                <select id="payment_terms" name="payment_terms" class="vnd-select">
+                                    <option value="">— Select Payment Terms —</option>
                                     {% for pt in VendorPaymentTerms %}
-                                    <option value="{{ pt.value }}" {% if vendor and vendor.payment_terms and vendor.payment_terms.value == pt.value %}selected{% endif %}>
-                                        {{ pt.value }}
-                                    </option>
+                                    <option value="{{ pt.value }}" {% if vendor and vendor.payment_terms and vendor.payment_terms.value == pt.value %}selected{% endif %}>{{ pt.value }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-
-                            <div class="form-group">
-                                <label for="credit_period_days">Credit Period (Days)</label>
-                                <input type="number" id="credit_period_days" name="credit_period_days" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="credit_period_days">Credit Period (Days)</label>
+                                <input type="number" id="credit_period_days" name="credit_period_days" class="vnd-input"
                                        min="0" max="365"
                                        value="{{ vendor.credit_period_days if vendor and vendor.credit_period_days is not none else '' }}"
                                        placeholder="e.g. 30">
                             </div>
-
-                            <div class="form-group">
-                                <label for="bank_name">Bank Name</label>
-                                <input type="text" id="bank_name" name="bank_name" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="bank_name">Bank Name</label>
+                                <input type="text" id="bank_name" name="bank_name" class="vnd-input"
                                        value="{{ vendor.bank_name if vendor and vendor.bank_name else '' }}"
                                        placeholder="e.g. HDFC Bank">
                             </div>
-
-                            <div class="form-group">
-                                <label for="bank_account_no">Account Number</label>
-                                <input type="text" id="bank_account_no" name="bank_account_no" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="bank_account_no">Account Number</label>
+                                <input type="text" id="bank_account_no" name="bank_account_no" class="vnd-input"
                                        value="{{ vendor.bank_account_no if vendor and vendor.bank_account_no else '' }}"
-                                       placeholder="e.g. 50100234567890">
+                                       placeholder="50100234567890">
                             </div>
-
-                            <div class="form-group">
-                                <label for="bank_ifsc">IFSC Code</label>
-                                <input type="text" id="bank_ifsc" name="bank_ifsc" class="form-control uppercase-input"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="bank_ifsc">IFSC Code</label>
+                                <input type="text" id="bank_ifsc" name="bank_ifsc" class="vnd-input uppercase-input"
                                        maxlength="11"
                                        value="{{ vendor.bank_ifsc if vendor and vendor.bank_ifsc else '' }}"
                                        placeholder="HDFC0001234">
@@ -534,35 +302,32 @@
                     </div>
 
                     <!-- Section 6: Status & Assignment -->
-                    <div class="form-section">
-                        <h2 class="form-section-title">Status & Internal Management</h2>
-                        <div class="form-grid-3">
-                            <div class="form-group">
-                                <label for="status">Vendor Status</label>
-                                <select id="status" name="status" class="form-control">
+                    <div class="vnd-form-section">
+                        <div class="vnd-section-title">
+                            <span class="vnd-section-num">6</span>
+                            <h2>Status &amp; Internal Management</h2>
+                        </div>
+                        <div class="vnd-field-grid" style="grid-template-columns:repeat(3,1fr);">
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="status">Vendor Status</label>
+                                <select id="status" name="status" class="vnd-select">
                                     {% for st in VendorStatus %}
-                                    <option value="{{ st.value }}" {% if vendor and vendor.status and vendor.status.value == st.value %}selected{% elif not vendor and st.value == 'Active' %}selected{% endif %}>
-                                        {{ st.value }}
-                                    </option>
+                                    <option value="{{ st.value }}" {% if vendor and vendor.status and vendor.status.value == st.value %}selected{% elif not vendor and st.value == 'Active' %}selected{% endif %}>{{ st.value }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-
-                            <div class="form-group">
-                                <label for="verification_status">Verification Status</label>
-                                <select id="verification_status" name="verification_status" class="form-control">
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="verification_status">Verification Status</label>
+                                <select id="verification_status" name="verification_status" class="vnd-select">
                                     {% for vs in VendorVerificationStatus %}
-                                    <option value="{{ vs.value }}" {% if vendor and vendor.verification_status and vendor.verification_status.value == vs.value %}selected{% elif not vendor and vs.value == 'Unverified' %}selected{% endif %}>
-                                        {{ vs.value }}
-                                    </option>
+                                    <option value="{{ vs.value }}" {% if vendor and vendor.verification_status and vendor.verification_status.value == vs.value %}selected{% elif not vendor and vs.value == 'Unverified' %}selected{% endif %}>{{ vs.value }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-
-                            <div class="form-group">
-                                <label for="assigned_to">Assigned Procurement Manager</label>
-                                <select id="assigned_to" name="assigned_to" class="form-control">
-                                    <option value="">-- Unassigned --</option>
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="assigned_to">Assigned Procurement Manager</label>
+                                <select id="assigned_to" name="assigned_to" class="vnd-select">
+                                    <option value="">— Unassigned —</option>
                                     {% for emp in employees %}
                                     <option value="{{ emp.id }}" {% if vendor and vendor.assigned_to == emp.id %}selected{% endif %}>
                                         {{ emp.name }} {% if emp.role %}({{ emp.role.value }}){% endif %}
@@ -570,53 +335,56 @@
                                     {% endfor %}
                                 </select>
                             </div>
-
-                            <div class="form-group form-grid-full">
-                                <label for="notes">Internal Notes & Remarks</label>
-                                <textarea id="notes" name="notes" class="form-control" rows="3"
+                            <div class="vnd-field" style="grid-column:1/-1;">
+                                <label class="vnd-label" for="notes">Internal Notes &amp; Remarks</label>
+                                <textarea id="notes" name="notes" class="vnd-textarea" rows="3"
                                           placeholder="Special pricing agreements, MOQ policies, quality notes, contact history...">{{ vendor.notes if vendor and vendor.notes else '' }}</textarea>
                             </div>
                         </div>
                     </div>
 
                     <!-- Section 7: Document Upload -->
-                    <div class="form-section">
-                        <h2 class="form-section-title">Attach Documents (Optional)</h2>
-                        <div class="form-grid-2">
-                            <div class="form-group">
-                                <label for="document_type">Document Category</label>
-                                <select id="document_type" name="document_type" class="form-control">
+                    <div class="vnd-form-section">
+                        <div class="vnd-section-title">
+                            <span class="vnd-section-num">7</span>
+                            <h2>Attach Documents <span style="font-size:0.8rem;font-weight:400;color:#94a3b8;font-family:var(--font-body);">(Optional)</span></h2>
+                        </div>
+                        <div class="vnd-field-grid">
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="document_type">Document Category</label>
+                                <select id="document_type" name="document_type" class="vnd-select">
                                     {% for dt in VENDOR_DOCUMENT_TYPES %}
                                     <option value="{{ dt }}">{{ dt }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-
-                            <div class="form-group">
-                                <label for="doc_description">Document Note / Label</label>
-                                <input type="text" id="doc_description" name="doc_description" class="form-control"
+                            <div class="vnd-field">
+                                <label class="vnd-label" for="doc_description">Document Label / Note</label>
+                                <input type="text" id="doc_description" name="doc_description" class="vnd-input"
                                        placeholder="e.g. FY 2025-26 Rate Contract or GST Certificate copy">
                             </div>
-
-                            <div class="form-group form-grid-full">
-                                <label>Upload Files</label>
-                                <div class="upload-dropzone" onclick="document.getElementById('documentsInput').click();">
-                                    <div class="upload-icon">
+                            <div class="vnd-field span-2">
+                                <label class="vnd-label">Upload Files</label>
+                                <div class="vnd-upload-dropzone" onclick="document.getElementById('documentsInput').click();">
+                                    <div class="vnd-drop-icon">
                                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                                     </div>
-                                    <div style="font-weight:600; color:var(--primary-color);">Click or browse files to attach</div>
-                                    <div style="font-size:0.8rem; color:#94a3b8; margin-top:4px;">Supported formats: PDF, PNG, JPG, DOC, DOCX, XLS, XLSX (Max 5MB each)</div>
+                                    <div style="font-weight:700;color:var(--primary-color);font-size:0.95rem;">Click or drag files to attach</div>
+                                    <div style="font-size:0.8rem;color:#94a3b8;margin-top:4px;">PDF, PNG, JPG, DOC, DOCX, XLS, XLSX &mdash; Max 5MB each</div>
                                     <input type="file" id="documentsInput" name="documents" multiple style="display:none;" onchange="showSelectedFiles(this)">
-                                    <div id="fileListNotice" style="margin-top:10px; font-size:0.82rem; color:var(--accent-gold); font-weight:600;"></div>
+                                    <div id="fileListNotice" style="margin-top:10px;font-size:0.82rem;color:var(--accent-gold);font-weight:700;"></div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="form-footer">
-                    <a href="{% if vendor %}{{ url_for('vendors.vendor_detail', vendor_id=vendor.id) }}{% else %}{{ url_for('vendors.vendor_list') }}{% endif %}" class="btn-cancel">Cancel</a>
-                    <button type="submit" class="btn-submit">
+                </div><!-- /vnd-form-body -->
+
+                <!-- Form Footer -->
+                <div class="vnd-form-footer">
+                    <a href="{% if vendor %}{{ url_for('vendors.vendor_detail', vendor_id=vendor.id) }}{% else %}{{ url_for('vendors.vendor_list') }}{% endif %}" class="btn-form-cancel">Cancel</a>
+                    <button type="submit" class="btn-form-submit">
+                        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                         {% if vendor %}Save Changes{% else %}Create Vendor{% endif %}
                     </button>
                 </div>

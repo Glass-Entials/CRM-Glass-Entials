@@ -4,213 +4,60 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Import Vendors | GlassEntials CRM</title>
+    <meta name="description" content="Bulk import suppliers and vendors via CSV file.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/vendors.css') }}?v=1">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
     <style>
-        .vnd-import-container {
-            max-width: 860px;
-            margin: 2rem auto;
-            padding: 0 20px 3rem;
+        .vnd-flash-alert { padding:0.85rem 1.15rem; border-radius:10px; margin-bottom:1.25rem; font-size:0.875rem; border-left:4px solid transparent; font-weight:500; }
+        .vnd-flash-error { background:#fef2f2; border-color:#ef4444; color:#991b1b; }
+        .vnd-flash-warning { background:#fffbeb; border-color:#f59e0b; color:#92400e; }
+        .vnd-flash-success { background:#f0fdf4; border-color:#22c55e; color:#166534; }
+        .vnd-upload-zone.dragover {
+            border-color: var(--accent-gold) !important;
+            background: #fffdf2 !important;
+            box-shadow: 0 0 0 4px rgba(212,175,55,0.15) !important;
         }
-        .breadcrumb-nav {
+        .vnd-guideline-item {
             display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.85rem;
-            color: #64748b;
-            margin-bottom: 1.25rem;
-        }
-        .breadcrumb-nav a {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .breadcrumb-nav a:hover {
-            color: var(--accent-gold);
-        }
-        .import-card {
-            background: #fff;
-            border-radius: 14px;
-            border: 1px solid rgba(13, 27, 42, 0.08);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-            overflow: hidden;
-        }
-        .import-header {
-            padding: 1.75rem 2rem;
-            background: #fdfdfb;
-            border-bottom: 1px solid #f1f5f9;
-            border-top: 5px solid var(--accent-gold);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .import-header h1 {
-            font-family: var(--font-heading);
-            color: var(--primary-color);
-            margin: 0 0 4px;
-            font-size: 1.6rem;
-            display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 10px;
-        }
-        .import-header p {
-            margin: 0;
-            color: #64748b;
-            font-size: 0.88rem;
-        }
-        .import-body {
-            padding: 2rem;
-        }
-
-        .template-banner {
-            background: rgba(212, 175, 55, 0.08);
-            border: 1px solid rgba(212, 175, 55, 0.25);
-            border-radius: 10px;
-            padding: 1.25rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .template-text h4 {
-            margin: 0 0 4px;
-            color: var(--primary-color);
-            font-size: 0.95rem;
-        }
-        .template-text p {
-            margin: 0;
-            color: #64748b;
-            font-size: 0.82rem;
-        }
-        .btn-download-tpl {
-            background: var(--accent-gold);
-            color: #fff;
-            padding: 0.55rem 1.15rem;
-            border-radius: 7px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: opacity 0.15s;
-        }
-        .btn-download-tpl:hover {
-            opacity: 0.9;
-        }
-
-        .upload-box {
-            border: 2px dashed #cbd5e1;
-            background: #f8fafc;
-            border-radius: 12px;
-            padding: 2.5rem 1.5rem;
-            text-align: center;
-            margin-bottom: 2rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .upload-box:hover {
-            border-color: var(--accent-gold);
-            background: #fffef8;
-        }
-        .upload-icon {
-            width: 48px;
-            height: 48px;
-            margin: 0 auto 0.75rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 10px;
-            background: rgba(13, 27, 42, 0.06);
-            color: var(--primary-color);
-        }
-        .upload-icon svg {
-            width: 24px;
-            height: 24px;
-        }
-
-        .instruction-box {
-            background: #f8fafc;
-            border-radius: 10px;
-            padding: 1.25rem 1.5rem;
-            border: 1px solid #e2e8f0;
-            margin-bottom: 2rem;
-        }
-        .instruction-box h4 {
-            margin: 0 0 10px;
-            color: var(--primary-color);
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .instruction-box ul {
-            margin: 0;
-            padding-left: 1.25rem;
+            margin-bottom: 0.65rem;
             color: #475569;
-            font-size: 0.85rem;
-            line-height: 1.6;
+            font-size: 0.865rem;
+            line-height: 1.5;
         }
-
-        .form-footer {
+        .vnd-guideline-item svg {
+            width: 16px;
+            height: 16px;
+            color: var(--accent-gold);
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .vnd-form-footer {
             display: flex;
             justify-content: flex-end;
             gap: 12px;
-            padding-top: 1rem;
-            border-top: 1px solid #e8edf3;
+            padding-top: 1.5rem;
+            border-top: 1px solid #edf2f7;
+            margin-top: 1.5rem;
         }
-        .btn-cancel {
-            padding: 0.65rem 1.4rem;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            text-decoration: none;
-            color: #64748b;
-            background: #fff;
-            border: 1px solid #cbd5e1;
-        }
-        .btn-submit {
-            padding: 0.65rem 1.8rem;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #fff;
-            background: var(--primary-color);
-            border: none;
-            cursor: pointer;
-        }
-        .btn-submit:hover {
-            background: #1b2d42;
-        }
-
-        .alert-box {
-            padding: 0.85rem 1.2rem;
-            border-radius: 8px;
-            margin-bottom: 1.25rem;
-            font-size: 0.88rem;
-        }
-        .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-        .alert-warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
-        .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
     </style>
 </head>
 <body class="dashboard-page">
     {% include 'includes/navbar.html' %}
 
-    <main class="vnd-import-container">
+    <main class="vnd-import-page">
         <!-- Breadcrumb -->
-        <div class="breadcrumb-nav">
+        <div class="vnd-breadcrumb">
             <a href="{{ url_for('vendors.vendor_list') }}">Vendors</a>
-            <span>/</span>
-            <span>Import Vendors</span>
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            <span style="color:#1e293b;font-weight:500;">Import Vendors</span>
         </div>
 
         <!-- Flash messages -->
@@ -218,69 +65,114 @@
             {% if messages %}
                 {% for category, message in messages %}
                     {% if category in ['vendor_error', 'error'] %}
-                        <div class="alert-box alert-error">{{ message }}</div>
+                        <div class="vnd-flash-alert vnd-flash-error">{{ message }}</div>
                     {% elif category in ['vendor_warning', 'warning'] %}
-                        <div class="alert-box alert-warning">{{ message }}</div>
+                        <div class="vnd-flash-alert vnd-flash-warning">{{ message }}</div>
                     {% elif category in ['vendor_success', 'success'] %}
-                        <div class="alert-box alert-success">{{ message }}</div>
+                        <div class="vnd-flash-alert vnd-flash-success">{{ message }}</div>
                     {% endif %}
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
-        <div class="import-card">
-            <div class="import-header">
+        <div class="vnd-import-card">
+            <div class="vnd-import-header">
                 <div>
-                    <h1>Bulk Import Vendors</h1>
-                    <p>Upload a CSV file to add multiple suppliers to your CRM at once.</p>
+                    <h1>
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        Bulk Import Vendors
+                    </h1>
+                    <p>Upload a standard CSV spreadsheet to add suppliers and contractors at scale</p>
                 </div>
+                <span style="background:rgba(212,175,55,0.2);color:#fff;border:1px solid rgba(212,175,55,0.4);padding:0.35rem 0.85rem;border-radius:20px;font-size:0.75rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">
+                    CSV Import
+                </span>
             </div>
 
-            <div class="import-body">
-                <!-- Step 1: Download Template -->
-                <div class="template-banner">
-                    <div class="template-text">
-                        <h4>Need the import format?</h4>
-                        <p>Download our pre-formatted CSV template with sample data and column headers.</p>
+            <div class="vnd-import-body">
+                <!-- Step 1: Pre-formatted template banner -->
+                <div class="vnd-template-banner">
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        <div style="width:44px;height:44px;border-radius:10px;background:rgba(212,175,55,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <svg width="22" height="22" fill="none" stroke="var(--accent-gold)" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="12" y1="18" x2="12" y2="12"/>
+                                <line x1="9" y1="15" x2="15" y2="15"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4>Need the formatted template?</h4>
+                            <p>Download our official CSV template with pre-configured headers and sample rows.</p>
+                        </div>
                     </div>
-                    <a href="{{ url_for('vendors.import_template') }}" class="btn-download-tpl">
-                        Download CSV Template
+                    <a href="{{ url_for('vendors.import_template') }}" class="btn-vnd btn-vnd-gold">
+                        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download Template
                     </a>
                 </div>
 
-                <!-- Guidelines -->
-                <div class="instruction-box">
-                    <h4>Import Guidelines</h4>
-                    <ul>
-                        <li><strong>company_name</strong> is mandatory for every row.</li>
-                        <li>Existing vendors matching an identical company name will be safely skipped to avoid duplicates.</li>
-                        <li>Categories not already in the system will be automatically registered for you.</li>
-                        <li>Vendor identification codes (e.g. <code>VEN-00001</code>) will be generated automatically.</li>
-                        <li>Ensure dates, phone numbers, and GSTIN / PAN format follow standard conventions.</li>
-                    </ul>
+                <!-- Step 2: Guidelines -->
+                <div class="vnd-instructions">
+                    <h4>Import Guidelines &amp; Data Rules</h4>
+                    <div class="vnd-guideline-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <div><strong>company_name</strong> is the mandatory primary key for every vendor row.</div>
+                    </div>
+                    <div class="vnd-guideline-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <div>Existing company names will be <strong>safely skipped</strong> to prevent accidental duplicates.</div>
+                    </div>
+                    <div class="vnd-guideline-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <div>New categories specified in the CSV will be <strong>automatically created</strong> in your directory.</div>
+                    </div>
+                    <div class="vnd-guideline-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <div>Sequential vendor codes (e.g. <code>VEN-00042</code>) are systematically generated by the CRM engine.</div>
+                    </div>
+                    <div class="vnd-guideline-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <div>Standard uppercase formatting is applied automatically to GSTIN and PAN numbers.</div>
+                    </div>
                 </div>
 
-                <!-- Upload Form -->
-                <form method="POST" enctype="multipart/form-data">
+                <!-- Step 3: Upload Form -->
+                <form method="POST" enctype="multipart/form-data" id="importForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                    <div class="upload-box" onclick="document.getElementById('csvFileInput').click();">
-                        <div class="upload-icon">
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <div class="vnd-upload-zone" id="dropZone" onclick="document.getElementById('csvFileInput').click();">
+                        <div class="vnd-upload-icon">
+                            <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                <path d="M7 16a4 4 0 0 1-.88-7.903A5 5 0 1 1 15.9 6L16 6a5 5 0 0 1 1 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
                         </div>
-                        <div style="font-weight:600; color:var(--primary-color); font-size:1.05rem;">
-                            Click to select CSV file from your computer
-                        </div>
-                        <div style="color:#94a3b8; font-size:0.83rem; margin-top:4px;">
-                            Only .csv files supported (UTF-8 encoding recommended)
-                        </div>
-                        <input type="file" id="csvFileInput" name="file" accept=".csv" required style="display:none;" onchange="showChosenFile(this)">
-                        <div id="chosenFileName" style="margin-top:14px; font-weight:600; color:var(--accent-gold); font-size:0.9rem;"></div>
+                        <div class="vnd-upload-title">Click or drag &amp; drop your CSV file here</div>
+                        <div class="vnd-upload-sub">Supports UTF-8 encoded .csv files up to 10 MB</div>
+                        <input type="file" id="csvFileInput" name="file" accept=".csv" required style="display:none;" onchange="handleFileSelect(this)">
+                        <div id="fileSelectionInfo" class="vnd-upload-selected" style="display:none;"></div>
                     </div>
 
-                    <div class="form-footer">
-                        <a href="{{ url_for('vendors.vendor_list') }}" class="btn-cancel">Cancel</a>
-                        <button type="submit" class="btn-submit">Start Import</button>
+                    <div class="vnd-form-footer">
+                        <a href="{{ url_for('vendors.vendor_list') }}" class="btn-vnd btn-vnd-outline">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn-vnd btn-vnd-primary" id="btnSubmitImport">
+                            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            Start Import Process
+                        </button>
                     </div>
                 </form>
             </div>
@@ -288,14 +180,59 @@
     </main>
 
     <script>
-        function showChosenFile(input) {
-            const label = document.getElementById('chosenFileName');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('csvFileInput');
+        const fileInfo = document.getElementById('fileSelectionInfo');
+        const submitBtn = document.getElementById('btnSubmitImport');
+
+        ['dragenter', 'dragover'].forEach(evt => {
+            dropZone.addEventListener(evt, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('dragover');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(evt => {
+            dropZone.addEventListener(evt, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('dragover');
+            });
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            if (dt && dt.files && dt.files.length) {
+                fileInput.files = dt.files;
+                handleFileSelect(fileInput);
+            }
+        });
+
+        function handleFileSelect(input) {
             if (input.files && input.files[0]) {
-                label.textContent = `Selected: ${input.files[0].name} (${(input.files[0].size / 1024).toFixed(1)} KB)`;
+                const f = input.files[0];
+                const kb = (f.size / 1024).toFixed(1);
+                fileInfo.style.display = 'block';
+                fileInfo.innerHTML = `
+                    <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(212,175,55,0.12);padding:0.4rem 0.9rem;border-radius:20px;border:1px solid rgba(212,175,55,0.3);">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        ${f.name} <span style="color:#64748b;font-weight:500;">(${kb} KB)</span>
+                    </span>
+                `;
             } else {
-                label.textContent = '';
+                fileInfo.style.display = 'none';
+                fileInfo.textContent = '';
             }
         }
+
+        document.getElementById('importForm').addEventListener('submit', function() {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `
+                <svg class="spin" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+                Processing Import...
+            `;
+        });
     </script>
 </body>
 </html>
