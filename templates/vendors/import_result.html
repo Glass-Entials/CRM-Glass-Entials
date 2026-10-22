@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import Results | GlassEntials CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .vnd-result-container {
+            max-width: 960px;
+            margin: 2rem auto;
+            padding: 0 20px 3rem;
+        }
+        .breadcrumb-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-bottom: 1.25rem;
+        }
+        .breadcrumb-nav a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .result-card {
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            overflow: hidden;
+        }
+        .result-header {
+            padding: 1.75rem 2rem;
+            background: #fdfdfb;
+            border-bottom: 1px solid #f1f5f9;
+            border-top: 5px solid var(--accent-gold);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .result-header h1 {
+            font-family: var(--font-heading);
+            color: var(--primary-color);
+            margin: 0 0 4px;
+            font-size: 1.6rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .result-header p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.88rem;
+        }
+        .result-body {
+            padding: 2rem;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-box {
+            padding: 1.25rem;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .stat-box.success {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+        .stat-box.warning {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .stat-icon {
+            font-size: 1.8rem;
+        }
+        .stat-num {
+            font-size: 1.6rem;
+            font-weight: 700;
+            line-height: 1.1;
+            color: var(--primary-color);
+        }
+        .stat-label {
+            font-size: 0.78rem;
+            color: #64748b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .preview-table th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .preview-table td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.88rem;
+        }
+
+        .error-log-card {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            margin-top: 2rem;
+        }
+        .error-log-card h4 {
+            margin: 0 0 10px;
+            color: #991b1b;
+            font-size: 0.92rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .error-log-list {
+            margin: 0;
+            padding-left: 1.25rem;
+            color: #7f1d1d;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .result-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e8edf3;
+            margin-top: 2rem;
+        }
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0.65rem 1.4rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-secondary {
+            background: #fff;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+        }
+        .btn-primary {
+            background: var(--primary-color);
+            color: #fff;
+            border: 1px solid var(--primary-color);
+        }
+        .btn-primary:hover {
+            background: #1b2d42;
+        }
+    </style>
+</head>
+<body class="dashboard-page">
+    {% include 'includes/navbar.html' %}
+
+    <main class="vnd-result-container">
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-nav">
+            <a href="{{ url_for('vendors.vendor_list') }}">🏪 Vendors</a>
+            <span>›</span>
+            <a href="{{ url_for('vendors.import_vendors') }}">Import</a>
+            <span>›</span>
+            <span>Results</span>
+        </div>
+
+        <div class="result-card">
+            <div class="result-header">
+                <div>
+                    <h1>📊 Import Summary</h1>
+                    <p>Review the outcome of your CSV vendor bulk upload.</p>
+                </div>
+            </div>
+
+            <div class="result-body">
+                <!-- Stat Cards -->
+                <div class="summary-stats">
+                    <div class="stat-box success">
+                        <span class="stat-icon">✅</span>
+                        <div>
+                            <div class="stat-num" style="color:#15803d;">{{ results.created }}</div>
+                            <div class="stat-label">Vendors Created</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-box warning">
+                        <span class="stat-icon">⏭️</span>
+                        <div>
+                            <div class="stat-num" style="color:#b45309;">{{ results.skipped }}</div>
+                            <div class="stat-label">Skipped / Duplicates</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Newly Created Preview -->
+                {% if rows_preview %}
+                <div style="margin-top:1.5rem;">
+                    <h3 style="font-family:var(--font-heading); color:var(--primary-color); font-size:1.15rem; margin:0 0 10px;">
+                        ✨ Newly Created Vendors ({{ rows_preview|length }})
+                    </h3>
+                    <div style="border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;">
+                        <table class="preview-table">
+                            <thead>
+                                <tr>
+                                    <th>Vendor Code</th>
+                                    <th>Company Name</th>
+                                    <th>City</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in rows_preview %}
+                                <tr>
+                                    <td>
+                                        <span style="font-family:monospace; font-weight:700; color:var(--accent-gold);">
+                                            {{ row.code }}
+                                        </span>
+                                    </td>
+                                    <td style="font-weight:600; color:var(--primary-color);">
+                                        {{ row.name }}
+                                    </td>
+                                    <td style="color:#64748b;">
+                                        {{ row.city or '—' }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Errors / Skipped Log -->
+                {% if results.errors %}
+                <div class="error-log-card">
+                    <h4>⚠️ Skipped Rows & Issues ({{ results.errors|length }})</h4>
+                    <ul class="error-log-list">
+                        {% for err in results.errors %}
+                        <li>{{ err }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <div class="result-footer">
+                    <a href="{{ url_for('vendors.import_vendors') }}" class="btn-action btn-secondary">
+                        📥 Import Another File
+                    </a>
+                    <a href="{{ url_for('vendors.vendor_list') }}" class="btn-action btn-primary">
+                        🏪 Go to Vendor Directory
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

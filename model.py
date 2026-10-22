@@ -235,6 +235,43 @@ class OrgCustomerMemberRole(Enum):
     OTHER              = "Other"
 
 
+# ---------------------------------------------------------------------------
+# Vendor Management Module Enums
+# ---------------------------------------------------------------------------
+
+class VendorStatus(Enum):
+    ACTIVE   = "Active"
+    INACTIVE = "Inactive"
+    PENDING  = "Pending"
+
+
+class VendorVerificationStatus(Enum):
+    UNVERIFIED = "Unverified"
+    PENDING    = "Pending"
+    VERIFIED   = "Verified"
+
+
+class VendorBusinessType(Enum):
+    MANUFACTURER   = "Manufacturer"
+    TRADER         = "Trader"
+    SERVICE_PROVIDER = "Service Provider"
+    DISTRIBUTOR    = "Distributor"
+    WHOLESALER     = "Wholesaler"
+    OTHER          = "Other"
+
+
+class VendorPaymentTerms(Enum):
+    IMMEDIATE    = "Immediate"
+    NET_7        = "Net 7"
+    NET_15       = "Net 15"
+    NET_30       = "Net 30"
+    NET_45       = "Net 45"
+    NET_60       = "Net 60"
+    ADVANCE      = "Advance"
+    COD          = "Cash on Delivery"
+    CREDIT       = "Credit"
+
+
 class OrganizationStatus(Enum):
     PENDING   = "pending"     # Awaiting SaaS payment
     ACTIVE    = "active"
@@ -3071,3 +3108,212 @@ class OrgCustomerMember(db.Model):
 
     def __repr__(self):
         return f"<OrgCustomerMember {self.name} in OrgCustomer {self.org_customer_id}>"
+
+
+# ===========================================================================
+# VENDOR MANAGEMENT MODULE
+# ===========================================================================
+
+class VendorCategory(db.Model):
+    """Vendor categories — managed per organisation."""
+    __tablename__ = "vendor_category"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(255), nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
+
+    vendors = db.relationship("Vendor", back_populates="category", lazy="dynamic")
+
+    __table_args__ = (
+        db.UniqueConstraint("name", "organization_id", name="uq_vendor_category_name_org"),
+    )
+
+    def __repr__(self):
+        return f"<VendorCategory {self.name}>"
+
+
+class Vendor(db.Model):
+    """Core vendor / supplier record."""
+    __tablename__ = "vendor"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # ── Identity ──────────────────────────────────────────────────────────────
+    code = db.Column(db.String(20), nullable=False)          # e.g. VEN-00001
+    company_name = db.Column(db.String(150), nullable=False, index=True)
+    legal_name = db.Column(db.String(150), nullable=True)
+    category_id = db.Column(
+        db.Integer, db.ForeignKey("vendor_category.id"), nullable=True, index=True
+    )
+    products_services = db.Column(db.Text, nullable=True)    # comma-sep or free text
+
+    # ── Primary Contact ───────────────────────────────────────────────────────
+    contact_person = db.Column(db.String(100), nullable=True)
+    designation = db.Column(db.String(100), nullable=True)
+    phone = db.Column(db.String(20), nullable=True, index=True)
+    alt_phone = db.Column(db.String(20), nullable=True)
+    email = db.Column(db.String(120), nullable=True, index=True)
+    website = db.Column(db.String(255), nullable=True)
+
+    # ── Tax & Business ────────────────────────────────────────────────────────
+    gstin = db.Column(db.String(15), nullable=True, index=True)
+    pan = db.Column(db.String(10), nullable=True, index=True)
+    business_type = db.Column(
+        db.Enum(VendorBusinessType, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+    )
+
+    # ── Address ───────────────────────────────────────────────────────────────
+    address = db.Column(db.Text, nullable=True)
+    city = db.Column(db.String(100), nullable=True, index=True)
+    state = db.Column(db.String(100), nullable=True)
+    pincode = db.Column(db.String(10), nullable=True)
+    country = db.Column(db.String(100), nullable=True, default="India")
+    warehouse_address = db.Column(db.Text, nullable=True)
+
+    # ── Commercial ────────────────────────────────────────────────────────────
+    payment_terms = db.Column(
+        db.Enum(VendorPaymentTerms, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+    )
+    credit_period_days = db.Column(db.Integer, nullable=True)
+    bank_name = db.Column(db.String(100), nullable=True)
+    bank_account_no = db.Column(db.String(30), nullable=True)
+    bank_ifsc = db.Column(db.String(15), nullable=True)
+
+    # ── Status & Verification ─────────────────────────────────────────────────
+    status = db.Column(
+        db.Enum(VendorStatus, values_callable=lambda x: [e.value for e in x]),
+        default=VendorStatus.ACTIVE,
+        server_default=db.text("'Active'"),
+        nullable=False,
+        index=True,
+    )
+    verification_status = db.Column(
+        db.Enum(VendorVerificationStatus, values_callable=lambda x: [e.value for e in x]),
+        default=VendorVerificationStatus.UNVERIFIED,
+        server_default=db.text("'Unverified'"),
+        nullable=False,
+    )
+
+    # ── Internal ──────────────────────────────────────────────────────────────
+    notes = db.Column(db.Text, nullable=True)
+    assigned_to = db.Column(
+        db.Integer, db.ForeignKey("employee.id"), nullable=True, index=True
+    )
+
+    # ── Multi-tenant ──────────────────────────────────────────────────────────
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
+    )
+
+    # ── Audit ─────────────────────────────────────────────────────────────────
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    created_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
+    updated_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False, server_default=db.text("0"), nullable=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_by = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
+
+    # ── Relationships ─────────────────────────────────────────────────────────
+    category = db.relationship("VendorCategory", back_populates="vendors")
+    assignee = db.relationship("Employee", foreign_keys=[assigned_to], backref="assigned_vendors")
+    creator = db.relationship("Employee", foreign_keys=[created_by], backref="vendors_created")
+    updater = db.relationship("Employee", foreign_keys=[updated_by], backref="vendors_updated")
+    documents = db.relationship(
+        "VendorDocument", back_populates="vendor", lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
+    activities = db.relationship(
+        "VendorActivity", back_populates="vendor", lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint("code", "organization_id", name="uq_vendor_code_org"),
+        db.Index("ix_vendor_company_org", "organization_id", "company_name"),
+    )
+
+    @property
+    def status_display(self):
+        return self.status.value if self.status else ""
+
+    @property
+    def verification_display(self):
+        return self.verification_status.value if self.verification_status else ""
+
+    @property
+    def business_type_display(self):
+        return self.business_type.value if self.business_type else ""
+
+    @property
+    def payment_terms_display(self):
+        return self.payment_terms.value if self.payment_terms else ""
+
+    def __repr__(self):
+        return f"<Vendor {self.company_name}>"
+
+
+class VendorDocument(db.Model):
+    """Documents attached to a Vendor (GST cert, PAN, contracts, catalogues…)."""
+    __tablename__ = "vendor_document"
+
+    id = db.Column(db.Integer, primary_key=True)
+    vendor_id = db.Column(
+        db.Integer, db.ForeignKey("vendor.id"), nullable=False, index=True
+    )
+
+    filename = db.Column(db.String(255), nullable=False)        # stored name on disk
+    original_name = db.Column(db.String(255), nullable=False)   # original file name
+    file_type = db.Column(db.String(50), nullable=True)
+    file_size = db.Column(db.Integer, nullable=True)
+    document_type = db.Column(db.String(50), nullable=True)     # e.g. "GST Certificate"
+    description = db.Column(db.String(255), nullable=True)
+
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    uploaded_by = db.Column(
+        db.Integer, db.ForeignKey("employee.id"), nullable=True
+    )
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
+    )
+
+    vendor = db.relationship("Vendor", back_populates="documents")
+    uploader = db.relationship("Employee", foreign_keys=[uploaded_by])
+
+    def __repr__(self):
+        return f"<VendorDocument {self.original_name}>"
+
+
+class VendorActivity(db.Model):
+    """Audit / activity log for a Vendor."""
+    __tablename__ = "vendor_activity"
+
+    id = db.Column(db.Integer, primary_key=True)
+    vendor_id = db.Column(
+        db.Integer, db.ForeignKey("vendor.id"), nullable=False, index=True
+    )
+    action = db.Column(db.String(50), nullable=False)           # e.g. "created", "updated"
+    description = db.Column(db.Text, nullable=True)
+    changes_json = db.Column(db.Text, nullable=True)            # JSON diff
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    actor_id = db.Column(db.Integer, db.ForeignKey("employee.id"), nullable=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id"), nullable=False, index=True
+    )
+
+    vendor = db.relationship("Vendor", back_populates="activities")
+    actor = db.relationship("Employee", foreign_keys=[actor_id])
+
+    def __repr__(self):
+        return f"<VendorActivity {self.action} on Vendor {self.vendor_id}>"

@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ vendor.company_name }} | Vendor Profile | GlassEntials CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .vnd-detail-container {
+            max-width: 1280px;
+            margin: 1.75rem auto;
+            padding: 0 20px 3rem;
+        }
+        .breadcrumb-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-bottom: 1.25rem;
+        }
+        .breadcrumb-nav a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .breadcrumb-nav a:hover {
+            color: var(--accent-gold);
+        }
+
+        /* Profile Header */
+        .profile-header-card {
+            background: #fff;
+            padding: 2rem 2.25rem;
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            border-top: 5px solid var(--accent-gold);
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+        .profile-identity-group {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .profile-avatar-large {
+            width: 76px;
+            height: 76px;
+            background: linear-gradient(135deg, rgba(212,175,55,0.18), rgba(212,175,55,0.06));
+            color: #9c7c1b;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.1rem;
+            font-weight: 700;
+            font-family: var(--font-heading);
+            border: 1px solid rgba(212,175,55,0.3);
+            flex-shrink: 0;
+        }
+        .profile-title-block h1 {
+            font-size: 1.85rem;
+            margin: 0 0 4px;
+            color: var(--primary-color);
+            font-family: var(--font-heading);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .profile-code-badge {
+            font-size: 0.8rem;
+            font-family: var(--font-body);
+            font-weight: 600;
+            background: #f1f5f9;
+            color: #475569;
+            padding: 3px 10px;
+            border-radius: 6px;
+            letter-spacing: 0.05em;
+        }
+        .profile-sub-title {
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+        .profile-badges-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.74rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .pill .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+        .pill-active { background: #dcfce7; color: #15803d; } .pill-active .dot { background: #22c55e; }
+        .pill-inactive { background: #fee2e2; color: #b91c1c; } .pill-inactive .dot { background: #f87171; }
+        .pill-pending { background: #fff7ed; color: #c2410c; } .pill-pending .dot { background: #fb923c; }
+        .pill-verified { background: #dbeafe; color: #1d4ed8; }
+        .pill-unverified { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+        .pill-rejected { background: #fee2e2; color: #991b1b; }
+        .pill-gold { background: rgba(212,175,55,0.12); color: #8a6a00; border: 1px solid rgba(212,175,55,0.25); }
+
+        .header-actions-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0.55rem 1.15rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: var(--font-body);
+            border: 1px solid transparent;
+        }
+        .btn-primary-action {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+        .btn-primary-action:hover {
+            background: #1b2d42;
+            color: #fff;
+        }
+        .btn-outline-action {
+            background: #fff;
+            color: #334155;
+            border-color: #cbd5e1;
+        }
+        .btn-outline-action:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+        }
+        .btn-danger-action {
+            background: #fff;
+            color: #dc2626;
+            border-color: #fecaca;
+        }
+        .btn-danger-action:hover {
+            background: #fee2e2;
+        }
+
+        /* Metric Highlights */
+        .metrics-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.75rem;
+        }
+        .metric-mini-card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 1.1rem 1.25rem;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .metric-mini-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+        .metric-mini-icon.gold { background: rgba(212,175,55,0.12); color: #8a6a00; }
+        .metric-mini-icon.blue { background: rgba(59,130,246,0.1); color: #2563eb; }
+        .metric-mini-icon.green { background: rgba(16,185,129,0.1); color: #059669; }
+        .metric-mini-icon.purple { background: rgba(139,92,246,0.1); color: #7c3aed; }
+        .metric-mini-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: #64748b;
+            letter-spacing: 0.05em;
+        }
+        .metric-mini-val {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-top: 2px;
+        }
+
+        /* Tabs */
+        .tab-nav {
+            display: flex;
+            gap: 4px;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+        }
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #64748b;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            font-family: var(--font-body);
+        }
+        .tab-btn:hover {
+            color: var(--primary-color);
+        }
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--accent-gold);
+            font-weight: 700;
+        }
+        .tab-badge {
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 0.72rem;
+            padding: 2px 7px;
+            border-radius: 12px;
+        }
+        .tab-btn.active .tab-badge {
+            background: rgba(212,175,55,0.15);
+            color: #8a6a00;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Card Sections */
+        .content-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            box-shadow: 0 3px 12px rgba(0,0,0,0.02);
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+        }
+        .card-header-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .card-header-line h3 {
+            font-family: var(--font-heading);
+            color: var(--primary-color);
+            font-size: 1.18rem;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.25rem;
+        }
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .info-label {
+            font-size: 0.73rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            font-weight: 600;
+        }
+        .info-value {
+            font-size: 0.92rem;
+            color: #1e293b;
+            font-weight: 500;
+            word-break: break-word;
+        }
+        .info-value a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        .info-value a:hover {
+            color: var(--accent-gold);
+            text-decoration: underline;
+        }
+        .empty-dash {
+            color: #cbd5e1;
+            font-style: italic;
+        }
+
+        /* Documents Table */
+        .doc-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .doc-table th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .doc-table td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.88rem;
+            vertical-align: middle;
+        }
+        .doc-file-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        .file-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: rgba(13,27,42,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        /* Timeline / Activity */
+        .timeline {
+            position: relative;
+            padding-left: 28px;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 4px;
+            bottom: 4px;
+            width: 2px;
+            background: #e2e8f0;
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+        .timeline-item:last-child {
+            margin-bottom: 0;
+        }
+        .timeline-dot {
+            position: absolute;
+            left: -28px;
+            top: 3px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            border: 3px solid var(--accent-gold);
+            box-sizing: border-box;
+        }
+        .timeline-content {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.9rem 1.1rem;
+        }
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .timeline-action {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-transform: capitalize;
+        }
+        .timeline-time {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+        .timeline-desc {
+            font-size: 0.85rem;
+            color: #475569;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-dialog {
+            background: #fff;
+            border-radius: 12px;
+            max-width: 520px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+            animation: modalFadeIn 0.2s ease-out;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            color: var(--primary-color);
+            font-family: var(--font-heading);
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: #64748b;
+        }
+        .modal-body {
+            padding: 1.5rem;
+        }
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Alerts */
+        .alert-box {
+            padding: 0.85rem 1.2rem;
+            border-radius: 8px;
+            margin-bottom: 1.25rem;
+            font-size: 0.88rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+        .alert-warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+        .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    </style>
+</head>
+<body class="dashboard-page">
+    {% include 'includes/navbar.html' %}
+
+    <main class="vnd-detail-container">
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-nav">
+            <a href="{{ url_for('vendors.vendor_list') }}">🏪 Vendors</a>
+            <span>›</span>
+            <span>{{ vendor.company_name }}</span>
+            <span class="profile-code-badge">{{ vendor.code }}</span>
+        </div>
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    {% if category in ['vendor_error', 'error'] %}
+                        <div class="alert-box alert-error">⚠️ {{ message }}</div>
+                    {% elif category in ['vendor_warning', 'warning'] %}
+                        <div class="alert-box alert-warning">🔔 {{ message }}</div>
+                    {% elif category in ['vendor_success', 'success'] %}
+                        <div class="alert-box alert-success">✓ {{ message }}</div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Header Card -->
+        <div class="profile-header-card">
+            <div class="profile-identity-group">
+                <div class="profile-avatar-large">
+                    {{ vendor.company_name[:2].upper() }}
+                </div>
+                <div class="profile-title-block">
+                    <h1>
+                        {{ vendor.company_name }}
+                        <span class="profile-code-badge">{{ vendor.code }}</span>
+                    </h1>
+                    {% if vendor.legal_name and vendor.legal_name != vendor.company_name %}
+                    <div class="profile-sub-title">Legal Name: <strong>{{ vendor.legal_name }}</strong></div>
+                    {% endif %}
+                    <div class="profile-badges-row">
+                        <!-- Status Pill -->
+                        {% if vendor.status.value == 'Active' %}
+                            <span class="pill pill-active"><span class="dot"></span> Active</span>
+                        {% elif vendor.status.value == 'Inactive' %}
+                            <span class="pill pill-inactive"><span class="dot"></span> Inactive</span>
+                        {% else %}
+                            <span class="pill pill-pending"><span class="dot"></span> {{ vendor.status_display }}</span>
+                        {% endif %}
+
+                        <!-- Verification Pill -->
+                        {% if vendor.verification_status.value == 'Verified' %}
+                            <span class="pill pill-verified">✓ Verified</span>
+                        {% elif vendor.verification_status.value == 'Rejected' %}
+                            <span class="pill pill-rejected">✕ Rejected</span>
+                        {% else %}
+                            <span class="pill pill-unverified">⌛ {{ vendor.verification_display }}</span>
+                        {% endif %}
+
+                        <!-- Category -->
+                        {% if vendor.category %}
+                            <span class="pill pill-gold">🏷️ {{ vendor.category.name }}</span>
+                        {% endif %}
+
+                        <!-- Business Type -->
+                        {% if vendor.business_type %}
+                            <span class="pill pill-unverified">💼 {{ vendor.business_type_display }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="header-actions-group">
+                <button class="btn-action btn-outline-action" onclick="openDocModal()">
+                    📎 Upload Document
+                </button>
+                <a href="{{ url_for('vendors.edit_vendor', vendor_id=vendor.id) }}" class="btn-action btn-primary-action">
+                    ✏️ Edit Vendor
+                </a>
+                {% if current_user.role.value in ['admin', 'manager'] %}
+                <button class="btn-action btn-danger-action" onclick="openDeleteModal()">
+                    🗑️ Delete
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Metric Highlights -->
+        <div class="metrics-strip">
+            <div class="metric-mini-card">
+                <div class="metric-mini-icon gold">💳</div>
+                <div>
+                    <div class="metric-mini-title">Payment Terms</div>
+                    <div class="metric-mini-val">
+                        {{ vendor.payment_terms_display or 'Not Set' }}
+                        {% if vendor.credit_period_days %}<span style="font-size:0.8rem; font-weight:500; color:#64748b;">({{ vendor.credit_period_days }}d)</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-mini-card">
+                <div class="metric-mini-icon blue">📑</div>
+                <div>
+                    <div class="metric-mini-title">GSTIN</div>
+                    <div class="metric-mini-val" style="font-family:monospace; font-size:0.95rem;">
+                        {{ vendor.gstin or 'Not Registered' }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-mini-card">
+                <div class="metric-mini-icon green">📍</div>
+                <div>
+                    <div class="metric-mini-title">Location</div>
+                    <div class="metric-mini-val">
+                        {{ vendor.city or '—' }}{% if vendor.state %}, {{ vendor.state }}{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-mini-card">
+                <div class="metric-mini-icon purple">👤</div>
+                <div>
+                    <div class="metric-mini-title">Assigned Manager</div>
+                    <div class="metric-mini-val" style="font-size:0.95rem;">
+                        {{ vendor.assignee.name if vendor.assignee else 'Unassigned' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('overview', this)">
+                📋 Overview & Details
+            </button>
+            <button class="tab-btn" onclick="switchTab('documents', this)">
+                📎 Documents <span class="tab-badge">{{ documents|length }}</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('activity', this)">
+                🕒 Activity Trail <span class="tab-badge">{{ activities|length }}</span>
+            </button>
+        </div>
+
+        <!-- TAB 1: OVERVIEW -->
+        <div id="tab-overview" class="tab-content active">
+            <!-- Contact Card -->
+            <div class="content-card">
+                <div class="card-header-line">
+                    <h3>👤 Contact Person & Communication</h3>
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Contact Person</span>
+                        <span class="info-value">{{ vendor.contact_person or '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Designation</span>
+                        <span class="info-value">{{ vendor.designation or '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Phone / Mobile</span>
+                        <span class="info-value">
+                            {% if vendor.phone %}
+                                <a href="tel:{{ vendor.phone }}">📞 {{ vendor.phone }}</a>
+                            {% else %}
+                                <span class="empty-dash">—</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Alternate Phone</span>
+                        <span class="info-value">
+                            {% if vendor.alt_phone %}
+                                <a href="tel:{{ vendor.alt_phone }}">{{ vendor.alt_phone }}</a>
+                            {% else %}
+                                <span class="empty-dash">—</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Email Address</span>
+                        <span class="info-value">
+                            {% if vendor.email %}
+                                <a href="mailto:{{ vendor.email }}">✉️ {{ vendor.email }}</a>
+                            {% else %}
+                                <span class="empty-dash">—</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Website</span>
+                        <span class="info-value">
+                            {% if vendor.website %}
+                                <a href="{{ vendor.website }}" target="_blank" rel="noopener">🌐 {{ vendor.website }}</a>
+                            {% else %}
+                                <span class="empty-dash">—</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tax & Bank Details -->
+            <div class="content-card">
+                <div class="card-header-line">
+                    <h3>🏛️ Tax, Banking & Commercial Details</h3>
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">GSTIN</span>
+                        <span class="info-value" style="font-family:monospace; font-weight:600;">{{ vendor.gstin or '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">PAN</span>
+                        <span class="info-value" style="font-family:monospace; font-weight:600;">{{ vendor.pan or '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Bank Name</span>
+                        <span class="info-value">{{ vendor.bank_name or '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Bank Account Number</span>
+                        <span class="info-value" style="font-family:monospace;">{{ vendor.bank_account_no or '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">IFSC Code</span>
+                        <span class="info-value" style="font-family:monospace; font-weight:600;">{{ vendor.bank_ifsc or '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Payment Terms</span>
+                        <span class="info-value">{{ vendor.payment_terms_display or '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Credit Period</span>
+                        <span class="info-value">{% if vendor.credit_period_days %}{{ vendor.credit_period_days }} Days{% else %}—{% endif %}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Addresses & Products -->
+            <div class="content-card">
+                <div class="card-header-line">
+                    <h3>📍 Addresses & Supplied Items</h3>
+                </div>
+                <div class="info-grid">
+                    <div class="info-item" style="grid-column: span 2;">
+                        <span class="info-label">Billing / Head Office Address</span>
+                        <span class="info-value">
+                            {{ vendor.address or '—' }}
+                            {% if vendor.city %}<br>{{ vendor.city }}{% endif %}{% if vendor.state %}, {{ vendor.state }}{% endif %}{% if vendor.pincode %} - {{ vendor.pincode }}{% endif %}
+                            {% if vendor.country %}, {{ vendor.country }}{% endif %}
+                        </span>
+                    </div>
+                    <div class="info-item" style="grid-column: span 2;">
+                        <span class="info-label">Warehouse / Dispatch Address</span>
+                        <span class="info-value">{{ vendor.warehouse_address or '—' }}</span>
+                    </div>
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <span class="info-label">Supplied Products & Services</span>
+                        <span class="info-value" style="white-space: pre-wrap;">{{ vendor.products_services or '—' }}</span>
+                    </div>
+                    {% if vendor.notes %}
+                    <div class="info-item" style="grid-column: 1 / -1; background:#fefdf8; padding:1rem; border-radius:8px; border:1px solid #fef3c7;">
+                        <span class="info-label" style="color:#b45309;">Internal Notes & Remarks</span>
+                        <span class="info-value" style="white-space: pre-wrap; color:#78350f;">{{ vendor.notes }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Record Meta -->
+            <div style="font-size:0.75rem; color:#94a3b8; padding:0 0.5rem; display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                <div>Created: {{ vendor.created_at.strftime('%d %b %Y, %I:%M %p') if vendor.created_at else '—' }} {% if vendor.creator %}by {{ vendor.creator.name }}{% endif %}</div>
+                <div>Last Updated: {{ vendor.updated_at.strftime('%d %b %Y, %I:%M %p') if vendor.updated_at else '—' }} {% if vendor.updater %}by {{ vendor.updater.name }}{% endif %}</div>
+            </div>
+        </div>
+
+        <!-- TAB 2: DOCUMENTS -->
+        <div id="tab-documents" class="tab-content">
+            <div class="content-card">
+                <div class="card-header-line">
+                    <h3>📎 Attached Documents</h3>
+                    <button class="btn-action btn-primary-action" onclick="openDocModal()" style="font-size:0.8rem; padding:4px 12px;">
+                        + Upload Document
+                    </button>
+                </div>
+
+                {% if documents %}
+                <div style="overflow-x:auto;">
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th>File Name</th>
+                                <th>Category</th>
+                                <th>Size</th>
+                                <th>Uploaded By</th>
+                                <th>Uploaded Date</th>
+                                <th style="text-align:right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in documents %}
+                            <tr>
+                                <td>
+                                    <div class="doc-file-badge">
+                                        <div class="file-icon">
+                                            {% if doc.file_type in ['pdf'] %}📄
+                                            {% elif doc.file_type in ['jpg','jpeg','png'] %}🖼️
+                                            {% elif doc.file_type in ['xls','xlsx'] %}📊
+                                            {% else %}📁{% endif %}
+                                        </div>
+                                        <div>
+                                            <div>{{ doc.original_name }}</div>
+                                            {% if doc.description %}
+                                            <div style="font-size:0.75rem; color:#64748b; font-weight:400;">{{ doc.description }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="pill pill-gold">{{ doc.document_type or 'Other' }}</span>
+                                </td>
+                                <td style="color:#64748b; font-size:0.82rem;">
+                                    {% if doc.file_size %}
+                                        {% if doc.file_size > 1048576 %}
+                                            {{ (doc.file_size / 1048576)|round(1) }} MB
+                                        {% else %}
+                                            {{ (doc.file_size / 1024)|round(1) }} KB
+                                        {% endif %}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td>{{ doc.uploader.name if doc.uploader else 'System' }}</td>
+                                <td style="color:#64748b; font-size:0.82rem;">{{ doc.uploaded_at.strftime('%d %b %Y') if doc.uploaded_at else '—' }}</td>
+                                <td style="text-align:right;">
+                                    <div style="display:flex; justify-content:flex-end; gap:6px;">
+                                        <a href="{{ url_for('vendors.download_vendor_document', doc_id=doc.id) }}" class="btn-action btn-outline-action" style="padding:3px 8px; font-size:0.75rem;" title="Download">
+                                            ⬇️
+                                        </a>
+                                        <form method="POST" action="{{ url_for('vendors.delete_vendor_document', vendor_id=vendor.id, doc_id=doc.id) }}" onsubmit="return confirm('Delete this document?');" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn-action btn-danger-action" style="padding:3px 8px; font-size:0.75rem;" title="Delete">
+                                                🗑️
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div style="text-align:center; padding:3rem 1rem; color:#64748b;">
+                    <div style="font-size:2.5rem; margin-bottom:0.5rem; opacity:0.5;">📁</div>
+                    <div style="font-weight:600; font-size:1rem; color:var(--primary-color);">No Documents Attached Yet</div>
+                    <p style="font-size:0.85rem; margin:6px 0 16px;">Attach GST certificate, PAN card, contracts, or rate catalogues for this vendor.</p>
+                    <button class="btn-action btn-primary-action" onclick="openDocModal()">+ Upload First Document</button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- TAB 3: ACTIVITY -->
+        <div id="tab-activity" class="tab-content">
+            <div class="content-card">
+                <div class="card-header-line">
+                    <h3>🕒 Audit & Activity Trail</h3>
+                </div>
+
+                {% if activities %}
+                <div class="timeline">
+                    {% for act in activities %}
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <span class="timeline-action">{{ act.action.replace('_', ' ') }}</span>
+                                <span class="timeline-time">{{ act.created_at.strftime('%d %b %Y, %I:%M %p') if act.created_at else '' }}</span>
+                            </div>
+                            <div class="timeline-desc">{{ act.description or '' }}</div>
+                            {% if act.actor %}
+                            <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">By {{ act.actor.name }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="text-align:center; padding:2.5rem; color:#64748b;">
+                    No recorded activities yet.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <!-- Upload Document Modal -->
+    <div id="docModal" class="modal-overlay">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3>📎 Upload Vendor Document</h3>
+                <button class="modal-close" onclick="closeDocModal()">&times;</button>
+            </div>
+            <form method="POST" action="{{ url_for('vendors.upload_vendor_document', vendor_id=vendor.id) }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="form-group" style="margin-bottom:1rem;">
+                        <label style="font-size:0.8rem; font-weight:600; color:#334155; margin-bottom:4px; display:block;">Document Category</label>
+                        <select name="document_type" class="form-control" style="width:100%;">
+                            {% for dt in VENDOR_DOCUMENT_TYPES %}
+                            <option value="{{ dt }}">{{ dt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:1rem;">
+                        <label style="font-size:0.8rem; font-weight:600; color:#334155; margin-bottom:4px; display:block;">Label / Description</label>
+                        <input type="text" name="doc_description" class="form-control" placeholder="e.g. FY 2025-26 Rate Quotation" style="width:100%;">
+                    </div>
+
+                    <div class="form-group">
+                        <label style="font-size:0.8rem; font-weight:600; color:#334155; margin-bottom:4px; display:block;">Choose File(s) <span style="color:#ef4444;">*</span></label>
+                        <input type="file" name="documents" multiple required class="form-control" style="width:100%;">
+                        <span style="font-size:0.73rem; color:#94a3b8; margin-top:3px; display:block;">PDF, PNG, JPG, DOC, DOCX, XLS, XLSX (Max 5MB each)</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action btn-outline-action" onclick="closeDocModal()">Cancel</button>
+                    <button type="submit" class="btn-action btn-primary-action">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal-overlay">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 style="color:#dc2626;">⚠️ Delete Vendor</h3>
+                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin:0 0 10px; font-size:0.95rem; color:#334155;">
+                    Are you sure you want to delete vendor <strong>{{ vendor.company_name }}</strong> ({{ vendor.code }})?
+                </p>
+                <p style="margin:0; font-size:0.82rem; color:#64748b;">
+                    This vendor will be moved to deleted status and hidden from the active directory.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-action btn-outline-action" onclick="closeDeleteModal()">Cancel</button>
+                <form method="POST" action="{{ url_for('vendors.delete_vendor', vendor_id=vendor.id) }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-action" style="background:#dc2626; color:#fff; border-color:#dc2626;">
+                        Yes, Delete Vendor
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            const target = document.getElementById('tab-' + tabName);
+            if (target) target.classList.add('active');
+        }
+
+        function openDocModal() {
+            document.getElementById('docModal').classList.add('active');
+        }
+        function closeDocModal() {
+            document.getElementById('docModal').classList.remove('active');
+        }
+        function openDeleteModal() {
+            document.getElementById('deleteModal').classList.add('active');
+        }
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+        }
+
+        // Close modal on click outside
+        window.addEventListener('click', function(e) {
+            const docM = document.getElementById('docModal');
+            const delM = document.getElementById('deleteModal');
+            if (e.target === docM) closeDocModal();
+            if (e.target === delM) closeDeleteModal();
+        });
+    </script>
+</body>
+</html>

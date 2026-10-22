@@ -118,15 +118,20 @@
 
         <div class="dropdown">
             <a href="#" {% if request.blueprint=='employees' or request.blueprint=='contacts' or
-                request.blueprint=='trash' %}class="active" {% endif %}>Workplace ▾</a>
+                request.blueprint=='trash' or request.blueprint=='vendors' %}class="active" {% endif %}>Workplace ▾</a>
             <div class="dropdown-content">
                 <a href="{{ url_for('employees.employee_list') }}">Employee Portal</a>
                 <a href="{{ url_for('contacts.contacts_list') }}">Contacts</a>
+                <a href="{{ url_for('vendors.vendor_list') }}"
+                   {% if request.blueprint == 'vendors' %}style="color: var(--accent-gold); font-weight: 600;"{% endif %}>
+                    🏪 Vendor Management
+                </a>
                 {% if current_user.role.value in ['admin', 'manager'] %}
                 <a href="{{ url_for('trash.trash_list') }}">Trash</a>
                 {% endif %}
             </div>
         </div>
+
 
         <a href="{{ url_for('call_logger.dashboard') }}" {% if request.blueprint=='call_logger' %}class="active" {%
             endif %}>📞 Calls</a>
