@@ -19,13 +19,14 @@
 
         /* Metrics */
         .metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .metric-card { background: #fff; padding: 1rem 1.2rem; border-radius: 10px; border: 1px solid rgba(13,27,42,0.08); box-shadow: 0 2px 8px rgba(0,0,0,0.025); display: flex; align-items: center; gap: 12px; }
-        .metric-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
-        .metric-icon.gold  { background: rgba(212,175,55,0.12); }
-        .metric-icon.green { background: rgba(16,185,129,0.12); }
-        .metric-icon.red   { background: rgba(239,68,68,0.1); }
-        .metric-icon.blue  { background: rgba(59,130,246,0.1); }
-        .metric-icon.amber { background: rgba(245,158,11,0.1); }
+        .metric-card { background: #fff; padding: 1.1rem 1.2rem; border-radius: 10px; border: 1px solid rgba(13,27,42,0.08); box-shadow: 0 2px 8px rgba(0,0,0,0.025); display: flex; align-items: center; gap: 14px; }
+        .metric-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .metric-icon svg { width: 20px; height: 20px; }
+        .metric-icon.gold  { background: rgba(212,175,55,0.12); color: #8a6a00; }
+        .metric-icon.green { background: rgba(16,185,129,0.12); color: #059669; }
+        .metric-icon.red   { background: rgba(239,68,68,0.1); color: #dc2626; }
+        .metric-icon.blue  { background: rgba(59,130,246,0.1); color: #2563eb; }
+        .metric-icon.amber { background: rgba(245,158,11,0.1); color: #d97706; }
         .metric-info h3 { margin: 0; font-size: 1.45rem; font-weight: 700; color: var(--primary-color); line-height: 1.1; }
         .metric-info span { font-size: 0.75rem; color: #64748b; font-weight: 500; }
 
@@ -34,7 +35,8 @@
         .search-wrap { position: relative; flex: 1; min-width: 240px; }
         .search-wrap input { width: 100%; padding: 0.55rem 0.85rem 0.55rem 2.2rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.87rem; font-family: var(--font-body); outline: none; background: #f8fafc; transition: all 0.2s; height: 38px; box-sizing: border-box; }
         .search-wrap input:focus { border-color: var(--accent-gold); background: #fff; box-shadow: 0 0 0 3px rgba(212,175,55,0.1); }
-        .search-icon { position: absolute; left: 0.65rem; top: 50%; transform: translateY(-50%); font-size: 0.9rem; color: #94a3b8; pointer-events: none; }
+        .search-icon { position: absolute; left: 0.7rem; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; color: #94a3b8; pointer-events: none; }
+        .search-icon svg { width: 15px; height: 15px; }
         .search-results-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); z-index: 1000; max-height: 340px; overflow-y: auto; display: none; }
         .search-result-item { padding: 0.6rem 0.9rem; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.12s; display: flex; align-items: center; gap: 10px; }
         .search-result-item:hover { background: #f8fafc; }
@@ -90,7 +92,8 @@
 
         /* Empty state */
         .empty-state { padding: 3.5rem 2rem; text-align: center; color: #64748b; }
-        .empty-icon { font-size: 2.8rem; display: block; margin-bottom: 1rem; opacity: 0.4; }
+        .empty-icon { width: 56px; height: 56px; margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #f1f5f9; color: #94a3b8; }
+        .empty-icon svg { width: 28px; height: 28px; }
     </style>
 </head>
 <body class="dashboard-page">
@@ -100,50 +103,77 @@
 
         {% with messages = get_flashed_messages(category_filter=["vendor_success"]) %}
         {% if messages %}{% for msg in messages %}
-        <div style="padding:10px 15px;background:#dcfce7;border-left:4px solid #10b981;color:#166534;display:flex;align-items:center;gap:8px;margin-bottom:1rem;border-radius:7px;font-weight:500;font-size:0.87rem;"><span>✓</span> {{ msg }}</div>
+        <div style="padding:10px 15px;background:#dcfce7;border-left:4px solid #10b981;color:#166534;margin-bottom:1rem;border-radius:7px;font-weight:500;font-size:0.87rem;">{{ msg }}</div>
         {% endfor %}{% endif %}{% endwith %}
 
         {% with messages = get_flashed_messages(category_filter=["vendor_warning"]) %}
         {% if messages %}{% for msg in messages %}
-        <div style="padding:10px 15px;background:#fef3c7;border-left:4px solid #f59e0b;color:#92400e;display:flex;align-items:center;gap:8px;margin-bottom:1rem;border-radius:7px;font-weight:500;font-size:0.87rem;"><span>⚠</span> {{ msg }}</div>
+        <div style="padding:10px 15px;background:#fef3c7;border-left:4px solid #f59e0b;color:#92400e;margin-bottom:1rem;border-radius:7px;font-weight:500;font-size:0.87rem;">{{ msg }}</div>
         {% endfor %}{% endif %}{% endwith %}
 
         {% with messages = get_flashed_messages(category_filter=["vendor_error"]) %}
         {% if messages %}{% for msg in messages %}
-        <div style="padding:10px 15px;background:#fee2e2;border-left:4px solid #ef4444;color:#991b1b;display:flex;align-items:center;gap:8px;margin-bottom:1rem;border-radius:7px;font-weight:500;font-size:0.87rem;"><span>✕</span> {{ msg }}</div>
+        <div style="padding:10px 15px;background:#fee2e2;border-left:4px solid #ef4444;color:#991b1b;margin-bottom:1rem;border-radius:7px;font-weight:500;font-size:0.87rem;">{{ msg }}</div>
         {% endfor %}{% endif %}{% endwith %}
 
         <!-- Header -->
         <div class="page-header">
             <div>
-                <h1>🏪 Vendor Management</h1>
+                <h1>Vendor Management</h1>
                 <p>Manage suppliers, contractors, and service providers for your glass business.</p>
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <a href="{{ url_for('vendors.vendor_categories') }}" class="btn-action outline" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;padding:0.5rem 0.9rem;font-size:0.85rem;">🏷 Categories</a>
-                <a href="{{ url_for('vendors.import_vendors') }}" class="btn-action outline" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;padding:0.5rem 0.9rem;font-size:0.85rem;">📥 Import</a>
+                <a href="{{ url_for('vendors.vendor_categories') }}" class="btn-action outline" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;padding:0.5rem 0.9rem;font-size:0.85rem;">Categories</a>
+                <a href="{{ url_for('vendors.import_vendors') }}" class="btn-action outline" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;padding:0.5rem 0.9rem;font-size:0.85rem;">Import</a>
                 {% if current_user.role.value in ['admin','manager'] %}
-                <a href="{{ url_for('vendors.export_vendors', q=q, status=status_filter, category=category_filter, city=city_filter, verification=verification_filter) }}" class="btn-action outline" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;padding:0.5rem 0.9rem;font-size:0.85rem;">📤 Export CSV</a>
-                <a href="{{ url_for('vendors.export_vendors', q=q, status=status_filter, category=category_filter, city=city_filter, verification=verification_filter, format='xlsx') }}" class="btn-action outline" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;padding:0.5rem 0.9rem;font-size:0.85rem;">📊 Export Excel</a>
+                <a href="{{ url_for('vendors.export_vendors', q=q, status=status_filter, category=category_filter, city=city_filter, verification=verification_filter) }}" class="btn-action outline" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;padding:0.5rem 0.9rem;font-size:0.85rem;">Export CSV</a>
+                <a href="{{ url_for('vendors.export_vendors', q=q, status=status_filter, category=category_filter, city=city_filter, verification=verification_filter, format='xlsx') }}" class="btn-action outline" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;padding:0.5rem 0.9rem;font-size:0.85rem;">Export Excel</a>
                 {% endif %}
-                <a href="{{ url_for('vendors.add_vendor') }}" class="btn-action gold" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">➕ Add Vendor</a>
+                <a href="{{ url_for('vendors.add_vendor') }}" class="btn-action gold" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">+ Add Vendor</a>
             </div>
         </div>
 
         <!-- Metrics -->
         <div class="metrics-row">
-            <div class="metric-card"><div class="metric-icon gold">🏪</div><div class="metric-info"><h3>{{ total_count }}</h3><span>Total Vendors</span></div></div>
-            <div class="metric-card"><div class="metric-icon green">✅</div><div class="metric-info"><h3>{{ active_count }}</h3><span>Active</span></div></div>
-            <div class="metric-card"><div class="metric-icon red">⛔</div><div class="metric-info"><h3>{{ inactive_count }}</h3><span>Inactive</span></div></div>
-            <div class="metric-card"><div class="metric-icon amber">⏳</div><div class="metric-info"><h3>{{ pending_count }}</h3><span>Pending</span></div></div>
-            <div class="metric-card"><div class="metric-icon blue">🔍</div><div class="metric-info"><h3>{{ unverified_count }}</h3><span>Unverified</span></div></div>
+            <div class="metric-card">
+                <div class="metric-icon gold">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M3 7v14M21 7v14M6 7V3h12v4M9 11h2M9 15h2M13 11h2M13 15h2"/></svg>
+                </div>
+                <div class="metric-info"><h3>{{ total_count }}</h3><span>Total Vendors</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon green">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+                </div>
+                <div class="metric-info"><h3>{{ active_count }}</h3><span>Active</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon red">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+                </div>
+                <div class="metric-info"><h3>{{ inactive_count }}</h3><span>Inactive</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon amber">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                </div>
+                <div class="metric-info"><h3>{{ pending_count }}</h3><span>Pending</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon blue">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <div class="metric-info"><h3>{{ unverified_count }}</h3><span>Unverified</span></div>
+            </div>
         </div>
 
         <!-- Search & Filters -->
         <div class="search-filter-bar">
             <div class="search-wrap" id="searchWrap">
-                <span class="search-icon">🔍</span>
-                <input type="text" id="liveSearch" placeholder="Search vendors by name, code, phone, GSTIN, city…" autocomplete="off" value="{{ q }}">
+                <span class="search-icon">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </span>
+                <input type="text" id="liveSearch" placeholder="Search vendors by name, code, phone, GSTIN, city..." autocomplete="off" value="{{ q }}">
                 <div class="search-results-dropdown" id="searchDropdown"></div>
             </div>
 
@@ -177,9 +207,9 @@
                     <option value="name" {% if sort == 'name' %}selected{% endif %}>Name A–Z</option>
                 </select>
 
-                <button type="submit" class="btn-action gold" style="height:38px;padding:0 1rem;font-size:0.85rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">🔍 Filter</button>
+                <button type="submit" class="btn-action gold" style="height:38px;padding:0 1rem;font-size:0.85rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">Filter</button>
                 {% if q or status_filter or category_filter or city_filter or verification_filter %}
-                <a href="{{ url_for('vendors.vendor_list') }}" class="btn-action outline" style="height:38px;padding:0 0.9rem;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;">✕ Reset</a>
+                <a href="{{ url_for('vendors.vendor_list') }}" class="btn-action outline" style="height:38px;padding:0 0.9rem;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;">Reset</a>
                 {% endif %}
             </form>
         </div>
@@ -198,7 +228,7 @@
                             <th>City</th>
                             <th>GSTIN</th>
                             <th>Status</th>
-                            <th>Verified</th>
+                            <th>Verification</th>
                             <th style="text-align:right;">Actions</th>
                         </tr>
                     </thead>
@@ -211,7 +241,7 @@
                                     <div>
                                         <a href="{{ url_for('vendors.vendor_detail', vendor_id=v.id) }}" class="vnd-name-link">{{ v.company_name }}</a>
                                         {% if v.products_services %}
-                                        <div class="vnd-sub">{{ v.products_services[:50] }}{% if v.products_services|length > 50 %}…{% endif %}</div>
+                                        <div class="vnd-sub">{{ v.products_services[:50] }}{% if v.products_services|length > 50 %}...{% endif %}</div>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -240,8 +270,8 @@
                                 {% else %}<span class="pill pill-pending"><span class="dot"></span>Pending</span>{% endif %}
                             </td>
                             <td>
-                                {% if v.verification_status.value == 'Verified' %}<span class="pill pill-verified">✔ Verified</span>
-                                {% elif v.verification_status.value == 'Pending' %}<span class="pill pill-pending-v">⏳ Pending</span>
+                                {% if v.verification_status.value == 'Verified' %}<span class="pill pill-verified">Verified</span>
+                                {% elif v.verification_status.value == 'Pending' %}<span class="pill pill-pending-v">Pending</span>
                                 {% else %}<span class="pill pill-unverified">Unverified</span>{% endif %}
                             </td>
                             <td>
@@ -270,7 +300,9 @@
 
             {% else %}
             <div class="empty-state">
-                <span class="empty-icon">🏪</span>
+                <div class="empty-icon">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M3 7v14M21 7v14M6 7V3h12v4M9 11h2M9 15h2M13 11h2M13 15h2"/></svg>
+                </div>
                 <h3 style="margin:0 0 6px;color:var(--primary-color);font-size:1.05rem;">No Vendors Found</h3>
                 <p style="margin:0 0 1.25rem;font-size:0.87rem;">
                     {% if q or status_filter or category_filter or city_filter or verification_filter %}
@@ -282,7 +314,7 @@
                 {% if q or status_filter or category_filter or city_filter or verification_filter %}
                 <a href="{{ url_for('vendors.vendor_list') }}" class="btn-action outline" style="text-decoration:none;">Clear Filters</a>
                 {% else %}
-                <a href="{{ url_for('vendors.add_vendor') }}" class="btn-action gold" style="text-decoration:none;">➕ Add First Vendor</a>
+                <a href="{{ url_for('vendors.add_vendor') }}" class="btn-action gold" style="text-decoration:none;">+ Add First Vendor</a>
                 {% endif %}
             </div>
             {% endif %}
@@ -291,7 +323,6 @@
     </main>
 
     <script>
-    // ── Debounced Live Search ─────────────────────────────────────────────────
     (function() {
         const input = document.getElementById('liveSearch');
         const dropdown = document.getElementById('searchDropdown');
@@ -338,7 +369,6 @@
                 .catch(() => { dropdown.style.display = 'none'; });
         }
 
-        // Close on outside click
         document.addEventListener('click', function(e) {
             if (!document.getElementById('searchWrap').contains(e.target)) {
                 dropdown.style.display = 'none';

@@ -90,7 +90,25 @@
             border-color: #fde68a;
         }
         .stat-icon {
-            font-size: 1.8rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .stat-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+        .stat-box.success .stat-icon {
+            background: rgba(16,185,129,0.15);
+            color: #15803d;
+        }
+        .stat-box.warning .stat-icon {
+            background: rgba(245,158,11,0.15);
+            color: #b45309;
         }
         .stat-num {
             font-size: 1.6rem;
@@ -191,17 +209,17 @@
     <main class="vnd-result-container">
         <!-- Breadcrumb -->
         <div class="breadcrumb-nav">
-            <a href="{{ url_for('vendors.vendor_list') }}">🏪 Vendors</a>
-            <span>›</span>
+            <a href="{{ url_for('vendors.vendor_list') }}">Vendors</a>
+            <span>/</span>
             <a href="{{ url_for('vendors.import_vendors') }}">Import</a>
-            <span>›</span>
+            <span>/</span>
             <span>Results</span>
         </div>
 
         <div class="result-card">
             <div class="result-header">
                 <div>
-                    <h1>📊 Import Summary</h1>
+                    <h1>Import Summary</h1>
                     <p>Review the outcome of your CSV vendor bulk upload.</p>
                 </div>
             </div>
@@ -210,7 +228,9 @@
                 <!-- Stat Cards -->
                 <div class="summary-stats">
                     <div class="stat-box success">
-                        <span class="stat-icon">✅</span>
+                        <div class="stat-icon">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+                        </div>
                         <div>
                             <div class="stat-num" style="color:#15803d;">{{ results.created }}</div>
                             <div class="stat-label">Vendors Created</div>
@@ -218,7 +238,9 @@
                     </div>
 
                     <div class="stat-box warning">
-                        <span class="stat-icon">⏭️</span>
+                        <div class="stat-icon">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+                        </div>
                         <div>
                             <div class="stat-num" style="color:#b45309;">{{ results.skipped }}</div>
                             <div class="stat-label">Skipped / Duplicates</div>
@@ -230,7 +252,7 @@
                 {% if rows_preview %}
                 <div style="margin-top:1.5rem;">
                     <h3 style="font-family:var(--font-heading); color:var(--primary-color); font-size:1.15rem; margin:0 0 10px;">
-                        ✨ Newly Created Vendors ({{ rows_preview|length }})
+                        Newly Created Vendors ({{ rows_preview|length }})
                     </h3>
                     <div style="border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;">
                         <table class="preview-table">
@@ -266,7 +288,7 @@
                 <!-- Errors / Skipped Log -->
                 {% if results.errors %}
                 <div class="error-log-card">
-                    <h4>⚠️ Skipped Rows & Issues ({{ results.errors|length }})</h4>
+                    <h4>Skipped Rows & Issues ({{ results.errors|length }})</h4>
                     <ul class="error-log-list">
                         {% for err in results.errors %}
                         <li>{{ err }}</li>
@@ -277,10 +299,10 @@
 
                 <div class="result-footer">
                     <a href="{{ url_for('vendors.import_vendors') }}" class="btn-action btn-secondary">
-                        📥 Import Another File
+                        Import Another File
                     </a>
                     <a href="{{ url_for('vendors.vendor_list') }}" class="btn-action btn-primary">
-                        🏪 Go to Vendor Directory
+                        Go to Vendor Directory
                     </a>
                 </div>
             </div>

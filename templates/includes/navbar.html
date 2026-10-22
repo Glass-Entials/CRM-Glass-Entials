@@ -124,7 +124,7 @@
                 <a href="{{ url_for('contacts.contacts_list') }}">Contacts</a>
                 <a href="{{ url_for('vendors.vendor_list') }}"
                    {% if request.blueprint == 'vendors' %}style="color: var(--accent-gold); font-weight: 600;"{% endif %}>
-                    🏪 Vendor Management
+                    Vendor Management
                 </a>
                 {% if current_user.role.value in ['admin', 'manager'] %}
                 <a href="{{ url_for('trash.trash_list') }}">Trash</a>

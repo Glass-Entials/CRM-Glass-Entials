@@ -123,9 +123,19 @@
             background: #fffef8;
         }
         .upload-icon {
-            font-size: 2.8rem;
-            margin-bottom: 0.75rem;
-            display: inline-block;
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: rgba(13, 27, 42, 0.06);
+            color: var(--primary-color);
+        }
+        .upload-icon svg {
+            width: 24px;
+            height: 24px;
         }
 
         .instruction-box {
@@ -186,9 +196,6 @@
             border-radius: 8px;
             margin-bottom: 1.25rem;
             font-size: 0.88rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
         .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
         .alert-warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
@@ -201,8 +208,8 @@
     <main class="vnd-import-container">
         <!-- Breadcrumb -->
         <div class="breadcrumb-nav">
-            <a href="{{ url_for('vendors.vendor_list') }}">🏪 Vendors</a>
-            <span>›</span>
+            <a href="{{ url_for('vendors.vendor_list') }}">Vendors</a>
+            <span>/</span>
             <span>Import Vendors</span>
         </div>
 
@@ -211,11 +218,11 @@
             {% if messages %}
                 {% for category, message in messages %}
                     {% if category in ['vendor_error', 'error'] %}
-                        <div class="alert-box alert-error">⚠️ {{ message }}</div>
+                        <div class="alert-box alert-error">{{ message }}</div>
                     {% elif category in ['vendor_warning', 'warning'] %}
-                        <div class="alert-box alert-warning">🔔 {{ message }}</div>
+                        <div class="alert-box alert-warning">{{ message }}</div>
                     {% elif category in ['vendor_success', 'success'] %}
-                        <div class="alert-box alert-success">✓ {{ message }}</div>
+                        <div class="alert-box alert-success">{{ message }}</div>
                     {% endif %}
                 {% endfor %}
             {% endif %}
@@ -224,7 +231,7 @@
         <div class="import-card">
             <div class="import-header">
                 <div>
-                    <h1>📥 Bulk Import Vendors</h1>
+                    <h1>Bulk Import Vendors</h1>
                     <p>Upload a CSV file to add multiple suppliers to your CRM at once.</p>
                 </div>
             </div>
@@ -233,23 +240,23 @@
                 <!-- Step 1: Download Template -->
                 <div class="template-banner">
                     <div class="template-text">
-                        <h4>📄 Need the import format?</h4>
+                        <h4>Need the import format?</h4>
                         <p>Download our pre-formatted CSV template with sample data and column headers.</p>
                     </div>
                     <a href="{{ url_for('vendors.import_template') }}" class="btn-download-tpl">
-                        ⬇️ Download CSV Template
+                        Download CSV Template
                     </a>
                 </div>
 
                 <!-- Guidelines -->
                 <div class="instruction-box">
-                    <h4>📋 Import Guidelines</h4>
+                    <h4>Import Guidelines</h4>
                     <ul>
                         <li><strong>company_name</strong> is mandatory for every row.</li>
                         <li>Existing vendors matching an identical company name will be safely skipped to avoid duplicates.</li>
                         <li>Categories not already in the system will be automatically registered for you.</li>
                         <li>Vendor identification codes (e.g. <code>VEN-00001</code>) will be generated automatically.</li>
-                        <li>Ensure dates, phone numbers, and GSTIN / PAN format follow Indian standard conventions.</li>
+                        <li>Ensure dates, phone numbers, and GSTIN / PAN format follow standard conventions.</li>
                     </ul>
                 </div>
 
@@ -258,7 +265,9 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                     <div class="upload-box" onclick="document.getElementById('csvFileInput').click();">
-                        <span class="upload-icon">📊</span>
+                        <div class="upload-icon">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        </div>
                         <div style="font-weight:600; color:var(--primary-color); font-size:1.05rem;">
                             Click to select CSV file from your computer
                         </div>
@@ -271,7 +280,7 @@
 
                     <div class="form-footer">
                         <a href="{{ url_for('vendors.vendor_list') }}" class="btn-cancel">Cancel</a>
-                        <button type="submit" class="btn-submit">🚀 Start Import</button>
+                        <button type="submit" class="btn-submit">Start Import</button>
                     </div>
                 </form>
             </div>

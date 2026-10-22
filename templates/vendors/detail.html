@@ -194,9 +194,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.25rem;
             flex-shrink: 0;
         }
+        .metric-mini-icon svg { width: 20px; height: 20px; }
         .metric-mini-icon.gold { background: rgba(212,175,55,0.12); color: #8a6a00; }
         .metric-mini-icon.blue { background: rgba(59,130,246,0.1); color: #2563eb; }
         .metric-mini-icon.green { background: rgba(16,185,129,0.1); color: #059669; }
@@ -352,19 +352,20 @@
         .doc-file-badge {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             font-weight: 600;
             color: var(--primary-color);
         }
-        .file-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
-            background: rgba(13,27,42,0.06);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
+        .file-type-pill {
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
         }
 
         /* Timeline / Activity */
@@ -492,9 +493,6 @@
             border-radius: 8px;
             margin-bottom: 1.25rem;
             font-size: 0.88rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
         .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
         .alert-warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
@@ -507,8 +505,8 @@
     <main class="vnd-detail-container">
         <!-- Breadcrumb -->
         <div class="breadcrumb-nav">
-            <a href="{{ url_for('vendors.vendor_list') }}">🏪 Vendors</a>
-            <span>›</span>
+            <a href="{{ url_for('vendors.vendor_list') }}">Vendors</a>
+            <span>/</span>
             <span>{{ vendor.company_name }}</span>
             <span class="profile-code-badge">{{ vendor.code }}</span>
         </div>
@@ -518,11 +516,11 @@
             {% if messages %}
                 {% for category, message in messages %}
                     {% if category in ['vendor_error', 'error'] %}
-                        <div class="alert-box alert-error">⚠️ {{ message }}</div>
+                        <div class="alert-box alert-error">{{ message }}</div>
                     {% elif category in ['vendor_warning', 'warning'] %}
-                        <div class="alert-box alert-warning">🔔 {{ message }}</div>
+                        <div class="alert-box alert-warning">{{ message }}</div>
                     {% elif category in ['vendor_success', 'success'] %}
-                        <div class="alert-box alert-success">✓ {{ message }}</div>
+                        <div class="alert-box alert-success">{{ message }}</div>
                     {% endif %}
                 {% endfor %}
             {% endif %}
@@ -554,21 +552,21 @@
 
                         <!-- Verification Pill -->
                         {% if vendor.verification_status.value == 'Verified' %}
-                            <span class="pill pill-verified">✓ Verified</span>
+                            <span class="pill pill-verified">Verified</span>
                         {% elif vendor.verification_status.value == 'Rejected' %}
-                            <span class="pill pill-rejected">✕ Rejected</span>
+                            <span class="pill pill-rejected">Rejected</span>
                         {% else %}
-                            <span class="pill pill-unverified">⌛ {{ vendor.verification_display }}</span>
+                            <span class="pill pill-unverified">{{ vendor.verification_display }}</span>
                         {% endif %}
 
                         <!-- Category -->
                         {% if vendor.category %}
-                            <span class="pill pill-gold">🏷️ {{ vendor.category.name }}</span>
+                            <span class="pill pill-gold">{{ vendor.category.name }}</span>
                         {% endif %}
 
                         <!-- Business Type -->
                         {% if vendor.business_type %}
-                            <span class="pill pill-unverified">💼 {{ vendor.business_type_display }}</span>
+                            <span class="pill pill-unverified">{{ vendor.business_type_display }}</span>
                         {% endif %}
                     </div>
                 </div>
@@ -576,14 +574,14 @@
 
             <div class="header-actions-group">
                 <button class="btn-action btn-outline-action" onclick="openDocModal()">
-                    📎 Upload Document
+                    Upload Document
                 </button>
                 <a href="{{ url_for('vendors.edit_vendor', vendor_id=vendor.id) }}" class="btn-action btn-primary-action">
-                    ✏️ Edit Vendor
+                    Edit Vendor
                 </a>
                 {% if current_user.role.value in ['admin', 'manager'] %}
                 <button class="btn-action btn-danger-action" onclick="openDeleteModal()">
-                    🗑️ Delete
+                    Delete
                 </button>
                 {% endif %}
             </div>
@@ -592,7 +590,9 @@
         <!-- Metric Highlights -->
         <div class="metrics-strip">
             <div class="metric-mini-card">
-                <div class="metric-mini-icon gold">💳</div>
+                <div class="metric-mini-icon gold">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                </div>
                 <div>
                     <div class="metric-mini-title">Payment Terms</div>
                     <div class="metric-mini-val">
@@ -603,7 +603,9 @@
             </div>
 
             <div class="metric-mini-card">
-                <div class="metric-mini-icon blue">📑</div>
+                <div class="metric-mini-icon blue">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
                 <div>
                     <div class="metric-mini-title">GSTIN</div>
                     <div class="metric-mini-val" style="font-family:monospace; font-size:0.95rem;">
@@ -613,7 +615,9 @@
             </div>
 
             <div class="metric-mini-card">
-                <div class="metric-mini-icon green">📍</div>
+                <div class="metric-mini-icon green">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </div>
                 <div>
                     <div class="metric-mini-title">Location</div>
                     <div class="metric-mini-val">
@@ -623,7 +627,9 @@
             </div>
 
             <div class="metric-mini-card">
-                <div class="metric-mini-icon purple">👤</div>
+                <div class="metric-mini-icon purple">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
                 <div>
                     <div class="metric-mini-title">Assigned Manager</div>
                     <div class="metric-mini-val" style="font-size:0.95rem;">
@@ -636,13 +642,13 @@
         <!-- Tabs Navigation -->
         <div class="tab-nav">
             <button class="tab-btn active" onclick="switchTab('overview', this)">
-                📋 Overview & Details
+                Overview & Details
             </button>
             <button class="tab-btn" onclick="switchTab('documents', this)">
-                📎 Documents <span class="tab-badge">{{ documents|length }}</span>
+                Documents <span class="tab-badge">{{ documents|length }}</span>
             </button>
             <button class="tab-btn" onclick="switchTab('activity', this)">
-                🕒 Activity Trail <span class="tab-badge">{{ activities|length }}</span>
+                Activity Trail <span class="tab-badge">{{ activities|length }}</span>
             </button>
         </div>
 
@@ -651,7 +657,7 @@
             <!-- Contact Card -->
             <div class="content-card">
                 <div class="card-header-line">
-                    <h3>👤 Contact Person & Communication</h3>
+                    <h3>Contact Person & Communication</h3>
                 </div>
                 <div class="info-grid">
                     <div class="info-item">
@@ -666,7 +672,7 @@
                         <span class="info-label">Phone / Mobile</span>
                         <span class="info-value">
                             {% if vendor.phone %}
-                                <a href="tel:{{ vendor.phone }}">📞 {{ vendor.phone }}</a>
+                                <a href="tel:{{ vendor.phone }}">{{ vendor.phone }}</a>
                             {% else %}
                                 <span class="empty-dash">—</span>
                             {% endif %}
@@ -686,7 +692,7 @@
                         <span class="info-label">Email Address</span>
                         <span class="info-value">
                             {% if vendor.email %}
-                                <a href="mailto:{{ vendor.email }}">✉️ {{ vendor.email }}</a>
+                                <a href="mailto:{{ vendor.email }}">{{ vendor.email }}</a>
                             {% else %}
                                 <span class="empty-dash">—</span>
                             {% endif %}
@@ -696,7 +702,7 @@
                         <span class="info-label">Website</span>
                         <span class="info-value">
                             {% if vendor.website %}
-                                <a href="{{ vendor.website }}" target="_blank" rel="noopener">🌐 {{ vendor.website }}</a>
+                                <a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a>
                             {% else %}
                                 <span class="empty-dash">—</span>
                             {% endif %}
@@ -708,7 +714,7 @@
             <!-- Tax & Bank Details -->
             <div class="content-card">
                 <div class="card-header-line">
-                    <h3>🏛️ Tax, Banking & Commercial Details</h3>
+                    <h3>Tax, Banking & Commercial Details</h3>
                 </div>
                 <div class="info-grid">
                     <div class="info-item">
@@ -745,7 +751,7 @@
             <!-- Addresses & Products -->
             <div class="content-card">
                 <div class="card-header-line">
-                    <h3>📍 Addresses & Supplied Items</h3>
+                    <h3>Addresses & Supplied Items</h3>
                 </div>
                 <div class="info-grid">
                     <div class="info-item" style="grid-column: span 2;">
@@ -784,7 +790,7 @@
         <div id="tab-documents" class="tab-content">
             <div class="content-card">
                 <div class="card-header-line">
-                    <h3>📎 Attached Documents</h3>
+                    <h3>Attached Documents</h3>
                     <button class="btn-action btn-primary-action" onclick="openDocModal()" style="font-size:0.8rem; padding:4px 12px;">
                         + Upload Document
                     </button>
@@ -808,12 +814,7 @@
                             <tr>
                                 <td>
                                     <div class="doc-file-badge">
-                                        <div class="file-icon">
-                                            {% if doc.file_type in ['pdf'] %}📄
-                                            {% elif doc.file_type in ['jpg','jpeg','png'] %}🖼️
-                                            {% elif doc.file_type in ['xls','xlsx'] %}📊
-                                            {% else %}📁{% endif %}
-                                        </div>
+                                        <span class="file-type-pill">{{ doc.file_type or 'DOC' }}</span>
                                         <div>
                                             <div>{{ doc.original_name }}</div>
                                             {% if doc.description %}
@@ -840,13 +841,13 @@
                                 <td style="color:#64748b; font-size:0.82rem;">{{ doc.uploaded_at.strftime('%d %b %Y') if doc.uploaded_at else '—' }}</td>
                                 <td style="text-align:right;">
                                     <div style="display:flex; justify-content:flex-end; gap:6px;">
-                                        <a href="{{ url_for('vendors.download_vendor_document', doc_id=doc.id) }}" class="btn-action btn-outline-action" style="padding:3px 8px; font-size:0.75rem;" title="Download">
-                                            ⬇️
+                                        <a href="{{ url_for('vendors.download_vendor_document', doc_id=doc.id) }}" class="btn-action btn-outline-action" style="padding:4px 10px; font-size:0.78rem;">
+                                            Download
                                         </a>
                                         <form method="POST" action="{{ url_for('vendors.delete_vendor_document', vendor_id=vendor.id, doc_id=doc.id) }}" onsubmit="return confirm('Delete this document?');" style="display:inline;">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="btn-action btn-danger-action" style="padding:3px 8px; font-size:0.75rem;" title="Delete">
-                                                🗑️
+                                            <button type="submit" class="btn-action btn-danger-action" style="padding:4px 10px; font-size:0.78rem;">
+                                                Delete
                                             </button>
                                         </form>
                                     </div>
@@ -858,7 +859,6 @@
                 </div>
                 {% else %}
                 <div style="text-align:center; padding:3rem 1rem; color:#64748b;">
-                    <div style="font-size:2.5rem; margin-bottom:0.5rem; opacity:0.5;">📁</div>
                     <div style="font-weight:600; font-size:1rem; color:var(--primary-color);">No Documents Attached Yet</div>
                     <p style="font-size:0.85rem; margin:6px 0 16px;">Attach GST certificate, PAN card, contracts, or rate catalogues for this vendor.</p>
                     <button class="btn-action btn-primary-action" onclick="openDocModal()">+ Upload First Document</button>
@@ -871,7 +871,7 @@
         <div id="tab-activity" class="tab-content">
             <div class="content-card">
                 <div class="card-header-line">
-                    <h3>🕒 Audit & Activity Trail</h3>
+                    <h3>Audit & Activity Trail</h3>
                 </div>
 
                 {% if activities %}
@@ -905,7 +905,7 @@
     <div id="docModal" class="modal-overlay">
         <div class="modal-dialog">
             <div class="modal-header">
-                <h3>📎 Upload Vendor Document</h3>
+                <h3>Upload Vendor Document</h3>
                 <button class="modal-close" onclick="closeDocModal()">&times;</button>
             </div>
             <form method="POST" action="{{ url_for('vendors.upload_vendor_document', vendor_id=vendor.id) }}" enctype="multipart/form-data">
@@ -943,7 +943,7 @@
     <div id="deleteModal" class="modal-overlay">
         <div class="modal-dialog">
             <div class="modal-header">
-                <h3 style="color:#dc2626;">⚠️ Delete Vendor</h3>
+                <h3 style="color:#dc2626;">Delete Vendor</h3>
                 <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -988,7 +988,6 @@
             document.getElementById('deleteModal').classList.remove('active');
         }
 
-        // Close modal on click outside
         window.addEventListener('click', function(e) {
             const docM = document.getElementById('docModal');
             const delM = document.getElementById('deleteModal');

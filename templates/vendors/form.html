@@ -96,16 +96,6 @@
             align-items: center;
             gap: 10px;
         }
-        .form-section-title span.section-icon {
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
-            background: rgba(13, 27, 42, 0.06);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.95rem;
-        }
         .form-grid-2 {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -181,9 +171,19 @@
             background: #fffef8;
         }
         .upload-icon {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-            display: inline-block;
+            width: 42px;
+            height: 42px;
+            margin: 0 auto 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: rgba(13,27,42,0.06);
+            color: var(--primary-color);
+        }
+        .upload-icon svg {
+            width: 22px;
+            height: 22px;
         }
 
         /* Form footer */
@@ -271,8 +271,8 @@
     <main class="vnd-form-container">
         <!-- Breadcrumb -->
         <div class="form-breadcrumb">
-            <a href="{{ url_for('vendors.vendor_list') }}">🏪 Vendors</a>
-            <span>›</span>
+            <a href="{{ url_for('vendors.vendor_list') }}">Vendors</a>
+            <span>/</span>
             <span>{% if vendor %}Edit {{ vendor.company_name }}{% else %}Add Vendor{% endif %}</span>
         </div>
 
@@ -281,11 +281,11 @@
             {% if messages %}
                 {% for category, message in messages %}
                     {% if category in ['vendor_error', 'error'] %}
-                        <div class="alert-box alert-error">⚠️ {{ message }}</div>
+                        <div class="alert-box alert-error">{{ message }}</div>
                     {% elif category in ['vendor_warning', 'warning'] %}
-                        <div class="alert-box alert-warning">🔔 {{ message }}</div>
+                        <div class="alert-box alert-warning">{{ message }}</div>
                     {% elif category in ['vendor_success', 'success'] %}
-                        <div class="alert-box alert-success">✓ {{ message }}</div>
+                        <div class="alert-box alert-success">{{ message }}</div>
                     {% endif %}
                 {% endfor %}
             {% endif %}
@@ -296,9 +296,9 @@
                 <div>
                     <h1>
                         {% if vendor %}
-                            ✏️ Edit Vendor
+                            Edit Vendor
                         {% else %}
-                            ✨ Add New Vendor
+                            Add New Vendor
                         {% endif %}
                     </h1>
                     <p>{% if vendor %}Update vendor information, commercial details, and documents{% else %}Enter organization details, contact person, tax IDs, and payment terms{% endif %}</p>
@@ -314,9 +314,7 @@
                 <div class="form-body">
                     <!-- Section 1: Basic & Category -->
                     <div class="form-section">
-                        <h2 class="form-section-title">
-                            <span class="section-icon">🏢</span> Company & Classification
-                        </h2>
+                        <h2 class="form-section-title">Company & Classification</h2>
                         <div class="form-grid-2">
                             <div class="form-group">
                                 <label for="company_name">Company Name <span class="required">*</span></label>
@@ -370,9 +368,7 @@
 
                     <!-- Section 2: Contact Person -->
                     <div class="form-section">
-                        <h2 class="form-section-title">
-                            <span class="section-icon">👤</span> Primary Contact & Communication
-                        </h2>
+                        <h2 class="form-section-title">Primary Contact & Communication</h2>
                         <div class="form-grid-3">
                             <div class="form-group">
                                 <label for="contact_person">Contact Person</label>
@@ -420,9 +416,7 @@
 
                     <!-- Section 3: Tax & Identification -->
                     <div class="form-section">
-                        <h2 class="form-section-title">
-                            <span class="section-icon">📑</span> Tax & Compliance Identifiers
-                        </h2>
+                        <h2 class="form-section-title">Tax & Compliance Identifiers</h2>
                         <div class="form-grid-2">
                             <div class="form-group">
                                 <label for="gstin">GSTIN (15 Digits)</label>
@@ -446,9 +440,7 @@
 
                     <!-- Section 4: Address Details -->
                     <div class="form-section">
-                        <h2 class="form-section-title">
-                            <span class="section-icon">📍</span> Address & Locations
-                        </h2>
+                        <h2 class="form-section-title">Address & Locations</h2>
                         <div class="form-grid-3">
                             <div class="form-group form-grid-full">
                                 <label for="address">Billing / Head Office Address</label>
@@ -495,9 +487,7 @@
 
                     <!-- Section 5: Commercial Terms & Bank Details -->
                     <div class="form-section">
-                        <h2 class="form-section-title">
-                            <span class="section-icon">💳</span> Commercial & Banking Terms
-                        </h2>
+                        <h2 class="form-section-title">Commercial & Banking Terms</h2>
                         <div class="form-grid-3">
                             <div class="form-group">
                                 <label for="payment_terms">Payment Terms</label>
@@ -545,9 +535,7 @@
 
                     <!-- Section 6: Status & Assignment -->
                     <div class="form-section">
-                        <h2 class="form-section-title">
-                            <span class="section-icon">⚙️</span> Status & Internal Management
-                        </h2>
+                        <h2 class="form-section-title">Status & Internal Management</h2>
                         <div class="form-grid-3">
                             <div class="form-group">
                                 <label for="status">Vendor Status</label>
@@ -593,9 +581,7 @@
 
                     <!-- Section 7: Document Upload -->
                     <div class="form-section">
-                        <h2 class="form-section-title">
-                            <span class="section-icon">📎</span> Attach Documents (Optional)
-                        </h2>
+                        <h2 class="form-section-title">Attach Documents (Optional)</h2>
                         <div class="form-grid-2">
                             <div class="form-group">
                                 <label for="document_type">Document Category</label>
@@ -615,7 +601,9 @@
                             <div class="form-group form-grid-full">
                                 <label>Upload Files</label>
                                 <div class="upload-dropzone" onclick="document.getElementById('documentsInput').click();">
-                                    <span class="upload-icon">📁</span>
+                                    <div class="upload-icon">
+                                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                    </div>
                                     <div style="font-weight:600; color:var(--primary-color);">Click or browse files to attach</div>
                                     <div style="font-size:0.8rem; color:#94a3b8; margin-top:4px;">Supported formats: PDF, PNG, JPG, DOC, DOCX, XLS, XLSX (Max 5MB each)</div>
                                     <input type="file" id="documentsInput" name="documents" multiple style="display:none;" onchange="showSelectedFiles(this)">
@@ -629,7 +617,7 @@
                 <div class="form-footer">
                     <a href="{% if vendor %}{{ url_for('vendors.vendor_detail', vendor_id=vendor.id) }}{% else %}{{ url_for('vendors.vendor_list') }}{% endif %}" class="btn-cancel">Cancel</a>
                     <button type="submit" class="btn-submit">
-                        {% if vendor %}💾 Save Changes{% else %}✓ Create Vendor{% endif %}
+                        {% if vendor %}Save Changes{% else %}Create Vendor{% endif %}
                     </button>
                 </div>
             </form>
