@@ -69,6 +69,7 @@
 
         /* meta footer */
         .vnd-record-meta { font-size:0.74rem; color:#94a3b8; padding:0.25rem 0.5rem; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+        .empty-val { color: #94a3b8; font-weight: 500; font-style: normal; }
     </style>
 </head>
 <body class="dashboard-page">
@@ -228,11 +229,11 @@
                 <div class="vnd-info-grid">
                     <div class="vnd-info-item">
                         <div class="vnd-info-label">Contact Person</div>
-                        <div class="vnd-info-val">{{ vendor.contact_person or '<span class="empty-val">—</span>' }}</div>
+                        <div class="vnd-info-val">{% if vendor.contact_person %}{{ vendor.contact_person }}{% else %}<span class="empty-val">—</span>{% endif %}</div>
                     </div>
                     <div class="vnd-info-item">
                         <div class="vnd-info-label">Designation</div>
-                        <div class="vnd-info-val">{{ vendor.designation or '<span class="empty-val">—</span>' }}</div>
+                        <div class="vnd-info-val">{% if vendor.designation %}{{ vendor.designation }}{% else %}<span class="empty-val">—</span>{% endif %}</div>
                     </div>
                     <div class="vnd-info-item">
                         <div class="vnd-info-label">Phone / Mobile</div>
@@ -276,27 +277,27 @@
                 <div class="vnd-info-grid">
                     <div class="vnd-info-item">
                         <div class="vnd-info-label">GSTIN</div>
-                        <div class="vnd-info-val" style="font-family:monospace;font-weight:600;">{{ vendor.gstin or '<span class="empty-val">—</span>' }}</div>
+                        <div class="vnd-info-val" style="font-family:monospace;font-weight:600;">{% if vendor.gstin %}{{ vendor.gstin }}{% else %}<span class="empty-val">—</span>{% endif %}</div>
                     </div>
                     <div class="vnd-info-item">
                         <div class="vnd-info-label">PAN</div>
-                        <div class="vnd-info-val" style="font-family:monospace;font-weight:600;">{{ vendor.pan or '<span class="empty-val">—</span>' }}</div>
+                        <div class="vnd-info-val" style="font-family:monospace;font-weight:600;">{% if vendor.pan %}{{ vendor.pan }}{% else %}<span class="empty-val">—</span>{% endif %}</div>
                     </div>
                     <div class="vnd-info-item">
                         <div class="vnd-info-label">Bank Name</div>
-                        <div class="vnd-info-val">{{ vendor.bank_name or '<span class="empty-val">—</span>' }}</div>
+                        <div class="vnd-info-val">{% if vendor.bank_name %}{{ vendor.bank_name }}{% else %}<span class="empty-val">—</span>{% endif %}</div>
                     </div>
                     <div class="vnd-info-item">
                         <div class="vnd-info-label">Account Number</div>
-                        <div class="vnd-info-val" style="font-family:monospace;">{{ vendor.bank_account_no or '<span class="empty-val">—</span>' }}</div>
+                        <div class="vnd-info-val" style="font-family:monospace;">{% if vendor.bank_account_no %}{{ vendor.bank_account_no }}{% else %}<span class="empty-val">—</span>{% endif %}</div>
                     </div>
                     <div class="vnd-info-item">
                         <div class="vnd-info-label">IFSC Code</div>
-                        <div class="vnd-info-val" style="font-family:monospace;font-weight:600;">{{ vendor.bank_ifsc or '<span class="empty-val">—</span>' }}</div>
+                        <div class="vnd-info-val" style="font-family:monospace;font-weight:600;">{% if vendor.bank_ifsc %}{{ vendor.bank_ifsc }}{% else %}<span class="empty-val">—</span>{% endif %}</div>
                     </div>
                     <div class="vnd-info-item">
                         <div class="vnd-info-label">Payment Terms</div>
-                        <div class="vnd-info-val">{{ vendor.payment_terms_display or '<span class="empty-val">—</span>' }}</div>
+                        <div class="vnd-info-val">{% if vendor.payment_terms %}{{ vendor.payment_terms_display }}{% else %}<span class="empty-val">—</span>{% endif %}</div>
                     </div>
                     <div class="vnd-info-item">
                         <div class="vnd-info-label">Credit Period</div>
@@ -317,17 +318,26 @@
                     <div class="vnd-info-item" style="grid-column:1/-1;">
                         <div class="vnd-info-label">Billing / Head Office Address</div>
                         <div class="vnd-info-val">
-                            {{ vendor.address or '' }}{% if vendor.city %}<br>{{ vendor.city }}{% endif %}{% if vendor.state %}, {{ vendor.state }}{% endif %}{% if vendor.pincode %} - {{ vendor.pincode }}{% endif %}{% if vendor.country %}, {{ vendor.country }}{% endif %}
-                            {% if not vendor.address and not vendor.city %}<span class="empty-val">—</span>{% endif %}
+                            {% set addr_parts = [] %}
+                            {% if vendor.address %}{% set _ = addr_parts.append(vendor.address) %}{% endif %}
+                            {% if vendor.city %}{% set _ = addr_parts.append(vendor.city) %}{% endif %}
+                            {% if vendor.state %}{% set _ = addr_parts.append(vendor.state) %}{% endif %}
+                            {% if vendor.pincode %}{% set _ = addr_parts.append(vendor.pincode) %}{% endif %}
+                            {% if vendor.country and addr_parts and vendor.country != 'India' %}{% set _ = addr_parts.append(vendor.country) %}{% endif %}
+                            {% if addr_parts %}
+                                {{ addr_parts|join(', ') }}
+                            {% else %}
+                                <span class="empty-val">—</span>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="vnd-info-item" style="grid-column:1/-1;">
                         <div class="vnd-info-label">Warehouse / Dispatch Address</div>
-                        <div class="vnd-info-val">{{ vendor.warehouse_address or '<span class="empty-val">—</span>' }}</div>
+                        <div class="vnd-info-val">{% if vendor.warehouse_address %}{{ vendor.warehouse_address }}{% else %}<span class="empty-val">—</span>{% endif %}</div>
                     </div>
                     <div class="vnd-info-item" style="grid-column:1/-1;">
                         <div class="vnd-info-label">Supplied Products &amp; Services</div>
-                        <div class="vnd-info-val" style="white-space:pre-wrap;">{{ vendor.products_services or '<span class="empty-val">—</span>' }}</div>
+                        <div class="vnd-info-val" style="white-space:pre-wrap;">{% if vendor.products_services %}{{ vendor.products_services }}{% else %}<span class="empty-val">—</span>{% endif %}</div>
                     </div>
                     {% if vendor.notes %}
                     <div class="vnd-info-item" style="grid-column:1/-1;background:#fefdf8;padding:1rem;border-radius:10px;border:1px solid rgba(212,175,55,0.2);">
