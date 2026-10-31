@@ -621,8 +621,8 @@ class Employee(db.Model):
 class Lead(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(120), nullable=False, index=True)
-    phone_number = db.Column(db.String(20), nullable=False)
+    email = db.Column(db.String(120), nullable=True, index=True)
+    phone_number = db.Column(db.String(20), nullable=True)
     company = db.Column(db.String(100), nullable=True)
     source = db.Column(
         db.Enum(LeadSource, values_callable=lambda x: [e.value for e in x]),

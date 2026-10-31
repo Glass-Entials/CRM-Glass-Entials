@@ -66,13 +66,13 @@
                             <input type="text" id="name" name="name" class="form-control" placeholder="e.g. John Smith" value="{{ form_data.name if form_data else '' }}" required>
                         </div>
                         <div class="form-group">
-                            <label>Email Address</label>
-                            <input type="email" name="email" class="form-control" placeholder="john@example.com" value="{{ form_data.email if form_data else '' }}">
+                            <label>Email Address <span style="font-weight:normal; font-size:0.85em; opacity:0.7;">(or Phone)</span></label>
+                            <input type="email" id="email" name="email" class="form-control" placeholder="john@example.com" value="{{ form_data.email if form_data else '' }}">
                         </div>
                         <div class="form-group" style="display: flex; flex-direction: column; justify-content: flex-end;">
-                            <label>Phone Number <span style="font-weight:normal; font-size:0.85em; opacity:0.7;">(10 digits)</span> <span style="color: red; opacity: 0.7;">*</span></label>
+                            <label>Phone Number <span style="font-weight:normal; font-size:0.85em; opacity:0.7;">(10 digits - or Email)</span></label>
                             <!-- Note: The app route expects "phone" not "phone_number" -->
-                            <input type="tel" id="phone" name="phone" class="form-control" placeholder="10 digit number e.g. 9876543210" pattern="\d{10}" title="Please enter exactly 10 digits (0-9)" value="{{ form_data.phone if form_data else (request.args.get('phone_number', '') | replace('+91', '') | replace('+', '')) }}" required>
+                            <input type="tel" id="phone" name="phone" class="form-control" placeholder="10 digit number e.g. 9876543210" pattern="\d{10}" title="Please enter exactly 10 digits (0-9)" value="{{ form_data.phone if form_data else (request.args.get('phone_number', '') | replace('+91', '') | replace('+', '')) }}">
                         </div>
                         <div class="form-group">
                             <label>Company / Legal Name</label>
@@ -226,6 +226,22 @@
                 loader.style.display = 'none';
             }
         });
+
+        // Ensure at least one of Email or Phone is provided before form submission
+        const form = document.querySelector('.customer-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const emailInput = document.getElementById('email');
+                const phoneInput = document.getElementById('phone');
+                const emailVal = emailInput ? emailInput.value.trim() : '';
+                const phoneVal = phoneInput ? phoneInput.value.trim() : '';
+                if (!emailVal && !phoneVal) {
+                    e.preventDefault();
+                    alert('Please provide either an Email Address or a Phone Number.');
+                    if (phoneInput) phoneInput.focus();
+                }
+            });
+        }
     </script>
 </body>
 </html>
