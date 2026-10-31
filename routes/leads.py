@@ -167,42 +167,109 @@ def delete_lead_comment(comment_id):
 @login_required
 def add_lead():
     if request.method == "POST":
-        name = request.form.get("name")
+        name = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip() or None
-        phone_number = request.form.get("phone")
+        phone_raw = request.form.get("phone", "").strip()
+        phone_digits = re.sub(r"\D", "", phone_raw)
+        if len(phone_digits) == 12 and phone_digits.startswith("91"):
+            phone_digits = phone_digits[2:]
+        phone_number = phone_digits or None
 
         assigned_to_id = request.form.get("assigned_to")
         assigned_to_id = tenant_record_id(
             Employee, assigned_to_id, current_user.organization_id, is_deleted=False
         )
 
-        if not name or (not phone_number and not email):
-            flash("Name and either Phone or Email are required.", "leadserror")
-            return redirect(url_for("leads.add_lead"))
+        def _render_add_lead_error():
+            employees = Employee.query.filter_by(
+                organization_id=current_user.organization_id, is_deleted=False
+            ).all()
+            return render_template("leads/addLead.html", employees=employees, form_data=request.form)
+
+        if not name:
+            flash("Full Name is required.", "leadserror")
+            return _render_add_lead_error()
+
+        if not phone_number and not email:
+            flash("Please provide at least a Phone Number or Email.", "leadserror")
+            return _render_add_lead_error()
 
         if phone_number and len(phone_number) != 10:
             flash("Phone number must be exactly 10 digits.", "leadserror")
-            return redirect(url_for("leads.add_lead"))
+            return _render_add_lead_error()
 
+        # Check phone duplicate (active and trash)
+        existing_phone = None
+        trash_phone = None
+        if phone_number:
+            existing_phone = Lead.query.filter_by(
+                phone_number=phone_number,
+                organization_id=current_user.organization_id,
+                is_deleted=False,
+            ).first()
+            if not existing_phone:
+                trash_phone = Lead.query.filter_by(
+                    phone_number=phone_number,
+                    organization_id=current_user.organization_id,
+                    is_deleted=True,
+                ).first()
+
+        # Check email duplicate (active and trash)
+        existing_email = None
+        trash_email = None
         if email:
-            existing = Lead.query.filter(
-                ((Lead.email == email) | (Lead.phone_number == phone_number)),
-                Lead.organization_id == current_user.organization_id,
-                Lead.is_deleted == False,
+            existing_email = Lead.query.filter_by(
+                email=email,
+                organization_id=current_user.organization_id,
+                is_deleted=False,
             ).first()
-        else:
-            existing = Lead.query.filter(
-                (Lead.phone_number == phone_number),
-                Lead.organization_id == current_user.organization_id,
-                Lead.is_deleted == False,
-            ).first()
+            if not existing_email:
+                trash_email = Lead.query.filter_by(
+                    email=email,
+                    organization_id=current_user.organization_id,
+                    is_deleted=True,
+                ).first()
 
-        if existing:
+        if existing_phone and existing_email:
+            if existing_phone.id == existing_email.id:
+                flash(
+                    f"A lead with this phone number ({phone_number}) and email ({email}) already exists: '{existing_phone.name}'.",
+                    "leadserror",
+                )
+            else:
+                flash(
+                    f"Phone number '{phone_number}' is already registered to '{existing_phone.name}', and email '{email}' is already registered to '{existing_email.name}'.",
+                    "leadserror",
+                )
+            return _render_add_lead_error()
+
+        if existing_phone:
             flash(
-                "Lead already exists with this email or phone number in your organization.",
+                f"A lead with phone number '{phone_number}' already exists in your organization: '{existing_phone.name}'. Please use a different phone number or view the existing lead.",
                 "leadserror",
             )
-            return redirect(url_for("leads.add_lead"))
+            return _render_add_lead_error()
+
+        if existing_email:
+            flash(
+                f"A lead with email '{email}' already exists in your organization: '{existing_email.name}'. Please use a different email address or view the existing lead.",
+                "leadserror",
+            )
+            return _render_add_lead_error()
+
+        if trash_phone:
+            flash(
+                f"A lead with phone number '{phone_number}' already exists in the Trash ('{trash_phone.name}'). Please restore it from Trash or use a different phone number.",
+                "leadserror",
+            )
+            return _render_add_lead_error()
+
+        if trash_email:
+            flash(
+                f"A lead with email '{email}' already exists in the Trash ('{trash_email.name}'). Please restore it from Trash or use a different email address.",
+                "leadserror",
+            )
+            return _render_add_lead_error()
 
         source_map = {e.value: e for e in LeadSource}
         status_map = {e.value: e for e in LeadStatus}
@@ -301,7 +368,11 @@ def edit_lead(lead_id):
 
         lead.name = request.form.get("name", "").strip()
         lead.email = request.form.get("email", "").strip() or None
-        lead.phone_number = re.sub(r"\D", "", request.form.get("phone", ""))
+        phone_raw = request.form.get("phone", "").strip()
+        phone_digits = re.sub(r"\D", "", phone_raw)
+        if len(phone_digits) == 12 and phone_digits.startswith("91"):
+            phone_digits = phone_digits[2:]
+        lead.phone_number = phone_digits
         assigned_to_id = request.form.get("assigned_to")
         source_map = {e.value: e for e in LeadSource}
         status_map = {e.value: e for e in LeadStatus}
@@ -313,6 +384,34 @@ def edit_lead(lead_id):
         if lead.phone_number and len(lead.phone_number) != 10:
             flash("Phone number must be exactly 10 digits.", "leadserror")
             return redirect(url_for("leads.edit_lead", lead_id=lead_id))
+
+        if lead.phone_number:
+            existing_phone = Lead.query.filter(
+                Lead.phone_number == lead.phone_number,
+                Lead.organization_id == current_user.organization_id,
+                Lead.id != lead.id,
+                Lead.is_deleted == False,
+            ).first()
+            if existing_phone:
+                flash(
+                    f"A lead with phone number '{lead.phone_number}' already exists: '{existing_phone.name}'.",
+                    "leadserror",
+                )
+                return redirect(url_for("leads.edit_lead", lead_id=lead_id))
+
+        if lead.email:
+            existing_email = Lead.query.filter(
+                Lead.email == lead.email,
+                Lead.organization_id == current_user.organization_id,
+                Lead.id != lead.id,
+                Lead.is_deleted == False,
+            ).first()
+            if existing_email:
+                flash(
+                    f"A lead with email '{lead.email}' already exists: '{existing_email.name}'.",
+                    "leadserror",
+                )
+                return redirect(url_for("leads.edit_lead", lead_id=lead_id))
 
         try:
             new_assignee_id = tenant_record_id(

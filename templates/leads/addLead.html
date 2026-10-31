@@ -30,7 +30,7 @@
           {% if messages %}
             {% for message in messages %}
             <div class="flash-message" style="padding: 15px; background-color: rgba(139, 0, 0, 0.04); border-left: 4px solid rgba(139, 0, 0, 0.5); font-family: var(--font-body); color: #8b0000; display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; border-radius: 4px;">
-              <span style="font-size: 1.2rem; line-height: 1;">⚠</span> {{ message }}
+              <span style="font-size: 1.2rem; line-height: 1;">⚠</span> {{ message | safe }}
             </div>
             {% endfor %}
           {% endif %}
@@ -48,7 +48,7 @@
                             <div style="display: flex; gap: 1rem; align-items: flex-end;">
                                 <div style="flex: 1;">
                                     <label>GST Number (GSTIN)</label>
-                                    <input type="text" id="gst_number_input" name="gst_number" class="form-control" placeholder="22AAAAA0000A1Z5" maxlength="15" style="text-transform: uppercase;">
+                                    <input type="text" id="gst_number_input" name="gst_number" class="form-control" placeholder="22AAAAA0000A1Z5" maxlength="15" style="text-transform: uppercase;" value="{{ form_data.gst_number if form_data else '' }}">
                                 </div>
                                 <button type="button" id="fetchGstBtn" class="btn-action gold" style="height: 48px; min-width: 150px;">Fetch Details</button>
                             </div>
@@ -63,83 +63,83 @@
 
                         <div class="form-group">
                             <label>Full Name <span style="color: red; opacity: 0.7;">*</span></label>
-                            <input type="text" id="name" name="name" class="form-control" placeholder="e.g. John Smith" required>
+                            <input type="text" id="name" name="name" class="form-control" placeholder="e.g. John Smith" value="{{ form_data.name if form_data else '' }}" required>
                         </div>
                         <div class="form-group">
                             <label>Email Address</label>
-                            <input type="email" name="email" class="form-control" placeholder="john@example.com">
+                            <input type="email" name="email" class="form-control" placeholder="john@example.com" value="{{ form_data.email if form_data else '' }}">
                         </div>
                         <div class="form-group" style="display: flex; flex-direction: column; justify-content: flex-end;">
-                            <label>Phone Number <span style="font-weight:normal; font-size:0.85em; opacity:0.7;">(or Email)</span> <span style="color: red; opacity: 0.7;">*</span></label>
+                            <label>Phone Number <span style="font-weight:normal; font-size:0.85em; opacity:0.7;">(10 digits)</span> <span style="color: red; opacity: 0.7;">*</span></label>
                             <!-- Note: The app route expects "phone" not "phone_number" -->
-                            <input type="tel" id="phone" name="phone" class="form-control" placeholder="10 digit number e.g. 9876543210" pattern="\d{10}" title="Please enter exactly 10 digits (0-9)" value="{{ request.args.get('phone_number', '') | replace('+91', '') | replace('+', '') }}">
+                            <input type="tel" id="phone" name="phone" class="form-control" placeholder="10 digit number e.g. 9876543210" pattern="\d{10}" title="Please enter exactly 10 digits (0-9)" value="{{ form_data.phone if form_data else (request.args.get('phone_number', '') | replace('+91', '') | replace('+', '')) }}" required>
                         </div>
                         <div class="form-group">
                             <label>Company / Legal Name</label>
-                            <input type="text" id="company" name="company" class="form-control" placeholder="e.g. Vision Architect Studios">
+                            <input type="text" id="company" name="company" class="form-control" placeholder="e.g. Vision Architect Studios" value="{{ form_data.company if form_data else '' }}">
                         </div>
                         <div class="form-group">
                             <label>Trade Name</label>
-                            <input type="text" id="trade_name" name="trade_name" class="form-control" placeholder="Business Trade Name">
+                            <input type="text" id="trade_name" name="trade_name" class="form-control" placeholder="Business Trade Name" value="{{ form_data.trade_name if form_data else '' }}">
                         </div>
                         <div class="form-group">
                             <label>State</label>
-                            <input type="text" id="state" name="state" class="form-control" placeholder="e.g. Maharashtra">
+                            <input type="text" id="state" name="state" class="form-control" placeholder="e.g. Maharashtra" value="{{ form_data.state if form_data else '' }}">
                         </div>
                         <div class="form-group">
                             <label>Pincode</label>
-                            <input type="text" id="pincode" name="pincode" class="form-control" placeholder="6 Digit Pincode">
+                            <input type="text" id="pincode" name="pincode" class="form-control" placeholder="6 Digit Pincode" value="{{ form_data.pincode if form_data else '' }}">
                         </div>
                         <div class="form-group">
                             <label>Business Type</label>
-                            <input type="text" id="business_type" name="business_type" class="form-control" placeholder="e.g. Pvt Ltd, Proprietorship">
+                            <input type="text" id="business_type" name="business_type" class="form-control" placeholder="e.g. Pvt Ltd, Proprietorship" value="{{ form_data.business_type if form_data else '' }}">
                         </div>
                         <div class="form-group">
                             <label>GST Status</label>
-                            <input type="text" id="gst_status" name="gst_status" class="form-control" readonly style="background: rgba(13, 27, 42, 0.03);" placeholder="Status will appear here">
+                            <input type="text" id="gst_status" name="gst_status" class="form-control" readonly style="background: rgba(13, 27, 42, 0.03);" placeholder="Status will appear here" value="{{ form_data.gst_status if form_data else '' }}">
                         </div>
                         <div class="form-group">
                             <label>Lead Source <span style="color: red; opacity: 0.7;">*</span></label>
                             <select name="source" class="form-control" required>
-                                <option value="" disabled selected>Select Source...</option>
-                                <option value="Website">Website Form</option>
-                                <option value="Google">Google Search</option>
-                                <option value="Social Media">Social Media (FB/IG)</option>
-                                <option value="Referral">Referral</option>
-                                <option value="Walk-in">Walk-in</option>
-                                <option value="Other">Other</option>
+                                <option value="" disabled {% if not form_data or not form_data.source %}selected{% endif %}>Select Source...</option>
+                                <option value="Website" {% if form_data and form_data.source == 'Website' %}selected{% endif %}>Website Form</option>
+                                <option value="Google" {% if form_data and form_data.source == 'Google' %}selected{% endif %}>Google Search</option>
+                                <option value="Social Media" {% if form_data and form_data.source == 'Social Media' %}selected{% endif %}>Social Media (FB/IG)</option>
+                                <option value="Referral" {% if form_data and form_data.source == 'Referral' %}selected{% endif %}>Referral</option>
+                                <option value="Walk-in" {% if form_data and form_data.source == 'Walk-in' %}selected{% endif %}>Walk-in</option>
+                                <option value="Other" {% if form_data and form_data.source == 'Other' %}selected{% endif %}>Other</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label>City</label>
-                            <input type="text" id="city_input" name="city" class="form-control" placeholder="e.g. New York">
+                            <input type="text" id="city_input" name="city" class="form-control" placeholder="e.g. New York" value="{{ form_data.city if form_data else '' }}">
                         </div>
                         <div class="form-group">
                             <label>Address</label>
-                            <input type="text" id="address_input" name="address" class="form-control" placeholder="123 Main St, Apt 4B">
+                            <input type="text" id="address_input" name="address" class="form-control" placeholder="123 Main St, Apt 4B" value="{{ form_data.address if form_data else '' }}">
                         </div>
                         <div class="form-group">
                             <label>Stage / Status <span style="color: red; opacity: 0.7;">*</span></label>
                             <select name="status" class="form-control" required>
-                                <option value="New" selected>New</option>
-                                <option value="Active">Active</option>
-                                <option value="Inactive">Inactive</option>
-                                <option value="Prospect">Prospect</option>
-                                <option value="Closed">Closed</option>
+                                <option value="New" {% if not form_data or form_data.status == 'New' %}selected{% endif %}>New</option>
+                                <option value="Active" {% if form_data and form_data.status == 'Active' %}selected{% endif %}>Active</option>
+                                <option value="Inactive" {% if form_data and form_data.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                                <option value="Prospect" {% if form_data and form_data.status == 'Prospect' %}selected{% endif %}>Prospect</option>
+                                <option value="Closed" {% if form_data and form_data.status == 'Closed' %}selected{% endif %}>Closed</option>
                             </select>
                         </div>
                         <div class="form-group full-width">
                             <label>Assigned To</label>
                             <select name="assigned_to" class="form-control">
-                                <option value="unassigned">Unassigned (Leave Open)</option>
+                                <option value="unassigned" {% if form_data and form_data.assigned_to == 'unassigned' %}selected{% endif %}>Unassigned (Leave Open)</option>
                                 {% for emp in employees %}
-                                    <option value="{{ emp.id }}" {% if current_user.employee and current_user.employee.id == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                                    <option value="{{ emp.id }}" {% if (form_data and form_data.assigned_to == emp.id|string) or (not form_data and current_user.employee and current_user.employee.id == emp.id) %}selected{% endif %}>{{ emp.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="form-group full-width">
                             <label>Initial Notes / Requirement Information</label>
-                            <textarea name="notes" class="form-control" rows="4" placeholder="Client requires frameless partitions for their new office..."></textarea>
+                            <textarea name="notes" class="form-control" rows="4" placeholder="Client requires frameless partitions for their new office...">{{ form_data.notes if form_data else '' }}</textarea>
                         </div>
                     </div>
                     <div style="display:flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">

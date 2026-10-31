@@ -123,22 +123,40 @@ def add_contact():
             flash("Required fields missing or phone invalid.", "leadserror")
             return redirect(url_for("contacts.add_contact"))
 
-        if email:
-            existing = Contact.query.filter(
-                ((Contact.email == email) | (Contact.phone_number == phone_number)),
-                Contact.organization_id == current_user.organization_id,
-                Contact.is_deleted == False,
-            ).first()
-        else:
-            existing = Contact.query.filter(
-                (Contact.phone_number == phone_number),
-                Contact.organization_id == current_user.organization_id,
-                Contact.is_deleted == False,
-            ).first()
+        existing_phone = Contact.query.filter_by(
+            phone_number=phone_number,
+            organization_id=current_user.organization_id,
+            is_deleted=False,
+        ).first()
+        existing_email = Contact.query.filter_by(
+            email=email,
+            organization_id=current_user.organization_id,
+            is_deleted=False,
+        ).first() if email else None
 
-        if existing:
+        if existing_phone and existing_email:
+            if existing_phone.id == existing_email.id:
+                flash(
+                    f"A contact with this phone ({phone_number}) and email ({email}) already exists: '{existing_phone.first_name} {existing_phone.last_name or ''}'.",
+                    "leadserror",
+                )
+            else:
+                flash(
+                    f"Phone '{phone_number}' belongs to '{existing_phone.first_name}', and email '{email}' belongs to '{existing_email.first_name}'.",
+                    "leadserror",
+                )
+            return redirect(url_for("contacts.add_contact"))
+
+        if existing_phone:
             flash(
-                "Contact already exists with this email or phone number in your organization.",
+                f"A contact with phone number '{phone_number}' already exists in your organization: '{existing_phone.first_name} {existing_phone.last_name or ''}'.",
+                "leadserror",
+            )
+            return redirect(url_for("contacts.add_contact"))
+
+        if existing_email:
+            flash(
+                f"A contact with email '{email}' already exists in your organization: '{existing_email.first_name} {existing_email.last_name or ''}'.",
                 "leadserror",
             )
             return redirect(url_for("contacts.add_contact"))

@@ -208,15 +208,40 @@ def add_customer():
             )
             return redirect(url_for("customers.add_customer"))
 
-        existing = Customer.query.filter(
-            ((Customer.email == email) | (Customer.phone_number == phone_number)),
-            Customer.organization_id == current_user.organization_id,
-            Customer.is_deleted == False,
+        existing_phone = Customer.query.filter_by(
+            phone_number=phone_number,
+            organization_id=current_user.organization_id,
+            is_deleted=False,
+        ).first()
+        existing_email = Customer.query.filter_by(
+            email=email,
+            organization_id=current_user.organization_id,
+            is_deleted=False,
         ).first()
 
-        if existing:
+        if existing_phone and existing_email:
+            if existing_phone.id == existing_email.id:
+                flash(
+                    f"A customer with this phone number ({phone_number}) and email ({email}) already exists: '{existing_phone.name}'.",
+                    "customererror",
+                )
+            else:
+                flash(
+                    f"Phone number '{phone_number}' is already registered to '{existing_phone.name}', and email '{email}' is already registered to '{existing_email.name}'.",
+                    "customererror",
+                )
+            return redirect(url_for("customers.add_customer"))
+
+        if existing_phone:
             flash(
-                "Customer already exists with this email or phone number in your organization.",
+                f"A customer with phone number '{phone_number}' already exists in your organization: '{existing_phone.name}'. Please use a different phone number.",
+                "customererror",
+            )
+            return redirect(url_for("customers.add_customer"))
+
+        if existing_email:
+            flash(
+                f"A customer with email '{email}' already exists in your organization: '{existing_email.name}'. Please use a different email address.",
                 "customererror",
             )
             return redirect(url_for("customers.add_customer"))

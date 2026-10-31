@@ -36,7 +36,8 @@ from model import (
     ProjectStatus,
 )
 from utils.number_words import number_to_words
-from utils.security import tenant_record_id, validate_upload
+from utils.security import tenant_record_id, validate_upload, require_roles
+from model import UserRole
 from utils.activity import log_activity
 import datetime, os, uuid, json, base64, traceback
 from collections import defaultdict
@@ -1002,6 +1003,7 @@ def duplicate_quotation(quotation_id):
 
 @quotations_bp.route("/<int:quotation_id>/convert-proforma", methods=["POST"])
 @login_required
+@require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def convert_to_proforma(quotation_id):
     org_id = current_user.organization_id
     quotation = Quotation.query.filter_by(
@@ -1026,6 +1028,7 @@ def convert_to_proforma(quotation_id):
 
 @quotations_bp.route("/<int:quotation_id>/delete", methods=["POST"])
 @login_required
+@require_roles(UserRole.ADMIN, UserRole.MANAGER)
 def delete_quotation(quotation_id):
     org_id = current_user.organization_id
     quotation = Quotation.query.filter_by(
@@ -1165,19 +1168,34 @@ def api_create_customer():
     data = request.get_json()
     name = data.get("name", "").strip()
     email = data.get("email", "").strip()
-    phone_number = data.get("phone_number", "").strip()
+    phone_raw = data.get("phone_number", "").strip()
+    phone_digits = re.sub(r"\D", "", phone_raw) if phone_raw else ""
+    if len(phone_digits) == 12 and phone_digits.startswith("91"):
+        phone_digits = phone_digits[2:]
+    phone_number = phone_digits
     
     if not all([name, email, phone_number]):
         return jsonify({"success": False, "error": "Name, Email, and Phone Number are required."}), 400
-        
-    existing = Customer.query.filter(
-        ((Customer.email == email) | (Customer.phone_number == phone_number)),
-        Customer.organization_id == current_user.organization_id,
-        Customer.is_deleted == False,
+
+    existing_phone = Customer.query.filter_by(
+        phone_number=phone_number,
+        organization_id=current_user.organization_id,
+        is_deleted=False,
+    ).first()
+    existing_email = Customer.query.filter_by(
+        email=email,
+        organization_id=current_user.organization_id,
+        is_deleted=False,
     ).first()
 
-    if existing:
-        return jsonify({"success": False, "error": "Customer already exists with this email or phone number in your organization."}), 400
+    if existing_phone and existing_email:
+        if existing_phone.id == existing_email.id:
+            return jsonify({"success": False, "error": f"Customer with this phone and email already exists: '{existing_phone.name}'."}), 400
+        return jsonify({"success": False, "error": f"Phone '{phone_number}' is used by '{existing_phone.name}', and email '{email}' is used by '{existing_email.name}'."}), 400
+    if existing_phone:
+        return jsonify({"success": False, "error": f"A customer with phone number '{phone_number}' already exists in your organization: '{existing_phone.name}'."}), 400
+    if existing_email:
+        return jsonify({"success": False, "error": f"A customer with email '{email}' already exists in your organization: '{existing_email.name}'."}), 400
 
     new_customer = Customer(
         name=name,
@@ -1234,19 +1252,34 @@ def api_create_lead():
     data = request.get_json()
     name = data.get("name", "").strip()
     email = data.get("email", "").strip()
-    phone_number = data.get("phone_number", "").strip()
+    phone_raw = data.get("phone_number", "").strip()
+    phone_digits = re.sub(r"\D", "", phone_raw) if phone_raw else ""
+    if len(phone_digits) == 12 and phone_digits.startswith("91"):
+        phone_digits = phone_digits[2:]
+    phone_number = phone_digits
     
     if not all([name, email, phone_number]):
         return jsonify({"success": False, "error": "Name, Email, and Phone Number are required."}), 400
         
-    existing = Lead.query.filter(
-        ((Lead.email == email) | (Lead.phone_number == phone_number)),
-        Lead.organization_id == current_user.organization_id,
-        Lead.is_deleted == False,
+    existing_phone = Lead.query.filter_by(
+        phone_number=phone_number,
+        organization_id=current_user.organization_id,
+        is_deleted=False,
+    ).first()
+    existing_email = Lead.query.filter_by(
+        email=email,
+        organization_id=current_user.organization_id,
+        is_deleted=False,
     ).first()
 
-    if existing:
-        return jsonify({"success": False, "error": "Lead already exists with this email or phone number in your organization."}), 400
+    if existing_phone and existing_email:
+        if existing_phone.id == existing_email.id:
+            return jsonify({"success": False, "error": f"Lead with this phone and email already exists: '{existing_phone.name}'."}), 400
+        return jsonify({"success": False, "error": f"Phone '{phone_number}' is used by '{existing_phone.name}', and email '{email}' is used by '{existing_email.name}'."}), 400
+    if existing_phone:
+        return jsonify({"success": False, "error": f"A lead with phone number '{phone_number}' already exists in your organization: '{existing_phone.name}'."}), 400
+    if existing_email:
+        return jsonify({"success": False, "error": f"A lead with email '{email}' already exists in your organization: '{existing_email.name}'."}), 400
 
     new_lead = Lead(
         name=name,
