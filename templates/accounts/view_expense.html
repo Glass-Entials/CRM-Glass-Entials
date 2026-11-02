@@ -749,7 +749,7 @@
                                         {{ expense.employee.name if expense.employee else 'Administrator' }}
                                     </div>
                                     <div style="font-size: 0.76rem; color: var(--text-muted);">
-                                        {{ expense.employee.designation or expense.employee.role.value if expense.employee else 'Organization Staff' }}
+                                        {{ (expense.employee.position or (expense.employee.user.role.value if expense.employee.user and expense.employee.user.role else 'Staff')) if expense.employee else 'Organization Staff' }}
                                     </div>
                                 </div>
                             </div>
