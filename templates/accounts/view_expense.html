@@ -3,265 +3,945 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expense Details | GlassEntials</title>
+    <title>{{ expense.title }} · Expense #{{ expense.id }} | GlassEntials</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3\">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
     <style>
-        .profile-container { max-width: 1100px; margin: 3rem auto; padding: 0 2rem; }
-        
-        .expense-header {
-            background: #fff;
-            padding: 2.5rem;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(13,27,42,0.06);
-            display: flex;
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; color: var(--primary-color); }
+
+        /* ── Status badges ── */
+        .badge {
+            display: inline-flex;
             align-items: center;
-            justify-content: space-between;
-            margin-bottom: 2rem;
-            border: 1px solid rgba(212,175,55,0.1);
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .badge-pending {
+            background: rgba(217, 119, 6, 0.12);
+            color: #b45309;
+            border: 1px solid rgba(217, 119, 6, 0.25);
+        }
+        .badge-approved {
+            background: rgba(5, 150, 105, 0.12);
+            color: #047857;
+            border: 1px solid rgba(5, 150, 105, 0.25);
+        }
+        .badge-paid {
+            background: rgba(37, 99, 235, 0.12);
+            color: #1d4ed8;
+            border: 1px solid rgba(37, 99, 235, 0.25);
+        }
+        .badge-rejected {
+            background: rgba(220, 38, 38, 0.1);
+            color: #b91c1c;
+            border: 1px solid rgba(220, 38, 38, 0.2);
         }
 
-        .expense-title-group h1 {
+        /* ── Luxury Hero banner (Matches Task Profile) ── */
+        .expense-hero {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1a2f45 100%);
+            border-radius: 20px;
+            padding: 2.2rem 2.5rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            box-shadow: 0 12px 35px rgba(13, 27, 42, 0.12);
+        }
+        .expense-hero::before {
+            content: '';
+            position: absolute;
+            top: -60px; right: -60px;
+            width: 260px; height: 260px;
+            border-radius: 50%;
+            background: rgba(212, 175, 55, 0.08);
+            pointer-events: none;
+        }
+        .expense-hero::after {
+            content: '';
+            position: absolute;
+            bottom: -80px; left: 30%;
+            width: 320px; height: 320px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.03);
+            pointer-events: none;
+        }
+        .hero-back {
+            color: rgba(255, 255, 255, 0.65);
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 0.8rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .hero-back:hover { color: var(--accent-gold); }
+        .hero-title {
             font-family: 'Playfair Display', serif;
             font-size: 2.2rem;
-            color: var(--primary-color);
-            margin: 0;
+            color: #fff;
+            margin: 0 0 0.6rem 0;
             line-height: 1.2;
+            word-break: break-word;
         }
-
-        .expense-meta {
-            margin-top: 0.5rem;
+        .hero-meta {
             display: flex;
-            gap: 15px;
             align-items: center;
-            color: var(--text-muted);
-            font-weight: 500;
-            font-size: 0.95rem;
+            gap: 1rem;
+            flex-wrap: wrap;
         }
-
-        .amount-badge {
-            font-size: 2rem;
-            font-weight: 800;
-            color: var(--primary-color);
-            text-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .details-grid {
-            display: grid;
-            grid-template-columns: 1fr 1.5fr;
-            gap: 2rem;
-        }
-
-        .info-card {
-            background: #fff;
-            padding: 2rem;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(13,27,42,0.06);
-            border: 1px solid rgba(13,27,42,0.04);
-        }
-
-        .detail-item {
-            margin-bottom: 1.8rem;
-            padding-bottom: 1.2rem;
-            border-bottom: 1px solid rgba(13,27,42,0.05);
-        }
-        .detail-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-
-        .detail-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-muted);
-            font-weight: 700;
-            margin-bottom: 0.4rem;
-            display: block;
-        }
-
-        .detail-value {
-            font-size: 1.05rem;
-            color: var(--primary-color);
-            font-weight: 600;
-        }
-
-        /* Proof Viewer */
-        .proof-viewer {
-            background: #fff;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 10px 40px rgba(13,27,42,0.06);
-            border: 1px solid rgba(13,27,42,0.04);
+        .hero-meta-item {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.84rem;
             display: flex;
-            flex-direction: column;
-            min-height: 500px;
+            align-items: center;
+            gap: 5px;
+        }
+        .hero-divider { color: rgba(255, 255, 255, 0.2); }
+        .hero-actions {
+            display: flex;
+            gap: 0.75rem;
+            position: relative;
+            z-index: 2;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+            align-items: center;
         }
 
-        .proof-header {
-            background: #f8fafc;
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid rgba(13,27,42,0.04);
+        .btn-hero-outline {
+            padding: 0.65rem 1.25rem;
+            border: 1.5px solid rgba(255, 255, 255, 0.25);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            backdrop-filter: blur(4px);
+        }
+        .btn-hero-outline:hover {
+            background: rgba(255, 255, 255, 0.16);
+            border-color: rgba(255, 255, 255, 0.45);
+            transform: translateY(-1px);
+        }
+        .btn-hero-gold {
+            padding: 0.65rem 1.35rem;
+            background: var(--accent-gold);
+            border: none;
+            border-radius: 10px;
+            color: var(--primary-color);
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.35);
+        }
+        .btn-hero-gold:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(212, 175, 55, 0.5);
+            filter: brightness(1.05);
+        }
+        .btn-hero-danger {
+            padding: 0.65rem 1.25rem;
+            background: rgba(239, 68, 68, 0.18);
+            border: 1.5px solid rgba(239, 68, 68, 0.35);
+            border-radius: 10px;
+            color: #fca5a5;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .btn-hero-danger:hover {
+            background: rgba(239, 68, 68, 0.28);
+            border-color: rgba(239, 68, 68, 0.6);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        /* ── Metric Callout in Hero ── */
+        .hero-amount-badge {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 14px;
+            padding: 0.85rem 1.4rem;
+            text-align: right;
+            backdrop-filter: blur(8px);
+            position: relative;
+            z-index: 2;
+        }
+        .hero-amount-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .hero-amount-value {
+            font-size: 1.9rem;
+            font-weight: 800;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        /* ── Main Layout Grid ── */
+        .expense-grid {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+        @media (max-width: 960px) {
+            .expense-grid { grid-template-columns: 1fr; }
+            .hero-amount-badge { text-align: left; width: 100%; }
+        }
+
+        /* ── Cards ── */
+        .card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 14px rgba(13, 27, 42, 0.05);
+            border: 1px solid rgba(13, 27, 42, 0.07);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        .card:last-child { margin-bottom: 0; }
+        .card-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.06);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            background: #fff;
         }
-
-        .proof-content {
-            flex-grow: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f1f5f9;
-            padding: 1rem;
-        }
-
-        .proof-img {
-            max-width: 100%;
-            border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-
-        .pdf-frame {
-            width: 100%;
-            height: 600px;
-            border: none;
-        }
-
-        .status-pill {
-            padding: 8px 16px;
-            border-radius: 100px;
-            font-size: 0.85rem;
+        .card-title {
+            font-size: 0.95rem;
             font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        .action-bar {
-            margin-top: 2rem;
-            display: flex;
-            gap: 1rem;
-            border-top: 1px solid rgba(13,27,42,0.05);
-            padding-top: 2rem;
-        }
-
-        .btn-modern {
-            padding: 0.8rem 1.5rem;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
+            color: var(--primary-color);
+            letter-spacing: -0.01em;
             display: flex;
             align-items: center;
             gap: 8px;
-            transition: all 0.3s ease;
-            font-size: 0.9rem;
-            text-decoration: none;
         }
-        .btn-modern.approve { background: #059669; color: white; }
-        .btn-modern.reject { background: #dc2626; color: white; }
-        .btn-modern.pay { background: var(--primary-color); color: white; }
-        .btn-modern.back { background: #f1f5f9; color: var(--primary-color); }
+        .card-title-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+        .card-body { padding: 1.5rem; }
 
-        .btn-modern:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); filter: brightness(1.1); }
+        /* ── Info Rows ── */
+        .info-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            padding: 0.9rem 0;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.05);
+        }
+        .info-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .info-row:first-child { padding-top: 0; }
+        .info-label {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+        .info-value {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        .info-link {
+            color: var(--accent-gold);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.15s;
+        }
+        .info-link:hover { text-decoration: underline; color: #b8932b; }
+
+        /* ── Employee Avatar Row ── */
+        .user-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), #2d4564);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.82rem;
+            flex-shrink: 0;
+            border: 2px solid rgba(212, 175, 55, 0.3);
+        }
+
+        /* ── Description Block ── */
+        .desc-block {
+            background: rgba(13, 27, 42, 0.02);
+            border: 1px solid rgba(13, 27, 42, 0.07);
+            border-radius: 12px;
+            padding: 1.2rem 1.4rem;
+            font-size: 0.92rem;
+            line-height: 1.65;
+            color: #374151;
+            white-space: pre-wrap;
+        }
+
+        /* ── Modern Status Buttons ── */
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 0.5rem;
+        }
+        .btn-status {
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .btn-status.approve {
+            background: #059669;
+            color: white;
+            box-shadow: 0 3px 10px rgba(5, 150, 105, 0.25);
+        }
+        .btn-status.approve:hover {
+            background: #047857;
+            transform: translateY(-1px);
+            box-shadow: 0 5px 14px rgba(5, 150, 105, 0.35);
+        }
+        .btn-status.reject {
+            background: #dc2626;
+            color: white;
+            box-shadow: 0 3px 10px rgba(220, 38, 38, 0.2);
+        }
+        .btn-status.reject:hover {
+            background: #b91c1c;
+            transform: translateY(-1px);
+            box-shadow: 0 5px 14px rgba(220, 38, 38, 0.3);
+        }
+        .btn-status.pay {
+            background: var(--primary-color);
+            color: white;
+            grid-column: span 2;
+            padding: 0.85rem 1rem;
+            box-shadow: 0 4px 12px rgba(13, 27, 42, 0.2);
+        }
+        .btn-status.pay:hover {
+            background: #1a2f45;
+            transform: translateY(-1px);
+        }
+        .btn-status.reset {
+            background: #f1f5f9;
+            color: var(--primary-color);
+            grid-column: span 2;
+            border: 1px solid rgba(13, 27, 42, 0.12);
+        }
+        .btn-status.reset:hover {
+            background: #e2e8f0;
+            transform: translateY(-1px);
+        }
+
+        /* ── Proof / Receipt Preview Box ── */
+        .proof-card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 14px rgba(13, 27, 42, 0.05);
+            border: 1px solid rgba(13, 27, 42, 0.07);
+            overflow: hidden;
+        }
+        .proof-viewer-body {
+            background: #f1f5f9;
+            min-height: 480px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 1.5rem;
+        }
+        .proof-img {
+            max-width: 100%;
+            max-height: 650px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+            object-fit: contain;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .proof-img:hover {
+            transform: scale(1.01);
+        }
+        .pdf-frame {
+            width: 100%;
+            height: 650px;
+            border: none;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .empty-proof {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #94a3b8;
+        }
+
+        /* ── Modals & Overlays ── */
+        #confirmModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(13, 27, 42, 0.55);
+            z-index: 20000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal-box {
+            background: #fff;
+            border-radius: 18px;
+            width: 480px;
+            max-width: 95%;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(13, 27, 42, 0.25);
+            animation: modalIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes modalIn {
+            from { transform: scale(0.92) translateY(10px); opacity: 0; }
+            to { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .modal-head {
+            padding: 1.5rem 1.75rem;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.07);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-head h3 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 0;
+        }
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: rgba(13, 27, 42, 0.06);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+        .modal-body { padding: 1.5rem 1.75rem; }
+        .modal-footer {
+            padding: 1rem 1.75rem 1.5rem;
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+            background: #fcfdfe;
+            border-top: 1px solid rgba(13, 27, 42, 0.05);
+        }
+        .btn-sm-outline {
+            padding: 0.55rem 1.2rem;
+            border: 1.5px solid rgba(13, 27, 42, 0.15);
+            border-radius: 9px;
+            background: transparent;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+        .btn-sm-outline:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        .btn-sm-danger {
+            padding: 0.55rem 1.2rem;
+            border: none;
+            border-radius: 9px;
+            background: #ef4444;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            color: #fff;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+        }
+        .btn-sm-danger:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        /* ── Fullscreen Lightbox Modal ── */
+        #lightboxModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 25000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(6px);
+        }
+        #lightboxModal img {
+            max-width: 90vw;
+            max-height: 90vh;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            object-fit: contain;
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border: none;
+            font-size: 1.8rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .lightbox-close:hover {
+            background: rgba(239, 68, 68, 0.8);
+            transform: scale(1.08);
+        }
+
+        /* ── Flash message slide ── */
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
 </head>
-<body style="background: #f8fafc; min-height: 100vh;">
+<body class="dashboard-page">
 
-    <div class="profile-container">
-        
-        <!-- Navbar style Link -->
-        <a href="{{ url_for('expenses.expenses_list') }}" class="btn-modern back" style="width: fit-content; margin-bottom: 2rem;">
-            ← Back to Expenses
-        </a>
+    {% include 'includes/navbar.html' %}
 
-        <div class="expense-header">
-            <div class="expense-title-group">
-                <span class="status-pill" style="
-                    {% if expense.status_display == 'Approved' %}background: #ecfdf5; color:#059669;
-                    {% elif expense.status_display == 'Rejected' %}background: #fef2f2; color:#dc2626;
-                    {% elif expense.status_display == 'Paid' %}background: #eff6ff; color:#2563eb;
-                    {% else %}background: #fffbeb; color:#d97706;{% endif %}
-                ">
-                    {{ expense.status_display }}
-                </span>
-                <h1 style="margin-top: 1rem;">{{ expense.title }}</h1>
-                <div class="expense-meta">
-                    <span>📅 {{ expense.date.strftime('%d %B %Y') }}</span>
-                    <span>🏷️ {{ expense.category_display }}</span>
-                    <span>👤 {{ expense.employee.name if expense.employee else 'Admin' }}</span>
+    <!-- Flash Messages -->
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
+        {% with msgs = get_flashed_messages(with_categories=true, category_filter=['expensesuccess','profileerror','info']) %}
+        {% for cat, msg in msgs %}
+        <div class="flash-message" style="padding: 12px 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); font-weight: 600; font-size: 0.87rem; color: white; animation: slideInRight 0.3s ease-out; background: {% if cat == 'expensesuccess' %}#10b981{% elif cat == 'info' %}#3b82f6{% else %}#ef4444{% endif %}; display: flex; align-items: center; gap: 8px;">
+            {{ '✓' if cat == 'expensesuccess' else 'ℹ' if cat == 'info' else '⚠' }} {{ msg }}
+        </div>
+        {% endfor %}
+        {% endwith %}
+    </div>
+
+    <main class="container" style="max-width: 1140px; padding: 2rem 1.5rem 4rem; margin: 0 auto;">
+
+        <!-- ══ Luxury Hero Banner (Task Profile Aesthetic) ══ -->
+        <div class="expense-hero">
+            <div style="position: relative; z-index: 2; max-width: 650px;">
+                <a href="{{ url_for('expenses.expenses_list') }}" class="hero-back">
+                    ← Back to All Expenses
+                </a>
+                <h1 class="hero-title">{{ expense.title }}</h1>
+                <div class="hero-meta">
+                    {% set sd = expense.status_display %}
+                    <span class="badge
+                        {% if sd == 'Approved' %}badge-approved
+                        {% elif sd == 'Paid' %}badge-paid
+                        {% elif sd == 'Rejected' %}badge-rejected
+                        {% else %}badge-pending{% endif %}"
+                        style="background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.25); color: #fff; font-size: 0.72rem;">
+                        {{ sd }}
+                    </span>
+                    <span class="hero-divider">|</span>
+                    <span class="hero-meta-item">
+                        🗓 Recorded {{ expense.date.strftime('%d %b %Y') }}
+                    </span>
+                    <span class="hero-divider">|</span>
+                    <span class="hero-meta-item">
+                        🏷️ {{ expense.category_display }}
+                    </span>
+                    {% if expense.employee %}
+                    <span class="hero-divider">|</span>
+                    <span class="hero-meta-item">
+                        👤 {{ expense.employee.name }}
+                    </span>
+                    {% endif %}
                 </div>
             </div>
-            <div class="amount-badge">
-                ₹{{ "{:,.2f}".format(expense.amount) }}
+
+            <!-- Amount + Actions -->
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 1rem; position: relative; z-index: 2;">
+                <div class="hero-amount-badge">
+                    <div class="hero-amount-label">Total Expense Amount</div>
+                    <div class="hero-amount-value">₹{{ "{:,.2f}".format(expense.amount) }}</div>
+                </div>
+
+                <div class="hero-actions">
+                    {% if current_user.role in [UserRole.ADMIN, UserRole.MANAGER] or (current_user.employee and expense.employee_id == current_user.employee.id) %}
+                    <a href="{{ url_for('expenses.edit_expense', expense_id=expense.id) }}" class="btn-hero-gold">
+                        ✏️ Edit Details
+                    </a>
+                    {% endif %}
+
+                    {% if current_user.role in [UserRole.ADMIN, UserRole.MANAGER] %}
+                    <form action="{{ url_for('expenses.delete_expense', expense_id=expense.id) }}" method="POST"
+                          onsubmit="openConfirmModal(event, this, 'Are you sure you want to permanently delete this expense record?');" style="margin:0;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn-hero-danger">
+                            🗑 Delete
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
-        <div class="details-grid">
-            <!-- Left Info Panel -->
-            <div class="info-card">
-                <div class="detail-item">
-                    <span class="detail-label">Project Association</span>
-                    <span class="detail-value">{{ expense.project.name if expense.project else 'General Office / Personal' }}</span>
-                </div>
-                
-                <div class="detail-item">
-                    <span class="detail-label">Reference Description</span>
-                    <p style="margin: 0; font-size: 0.95rem; color: #4b5563; line-height: 1.6;">
-                        {{ expense.description or 'No additional notes provided.' }}
-                    </p>
-                </div>
+        <!-- ══ Two-Column Layout Grid ══ -->
+        <div class="expense-grid">
 
-                <div class="detail-item">
-                    <span class="detail-label">Payment Information</span>
-                    <span class="detail-value" style="color: {{ '#059669' if expense.status_display == 'Paid' else '#d97706' }}">
-                        {{ 'Processed via Bank Transfer' if expense.status_display == 'Paid' else 'Pending Payment' }}
-                    </span>
-                </div>
+            <!-- ── LEFT COLUMN: Details & Metadata ── -->
+            <div>
 
+                <!-- Quick Status Management Card (Admin / Manager only) -->
                 {% if current_user.role in [UserRole.ADMIN, UserRole.MANAGER] %}
-                <div class="action-bar">
-                    <form action="{{ url_for('expenses.update_status', expense_id=expense.id) }}" method="POST" style="display:flex; gap: 10px; width: 100%; flex-wrap: wrap;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        {% if expense.status_display == 'Pending' %}
-                            <button type="submit" name="status" value="Approved" class="btn-modern approve" style="flex:1;">✔️ Approve</button>
-                            <button type="submit" name="status" value="Rejected" class="btn-modern reject" style="flex:1;">✖️ Reject</button>
-                        {% elif expense.status_display == 'Approved' %}
-                            <button type="submit" name="status" value="Paid" class="btn-modern pay" style="flex:2;">💰 Mark as Paid</button>
-                            <button type="submit" name="status" value="Rejected" class="btn-modern reject" style="flex:1;">Reject</button>
-                        {% elif expense.status_display == 'Rejected' %}
-                            <button type="submit" name="status" value="Pending" class="btn-modern approve" style="flex:1;">Move to Pending</button>
-                        {% endif %}
-                    </form>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(16, 185, 129, 0.1);">⚡</div>
+                            Approval & Workflow
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding: 1.25rem 1.5rem;">
+                        <form action="{{ url_for('expenses.update_status', expense_id=expense.id) }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <div class="action-grid">
+                                {% if expense.status_display == 'Pending' %}
+                                    <button type="submit" name="status" value="Approved" class="btn-status approve">
+                                        ✔️ Approve
+                                    </button>
+                                    <button type="submit" name="status" value="Rejected" class="btn-status reject">
+                                        ✖️ Reject
+                                    </button>
+                                {% elif expense.status_display == 'Approved' %}
+                                    <button type="submit" name="status" value="Paid" class="btn-status pay">
+                                        💰 Mark as Disbursed (Paid)
+                                    </button>
+                                    <button type="submit" name="status" value="Rejected" class="btn-status reject" style="grid-column: span 2;">
+                                        Move to Rejected
+                                    </button>
+                                {% elif expense.status_display == 'Paid' %}
+                                    <div style="grid-column: span 2; padding: 0.75rem; background: #ecfdf5; border-radius: 8px; border: 1px solid #a7f3d0; text-align: center; color: #065f46; font-size: 0.85rem; font-weight: 600;">
+                                        ✅ Reimbursed & Settled
+                                    </div>
+                                    <button type="submit" name="status" value="Pending" class="btn-status reset" style="margin-top: 6px;">
+                                        ↺ Re-open to Pending
+                                    </button>
+                                {% elif expense.status_display == 'Rejected' %}
+                                    <div style="grid-column: span 2; padding: 0.75rem; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca; text-align: center; color: #991b1b; font-size: 0.85rem; font-weight: 600;">
+                                        ✖️ Claim Declined
+                                    </div>
+                                    <button type="submit" name="status" value="Pending" class="btn-status reset" style="margin-top: 6px;">
+                                        ↺ Re-evaluate to Pending
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </form>
+                    </div>
                 </div>
                 {% endif %}
+
+                <!-- Financial & Meta Details Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(13, 27, 42, 0.06);">📋</div>
+                            Expense Breakdown
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding: 1.25rem 1.5rem;">
+
+                        <div class="info-row">
+                            <span class="info-label">Approval Status</span>
+                            <span>
+                                <span class="badge
+                                    {% if sd == 'Approved' %}badge-approved
+                                    {% elif sd == 'Paid' %}badge-paid
+                                    {% elif sd == 'Rejected' %}badge-rejected
+                                    {% else %}badge-pending{% endif %}">
+                                    {{ sd }}
+                                </span>
+                            </span>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Expense Category</span>
+                            <span class="info-value">
+                                🏷️ {{ expense.category_display }}
+                            </span>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Claimed By</span>
+                            <div class="user-cell" style="margin-top: 4px;">
+                                <div class="user-avatar">
+                                    {{ expense.employee.name[0] if expense.employee else 'A' }}
+                                </div>
+                                <div>
+                                    <div style="font-weight: 700; font-size: 0.92rem; color: var(--primary-color);">
+                                        {{ expense.employee.name if expense.employee else 'Administrator' }}
+                                    </div>
+                                    <div style="font-size: 0.76rem; color: var(--text-muted);">
+                                        {{ expense.employee.designation or expense.employee.role.value if expense.employee else 'Organization Staff' }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Project Association</span>
+                            {% if expense.project %}
+                            <a href="{{ url_for('projects.project_detail', project_id=expense.project.id) }}" class="info-link" style="display: inline-flex; align-items: center; gap: 5px;">
+                                🏗️ {{ expense.project.name }} ↗
+                            </a>
+                            {% else %}
+                            <span class="info-value" style="color: var(--text-muted); font-weight: 500;">
+                                General Enterprise / Operational
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Disbursement Status</span>
+                            <span class="info-value" style="color: {{ '#059669' if expense.status_display == 'Paid' else '#d97706' }};">
+                                {{ '● Paid via Bank Transfer / Ledger' if expense.status_display == 'Paid' else '○ Pending Settlement' }}
+                            </span>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Transaction Date</span>
+                            <span class="info-value">
+                                {{ expense.date.strftime('%d %B %Y') }}
+                            </span>
+                        </div>
+
+                    </div>
+                </div>
+
             </div>
 
-            <!-- Right Proof Viewer -->
-            <div class="proof-viewer">
-                <div class="proof-header">
-                    <span style="font-weight: 700; color: var(--primary-color);">Verification Document</span>
-                    {% if expense.receipt_path %}
-                        <a href="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}" target="_blank" style="font-size: 0.8rem; color: var(--accent-gold); font-weight: 600;">Open Original ↗</a>
-                    {% endif %}
-                </div>
-                <div class="proof-content">
-                    {% if expense.receipt_path %}
-                        {% if expense.receipt_path.endswith('.pdf') %}
-                            <iframe src="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}" class="pdf-frame"></iframe>
-                        {% else %}
-                            <img src="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}" class="proof-img" alt="Proof Image">
-                        {% endif %}
-                    {% else %}
-                        <div style="text-align: center; color: #94a3b8;">
-                            <span style="font-size: 3rem; display: block; margin-bottom: 1rem;">📁</span>
-                            <p style="font-weight: 600;">No Proof Uploaded</p>
+            <!-- ── RIGHT COLUMN: Description & Document Proof ── -->
+            <div>
+
+                <!-- Description / Purpose Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(139, 92, 246, 0.1);">📝</div>
+                            Reference Notes & Description
                         </div>
-                    {% endif %}
+                    </div>
+                    <div class="card-body" style="padding: 1.25rem 1.5rem;">
+                        {% if expense.description %}
+                        <div class="desc-block">{{ expense.description }}</div>
+                        {% else %}
+                        <p style="font-size: 0.9rem; color: var(--text-muted); font-style: italic; margin: 0;">
+                            No additional reference notes or purpose documented for this claim.
+                        </p>
+                        {% endif %}
+                    </div>
                 </div>
+
+                <!-- Proof / Receipt Viewer Card -->
+                <div class="proof-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(212, 175, 55, 0.12);">🧾</div>
+                            Verification Receipt / Bill Proof
+                        </div>
+                        {% if expense.receipt_path %}
+                        <div style="display: flex; gap: 8px;">
+                            <a href="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}"
+                               download
+                               class="btn-sm-outline"
+                               style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; padding: 0.45rem 0.9rem; font-size: 0.78rem;">
+                                ⬇ Download File
+                            </a>
+                            <a href="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}"
+                               target="_blank"
+                               class="btn-sm-gold"
+                               style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; padding: 0.45rem 0.9rem; font-size: 0.78rem;">
+                                ↗ Open Original
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="proof-viewer-body">
+                        {% if expense.receipt_path %}
+                            {% set file_lower = expense.receipt_path.lower() %}
+                            {% if file_lower.endswith('.pdf') %}
+                                <iframe src="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}" class="pdf-frame" title="Receipt PDF"></iframe>
+                            {% elif file_lower.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')) %}
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%;">
+                                    <img src="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}"
+                                         class="proof-img"
+                                         alt="Expense Receipt Proof"
+                                         onclick="openLightbox(this.src)"
+                                         title="Click to zoom in fullscreen">
+                                    <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 500;">
+                                        🔍 Click image to view in high-resolution fullscreen
+                                    </span>
+                                </div>
+                            {% else %}
+                                <div class="empty-proof">
+                                    <div style="font-size: 3rem; margin-bottom: 0.75rem;">📎</div>
+                                    <p style="font-weight: 700; color: var(--primary-color); margin: 0 0 0.5rem;">Document Attached</p>
+                                    <p style="font-size: 0.85rem; margin: 0 0 1.25rem;">Preview is not supported for this file format in browser.</p>
+                                    <a href="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}" download class="btn-sm-gold" style="text-decoration: none; padding: 0.6rem 1.4rem;">
+                                        ⬇ Download Attachment
+                                    </a>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="empty-proof">
+                                <div style="font-size: 3.5rem; opacity: 0.2; margin-bottom: 0.75rem;">📁</div>
+                                <p style="font-weight: 700; color: var(--primary-color); font-size: 1.05rem; margin: 0 0 0.4rem;">No Proof Uploaded</p>
+                                <p style="font-size: 0.85rem; color: #94a3b8; margin: 0; max-width: 280px;">This expense was logged without an attached receipt, invoice scan, or voucher.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- ══ Confirmation Modal (Matches Task Profile) ══ -->
+    <div id="confirmModal">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3>Confirmation Required</h3>
+                <button type="button" class="modal-close" onclick="closeConfirmModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmModalTitle" style="font-size: 0.95rem; color: var(--primary-color); font-weight: 500; margin: 0; line-height: 1.5;"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-sm-outline" onclick="closeConfirmModal()">Cancel</button>
+                <button type="button" class="btn-sm-danger" id="confirmModalBtn" onclick="executeConfirmModal()">Proceed</button>
             </div>
         </div>
     </div>
+
+    <!-- ══ Image Fullscreen Lightbox Modal ══ -->
+    <div id="lightboxModal" onclick="closeLightbox()">
+        <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+        <img id="lightboxImg" src="" alt="Fullscreen Proof">
+    </div>
+
+    <script>
+        // ── Confirm Modal Logic ──
+        let _pendingForm = null;
+        function openConfirmModal(e, form, msg) {
+            if (e) e.preventDefault();
+            _pendingForm = form;
+            document.getElementById('confirmModalTitle').textContent = msg;
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            _pendingForm = null;
+        }
+        function executeConfirmModal() {
+            if (_pendingForm) {
+                _pendingForm.submit();
+            }
+        }
+        document.getElementById('confirmModal').addEventListener('click', function(e) {
+            if (e.target === this) closeConfirmModal();
+        });
+
+        // ── Lightbox Logic ──
+        function openLightbox(src) {
+            document.getElementById('lightboxImg').src = src;
+            document.getElementById('lightboxModal').style.display = 'flex';
+        }
+        function closeLightbox() {
+            document.getElementById('lightboxModal').style.display = 'none';
+            document.getElementById('lightboxImg').src = '';
+        }
+
+        // ── Auto Dismiss Flashes ──
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.querySelectorAll('.flash-message').forEach(el => {
+                    el.style.transition = 'opacity 0.5s ease';
+                    el.style.opacity = '0';
+                    setTimeout(() => el.remove(), 500);
+                });
+            }, 3500);
+        });
+    </script>
 
 </body>
 </html>
