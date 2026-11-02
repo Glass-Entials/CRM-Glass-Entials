@@ -21,16 +21,65 @@
         }
         .receipt-link:hover { background: rgba(212, 175, 55, 0.15); transform: translateY(-1px); box-shadow: 0 3px 8px rgba(212,175,55,0.15); }
         .missing-proof { font-size: 0.85rem; color: #94a3b8; font-weight: 500; font-style: italic; }
-        .search-bar-container { display: flex; gap: 1rem; margin-bottom: 2rem; align-items: center; }
+        .search-bar-container { display: flex; gap: 1rem; margin-bottom: 2rem; align-items: center; flex-wrap: wrap; }
         .search-input { 
-            flex: 1; padding: 1rem 1.4rem; border-radius: 12px; border: 1px solid rgba(13,27,42,0.12); 
-            background: #fff; font-size: 1rem; outline: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            flex: 1; min-width: 250px; padding: 0.85rem 1.25rem; border-radius: 10px; border: 1px solid rgba(13,27,42,0.12); 
+            background: #fff; font-size: 0.95rem; outline: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             box-shadow: 0 4px 15px rgba(0,0,0,0.02);
         }
-        .search-input:focus { border-color: var(--accent-gold); box-shadow: 0 4px 20px rgba(212,175,55,0.1); }
-        .stat-banner { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2.5rem; }
-        .mini-stat { background: #fff; padding: 1.5rem; border-radius: 16px; border: 1px solid rgba(13,27,42,0.05); display: flex; align-items: center; gap: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.02); }
-        .mini-stat .mini-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; background: rgba(212, 175, 55, 0.1); color: var(--accent-gold); }
+        .search-input:focus { border-color: var(--accent-gold); box-shadow: 0 4px 20px rgba(212,175,55,0.12); }
+        .filter-select {
+            padding: 0.85rem 1.2rem; border-radius: 10px; border: 1px solid rgba(13,27,42,0.12);
+            background: #fff; font-size: 0.9rem; font-weight: 600; color: var(--primary-color);
+            outline: none; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            min-width: 170px;
+        }
+        .filter-select:focus { border-color: var(--accent-gold); box-shadow: 0 4px 20px rgba(212,175,55,0.12); }
+        .btn-reset-filters {
+            padding: 0.85rem 1.25rem; border-radius: 10px; border: 1px solid rgba(13,27,42,0.12);
+            background: #fff; font-size: 0.9rem; font-weight: 600; color: var(--text-muted);
+            cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+            transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.02); white-space: nowrap;
+        }
+        .btn-reset-filters:hover {
+            background: #f8fafc; color: var(--primary-color); border-color: var(--primary-color);
+            transform: translateY(-1px);
+        }
+        .stat-banner { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); 
+            gap: 1.25rem; 
+            margin-bottom: 2rem; 
+        }
+        .mini-stat { 
+            background: #fff; 
+            padding: 1.25rem 1.4rem; 
+            border-radius: 14px; 
+            border: 2px solid rgba(13,27,42,0.05); 
+            display: flex; 
+            align-items: center; 
+            gap: 14px; 
+            box-shadow: 0 6px 20px rgba(0,0,0,0.02); 
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+        }
+        .mini-stat:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(13,27,42,0.08);
+            border-color: rgba(212,175,55,0.4);
+        }
+        .mini-stat.active-filter {
+            border-color: var(--accent-gold);
+            background: #fffdf7;
+            box-shadow: 0 6px 20px rgba(212,175,55,0.15);
+        }
+        .mini-stat .mini-icon { 
+            width: 44px; height: 44px; border-radius: 12px; display: flex; 
+            align-items: center; justify-content: center; font-size: 1.3rem; 
+            background: rgba(212, 175, 55, 0.1); color: var(--accent-gold); 
+            flex-shrink: 0;
+        }
         .expense-row:hover { background: #fafafa !important; }
 
         /* Action Menu Styles */
@@ -96,41 +145,76 @@
             </div>
         </div>
 
-        <!-- Quick Stats -->
+        <!-- Quick Stats & Status Filters -->
         <div class="stat-banner">
-            <div class="mini-stat">
+            <div class="mini-stat" data-filter-status="" onclick="quickFilterStatus('')" title="Click to view all expenses">
                 <div class="mini-icon">💰</div>
                 <div>
-                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Weekly Total</span>
-                    <strong style="font-size: 1.25rem; color: var(--primary-color);">₹{{ "{:,.0f}".format(expenses|sum(attribute='amount')) }}</strong>
+                    <span style="display: block; font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Total Spending</span>
+                    <strong style="font-size: 1.15rem; color: var(--primary-color);">₹{{ "{:,.0f}".format(expenses|sum(attribute='amount')) }}</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">{{ expenses|length }} Records</div>
                 </div>
             </div>
-            <div class="mini-stat">
-                <div class="mini-icon">🧾</div>
+            <div class="mini-stat" data-filter-status="Pending" onclick="quickFilterStatus('Pending')" title="Click to filter Pending expenses">
+                <div class="mini-icon" style="background: rgba(245, 158, 11, 0.1); color: #d97706;">⏳</div>
                 <div>
-                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Submissions</span>
-                    <strong style="font-size: 1.25rem; color: var(--primary-color);">{{ expenses|length }} Records</strong>
+                    <span style="display: block; font-size: 0.72rem; color: #d97706; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Pending</span>
+                    <strong style="font-size: 1.15rem; color: var(--primary-color);">{{ expenses|selectattr('status_display', 'equalto', 'Pending')|list|length }} Records</strong>
+                    <div style="font-size: 0.75rem; color: #d97706; font-weight: 600;">₹{{ "{:,.0f}".format(expenses|selectattr('status_display', 'equalto', 'Pending')|sum(attribute='amount')) }}</div>
                 </div>
             </div>
-            <div class="mini-stat">
-                <div class="mini-icon" style="background: rgba(16,185,129,0.1); color:#10b981;">✔️</div>
+            <div class="mini-stat" data-filter-status="Approved" onclick="quickFilterStatus('Approved')" title="Click to filter Approved expenses">
+                <div class="mini-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">✔️</div>
                 <div>
-                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Approved Status</span>
-                    <strong style="font-size: 1.25rem; color: var(--primary-color);">{{ expenses|selectattr('status_display', 'equalto', 'Approved')|list|length }} Expenses</strong>
+                    <span style="display: block; font-size: 0.72rem; color: #10b981; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Approved</span>
+                    <strong style="font-size: 1.15rem; color: var(--primary-color);">{{ expenses|selectattr('status_display', 'equalto', 'Approved')|list|length }} Records</strong>
+                    <div style="font-size: 0.75rem; color: #10b981; font-weight: 600;">₹{{ "{:,.0f}".format(expenses|selectattr('status_display', 'equalto', 'Approved')|sum(attribute='amount')) }}</div>
+                </div>
+            </div>
+            <div class="mini-stat" data-filter-status="Paid" onclick="quickFilterStatus('Paid')" title="Click to filter Paid expenses">
+                <div class="mini-icon" style="background: rgba(37, 99, 235, 0.1); color: #2563eb;">💳</div>
+                <div>
+                    <span style="display: block; font-size: 0.72rem; color: #2563eb; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Paid</span>
+                    <strong style="font-size: 1.15rem; color: var(--primary-color);">{{ expenses|selectattr('status_display', 'equalto', 'Paid')|list|length }} Records</strong>
+                    <div style="font-size: 0.75rem; color: #2563eb; font-weight: 600;">₹{{ "{:,.0f}".format(expenses|selectattr('status_display', 'equalto', 'Paid')|sum(attribute='amount')) }}</div>
+                </div>
+            </div>
+            <div class="mini-stat" data-filter-status="Rejected" onclick="quickFilterStatus('Rejected')" title="Click to filter Rejected expenses">
+                <div class="mini-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">✖️</div>
+                <div>
+                    <span style="display: block; font-size: 0.72rem; color: #ef4444; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Rejected</span>
+                    <strong style="font-size: 1.15rem; color: var(--primary-color);">{{ expenses|selectattr('status_display', 'equalto', 'Rejected')|list|length }} Records</strong>
+                    <div style="font-size: 0.75rem; color: #ef4444; font-weight: 600;">₹{{ "{:,.0f}".format(expenses|selectattr('status_display', 'equalto', 'Rejected')|sum(attribute='amount')) }}</div>
                 </div>
             </div>
         </div>
 
         <div class="search-bar-container">
-            <input type="text" id="expenseSearch" class="search-input" placeholder="Search by title, employee, or category..." onkeyup="filterExpenses()">
-            <select id="categoryFilter" onchange="filterExpenses()" style="padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(13,27,42,0.1); outline: none;">
-                <option value="">All Categories</option>
-                <option value="Travel">Travel</option>
-                <option value="Materials">Materials</option>
-                <option value="Hardware">Hardware</option>
-                <option value="Salary">Salary</option>
-                <option value="Site Expense">Site Expense</option>
+            <input type="text" id="expenseSearch" class="search-input" placeholder="Search by title, employee, project, or amount..." onkeyup="filterExpenses()">
+            
+            <select id="statusFilter" class="filter-select" onchange="filterExpenses()" title="Filter by Status">
+                <option value="" {% if not selected_status %}selected{% endif %}>All Statuses</option>
+                {% for st in statuses %}
+                <option value="{{ st }}" {% if selected_status == st %}selected{% endif %}>
+                    {% if st == 'Pending' %}⏳ Pending
+                    {% elif st == 'Approved' %}✔️ Approved
+                    {% elif st == 'Paid' %}💳 Paid
+                    {% elif st == 'Rejected' %}✖️ Rejected
+                    {% else %}{{ st }}{% endif %}
+                </option>
+                {% endfor %}
             </select>
+
+            <select id="categoryFilter" class="filter-select" onchange="filterExpenses()" title="Filter by Category">
+                <option value="" {% if not selected_category %}selected{% endif %}>All Categories</option>
+                {% for cat in categories %}
+                <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="button" onclick="resetFilters()" class="btn-reset-filters" title="Reset all filters">
+                <span>🔄</span> Reset
+            </button>
         </div>
 
         <div class="panel expense-panel" style="padding: 0; background: #fff; box-shadow: 0 10px 40px rgba(0,0,0,0.03);">
@@ -149,7 +233,7 @@
                     </thead>
                     <tbody>
                         {% for exp in expenses %}
-                        <tr class="expense-row" data-category="{{ exp.category_display }}" style="border-bottom: 1px solid rgba(13,27,42,0.04);">
+                        <tr class="expense-row" data-category="{{ exp.category_display }}" data-status="{{ exp.status_display }}" data-amount="{{ exp.amount }}" style="border-bottom: 1px solid rgba(13,27,42,0.04);">
                             <td style="padding: 1.5rem; min-width: 200px;">
                                 <div style="font-weight: 700; color: var(--primary-color); font-size: 1rem;">{{ exp.title }}</div>
                                 <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; white-space: nowrap;">
@@ -163,7 +247,7 @@
                                     <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; border: 1px solid rgba(212, 175, 55, 0.2);">
                                         <img src="{{ get_profile_pic(exp.employee) }}" style="width: 100%; height: 100%; object-fit: cover;">
                                     </div>
-                                    <span style="font-weight: 600; font-size: 0.9rem; color: var(--primary-color);">{{ exp.employee.name if exp.employee else 'Admin' }}</span>
+                                    <span style="font-weight: 600; font-size: 0.9rem; color: var(--primary-color); font-family: inherit;">{{ exp.employee.name if exp.employee else 'Admin' }}</span>
                                 </div>
                             </td>
                             <td style="padding: 1.5rem;">
@@ -197,7 +281,6 @@
                                     {{ exp.status_display }}
                                 </span>
                             </td>
-                            {% if current_user.role.value in ['admin', 'manager'] %}
                             <td class="actions-cell" style="padding: 1.5rem;">
                                 <button class="dots-btn" onclick="toggleMenu(event, 'menu-{{ exp.id }}')">⋮</button>
                                 <div id="menu-{{ exp.id }}" class="action-dropdown">
@@ -222,16 +305,40 @@
                                     {% endif %}
 
                                     {% if current_user.role.value in ['admin', 'manager'] or (current_user.employee and exp.employee_id == current_user.employee.id and exp.status_display == 'Pending') %}
-                                    <form action="{{ url_for('expenses.delete_expense', expense_id=exp.id) }}" method="POST" onsubmit="openConfirmModal(event, this, \'Delete this expense?\')">
+                                    <form action="{{ url_for('expenses.delete_expense', expense_id=exp.id) }}" method="POST" onsubmit="openConfirmModal(event, this, 'Delete this expense?')">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="delete-item">🗑️ Delete Permanently</button>
                                     </form>
                                     {% endif %}
                                 </div>
                             </td>
-                            {% endif %}
                         </tr>
                         {% endfor %}
+
+                        <!-- No Matching Filter Results -->
+                        <tr id="noResultsRow" style="display: none;">
+                            <td colspan="7" style="text-align: center; padding: 3.5rem 1.5rem;">
+                                <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔍</div>
+                                <div style="font-size: 1.1rem; font-weight: 700; color: var(--primary-color);">No matching expenses found</div>
+                                <p style="font-size: 0.85rem; color: #94a3b8; margin: 0.4rem 0 1rem 0;">Try adjusting your search keywords, status, or category filter.</p>
+                                <button type="button" onclick="resetFilters()" class="btn-reset-filters" style="display: inline-flex;">
+                                    <span>🔄</span> Clear Filters
+                                </button>
+                            </td>
+                        </tr>
+
+                        {% if not expenses %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 4rem 1.5rem;">
+                                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🧾</div>
+                                <div style="font-size: 1.15rem; font-weight: 700; color: var(--primary-color);">No expenses recorded yet</div>
+                                <p style="font-size: 0.9rem; color: #94a3b8; margin: 0.4rem 0 1.2rem 0;">Post your first business expense to track spending and proofs.</p>
+                                <a href="{{ url_for('expenses.add_expense') }}" class="btn-action gold" style="display: inline-block; text-decoration: none; padding: 0.7rem 1.5rem; font-weight: 700;">
+                                    + Post Submission
+                                </a>
+                            </td>
+                        </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -241,23 +348,85 @@
 
     <script>
         function filterExpenses() {
-            const query = document.getElementById('expenseSearch').value.toLowerCase();
-            const categorySelect = document.getElementById('categoryFilter').value;
+            const query = (document.getElementById('expenseSearch') ? document.getElementById('expenseSearch').value.toLowerCase().trim() : '');
+            const categorySelect = document.getElementById('categoryFilter') ? document.getElementById('categoryFilter').value : '';
+            const statusSelect = document.getElementById('statusFilter') ? document.getElementById('statusFilter').value : '';
             const rows = document.querySelectorAll('.expense-row');
+            const noResultsRow = document.getElementById('noResultsRow');
+
+            let visibleCount = 0;
 
             rows.forEach(row => {
                 const text = row.innerText.toLowerCase();
-                const category = row.dataset.category;
-                const matchesSearch = text.includes(query);
-                const matchesCategory = categorySelect === "" || category === categorySelect;
+                const category = row.dataset.category || '';
+                const status = row.dataset.status || '';
 
-                if (matchesSearch && matchesCategory) {
+                const matchesSearch = !query || text.includes(query);
+                const matchesCategory = !categorySelect || category === categorySelect;
+                const matchesStatus = !statusSelect || status === statusSelect;
+
+                if (matchesSearch && matchesCategory && matchesStatus) {
                     row.style.display = "";
+                    visibleCount++;
                 } else {
                     row.style.display = "none";
                 }
             });
+
+            if (noResultsRow) {
+                noResultsRow.style.display = (visibleCount === 0 && rows.length > 0) ? "" : "none";
+            }
+
+            // Sync active visual state on stat cards
+            document.querySelectorAll('.mini-stat').forEach(card => {
+                const cardStatus = card.dataset.filterStatus;
+                if (cardStatus !== undefined && cardStatus === statusSelect) {
+                    card.classList.add('active-filter');
+                } else {
+                    card.classList.remove('active-filter');
+                }
+            });
+
+            // Update URL without reloading page
+            try {
+                const url = new URL(window.location);
+                if (statusSelect) {
+                    url.searchParams.set('status', statusSelect);
+                } else {
+                    url.searchParams.delete('status');
+                }
+                if (categorySelect) {
+                    url.searchParams.set('category', categorySelect);
+                } else {
+                    url.searchParams.delete('category');
+                }
+                window.history.replaceState({}, '', url);
+            } catch (e) {
+                // Ignore URL modification errors if any
+            }
         }
+
+        function quickFilterStatus(status) {
+            const statusSelect = document.getElementById('statusFilter');
+            if (statusSelect) {
+                statusSelect.value = status;
+                filterExpenses();
+            }
+        }
+
+        function resetFilters() {
+            const searchInput = document.getElementById('expenseSearch');
+            const catSelect = document.getElementById('categoryFilter');
+            const statSelect = document.getElementById('statusFilter');
+            if (searchInput) searchInput.value = '';
+            if (catSelect) catSelect.value = '';
+            if (statSelect) statSelect.value = '';
+            filterExpenses();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            filterExpenses();
+        });
 
         function toggleMenu(event, menuId) {
             event.stopPropagation();
@@ -267,7 +436,7 @@
             });
             // Toggle current
             const menu = document.getElementById(menuId);
-            menu.classList.toggle('active');
+            if (menu) menu.classList.toggle('active');
         }
 
         // Close menu on outside click

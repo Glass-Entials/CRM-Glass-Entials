@@ -59,7 +59,19 @@ def expenses_list():
             .all()
         )
 
-    return render_template("accounts/expenses_list.html", expenses=expenses)
+    categories = [e.value for e in ExpenseCategory]
+    statuses = [e.value for e in ExpenseStatus]
+    selected_status = request.args.get("status", "").strip()
+    selected_category = request.args.get("category", "").strip()
+
+    return render_template(
+        "accounts/expenses_list.html",
+        expenses=expenses,
+        categories=categories,
+        statuses=statuses,
+        selected_status=selected_status,
+        selected_category=selected_category,
+    )
 
 
 @expenses_bp.route("/add", methods=["GET", "POST"])
