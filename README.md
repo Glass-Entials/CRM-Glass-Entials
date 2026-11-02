@@ -1,411 +1,514 @@
-# <p align="center"><img src="static/img/logo.png" alt="GlassEntials Logo" width="140px"><br>💎 GlassEntials Enterprise CRM & ERP</p>
+# <p align="center"><img src="static/img/logo.png" alt="GlassEntials Logo" width="150px"><br>💎 GlassEntials Enterprise Cloud ERP & CRM</p>
 
 <p align="center">
-  <strong>The Next-Generation, Multi-Tenant Cloud ERP & Intelligent CRM Suite Built for Glass & Mirror Enterprises and Modern Fast-Growing Businesses.</strong>
+  <strong>The Industry-Leading, Multi-Tenant Intelligent Cloud Operating System Tailored for Glass Manufacturers, Architectural Glazing Contractors, and Global Mirror Enterprises.</strong>
 </p>
 
 <p align="center">
-  <a href="#"><img src="https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Flask-3.0.3-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask 3.0"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Architecture-Multi--Tenant%20SaaS-D4AF37?style=for-the-badge&logo=cloud&logoColor=black" alt="Multi-Tenant SaaS"></a>
-  <a href="#"><img src="https://img.shields.io/badge/AI%20Copilot-Local%20RAG%20%2B%20Ollama-412991?style=for-the-badge&logo=openai&logoColor=white" alt="AI Copilot"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Real--Time-Socket.IO-010101?style=for-the-badge&logo=socketdotio&logoColor=white" alt="Socket.IO"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Payments-Razorpay%20Integrated-0C2340?style=for-the-badge&logo=razorpay&logoColor=white" alt="Razorpay"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Taxation-Indian%20GST%20Compliant-008080?style=for-the-badge" alt="GST"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Security-OWASP%20Argon2%20%2B%20Talisman-success?style=for-the-badge&logo=shield&logoColor=white" alt="Security"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Platform-Proprietary%20SaaS%20Enterprise-D4AF37?style=for-the-badge&logo=shield&logoColor=black" alt="Enterprise SaaS"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Architecture-Multi--Tenant%20Isolated-0C2340?style=for-the-badge&logo=icloud&logoColor=white" alt="Multi-Tenant"></a>
+  <a href="#"><img src="https://img.shields.io/badge/AI%20Copilot-Private%20RAG%20%2B%20Vector%20Engine-412991?style=for-the-badge&logo=openai&logoColor=white" alt="Private AI RAG"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Real--Time-Bidirectional%20WebSockets-010101?style=for-the-badge&logo=socketdotio&logoColor=white" alt="Socket.IO"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Telephony-Android%20Hardware%20Sync-3DDC84?style=for-the-badge&logo=android&logoColor=black" alt="Android Sync"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Billing-Razorpay%20Subscription%20Engine-0070BA?style=for-the-badge&logo=razorpay&logoColor=white" alt="Razorpay"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Taxation-Indian%20GST%20Automated-008080?style=for-the-badge" alt="GST"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Security-Argon2%20%7C%20Zero--Trust%20RBAC-success?style=for-the-badge&logo=securityscorecard&logoColor=white" alt="Security"></a>
 </p>
 
 ---
 
-## 📑 Table of Contents
-
-- [✨ Executive Overview](#-executive-overview)
-- [🏢 Enterprise Architectural Matrix](#-enterprise-architectural-matrix)
-- [🔥 Comprehensive Core Modules](#-comprehensive-core-modules)
-  - [1. 🤖 AI-Powered Copilot & Vector RAG Assistant](#1--ai-powered-copilot--vector-rag-assistant)
-  - [2. 🏢 Multi-Tenant SaaS Engine & Subscription Billing](#2--multi-tenant-saas-engine--subscription-billing)
-  - [3. 🎯 Lead & Sales Funnel Management](#3--lead--sales-funnel-management)
-  - [4. 🤝 Customer & Client 360° Management](#4--customer--client-360-management)
-  - [5. 🏬 B2B Organizational Clients & Multi-City Branches](#5--b2b-organizational-clients--multi-city-branches)
-  - [6. 📜 Enterprise Quotation & Proposal Studio](#6--enterprise-quotation--proposal-studio)
-  - [7. 📦 Products, Catalog & Multi-Tier Pricing](#7--products-catalog--multi-tier-pricing)
-  - [8. 🏗️ Project Management & Engineering Tracking](#8--project-management--engineering-tracking)
-  - [9. 💰 Accounts, Billing, Payments & GST Engine](#9--accounts-billing-payments--gst-engine)
-  - [10. 🏷️ Corporate Expense & Reimbursement Workflow](#10--corporate-expense--reimbursement-workflow)
-  - [11. 🚚 Vendor & Procurement Supply Chain](#11--vendor--procurement-supply-chain)
-  - [12. 📞 Android Hardware Call Logger & Telephony API](#12--android-hardware-call-logger--telephony-api)
-  - [13. 💬 Real-Time Employee Chat & Collaboration (Socket.IO)](#13--real-time-employee-chat--collaboration-socketio)
-  - [14. 👑 Super Admin Fleet & Governance Control Plane](#14--super-admin-fleet--governance-control-plane)
-  - [15. 🗄️ Enterprise Trash, Soft Deletion & Audit Trail](#15--enterprise-trash-soft-deletion--audit-trail)
-- [🛡️ Enterprise Security, Auth & Data Isolation](#️-enterprise-security-auth--data-isolation)
-- [🛠️ Technology Stack & Engine Specs](#️-technology-stack--engine-specs)
-- [🚀 Quickstart & Production Deployment](#-quickstart--production-deployment)
-  - [Local Development Setup](#local-development-setup)
-  - [Production Cloud Deployment](#production-cloud-deployment)
-- [⚙️ Environment Configuration (.env Reference)](#️-environment-configuration-env-reference)
-- [📂 Project Topology & Directory Architecture](#-project-topology--directory-architecture)
-- [🗺️ Future Development Roadmap](#️-future-development-roadmap)
-- [📄 License & Authorship](#-license--authorship)
+> ### 🔒 Proprietary & Confidential Enterprise Software
+> **GlassEntials CRM & ERP** is a proprietary multi-tenant Software-as-a-Service (SaaS) cloud platform. This codebase and its architectural specifications represent proprietary intellectual property engineered specifically for high-throughput enterprise glazing, processing, and manufacturing organizations.
 
 ---
 
-## ✨ Executive Overview
+## 📑 Master Table of Contents
 
-**GlassEntials CRM & ERP** is an industry-grade, end-to-end Enterprise Resource Planning and Customer Relationship Management platform. Originally engineered for the complex, high-stakes manufacturing, architectural fabrication, and distribution workflows of the **Glass and Mirror Industry**, it has evolved into a hyper-scalable, multi-tenant SaaS framework suited for any modern project-driven business.
-
-Combining a **custom handcrafted Glassmorphic Luxury UI (Obsidian & Metallic Gold)** with strict enterprise isolation, local vector AI copilots, Android telephonic monitoring, automated GST compliance, and real-time collaboration, GlassEntials bridges the gap between shop-floor execution and executive balance sheets.
-
-```
-+--------------------------------------------------------------------------------------------------+
-|                                    GLASSENTIALS ERP / CRM SUITE                                 |
-+--------------------------------------------------------------------------------------------------+
-|  [ Multi-Tenant SaaS Engine ]  --  Organizations, Subscriptions, Razorpay Webhooks, Seat Limits  |
-+--------------------------------------------------------------------------------------------------+
-|  [ AI RAG Copilot ]            --  Local Embeddings, Vector Search, Ollama LLM, Natural Queries   |
-+--------------------------------------------------------------------------------------------------+
-|  [ Sales & Operations ]        --  Leads, B2B Clients, Contacts, Dynamic Quotes, Projects, Tasks |
-+--------------------------------------------------------------------------------------------------+
-|  [ Financials & Supply Chain ] --  Invoices, Payments, Indian GST, Vendor Hub, Expense Approval  |
-+--------------------------------------------------------------------------------------------------+
-|  [ Telephony & Comms ]         --  Android Device Call Logger API, Real-Time Socket.IO Chat      |
-+--------------------------------------------------------------------------------------------------+
-|  [ Control & Governance ]      --  Super Admin Dashboard, RBAC, Soft Deletion, Org Audit Vault  |
-+--------------------------------------------------------------------------------------------------+
-```
+- [🏛️ Executive Architecture & System Topology](#️-executive-architecture--system-topology)
+- [🔄 Enterprise System Workflows & Flowcharts](#-enterprise-system-workflows--flowcharts)
+  - [1. Multi-Tenant SaaS Lifecycle & Billing Engine](#1-multi-tenant-saas-lifecycle--billing-engine)
+  - [2. End-to-End Sales, Fabrication & Project Lifecycle](#2-end-to-end-sales-fabrication--project-lifecycle)
+  - [3. Privacy-First AI Copilot RAG & Vector Engine](#3-privacy-first-ai-copilot-rag--vector-engine)
+  - [4. Android Hardware Telephony Sync & Call Disposition](#4-android-hardware-telephony-sync--call-disposition)
+  - [5. Financial Ledger, Invoicing & Indian GST Engine](#5-financial-ledger-invoicing--indian-gst-engine)
+  - [6. Real-Time Collaboration & WebSockets Topology](#6-real-time-collaboration--websockets-topology)
+- [🔥 Comprehensive Core Enterprise Modules](#-comprehensive-core-enterprise-modules)
+  - [Module 1: 🤖 Private AI Copilot & Natural Language Query Engine](#module-1--private-ai-copilot--natural-language-query-engine)
+  - [Module 2: 🏢 Multi-Tenant SaaS Subscriptions & Quota Management](#module-2--multi-tenant-saas-subscriptions--quota-management)
+  - [Module 3: 🎯 Omnichannel Lead Management & Deal Pipeline](#module-3--omnichannel-lead-management--deal-pipeline)
+  - [Module 4: 🤝 Client 360° Directory & Compliance Vault](#module-4--client-360-directory--compliance-vault)
+  - [Module 5: 🏬 B2B Corporate Clients & Multi-City Branches](#module-5--b2b-corporate-clients--multi-city-branches)
+  - [Module 6: 📜 Precision Quotation & Glass Fabrication Studio](#module-6--precision-quotation--glass-fabrication-studio)
+  - [Module 7: 📦 Industrial Catalog & Dimensional Matrix](#module-7--industrial-catalog--dimensional-matrix)
+  - [Module 8: 🏗️ Project Management & Site Engineering](#module-8--project-management--site-engineering)
+  - [Module 9: 💰 Financials, Payments, Invoicing & GST Engine](#module-9--financials-payments-invoicing--gst-engine)
+  - [Module 10: 🏷️ Corporate Expense & Reimbursement Workflow](#module-10--corporate-expense--reimbursement-workflow)
+  - [Module 11: 🚚 Supply Chain & Vendor Hub](#module-11--supply-chain--vendor-hub)
+  - [Module 12: 📞 Android Mobile Telephony Sync Gateway](#module-12--android-mobile-telephony-sync-gateway)
+  - [Module 13: 💬 Internal Workspace Chat & Real-Time Comms](#module-13--internal-workspace-chat--real-time-comms)
+  - [Module 14: 👑 Sovereign Super Admin Governance Control Plane](#module-14--sovereign-super-admin-governance-control-plane)
+  - [Module 15: 🗄️ Enterprise Trash Station & Universal Audit Logs](#module-15--enterprise-trash-station--universal-audit-logs)
+- [🛡️ Zero-Trust Security, Compliance & Data Isolation](#️-zero-trust-security-compliance--data-isolation)
+- [📊 Enterprise Data Model & Entity Relationship (ERD)](#-enterprise-data-model--entity-relationship-erd)
+- [⚙️ High-Throughput Technology Stack Specs](#️-high-throughput-technology-stack-specs)
+- [📂 Codebase Organization & Topology](#-codebase-organization--topology)
+- [🗺️ Future Architectural Roadmap](#️-future-architectural-roadmap)
+- [📄 Governance, Copyright & Trademarks](#-governance-copyright--trademarks)
 
 ---
 
-## 🏢 Enterprise Architectural Matrix
+## 🏛️ Executive Architecture & System Topology
+
+GlassEntials is engineered as a zero-leakage, multi-tenant cloud enterprise operating system. Each organization operates within a cryptographically isolated tenant envelope while sharing a unified, auto-scaling backend infrastructure.
 
 ```mermaid
 flowchart TD
-    subgraph ClientLayer["Frontend & Client Interfaces"]
-        Browser["Desktop & Mobile Web\n(Handcrafted Glassmorphism UI)"]
-        MobileApp["Android Call Logger Companion\n(Hardware Sync via REST API)"]
-        SocketClient["Socket.IO WebSocket\n(Live Chat & Instant Notifications)"]
+    subgraph ClientTier["Client Interface & Telemetry Tier"]
+        Desktop["Executive Desktop & Laptop\n(Chrome / Safari / Edge / Firefox)"]
+        MobileWeb["Mobile Field Browser\n(Responsive Glassmorphism UI)"]
+        AndroidHardware["Field Executive Android Device\n(Hardware Call Logger App)"]
+        RealtimeSocket["Live WebSockets Channel\n(Instant Messaging & Live Alerts)"]
     end
 
-    subgraph SecurityGateway["Security & Edge Gateway"]
-        Nginx["Nginx Reverse Proxy / SSL Termination"]
-        Talisman["Flask-Talisman (CSP, HSTS, X-Frame)"]
-        Limiter["Flask-Limiter (Redis-backed Rate Limiting)"]
-        Argon2Auth["Argon2 Password Hasher & OAuth 2.0 (Google + Microsoft)"]
+    subgraph SecurityTier["Edge Security & Perimeter Defense"]
+        WAF["Web Application Firewall & SSL Termination"]
+        Talisman["Flask-Talisman (Strict CSP, HSTS, X-Frame Guard)"]
+        Limiter["Redis Distributed Rate Limiter\n(Brute-Force & API Abuse Prevention)"]
+        SSO["Identity Layer: Argon2-cffi | Google OAuth2 | Azure AD SSO"]
     end
 
-    subgraph CoreEngine["Application Core (Flask 3.0 + Python 3.13)"]
-        TenantRouter["Multi-Tenant Isolation Filter\n(organization_id Scoping)"]
-        AppModules["Core Business Engines:\nLeads | Quotes | Projects | Tasks | GST | Expenses"]
-        RealtimeHub["Flask-SocketIO + Eventlet Hub"]
-        AICopilot["AI Engine:\nQuery Router + Local Vector Store + Ollama LLM"]
+    subgraph AppTier["Core Application & Orchestration Tier"]
+        TenantFilter["Tenant Isolation Scoper\n(organization_id Injection & Enforcement)"]
+        
+        subgraph BusinessEngines["Micro-Modular Business Services"]
+            SalesEngine["Sales & Leads Service"]
+            QuoteEngine["Glass Fabrication Quotation Studio"]
+            ProjectEngine["Engineering & Site Projects"]
+            FinanceEngine["Tax Invoicing, Payments & GST"]
+            SupplyEngine["Procurement & Vendor Hub"]
+            ExpenseEngine["Corporate Expense Approvals"]
+        end
+
+        SocketHub["Flask-SocketIO / Eventlet Real-Time Hub"]
+        AICore["AI RAG Engine\n(Query Router + Embeddings + Ollama LLM)"]
     end
 
-    subgraph PersistenceLayer["Enterprise Data & Storage Tier"]
-        MySQL[("MySQL 8.0 Primary DB\n(100+ Models, Soft Delete)")]
-        RedisStore[("Redis Cache & Rate Limiting Queue")]
-        VectorStore[("Local Embeddings & Document Vector DB")]
-        S3Storage[("AWS S3 / Local Media Storage\n(Encrypted Attachments)")]
-        SecretsMgr[("AWS Secrets Manager / .env Config")]
+    subgraph DataTier["Enterprise Persistence & Storage Layer"]
+        MySQL[("MySQL 8.0 Primary Cluster\n100+ Relational Domain Models\nSoft-Delete Architecture")]
+        RedisQueue[("Redis In-Memory Data Store\nSession Store & Socket.IO Message Broker")]
+        VectorDB[("Vector Storage & Document Store\nLocal Document Embeddings")]
+        MediaVault[("Encrypted Media Vault / AWS S3\nCAD Blueprints, Receipts & PDFs")]
+        SecretsVault[("AWS Secrets Manager / Encrypted Vault")]
     end
 
-    Browser --> Nginx
-    MobileApp --> Nginx
-    SocketClient --> Nginx
+    Desktop --> WAF
+    MobileWeb --> WAF
+    AndroidHardware --> WAF
+    RealtimeSocket --> WAF
 
-    Nginx --> Talisman --> Limiter --> Argon2Auth --> TenantRouter
-    TenantRouter --> AppModules
-    TenantRouter --> RealtimeHub
-    TenantRouter --> AICopilot
+    WAF --> Talisman --> Limiter --> SSO --> TenantFilter
+    
+    TenantFilter --> BusinessEngines
+    TenantFilter --> SocketHub
+    TenantFilter --> AICore
 
-    AppModules --> MySQL
-    AppModules --> S3Storage
-    RealtimeHub --> RedisStore
-    AICopilot --> VectorStore
-    CoreEngine --> SecretsMgr
+    BusinessEngines --> MySQL
+    BusinessEngines --> MediaVault
+    SocketHub --> RedisQueue
+    AICore --> VectorDB
+    AICore --> MySQL
+    AppTier --> SecretsVault
 ```
 
 ---
 
-## 🔥 Comprehensive Core Modules
+## 🔄 Enterprise System Workflows & Flowcharts
 
-### 1. 🤖 AI-Powered Copilot & Vector RAG Assistant
-GlassEntials features an intelligent, air-gapped or cloud-connected **AI Assistant** capable of conversing directly with your business database using Retrieval-Augmented Generation (RAG).
-- **Zero Cloud Leakage**: Native support for **local LLMs via Ollama** (e.g., `mistral`, `llama3`, `qwen`) — your confidential corporate records, client quotes, and financial ledgers never leave your infrastructure.
-- **Smart Query Routing**: The NLP router determines whether a query is a CRM database filter (*"Show me leads created by Ratandeep in Mumbai"*), a document semantic search (*"What are the payment terms in contract #42?"*), or general business assistance.
-- **Context Builder & Local Embeddings**: Built with `sentence-transformers` and chunked document indexing (PDF, DOCX, TXT) with mathematical vector retrieval.
-- **Role-Aware Scoping**: The AI strictly respects tenant boundaries and user RBAC; employees can only discover data their credentials permit.
+### 1. Multi-Tenant SaaS Lifecycle & Billing Engine
 
-### 2. 🏢 Multi-Tenant SaaS Engine & Subscription Billing
-A complete Turnkey Software-as-a-Service architecture enabling independent enterprise instances within a single unified deployment.
-- **Strict Data Isolation**: Every database table enforces foreign key relationships to an `Organization`. Dynamic query filters guarantee zero data leakage between competing companies.
-- **Tiered SaaS Plans**: Manage custom subscription tiers with hard and soft limits (User count, Project quotas, Storage bandwidth, Feature flags).
-- **Razorpay Payment Gateway**: Integrated checkout, recurring subscription cycles, automated invoice generation, and signature-verified webhook processing.
-- **Instant Org Provisioning**: Automated onboarding wizard with company domain verification, initial admin account setup, and seed configurations.
+The SaaS management engine automates organization onboarding, plan assignment, seat allocation, Razorpay recurring subscriptions, and quota enforcement.
 
-### 3. 🎯 Lead & Sales Funnel Management
-Accelerate lead velocity from first inquiry to closed contract.
-- **Full Sales Lifecycle**: Track inquiries through *New*, *Contacted*, *Qualified*, *Proposal Sent*, *Negotiation*, and *Won/Lost*.
-- **Direct 1-Click Conversion**: Convert qualified leads into active Customers and initiate Projects with preserved conversation and quote history.
-- **Omnichannel Source Attribution**: Track leads originating from Website, Google Ads, Referrals, Social Media, Showroom Walk-ins, or Field Sales.
-- **Staff Assignment & Auto-Balancing**: Assign leads to sales agents, set follow-up deadlines, and track closing conversion ratios per representative.
-- **Live Search & Multi-Filter**: Real-time debounce search across names, phone numbers, emails, cities, and statuses without full-page reloads.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Tenant as Tenant Executive
+    participant Portal as GlassEntials Auth & SaaS
+    participant RZP as Razorpay Gateway
+    participant Webhook as Webhook Listener (/saas/webhook)
+    participant DB as Multi-Tenant Database
+    participant Admin as Super Admin Fleet Plane
 
-### 4. 🤝 Customer & Client 360° Management
-A holistic, unified view of every commercial customer relationship.
-- **360-Degree Profile View**: Complete timeline history displaying linked quotes, active projects, uploaded architectural blueprints, payment history, and communication logs.
-- **GSTIN Auto-Validation**: Integrated validation ensuring client Tax Identification Numbers adhere to statutory formats.
-- **Document Management**: Secure file vault for client agreements, site photos, tax exemption certificates, and signed acceptance slips.
-- **Bulk Import & Export**: High-performance multi-column CSV/Excel import parser with error reporting, plus 1-click PDF/Excel export.
-
-### 5. 🏬 B2B Organizational Clients & Multi-City Branches
-Engineered specifically for corporate B2B relationships where clients are large developers, architectural firms, or hotel chains.
-- **Parent-Child Hierarchy**: Organize enterprise accounts with multiple national offices, branch sites, and regional sub-divisions.
-- **Multi-City Coverage Mapping**: Group enterprise operations across metropolitan regions with dedicated points of contact for each city.
-- **Stakeholder Directory**: Maintain a roster of key personnel (Procurement Officers, Site Engineers, Billing Managers) with individual roles and direct lines.
-
-### 6. 📜 Enterprise Quotation & Proposal Studio
-The crown jewel of GlassEntials — a specialized, high-precision estimation and quotation studio tailored for glass fabrication, hardware, and engineering installations.
-- **Formula-Driven Pricing Engine**: Handles glass dimensions (sqft, sqm, running ft), thickness (4mm–19mm), toughening, laminating, frosted finishes, edging, and custom hardware accessories.
-- **Dynamic Terms & Conditions**: Modular library of legal clauses, warranty terms, delivery timelines, and transit insurance parameters.
-- **Multi-Tier Approvals & Revisions**: Version-controlled quotations (`REV-01`, `REV-02`) with status tracking (*Draft*, *Sent*, *Accepted*, *Declined*, *Expired*).
-- **Digital Signatures & Attachments**: Incorporate authorized representative digital signatures, corporate stamps, and technical specification sheets.
-- **Pixel-Perfect PDF Generation**: One-click generation of branded, luxury aesthetic PDFs ready for client presentation.
-
-### 7. 📦 Products, Catalog & Multi-Tier Pricing
-Comprehensive inventory catalog management built for complex product variants.
-- **Multi-Level Categorization**: Organize items across Architectural Glass, Mirrors, Shower Cubicles, Spider Fittings, Railings, and Hardware.
-- **Flexible Unit of Measurement (UoM)**: Full native support for Square Feet, Square Meters, Metric Tons, Pieces, Running Meters, and Bundles.
-- **HSN / SAC Tax Tagging**: Pre-configured HSN codes for GST calculation and tax invoice compliance.
-
-### 8. 🏗️ Project Management & Engineering Tracking
-Bridge sales promises with physical shop-floor and on-site reality.
-- **End-to-End Milestones**: Track projects from *Site Measurement*, *CAD Drafting*, *Glass Cutting*, *Toughening*, *Dispatch*, through *On-Site Glazing & Handover*.
-- **Assigned Engineering Crews**: Delegate team leads, field technicians, and glazier squads with accountability tracking.
-- **Budget vs. Actual Variance**: Monitor quotation revenue against real-world material consumption, labor expenses, and subcontractor fees.
-- **Document Repositories**: Store CAD diagrams, measurement sheets, structural engineering certificates, and final snag lists.
-
-### 9. 💰 Accounts, Billing, Payments & GST Engine
-Full-spectrum financial clarity and statutory Indian tax compliance.
-- **Tax Invoicing & Proforma Invoices**: Generate compliant GST tax invoices linked directly to accepted quotations and milestone deliveries.
-- **Dual Payment Tracking**: Log partial installments, advance deposits, retention payments, and payment clearances with sequential numbering (`PAY-XXXXX`).
-- **Mode & Instrument Verification**: Track NEFT, RTGS, IMPS, UPI, Cheques, and Cash with clearing dates and bank transaction references.
-- **Automated GST Reports (GSTR-1 & GSTR-3B Ready)**: Built-in report generator calculating CGST, SGST, IGST, reverse charges, and state breakdowns exportable to Excel.
-
-### 10. 🏷️ Corporate Expense & Reimbursement Workflow
-Keep operating expenditures, site expenses, and travel allowances strictly controlled.
-- **Categorized Logging**: Site travel, tooling, client entertainment, logistics, machinery maintenance, and petty cash.
-- **Multi-Level Approval Pipeline**: Real-time status progression (*Pending*, *Approved*, *Rejected*, *Reimbursed*) with role restrictions.
-- **Receipt & Proof Uploads**: Integrated image/PDF receipt viewer ensuring zero unauthorized payouts.
-
-### 11. 🚚 Vendor & Procurement Supply Chain
-Manage raw material suppliers, glass processors, and hardware distributors.
-- **Vendor Profiles & Due Diligence**: Store vendor bank details, MSME certificates, GSTIN, and verification statuses.
-- **Payment Terms & Schedules**: Enforce credit periods (Net 15, Net 30, Net 60, Advance) and monitor outstanding payables.
-- **Vendor Activity Trail**: Log communication histories, rate negotiations, and supply performance metrics.
-
-### 12. 📞 Android Hardware Call Logger & Telephony API
-Seamless bridge between executive mobile calls and CRM records.
-- **Native Android Sync Companion**: Integrates with an Android companion application that automatically pushes call logs to the cloud.
-- **Device Cryptographic Pairing**: Devices pair using secure SHA-256 hashed Bearer tokens with active/inactive status controls.
-- **Smart Number Matching**: Automatic normalization of phone numbers (`+91` format) linking incoming/outgoing calls directly to existing Leads and Customers.
-- **Call Disposition & Follow-Up Automation**: Record call results (*Connected*, *Busy*, *Wrong Number*, *Interested*) and trigger follow-up tasks on missed calls.
-
-### 13. 💬 Real-Time Employee Chat & Collaboration (Socket.IO)
-Eliminate fragmented external messaging apps with a compliant, internal workspace chat.
-- **WebSocket Live Delivery**: Powered by `Flask-SocketIO` and `eventlet` for sub-second, bidirectional message delivery.
-- **Direct & Group Conversations**: 1-on-1 direct employee messaging and cross-functional team channels.
-- **Secure File Sharing**: Share site pictures, PDF proposals, and blueprints directly within the conversation.
-- **Tenant Isolation**: Cryptographically verified channel rooms guaranteeing that messages remain strictly within the employee's organization.
-
-### 14. 👑 Super Admin Fleet & Governance Control Plane
-A sovereign master control plane (`/admin`) for platform operators and SaaS owners.
-- **Isolated Domain / Path**: Decoupled from tenant workflows with specialized authentication.
-- **Two-Factor OTP Security**: Email-dispatched 6-digit cryptographic OTP required on every super admin session.
-- **Global Fleet Telemetry**: Live metrics across total organizations, MRR (Monthly Recurring Revenue), active subscriptions, and system resource load.
-- **Tenant Management**: Provision, suspend, upgrade, or soft-delete tenant organizations, adjust member quotas, and inspect organization-level audit logs.
-
-### 15. 🗄️ Enterprise Trash, Soft Deletion & Audit Trail
-Accidental data deletion is mathematically impossible in GlassEntials.
-- **Unified Soft-Delete Mechanism**: Database entities utilize an `is_deleted` flag; deleted records vanish from operational views but remain intact in the database.
-- **Centralized Trash Station (`/workplace/trash`)**: Search, filter, and 1-click restore erroneously deleted Leads, Customers, Quotations, Invoices, and Tasks.
-- **Comprehensive Audit Logs**: Every modification, status transition, creation, and soft-deletion records the exact timestamp, actor user ID, client IP, and diff snapshot.
-
----
-
-## 🛡️ Enterprise Security, Auth & Data Isolation
-
-GlassEntials is engineered around OWASP top-10 defensive principles:
-
-```
-+--------------------------------------------------------------------------------------------------+
-|                                    SECURITY ARCHITECTURE OVERVIEW                                |
-+--------------------------------------------------------------------------------------------------+
-|  [ Authentication ]   Argon2-cffi Password Hashing | Google OAuth 2.0 | Microsoft Azure AD SSO   |
-|  [ Rate Limiting ]    Flask-Limiter with Redis Backend (Guards Brute-force & Telephony APIs)     |
-|  [ Header Hardening ] Flask-Talisman (Strict CSP, HTTP Strict Transport Security HSTS)           |
-|  [ CSRF Defense ]     Flask-WTF Synchronizer Tokens on all POST / PUT / DELETE forms             |
-|  [ RBAC Matrix ]      SuperAdmin, Org Owner, Admin, Manager, Sales Rep, Staff, Site Engineer     |
-|  [ Cryptography ]     AWS Secrets Manager integration for automated production rotation          |
-+--------------------------------------------------------------------------------------------------+
-```
-
-- **Argon2 Password Hashing**: Winner of the Password Hashing Competition; delivers high resistance to GPU/ASIC cracking.
-- **Enterprise Single Sign-On (SSO)**: Built-in OAuth 2.0 connectors for Google Workspace and Microsoft Entra ID (Azure AD).
-- **Session & CSRF Protection**: Every session is protected with `HttpOnly`, `SameSite=Lax`, secure cookie flags, and unique CSRF tokens.
-- **Tenant Scoping Decorators**: Controllers utilize the `@tenant_record_id` and `@require_roles` decorators to verify that accessed resource IDs strictly belong to `current_user.organization_id`.
-
----
-
-## 🛠️ Technology Stack & Engine Specs
-
-| Layer | Technologies & Libraries |
-|---|---|
-| **Core Runtime** | Python 3.13, Flask 3.0.3, Werkzeug 3.0.3 |
-| **Concurrency & WebSockets** | Flask-SocketIO 5.3.6, eventlet 0.33.3, Gunicorn 22.0.0 |
-| **Database & ORM** | MySQL 8.0+, SQLAlchemy 2.0.31, Flask-SQLAlchemy 3.1.1, PyMySQL 1.1.0 |
-| **Migrations** | Alembic, Flask-Migrate 4.0.7 |
-| **Security & Cryptography** | argon2-cffi 23.1.0, Flask-WTF 1.2.1, Flask-Limiter 3.7.0, flask-talisman 1.1.0 |
-| **AI & NLP Engine** | Ollama (Mistral / LLaMA3), sentence-transformers 3.3.1, NumPy, PyPDF2 |
-| **Data Processing & Exports** | Pandas 2.2.2, openpyxl 3.1.2, XlsxWriter 3.2.0, fpdf2 2.7.9 |
-| **Cloud & Payment Gateways** | Boto3 (AWS S3 & Secrets Manager), Redis 5.0.4, Razorpay 1.4.1 |
-| **Frontend Framework** | Handcrafted Responsive Glassmorphism CSS, Vanilla ES6+ JavaScript |
-| **Production Server** | Nginx Reverse Proxy, Systemd Daemon, Gunicorn WSGI |
-
----
-
-## 🚀 Quickstart & Production Deployment
-
-### Local Development Setup
-
-#### Prerequisites
-- **Python 3.11+** (Python 3.13 recommended)
-- **MySQL 8.0+** running locally or on Docker
-- **Redis Server** (optional for dev, recommended for rate limiting and Socket.IO)
-- **Ollama** (optional, for local AI Copilot capabilities)
-
-#### Step 1: Clone the Repository
-```bash
-git clone https://github.com/your-username/CRM-GlassEntials.git
-cd CRM-GlassEntials
-```
-
-#### Step 2: Establish Virtual Environment
-```bash
-python -m venv venv
-# On Windows:
-.\venv\Scripts\activate
-# On Linux/macOS:
-source venv/bin/activate
-```
-
-#### Step 3: Install High-Performance Package Suite
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-#### Step 4: Configure Environment Variables
-Copy the development template and configure your local database:
-```bash
-copy .env.example .env   # Windows
-# or: cp .env.example .env # Linux/macOS
-```
-
-#### Step 5: Database Migration & Schema Creation
-```bash
-flask db upgrade
-```
-
-#### Step 6: Launch the Development Server
-```bash
-python app.py
-```
-*The portal will be live at `http://localhost:5000` (or your configured port).*
-
----
-
-### Production Cloud Deployment
-
-GlassEntials includes pre-configured production manifests for **Ubuntu / Debian Linux**, **Nginx**, **Systemd**, and **Gunicorn**.
-
-#### 1. Systemd Service Configuration
-Edit and place `glassentials.service` into `/etc/systemd/system/`:
-```ini
-[Unit]
-Description=GlassEntials Gunicorn & SocketIO Production Daemon
-After=network.target mysql.service redis.service
-
-[Service]
-User=www-data
-Group=www-data
-WorkingDirectory=/var/www/CRM-GlassEntials
-Environment="PATH=/var/www/CRM-GlassEntials/venv/bin"
-ExecStart=/var/www/CRM-GlassEntials/venv/bin/gunicorn --worker-class eventlet -w 1 --bind 127.0.0.1:5000 app:app
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-#### 2. Start and Enable Daemon
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable glassentials
-sudo systemctl start glassentials
-```
-
-#### 3. Nginx Reverse Proxy Configuration
-Apply `nginx.conf` with WebSocket proxying:
-```nginx
-server {
-    server_name crm.yourdomain.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /socket.io {
-        proxy_pass http://127.0.0.1:5000/socket.io;
-        proxy_http_version 1.1;
-        proxy_buffering off;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "Upgrade";
-        proxy_set_header Host $host;
-    }
-}
+    Tenant->>Portal: Registers Organization & Admin Profile
+    Portal->>DB: Create Org (Status: PENDING), Seed Roles & Settings
+    Portal->>Tenant: Redirect to Secure Checkout (/saas/checkout)
+    Tenant->>RZP: Selects Plan & Completes Payment
+    RZP-->>Tenant: Payment Authorization Success
+    RZP->>Webhook: Dispatches 'payment.captured' / 'subscription.charged'
+    Note over Webhook: Verify HMAC SHA-256 Signature
+    Webhook->>DB: Update SaaSSubscription & OrganizationStatus -> ACTIVE
+    Webhook->>DB: Log SaaSTransaction & Establish Quotas
+    Portal-->>Tenant: Instant Access Unlocked to Enterprise Workspace
+    Admin->>DB: Telemetry Monitors MRR, Seat Count & Storage Usage
 ```
 
 ---
 
-## ⚙️ Environment Configuration (.env Reference)
+### 2. End-to-End Sales, Fabrication & Project Lifecycle
 
-| Key | Type | Description | Default |
-|---|---|---|---|
-| `SECRET_KEY` | String | Flask cryptographic session key | *Required* |
-| `DATABASE_URL` | String | SQLAlchemy DB URI (`mysql+pymysql://...`) | *Required* |
-| `FLASK_ENV` | String | `development` or `production` | `production` |
-| `USE_AWS_SECRETS` | Boolean | Fetch credentials via AWS Secrets Manager | `false` |
-| `AWS_SECRET_NAME` | String | AWS Secrets Manager path | `crm-glassentials/prod` |
-| `AWS_REGION` | String | AWS Deployment region | `ap-south-1` |
-| `GOOGLE_CLIENT_ID` | String | Google OAuth 2.0 Web Client ID | *Optional* |
-| `GOOGLE_CLIENT_SECRET`| String | Google OAuth 2.0 Secret | *Optional* |
-| `MICROSOFT_CLIENT_ID` | String | Azure Active Directory App ID | *Optional* |
-| `MICROSOFT_CLIENT_SECRET` | String | Azure AD App Secret | *Optional* |
-| `RAZORPAY_KEY_ID` | String | Razorpay Live / Test API Key | *Optional* |
-| `RAZORPAY_KEY_SECRET` | String | Razorpay Secret Key | *Optional* |
-| `AI_ENABLED` | Boolean | Enable AI Copilot RAG service | `true` |
-| `AI_BASE_URL` | String | URL to Ollama or local LLM server | `http://127.0.0.1:11434` |
-| `AI_MODEL` | String | Model identifier for Ollama inference | `mistral` |
-| `SUPER_ADMIN_USERNAME`| String | Sovereign admin portal username | `superadmin` |
-| `SUPER_ADMIN_PASSWORD_HASH` | String | Werkzeug / Argon2 hashed admin password | *Required* |
-| `SUPER_ADMIN_EMAIL` | String | 6-Digit OTP delivery email | *Required* |
+From initial customer touchpoint through architectural estimation, conversion, fabrication, site installation, and financial settlement.
+
+```mermaid
+flowchart TD
+    A["📞 Omnichannel Lead Ingestion\n(Web, Walk-in, Google, Android Call)"] --> B["Lead Qualification & Assignment\n(Assigned Sales Representative)"]
+    B --> C["Site Survey & Technical Measurements\n(Dimensions, Glass Thickness, Specs)"]
+    C --> D["📐 Quotation Studio Generation\n(Cutting, Toughening, Edging, Hardware, Tax)"]
+    D --> E{"Client Approval?"}
+    E -- "Changes Requested" --> F["Version Revision (REV-02)\nUpdate Terms & Pricing"]
+    F --> D
+    E -- "Accepted" --> G["🚀 1-Click Conversion\nCreate Customer & Initiate Project"]
+    G --> H["🏗️ Engineering & Fabrication Milestones\n(Glass Cutting → Toughening → Dispatch → Glazing)"]
+    H --> I["📄 Proforma & GST Tax Invoice\n(Auto-Calculated CGST / SGST / IGST)"]
+    I --> J["💳 Payment Reconciliation\n(Milestone Installments & Retention)"]
+    J --> K["✅ Project Handover & Snag List Clearance"]
+```
 
 ---
 
-## 📂 Project Topology & Directory Architecture
+### 3. Privacy-First AI Copilot RAG & Vector Engine
+
+The local RAG system allows executives to interrogate CRM datasets and indexed PDF blueprints with zero risk of commercial confidentiality leaks.
+
+```mermaid
+flowchart LR
+    subgraph QueryInput["User Interaction"]
+        Query["User Prompt:\n'Show all pending quotes in Mumbai above ₹5L'"]
+    end
+
+    subgraph IntelligenceRouter["AI Processing Pipeline"]
+        Router{"Query Classifier & Intent Router\n(ai/query_router.py)"}
+        CRMQuery["CRM Structured SQL Generator\n(ai/crm_query.py)"]
+        DocSearch["Vector Search & Chunker\n(ai/document_indexer.py)"]
+        Context["Tenant Context Synthesizer\n(ai/context_builder.py)"]
+    end
+
+    subgraph ExecutionPlane["Execution & Inference"]
+        DBQuery[("Tenant Scoped SQL Execution\n(Filtered by Org ID)")]
+        LocalEmbeddings[("Sentence-Transformers Vector DB")]
+        OllamaLLM["Local Ollama Engine\n(Mistral / LLaMA3 Offline)"]
+    end
+
+    Query --> Router
+    Router -- "Structured Data Intent" --> CRMQuery --> DBQuery --> Context
+    Router -- "Unstructured Document Intent" --> DocSearch --> LocalEmbeddings --> Context
+    Context --> OllamaLLM
+    OllamaLLM --> Response["💬 Precision Contextual Answer\n(Rendered Inline in Real-Time)"]
+```
+
+---
+
+### 4. Android Hardware Telephony Sync & Call Disposition
+
+Mobile telemetry bridges field operations and internal logs without manual reporting overhead.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Rep as Sales / Site Representative
+    participant Phone as Android Device (Background Service)
+    participant API as Telephony API (/api/v1/call-log)
+    participant Engine as Call Logger Engine
+    participant CRM as Leads & Contacts Database
+
+    Rep->>Phone: Places / Receives Call with Client
+    Note over Phone: Call Completes (Duration, Timestamp, Number)
+    Phone->>Phone: Normalize Phone Number to +91 Format
+    Phone->>API: POST Payload + Cryptographic Bearer Token
+    API->>API: Validate Token against Device Registry (SHA-256)
+    API->>Engine: Ingest Call Data
+    Engine->>CRM: Auto-Match Number with Existing Leads / Customers
+    alt Match Found
+        Engine->>CRM: Attach Call Record to Lead Profile Timeline
+    else New Caller
+        Engine->>CRM: Flag as Unregistered Caller / Auto-Draft Lead
+    end
+    API-->>Phone: Acknowledgement 200 OK
+    Engine->>Rep: Trigger Notification: "Add Call Notes & Follow-up Task"
+```
+
+---
+
+### 5. Financial Ledger, Invoicing & Indian GST Engine
+
+Automated calculation of complex Indian goods and service taxes across multi-state supply lines.
+
+```mermaid
+flowchart TD
+    Invoice["Generate Tax Invoice\n(Customer, Place of Supply, Items)"] --> TaxLogic{"Place of Supply vs.\nCompany GST State"}
+    
+    TaxLogic -- "Intra-State Supply\n(Same State)" --> IntraState["Split Tax Evenly:\n50% CGST + 50% SGST"]
+    TaxLogic -- "Inter-State Supply\n(Different State)" --> InterState["Apply Full Tax:\n100% IGST"]
+
+    IntraState --> Ledger["Update Financial Ledger & Receivables"]
+    InterState --> Ledger
+
+    Ledger --> GSTR["Automated GST Compliance Hub\n(/accounts/gst-reports)"]
+    
+    subgraph TaxCompliance["Statutory Tax Output Ready"]
+        GSTR1["GSTR-1 Outward Supplies Matrix\n(B2B, B2CL, HSN Summary)"]
+        GSTR3B["GSTR-3B Monthly Tax Summary\n(Net Tax Liability Calculation)"]
+        ExcelExport["Direct Excel & CSV Tax Audit Export"]
+    end
+
+    GSTR --> GSTR1
+    GSTR --> GSTR3B
+    GSTR --> ExcelExport
+```
+
+---
+
+### 6. Real-Time Collaboration & WebSockets Topology
+
+Internal enterprise communication designed to eliminate third-party chat apps while maintaining complete compliance auditability.
+
+```mermaid
+flowchart TD
+    subgraph Users["Tenant Active Workstations"]
+        UserA["Sales Agent A\n(Web Browser Client)"]
+        UserB["Production Head B\n(Web Browser Client)"]
+    end
+
+    subgraph WebSocketTier["Real-Time Delivery Grid"]
+        SocketServer["Flask-SocketIO Event Server\n(eventlet concurrency)"]
+        TenantChannel["Tenant Room: 'org_{tenant_id}'"]
+        DirectChannel["Private Direct Room: 'conv_{conversation_id}'"]
+    end
+
+    subgraph StoragePipeline["Persistence & Audit Pipeline"]
+        CommitCheck{"DB Transaction\nCommit Successful?"}
+        DBStore[("MySQL: msg_message\n(Permanent Encrypted Audit Log)")]
+        NotificationBus["Real-Time Push Notification Badge"]
+    end
+
+    UserA -->|Emit 'send_message' + Token| SocketServer
+    SocketServer --> CommitCheck
+    CommitCheck -- Yes --> DBStore
+    DBStore --> DirectChannel
+    DBStore --> NotificationBus
+    DirectChannel -->|Sub-second WebSockets Stream| UserB
+    NotificationBus -->|Update Badge Count| UserB
+```
+
+---
+
+## 🔥 Comprehensive Core Enterprise Modules
+
+### Module 1: 🤖 Private AI Copilot & Natural Language Query Engine
+GlassEntials incorporates a state-of-the-art **air-gapped AI Copilot** designed to deliver instant operational intelligence without exposing proprietary corporate data to public APIs.
+- **Local Neural Processing**: Seamlessly bridges with locally hosted **Ollama** backends (`mistral`, `llama3`, `deepseek`, `qwen`). No third-party data transmission.
+- **Intelligent Query Classification**: Dissects natural language inputs into structured SQL queries for CRM data, vector lookups for indexed contracts/blueprints, or executive summaries.
+- **Role-Aware Context Building**: Injects multi-tenant parameters and role permissions so users can only extract insights they are explicitly authorized to view.
+- **Document Chunking & Vector Search**: Indexes specification sheets, CAD notes, and PDF contracts using `sentence-transformers` for instant clause retrieval.
+
+### Module 2: 🏢 Multi-Tenant SaaS Subscriptions & Quota Management
+Built from the ground up as a turnkey commercial enterprise SaaS platform.
+- **Rigorous Tenant Partitioning**: Every database record is tethered to a unique `organization_id`. System-level interceptors prevent cross-tenant data traversal.
+- **Subscription Lifecycle & Quotas**: Manage custom subscription plans featuring hard seat counts, quotation limits, storage volume caps, and feature toggles.
+- **Automated Billing via Razorpay**: Turnkey integration handling plan upgrades, payment verification, recurring renewals, and automated tax invoicing.
+- **Self-Serve Onboarding**: Automated organization initialization wizard configuring corporate metadata, user roles, initial branches, and custom quotation styling.
+
+### Module 3: 🎯 Omnichannel Lead Management & Deal Pipeline
+Maximize sales throughput with an advanced conversion pipeline engineered for architectural glass projects.
+- **Omnichannel Ingestion**: Automatically aggregate leads from digital advertising, showroom walk-ins, phone logs, and bulk CSV imports.
+- **Dynamic Sales Funnel**: Manage deal progression through customizable stages (*New*, *Contacted*, *Survey Scheduled*, *Quotation Sent*, *Negotiation*, *Won/Lost*).
+- **Intelligent Representative Balancing**: Assign leads based on staff capacity, regional focus, or deal size, complete with automated follow-up SLA reminders.
+- **Instant Search & Deep Filtering**: Search across client names, contact numbers, emails, and statuses in real time.
+
+### Module 4: 🤝 Client 360° Directory & Compliance Vault
+A comprehensive single-pane repository for managing enterprise client relationships.
+- **Unified Client Dossier**: Complete historical view encompassing quotations, active project sites, billing ledgers, and site visit logs.
+- **Statutory GSTIN Validation**: Algorithmic validation ensuring customer Tax Identification Numbers adhere to statutory standards.
+- **Compliance & Agreement Vault**: Securely archive site measurement sheets, architectural CAD drawings, tax exemptions, and completion sign-offs.
+- **High-Performance Data Portability**: Streamlined bulk ingestion engine with error validation, plus 1-click export to CSV, Excel, and PDF.
+
+### Module 5: 🏬 B2B Corporate Clients & Multi-City Branches
+Engineered specifically for complex corporate relationships with developers, contractors, and hotel chains.
+- **Parent-Child Corporate Trees**: Map corporate headquarters to regional branches, construction sites, and local franchises.
+- **Regional Coverage Mapping**: Assign dedicated points of contact and sales engineers to specific metropolitan zones.
+- **Stakeholder Registry**: Maintain an organizational directory of Project Directors, Site Engineers, and Billing Officers with direct communication links.
+
+### Module 6: 📜 Precision Quotation & Glass Fabrication Studio
+The signature capability of GlassEntials — a specialized calculation engine built for glass processing and installation.
+- **Architectural Glass Pricing Formulas**: Dynamic calculation handling area (sqft/sqm), glass thickness (4mm through 19mm), toughening, double-glazing (DGU), laminated security glass, frosted finishes, and edge polish.
+- **Dynamic Hardware Bundling**: Calculate custom fittings, spider brackets, patch fittings, floor springs, shower hinges, and architectural railings.
+- **Terms & Legal Library**: Pre-built, customizable repository of payment milestones, fabrication tolerances, delivery timelines, and breakage insurance clauses.
+- **Audit-Proof Revisions & Digital Signatures**: Manage version histories (`REV-01`, `REV-02`) with integrated cryptographic representative signatures and luxury PDF generation.
+
+### Module 7: 📦 Industrial Catalog & Dimensional Matrix
+Complete SKU and materials cataloging designed for glass and fabrication hardware.
+- **Multi-Level Categorization**: Organize products across Raw Float Sheets, Processed Glass, Hardware Fittings, Aluminum Profiles, and Consumables.
+- **Multi-Dimensional Units of Measurement (UoM)**: Full native support for Sq. Feet, Sq. Meters, Running Feet, Metric Tons, Boxes, and Individual Units.
+- **HSN / SAC Code Taxonomy**: Pre-configured HSN codes guaranteeing instant accuracy on all outbound tax invoices.
+
+### Module 8: 🏗️ Project Management & Site Engineering
+Connect commercial promises with physical shop-floor and on-site realities.
+- **Fabrication Milestones**: Track progress across *Site Survey*, *CAD Drafting*, *Glass Cutting*, *Toughening & Laminating*, *Dispatch*, and *On-Site Glazing*.
+- **Field Crew Delegation**: Assign site supervisors, glaziers, and safety managers with performance logs and accountability tracking.
+- **Budget vs. Actual Variance**: Continuous tracking comparing quoted estimates with real-world material consumption, labor hours, and sub-contractor costs.
+- **Engineering Vault**: Dedicated repository for structural wind-load certificates, CAD drawings, site images, and client snag list approvals.
+
+### Module 9: 💰 Financials, Payments, Invoicing & GST Engine
+End-to-end statutory Indian financial accounting and receivables management.
+- **GST Tax Invoices & Proformas**: Generate compliant tax invoices with automated split calculation for CGST, SGST, and IGST based on place of supply.
+- **Milestone Payment Tracking**: Track advance bookings, fabrication installments, delivery balances, and retention funds with sequential numbering (`PAY-XXXXX`).
+- **Payment Instrument Tracking**: Log NEFT, RTGS, IMPS, UPI, Cheques, and Cash with clearance tracking and bank transaction reference reconciliation.
+- **GSTR-1 & GSTR-3B Reporting**: Built-in tax engine generating comprehensive monthly and annual GST summaries ready for direct accountant export.
+
+### Module 10: 🏷️ Corporate Expense & Reimbursement Workflow
+Maintain strict control over site outlays, operational travel, and procurement expenses.
+- **Expense Categorization**: Site travel, tooling, client hospitality, logistical haulage, and machinery maintenance.
+- **Multi-Stage Approval Hierarchy**: Role-restricted approval pipelines (*Pending*, *Approved*, *Rejected*, *Reimbursed*).
+- **Digital Receipt Capture**: Built-in receipt viewer preventing unauthorized or unverified corporate expense claims.
+
+### Module 11: 🚚 Supply Chain & Vendor Hub
+Centralized procurement management for raw glass floats, interlayers, and hardware suppliers.
+- **Vendor Due Diligence**: Store vendor banking profiles, MSME certificates, GSTIN registrations, and verification statuses.
+- **Credit Terms & Schedules**: Enforce credit cycles (Net 15, Net 30, Net 60, Advance) to safeguard corporate liquidity.
+- **Procurement Activity Trail**: Log price quotations, purchase orders, and supplier delivery performance metrics.
+
+### Module 12: 📞 Android Mobile Telephony Sync Gateway
+Direct integration between executive cellular activity and CRM client timelines.
+- **Android Companion Sync Service**: Background service logging outgoing, incoming, and missed calls directly to the platform.
+- **Cryptographic Device Pairing**: Handshake authentication using SHA-256 hashed Bearer tokens with instant remote revocation.
+- **Intelligent Number Normalization**: Automatic formatting of Indian phone numbers (`+91`), instantly matching incoming calls to existing customer profiles.
+- **Automated Call Outcomes**: Tag call outcomes (*Connected*, *Site Visit Agreed*, *Busy*, *Call Back Later*) and trigger automated follow-up calendar tasks.
+
+### Module 13: 💬 Internal Workspace Chat & Real-Time Comms
+High-performance internal communication keeping sensitive company chatter within corporate boundaries.
+- **Instant WebSockets Grid**: Powered by `Flask-SocketIO` and `eventlet` for sub-second, bidirectional messaging.
+- **Channel Architecture**: 1-on-1 direct employee messaging, project coordination channels, and broadcast feeds.
+- **Media & Document Dispatch**: Securely exchange site measurements, CAD drawings, and quotation drafts inline.
+- **Strict Tenant Separation**: Cryptographically isolated rooms guarantee that messages never cross organization boundaries.
+
+### Module 14: 👑 Sovereign Super Admin Governance Control Plane
+Master command center (`/admin`) for platform operators and SaaS system administrators.
+- **Isolated Control Plane**: Completely decoupled from standard tenant routes with dedicated URL schemes and independent authentication guards.
+- **Two-Factor Cryptographic OTP**: 6-digit email-dispatched one-time password required on every admin session initialization.
+- **Fleet-Wide Telemetry**: Real-time dashboards monitoring total active tenants, MRR (Monthly Recurring Revenue), active subscriptions, and server load.
+- **Tenant Lifecycle Governance**: Provision new enterprise accounts, suspend delinquent organizations, adjust quotas, and inspect cross-tenant audit trails.
+
+### Module 15: 🗄️ Enterprise Trash Station & Universal Audit Logs
+Safeguard operational integrity with universal soft deletion and immutable audit trails.
+- **Universal Soft-Delete Engine**: Data is never deleted with raw `DELETE` SQL commands; records are tagged with an `is_deleted` flag.
+- **Central Recovery Station (`/workplace/trash`)**: Centralized trash manager allowing authorized managers to search, inspect, and 1-click restore records.
+- **Granular Audit Ledger**: Every update, status transition, creation, and soft deletion records the actor, IP address, timestamp, and field-level diff snapshot.
+
+---
+
+## 🛡️ Zero-Trust Security, Compliance & Data Isolation
+
+```mermaid
+flowchart LR
+    subgraph IngressProtection["Ingress & Edge Defense"]
+        TalismanCSP["Strict Content Security Policy\n(Flask-Talisman)"]
+        HSTS["HTTP Strict Transport Security\n(HSTS Preload Ready)"]
+        RedisLimiter["Redis Distributed Rate Limiter\n(Brute-Force Shield)"]
+        CSRF["Flask-WTF CSRF Token\n(Synchronizer Token Pattern)"]
+    end
+
+    subgraph AuthSecurity["Authentication & Identity Guard"]
+        Argon2["Argon2-cffi Password Hashing\n(OWASP Recommended)"]
+        OAuth["Google OAuth 2.0 &\nMicrosoft Azure AD SSO"]
+        SessionGuard["HttpOnly + SameSite=Lax\nSecure Session Cookies"]
+        SuperOTP["2-Factor Email OTP\n(Super Admin Portal)"]
+    end
+
+    subgraph TenantIsolation["Data & Tenant Boundary"]
+        TenantDecorator["@tenant_record_id Decorator\n(Strict Cross-Tenant Guard)"]
+        RBAC["Granular UserRole Matrix\n(Admin, Manager, Staff, Glazier)"]
+        AuditLogging["Immutable Audit Trail\n(Actor, IP, Timestamp, Diff)"]
+    end
+
+    IngressProtection --> AuthSecurity --> TenantIsolation
+```
+
+1. **Argon2-cffi Password Hashing**: Winner of the Password Hashing Competition; delivers high resistance to GPU/ASIC brute-force cracking.
+2. **Enterprise Single Sign-On (SSO)**: Built-in OAuth 2.0 connectors for Google Workspace and Microsoft Entra ID (Azure AD).
+3. **Session & CSRF Protection**: Every session is protected with `HttpOnly`, `SameSite=Lax`, secure cookie flags, and unique CSRF tokens.
+4. **Tenant Scoping Decorators**: Controllers utilize the `@tenant_record_id` and `@require_roles` decorators to verify that accessed resource IDs strictly belong to `current_user.organization_id`.
+5. **AWS Secrets Manager Integration**: Production deployments support runtime credential retrieval directly from AWS Secrets Manager, eliminating plain-text secrets in the filesystem.
+
+---
+
+## 📊 Enterprise Data Model & Entity Relationship (ERD)
+
+The GlassEntials relational core spans **over 100 domain models and enumerations**, structured around strict multi-tenant isolation.
+
+```mermaid
+erDiagram
+    ORGANIZATION ||--o{ USER : employs
+    ORGANIZATION ||--o{ EMPLOYEE : manages
+    ORGANIZATION ||--o{ LEAD : owns
+    ORGANIZATION ||--o{ CUSTOMER : services
+    ORGANIZATION ||--o{ PROJECT : executes
+    ORGANIZATION ||--o{ QUOTATION : issues
+    ORGANIZATION ||--o{ INVOICE : bills
+    ORGANIZATION ||--o{ PAYMENT : collects
+    ORGANIZATION ||--o{ VENDOR : contracts
+    ORGANIZATION ||--o{ PRODUCT : stocks
+    ORGANIZATION ||--o{ SAAS_SUBSCRIPTION : subscribes
+
+    USER ||--|| EMPLOYEE : profile
+    EMPLOYEE ||--o{ LEAD : assigned_to
+    EMPLOYEE ||--o{ PROJECT : supervises
+    EMPLOYEE ||--o{ TASK : assigned_to
+
+    LEAD ||--o{ LEAD_ACTIVITY : logs
+    LEAD ||--o{ LEAD_FOLLOWUP : schedules
+    LEAD ||--o{ QUOTATION : generates
+
+    CUSTOMER ||--o{ PROJECT : initiates
+    CUSTOMER ||--o{ INVOICE : billed
+    CUSTOMER ||--o{ CUSTOMER_DOCUMENT : stores
+
+    QUOTATION ||--o{ QUOTATION_ITEM : contains
+    QUOTATION ||--o{ QUOTATION_TERM_LINK : enforces
+    QUOTATION ||--o{ QUOTATION_ATTACHMENT : includes
+    QUOTATION ||--o{ INVOICE : converts_to
+
+    INVOICE ||--o{ INVOICE_ITEM : details
+    INVOICE ||--o{ PAYMENT : settles
+
+    PROJECT ||--o{ TASK : breaks_down
+    PROJECT ||--o{ EXPENSE : incurs
+
+    CALL_DEVICE ||--o{ CALL_LOG : synchronizes
+    EMPLOYEE ||--o{ CALL_DEVICE : pairs
+
+    CONVERSATION ||--o{ CONVERSATION_MEMBER : includes
+    CONVERSATION ||--o{ MESSAGE : contains
+```
+
+---
+
+## ⚙️ High-Throughput Technology Stack Specs
+
+| Architectural Layer | Core Technologies & Runtime Specs | Purpose & Enterprise Role |
+|---|---|---|
+| **Core Application Runtime** | **Python 3.13** & **Flask 3.0.3** | High-performance asynchronous WSGI server core |
+| **Real-Time WebSockets Engine** | **Flask-SocketIO 5.3.6** & **eventlet 0.33.3** | Bidirectional low-latency event delivery & live chat |
+| **Relational Database Tier** | **MySQL 8.0+** & **SQLAlchemy 2.0.31** | Acid-compliant enterprise multi-tenant data storage |
+| **Database Migrations** | **Alembic** & **Flask-Migrate 4.0.7** | Zero-downtime schema evolution and version tracking |
+| **Distributed Cache & Queuing** | **Redis 5.0.4** & **redis-py** | Socket.IO message broadcasting & distributed rate limiting |
+| **Cryptography & Security** | **argon2-cffi 23.1.0** & **Flask-Talisman 1.1.0** | OWASP-grade password hashing, CSP & HSTS security |
+| **Local AI & Semantic RAG** | **Ollama** (Mistral/LLaMA3), **sentence-transformers 3.3.1** | Air-gapped AI Copilot, vector search & document indexing |
+| **Financial & Export Processing**| **Pandas 2.2.2**, **openpyxl 3.1.2**, **fpdf2 2.7.9** | GSTR Excel generator & luxury quotation PDF engine |
+| **Payment Gateway Suite** | **Razorpay 1.4.1** SDK & Secure Webhooks | Automated multi-tier SaaS billing & transaction validation |
+| **Cloud Infrastructure Connect** | **Boto3 1.34.0** (AWS Secrets Manager & S3) | Production secret rotation & encrypted document storage |
+| **Custom UI Design System** | **Handcrafted Glassmorphic Vanilla CSS & ES6+** | Proprietary luxury dark theme UI (Zero bulky bloatware) |
+
+---
+
+## 📂 Codebase Organization & Topology
 
 ```
 CRM-GlassEntials/
@@ -499,28 +602,29 @@ CRM-GlassEntials/
 
 ---
 
-## 🗺️ Future Development Roadmap
+## 🗺️ Future Architectural Roadmap
 
-- [x] **Phase 1: Core CRM & Sales Engine** (Leads, Customers, Quotations, Products)
-- [x] **Phase 2: Architectural Fabrication Estimation** (Dynamic glass formulas & PDF engine)
-- [x] **Phase 3: Financials & Indian Compliance** (Invoices, Payments, GSTR-1 / GSTR-3B Excel)
-- [x] **Phase 4: Multi-Tenant SaaS Infrastructure** (Organizations, Razorpay, Quotas)
-- [x] **Phase 5: Telephony & Mobile Integration** (Android Call Logger REST API)
-- [x] **Phase 6: Real-Time Team Collaboration** (Socket.IO Internal Messaging)
-- [x] **Phase 7: AI Copilot RAG Suite** (Local Ollama LLM, Vector embeddings, CRM search)
+- [x] **Phase 1: Multi-Tenant Foundation & RBAC Isolation**
+- [x] **Phase 2: Architectural Glass Fabrication Estimation Studio**
+- [x] **Phase 3: Automated Indian GST Accounting & GSTR-1/3B Compliance Engine**
+- [x] **Phase 4: SaaS Subscription Engine & Razorpay Webhook Gateway**
+- [x] **Phase 5: Android Mobile Hardware Telephony Sync Gateway**
+- [x] **Phase 6: Real-Time Bidirectional WebSockets Messaging Grid**
+- [x] **Phase 7: Air-Gapped Local Vector AI Copilot (Ollama + RAG)**
 - [ ] **Phase 8: WhatsApp Cloud API Integration** (Automated quotation delivery and payment reminders)
 - [ ] **Phase 9: Barcode & QR Code Inventory Scanning** (Warehouse dispatch and site delivery verification)
 - [ ] **Phase 10: Native Flutter Mobile Application** (Unified iOS and Android executive suite)
 
 ---
 
-## 📄 License & Authorship
+## 📄 Governance, Copyright & Trademarks
 
-Developed and engineered with mathematical precision for **GlassEntials Enterprise Solutions**.
+This codebase, technical architecture, UI design system, and documentation are proprietary and confidential.
 
-- **Architect & Lead Developer**: Ratandeep
-- **Project**: GlassEntials Cloud CRM / ERP
-- **Intellectual Property**: © GlassEntials. All rights reserved.
+- **Platform**: GlassEntials Cloud ERP & CRM Suite
+- **Architect & Principal Engineer**: Ratandeep
+- **Copyright**: © GlassEntials Enterprise Solutions. All rights reserved.
+- **Usage Notice**: Unauthorized duplication, decompilation, distribution, or public hosting of this software without explicit commercial licensing is strictly prohibited.
 
 ---
 
