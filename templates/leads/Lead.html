@@ -438,9 +438,12 @@
 
                 rows.forEach(row => {
                     const rowText = row.textContent.toLowerCase();
-                    const rowSource = row.querySelector('.lead-source').textContent.trim().toLowerCase();
-                    const rowAssignee = row.querySelector('.customer-assignee').textContent.trim().toLowerCase();
-                    const rowStatus = row.querySelector('.raw-status').textContent.trim().toLowerCase();
+                    const sourceEl = row.querySelector('.lead-source, .lead-source-badge');
+                    const rowSource = sourceEl ? sourceEl.textContent.trim().toLowerCase() : '';
+                    const assigneeEl = row.querySelector('.customer-assignee');
+                    const rowAssignee = assigneeEl ? assigneeEl.textContent.trim().toLowerCase() : '';
+                    const statusEl = row.querySelector('.raw-status');
+                    const rowStatus = statusEl ? statusEl.textContent.trim().toLowerCase() : '';
 
                     const matchesSearch = rowText.includes(query);
                     const matchesSource = !source || rowSource === source;
