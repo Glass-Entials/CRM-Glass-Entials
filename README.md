@@ -24,36 +24,54 @@
 
 ## 📑 Master Table of Contents
 
-- [🏛️ Executive Architecture & System Topology](#️-executive-architecture--system-topology)
-- [🔄 Enterprise System Workflows & Flowcharts](#-enterprise-system-workflows--flowcharts)
-  - [1. Multi-Tenant SaaS Lifecycle & Billing Engine](#1-multi-tenant-saas-lifecycle--billing-engine)
-  - [2. End-to-End Sales, Fabrication & Project Lifecycle](#2-end-to-end-sales-fabrication--project-lifecycle)
-  - [3. Privacy-First AI Copilot RAG & Vector Engine](#3-privacy-first-ai-copilot-rag--vector-engine)
-  - [4. Android Hardware Telephony Sync & Call Disposition](#4-android-hardware-telephony-sync--call-disposition)
-  - [5. Financial Ledger, Invoicing & Indian GST Engine](#5-financial-ledger-invoicing--indian-gst-engine)
-  - [6. Real-Time Collaboration & WebSockets Topology](#6-real-time-collaboration--websockets-topology)
-- [🔥 Comprehensive Core Enterprise Modules](#-comprehensive-core-enterprise-modules)
-  - [Module 1: 🤖 Private AI Copilot & Natural Language Query Engine](#module-1--private-ai-copilot--natural-language-query-engine)
-  - [Module 2: 🏢 Multi-Tenant SaaS Subscriptions & Quota Management](#module-2--multi-tenant-saas-subscriptions--quota-management)
-  - [Module 3: 🎯 Omnichannel Lead Management & Deal Pipeline](#module-3--omnichannel-lead-management--deal-pipeline)
-  - [Module 4: 🤝 Client 360° Directory & Compliance Vault](#module-4--client-360-directory--compliance-vault)
-  - [Module 5: 🏬 B2B Corporate Clients & Multi-City Branches](#module-5--b2b-corporate-clients--multi-city-branches)
-  - [Module 6: 📜 Precision Quotation & Glass Fabrication Studio](#module-6--precision-quotation--glass-fabrication-studio)
-  - [Module 7: 📦 Industrial Catalog & Dimensional Matrix](#module-7--industrial-catalog--dimensional-matrix)
-  - [Module 8: 🏗️ Project Management & Site Engineering](#module-8--project-management--site-engineering)
-  - [Module 9: 💰 Financials, Payments, Invoicing & GST Engine](#module-9--financials-payments-invoicing--gst-engine)
-  - [Module 10: 🏷️ Corporate Expense & Reimbursement Workflow](#module-10--corporate-expense--reimbursement-workflow)
-  - [Module 11: 🚚 Supply Chain & Vendor Hub](#module-11--supply-chain--vendor-hub)
-  - [Module 12: 📞 Android Mobile Telephony Sync Gateway](#module-12--android-mobile-telephony-sync-gateway)
-  - [Module 13: 💬 Internal Workspace Chat & Real-Time Comms](#module-13--internal-workspace-chat--real-time-comms)
-  - [Module 14: 👑 Sovereign Super Admin Governance Control Plane](#module-14--sovereign-super-admin-governance-control-plane)
-  - [Module 15: 🗄️ Enterprise Trash Station & Universal Audit Logs](#module-15--enterprise-trash-station--universal-audit-logs)
-- [🛡️ Zero-Trust Security, Compliance & Data Isolation](#️-zero-trust-security-compliance--data-isolation)
-- [📊 Enterprise Data Model & Entity Relationship (ERD)](#-enterprise-data-model--entity-relationship-erd)
-- [⚙️ High-Throughput Technology Stack Specs](#️-high-throughput-technology-stack-specs)
-- [📂 Codebase Organization & Topology](#-codebase-organization--topology)
-- [🗺️ Future Architectural Roadmap](#️-future-architectural-roadmap)
-- [📄 Governance, Copyright & Trademarks](#-governance-copyright--trademarks)
+<div align="center">
+
+| 🏛️ Core Platform Architecture | 🔄 System Workflows & Sequences | 🛡️ Security, Data & Specs |
+| :--- | :--- | :--- |
+| • [**Executive Topology Matrix**](#️-executive-architecture--system-topology)<br>• [**Zero-Trust Security & RBAC**](#️-zero-trust-security-compliance--data-isolation)<br>• [**Entity-Relationship (ERD)**](#-enterprise-data-model--entity-relationship-erd)<br>• [**High-Throughput Tech Stack**](#️-high-throughput-technology-stack-specs)<br>• [**Codebase Topology Map**](#-codebase-organization--topology)<br>• [**Platform Roadmap**](#️-future-architectural-roadmap) | • [**1. Multi-Tenant SaaS Lifecycle**](#1-multi-tenant-saas-lifecycle--billing-engine)<br>• [**2. Sales & Glass Fabrication Pipeline**](#2-end-to-end-sales-fabrication--project-lifecycle)<br>• [**3. Private AI RAG Copilot Workflow**](#3-privacy-first-ai-copilot-rag--vector-engine)<br>• [**4. Android Telephony Hardware Sync**](#4-android-hardware-telephony-sync--call-disposition)<br>• [**5. Financial Invoicing & Indian GST**](#5-financial-ledger-invoicing--indian-gst-engine)<br>• [**6. Real-Time WebSockets Engine**](#6-real-time-collaboration--websockets-topology) | • [**Confidentiality & Governance**](#-governance-copyright--trademarks)<br>• [**OWASP Security Guard**](#️-zero-trust-security-compliance--data-isolation)<br>• [**Database Architecture**](#-enterprise-data-model--entity-relationship-erd)<br>• [**Telephony Protocol Specs**](#module-12--android-mobile-telephony-sync-gateway)<br>• [**Razorpay SaaS Billing**](#module-2--multi-tenant-saas-subscriptions--quota-management)<br>• [**Universal Trash Station**](#module-15--enterprise-trash-station--universal-audit-logs) |
+
+</div>
+
+<details open>
+<summary><b>🔥 Explore the 15 Core Enterprise Modules (Click to Expand / Collapse)</b></summary>
+<br>
+
+<table width="100%">
+  <thead>
+    <tr>
+      <th width="33%"><b>💼 Sales, Clients & B2B</b></th>
+      <th width="33%"><b>📐 Industrial Fabrication & Projects</b></th>
+      <th width="33%"><b>⚡ Enterprise Operations & AI</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td valign="top">
+        • <a href="#module-3--omnichannel-lead-management--deal-pipeline"><b>Module 03:</b> 🎯 Lead Pipeline & Deals</a><br>
+        • <a href="#module-4--client-360-directory--compliance-vault"><b>Module 04:</b> 🤝 Client 360° Directory</a><br>
+        • <a href="#module-5--b2b-corporate-clients--multi-city-branches"><b>Module 05:</b> 🏬 B2B Corporate Clients</a><br>
+        • <a href="#module-12--android-mobile-telephony-sync-gateway"><b>Module 12:</b> 📞 Android Telephony Sync</a>
+      </td>
+      <td valign="top">
+        • <a href="#module-6--precision-quotation--glass-fabrication-studio"><b>Module 06:</b> 📜 Quotation & Glass Studio</a><br>
+        • <a href="#module-7--industrial-catalog--dimensional-matrix"><b>Module 07:</b> 📦 Industrial Catalog & Matrix</a><br>
+        • <a href="#module-8--project-management--site-engineering"><b>Module 08:</b> 🏗️ Projects & Site Engineering</a><br>
+        • <a href="#module-11--supply-chain--vendor-hub"><b>Module 11:</b> 🚚 Supply Chain & Vendors</a>
+      </td>
+      <td valign="top">
+        • <a href="#module-1--private-ai-copilot--natural-language-query-engine"><b>Module 01:</b> 🤖 Private AI Copilot (RAG)</a><br>
+        • <a href="#module-2--multi-tenant-saas-subscriptions--quota-management"><b>Module 02:</b> 🏢 Multi-Tenant SaaS Engine</a><br>
+        • <a href="#module-9--financials-payments-invoicing--gst-engine"><b>Module 09:</b> 💰 Invoicing, Payments & GST</a><br>
+        • <a href="#module-10--corporate-expense--reimbursement-workflow"><b>Module 10:</b> 🏷️ Corporate Expenses</a><br>
+        • <a href="#module-13--internal-workspace-chat--real-time-comms"><b>Module 13:</b> 💬 Real-Time Workspace Chat</a><br>
+        • <a href="#module-14--sovereign-super-admin-governance-control-plane"><b>Module 14:</b> 👑 Super Admin Control Plane</a><br>
+        • <a href="#module-15--enterprise-trash-station--universal-audit-logs"><b>Module 15:</b> 🗄️ Universal Trash & Audit</a>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</details>
 
 ---
 
