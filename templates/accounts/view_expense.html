@@ -569,6 +569,86 @@
             transform: scale(1.08);
         }
 
+        /* ── Itinerary Table ── */
+        .itinerary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .itinerary-table th {
+            background: var(--primary-color);
+            color: #fff;
+            padding: 0.8rem 1rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-align: left;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .itinerary-table th:first-child { border-radius: 8px 0 0 8px; }
+        .itinerary-table th:last-child { border-radius: 0 8px 8px 0; }
+        .itinerary-table td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.06);
+            color: var(--primary-color);
+            vertical-align: middle;
+        }
+        .itinerary-table tr:hover td { background: rgba(212, 175, 55, 0.04); }
+        .mode-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            background: rgba(212, 175, 55, 0.12);
+            color: #92400e;
+            border: 1px solid rgba(212, 175, 55, 0.25);
+        }
+        .itinerary-total-row td {
+            background: rgba(13, 27, 42, 0.03);
+            font-weight: 800;
+            border-top: 2px solid rgba(13, 27, 42, 0.08);
+            border-bottom: none;
+        }
+
+        /* ── Multi-receipt tabs & gallery ── */
+        .receipt-tabs {
+            display: flex;
+            gap: 8px;
+            padding: 0.9rem 1.5rem;
+            background: #f8fafc;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.06);
+            overflow-x: auto;
+            align-items: center;
+        }
+        .receipt-tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            background: #fff;
+            border: 1px solid rgba(13, 27, 42, 0.12);
+            color: var(--primary-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .receipt-tab-btn:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+        .receipt-tab-btn.active {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 8px rgba(13, 27, 42, 0.15);
+        }
+
         /* ── Flash message slide ── */
         @keyframes slideInRight {
             from { transform: translateX(100%); opacity: 0; }
@@ -810,8 +890,73 @@
             <!-- ── RIGHT COLUMN: Description & Document Proof ── -->
             <div>
 
-                <!-- Description / Purpose Card -->
-                <div class="card">
+                {% if travel_itinerary %}
+                <!-- Travel Itinerary Breakdown Card -->
+                <div class="card" style="margin-bottom: 1.5rem;">
+                    <div class="card-header" style="background: linear-gradient(to right, rgba(212,175,55,0.06), #fff);">
+                        <div class="card-title">
+                            <div class="card-title-icon" style="background: rgba(212, 175, 55, 0.18);">🚌</div>
+                            Travel Itinerary & Fare Breakdown
+                        </div>
+                        <span style="font-size: 0.78rem; font-weight: 700; color: #92400e; background: rgba(212,175,55,0.15); padding: 4px 10px; border-radius: 20px;">
+                            {{ travel_itinerary|length }} Stop{{ 's' if travel_itinerary|length > 1 else '' }}
+                        </span>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div style="overflow-x: auto;">
+                            <table class="itinerary-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 45px; text-align: center;">#</th>
+                                        <th>Destination / Route</th>
+                                        <th>Conveyance Mode</th>
+                                        <th style="text-align: right; width: 140px;">Fare (₹)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in travel_itinerary %}
+                                    <tr>
+                                        <td style="text-align: center; font-weight: 700; color: var(--text-muted); font-size: 0.8rem;">
+                                            {{ loop.index }}
+                                        </td>
+                                        <td style="font-weight: 600;">
+                                            {{ row.destination or '—' }}
+                                        </td>
+                                        <td>
+                                            <span class="mode-badge">
+                                                {% set m = row.mode|lower if row.mode else '' %}
+                                                {% if 'bus' in m %}🚌
+                                                {% elif 'auto' in m or 'rickshaw' in m %}🛺
+                                                {% elif 'metro' in m %}🚇
+                                                {% elif 'cab' in m or 'taxi' in m %}🚕
+                                                {% elif 'train' in m %}🚆
+                                                {% elif 'flight' in m %}✈️
+                                                {% elif 'vehicle' in m or 'car' in m or 'bike' in m %}🚗
+                                                {% else %}📍{% endif %}
+                                                {{ row.mode or 'Other' }}
+                                            </span>
+                                        </td>
+                                        <td style="text-align: right; font-weight: 700; font-size: 0.95rem;">
+                                            ₹{{ "{:,.2f}".format(row.fare|float) if row.fare else '0.00' }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    <tr class="itinerary-total-row">
+                                        <td colspan="3" style="text-align: right; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.05em; color: var(--text-muted); padding-right: 1.2rem;">
+                                            Total Calculated Travel Fare:
+                                        </td>
+                                        <td style="text-align: right; color: var(--primary-color); font-size: 1.05rem;">
+                                            ₹{{ "{:,.2f}".format(expense.amount) }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <!-- Regular Description / Purpose Card -->
+                <div class="card" style="margin-bottom: 1.5rem;">
                     <div class="card-header">
                         <div class="card-title">
                             <div class="card-title-icon" style="background: rgba(139, 92, 246, 0.1);">📝</div>
@@ -828,6 +973,7 @@
                         {% endif %}
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Proof / Receipt Viewer Card -->
                 <div class="proof-card">
@@ -835,16 +981,21 @@
                         <div class="card-title">
                             <div class="card-title-icon" style="background: rgba(212, 175, 55, 0.12);">🧾</div>
                             Verification Receipt / Bill Proof
+                            {% if receipt_files|length > 0 %}
+                            <span style="font-size: 0.75rem; background: rgba(13,27,42,0.06); padding: 2px 8px; border-radius: 12px; font-weight: 700; color: var(--primary-color);">
+                                {{ receipt_files|length }} File{{ 's' if receipt_files|length > 1 else '' }}
+                            </span>
+                            {% endif %}
                         </div>
-                        {% if expense.receipt_path %}
-                        <div style="display: flex; gap: 8px;">
-                            <a href="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}"
+                        {% if receipt_files|length > 0 %}
+                        <div id="receipt-actions" style="display: flex; gap: 8px;">
+                            <a id="btn-download-receipt" href="{{ url_for('static', filename='uploads/receipts/' + receipt_files[0]) }}"
                                download
                                class="btn-sm-outline"
                                style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; padding: 0.45rem 0.9rem; font-size: 0.78rem;">
-                                ⬇ Download File
+                                ⬇ Download
                             </a>
-                            <a href="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}"
+                            <a id="btn-open-receipt" href="{{ url_for('static', filename='uploads/receipts/' + receipt_files[0]) }}"
                                target="_blank"
                                class="btn-sm-gold"
                                style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; padding: 0.45rem 0.9rem; font-size: 0.78rem;">
@@ -854,32 +1005,51 @@
                         {% endif %}
                     </div>
 
-                    <div class="proof-viewer-body">
-                        {% if expense.receipt_path %}
-                            {% set file_lower = expense.receipt_path.lower() %}
-                            {% if file_lower.endswith('.pdf') %}
-                                <iframe src="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}" class="pdf-frame" title="Receipt PDF"></iframe>
-                            {% elif file_lower.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')) %}
-                                <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%;">
-                                    <img src="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}"
-                                         class="proof-img"
-                                         alt="Expense Receipt Proof"
-                                         onclick="openLightbox(this.src)"
-                                         title="Click to zoom in fullscreen">
-                                    <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 500;">
-                                        🔍 Click image to view in high-resolution fullscreen
-                                    </span>
-                                </div>
-                            {% else %}
-                                <div class="empty-proof">
-                                    <div style="font-size: 3rem; margin-bottom: 0.75rem;">📎</div>
-                                    <p style="font-weight: 700; color: var(--primary-color); margin: 0 0 0.5rem;">Document Attached</p>
-                                    <p style="font-size: 0.85rem; margin: 0 0 1.25rem;">Preview is not supported for this file format in browser.</p>
-                                    <a href="{{ url_for('static', filename='uploads/receipts/' + expense.receipt_path) }}" download class="btn-sm-gold" style="text-decoration: none; padding: 0.6rem 1.4rem;">
-                                        ⬇ Download Attachment
-                                    </a>
-                                </div>
-                            {% endif %}
+                    {% if receipt_files|length > 1 %}
+                    <!-- File Tabs for multi-file receipts -->
+                    <div class="receipt-tabs">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-right: 4px;">Files:</span>
+                        {% for rf in receipt_files %}
+                        <button type="button" class="receipt-tab-btn {% if loop.first %}active{% endif %}"
+                                onclick="switchReceipt('{{ loop.index0 }}', '{{ rf }}')"
+                                id="tab-receipt-{{ loop.index0 }}">
+                            {% if rf.lower().endswith('.pdf') %}📄{% else %}🖼️{% endif %}
+                            Receipt #{{ loop.index }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="proof-viewer-body" id="proofViewerBody">
+                        {% if receipt_files|length > 0 %}
+                            {% for rf in receipt_files %}
+                            {% set file_lower = rf.lower() %}
+                            <div class="receipt-pane" id="receipt-pane-{{ loop.index0 }}" style="display: {% if loop.first %}flex{% else %}none{% endif %}; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center;">
+                                {% if file_lower.endswith('.pdf') %}
+                                    <iframe src="{{ url_for('static', filename='uploads/receipts/' + rf) }}" class="pdf-frame" title="Receipt PDF #{{ loop.index }}"></iframe>
+                                {% elif file_lower.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')) %}
+                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%;">
+                                        <img src="{{ url_for('static', filename='uploads/receipts/' + rf) }}"
+                                             class="proof-img"
+                                             alt="Expense Receipt Proof #{{ loop.index }}"
+                                             onclick="openLightbox(this.src)"
+                                             title="Click to zoom in fullscreen">
+                                        <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 500;">
+                                            🔍 Click image to view in high-resolution fullscreen (Receipt #{{ loop.index }})
+                                        </span>
+                                    </div>
+                                {% else %}
+                                    <div class="empty-proof">
+                                        <div style="font-size: 3rem; margin-bottom: 0.75rem;">📎</div>
+                                        <p style="font-weight: 700; color: var(--primary-color); margin: 0 0 0.5rem;">Document Attached</p>
+                                        <p style="font-size: 0.85rem; margin: 0 0 1.25rem;">Preview is not supported for this file format in browser.</p>
+                                        <a href="{{ url_for('static', filename='uploads/receipts/' + rf) }}" download class="btn-sm-gold" style="text-decoration: none; padding: 0.6rem 1.4rem;">
+                                            ⬇ Download Attachment
+                                        </a>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
                         {% else %}
                             <div class="empty-proof">
                                 <div style="font-size: 3.5rem; opacity: 0.2; margin-bottom: 0.75rem;">📁</div>
@@ -890,7 +1060,7 @@
                     </div>
                 </div>
 
-            </div>
+            </div>            </div>
 
         </div>
 
@@ -949,6 +1119,23 @@
         function closeLightbox() {
             document.getElementById('lightboxModal').style.display = 'none';
             document.getElementById('lightboxImg').src = '';
+        }
+
+        // ── Switch Receipt for Multi-file viewer ──
+        const BASE_RECEIPT_URL = "{{ url_for('static', filename='uploads/receipts/') }}";
+        function switchReceipt(idx, filename) {
+            document.querySelectorAll('.receipt-pane').forEach(p => p.style.display = 'none');
+            const target = document.getElementById('receipt-pane-' + idx);
+            if (target) target.style.display = 'flex';
+
+            document.querySelectorAll('.receipt-tab-btn').forEach(btn => btn.classList.remove('active'));
+            const tabBtn = document.getElementById('tab-receipt-' + idx);
+            if (tabBtn) tabBtn.classList.add('active');
+
+            const dlBtn = document.getElementById('btn-download-receipt');
+            const openBtn = document.getElementById('btn-open-receipt');
+            if (dlBtn) dlBtn.href = BASE_RECEIPT_URL + filename;
+            if (openBtn) openBtn.href = BASE_RECEIPT_URL + filename;
         }
 
         // ── Auto Dismiss Flashes ──

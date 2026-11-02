@@ -4,54 +4,507 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Expense | GlassEntials</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3\">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3\">
     <style>
-        .edit-container { max-width: 600px; margin: 4rem auto; padding: 2.5rem; background: #fff; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.05); border: 1px solid rgba(212,175,55,0.1); }
+        /* ─── Form Panel ─────────────────────────────────────────── */
+        .form-panel {
+            border-top: 4px solid var(--accent-gold);
+            max-width: 860px; margin: 0 auto;
+            padding: 2.5rem; background: #fff;
+            box-shadow: 0 10px 40px rgba(13,27,42,0.08);
+            border-radius: 16px; border: 1px solid rgba(212,175,55,0.1);
+        }
         .form-group { margin-bottom: 1.5rem; }
-        .form-label { display: block; font-weight: 700; margin-bottom: 0.5rem; color: var(--primary-color); font-size: 0.9rem; }
-        .form-control { width: 100%; padding: 0.8rem 1rem; border-radius: 8px; border: 1px solid rgba(13,27,42,0.1); font-size: 1rem; outline: none; transition: border-color 0.3s; }
-        .form-control:focus { border-color: var(--accent-gold); }
-        .btn-save { background: var(--accent-gold); color: white; padding: 0.8rem 2rem; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; width: 100%; margin-top: 1rem; }
+        .form-group label {
+            display: block; font-weight: 600; margin-bottom: 0.6rem;
+            color: var(--primary-color); font-size: 0.95rem;
+        }
+        .form-input {
+            width: 100%; padding: 1rem; border-radius: 8px;
+            border: 1px solid rgba(13,27,42,0.12); font-size: 1rem;
+            color: var(--text-color); transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+        .form-input:focus {
+            border-color: var(--accent-gold); outline: none;
+            box-shadow: 0 0 0 4px rgba(212,175,55,0.1);
+        }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+        /* ─── Travel Table ───────────────────────────────────────── */
+        #travel-section {
+            background: rgba(13,27,42,0.02);
+            border: 1px solid rgba(212,175,55,0.2);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .travel-section-header {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 1.2rem;
+        }
+        .travel-section-header h4 {
+            margin: 0; font-size: 1rem; font-weight: 700;
+            color: var(--primary-color); font-family: var(--font-heading);
+        }
+        .travel-section-header span.badge {
+            background: rgba(212,175,55,0.12); color: #92400e;
+            font-size: 0.75rem; font-weight: 700;
+            padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px;
+        }
+        .travel-table-wrap { overflow-x: auto; }
+        #travel-table {
+            width: 100%; border-collapse: collapse; font-size: 0.9rem;
+        }
+        #travel-table thead tr { background: var(--primary-color); color: #fff; }
+        #travel-table thead th {
+            padding: 0.75rem 1rem; text-align: left;
+            font-weight: 600; font-size: 0.8rem; letter-spacing: 0.5px; white-space: nowrap;
+        }
+        #travel-table thead th:first-child { border-radius: 8px 0 0 8px; }
+        #travel-table thead th:last-child  { border-radius: 0 8px 8px 0; }
+        #travel-table tbody tr {
+            border-bottom: 1px solid rgba(13,27,42,0.06); transition: background 0.2s;
+        }
+        #travel-table tbody tr:hover { background: rgba(212,175,55,0.04); }
+        #travel-table tbody td { padding: 0.6rem 0.5rem; vertical-align: middle; }
+        #travel-table tbody td:last-child { text-align: center; width: 44px; }
+        .travel-cell-input {
+            width: 100%; padding: 0.6rem 0.8rem; border-radius: 6px;
+            border: 1px solid rgba(13,27,42,0.1); font-size: 0.9rem;
+            color: var(--text-color); background: #fff;
+            transition: border-color 0.2s; box-sizing: border-box;
+        }
+        .travel-cell-input:focus { border-color: var(--accent-gold); outline: none; }
+        .travel-mode-select { min-width: 130px; }
+        .row-delete-btn {
+            background: none; border: none; cursor: pointer;
+            color: #dc2626; font-size: 1.2rem; padding: 4px 8px;
+            border-radius: 6px; transition: background 0.2s; line-height: 1;
+        }
+        .row-delete-btn:hover { background: rgba(220,38,38,0.08); }
+        .add-stop-btn {
+            margin-top: 1rem; background: rgba(212,175,55,0.08);
+            border: 1px dashed rgba(212,175,55,0.5); color: #92400e;
+            font-weight: 700; font-size: 0.85rem;
+            padding: 0.55rem 1.3rem; border-radius: 8px; cursor: pointer; transition: all 0.25s;
+        }
+        .add-stop-btn:hover { background: rgba(212,175,55,0.18); border-style: solid; }
+        .travel-total-bar {
+            margin-top: 1rem; display: flex; justify-content: flex-end;
+            align-items: center; gap: 12px;
+        }
+        .travel-total-bar span { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+        .travel-total-val { font-size: 1.1rem; font-weight: 800; color: var(--primary-color); }
+
+        /* ─── Multi-file Drop Zone ───────────────────────────────── */
+        .drop-zone {
+            border: 2px dashed rgba(13,27,42,0.15); border-radius: 14px;
+            padding: 2rem 1.5rem; text-align: center;
+            background: rgba(13,27,42,0.02); transition: all 0.3s ease;
+            cursor: pointer; position: relative;
+        }
+        .drop-zone.drag-over {
+            border-color: var(--accent-gold); background: rgba(212,175,55,0.06);
+        }
+        .drop-zone input[type="file"] {
+            position: absolute; inset: 0; opacity: 0;
+            cursor: pointer; width: 100%; height: 100%;
+        }
+        .drop-zone-icon { font-size: 2.5rem; margin-bottom: 0.5rem; display: block; }
+        .drop-zone-text { font-size: 0.9rem; font-weight: 600; color: var(--text-muted); }
+        .drop-zone-sub  { font-size: 0.78rem; color: #9ca3af; margin-top: 4px; }
+
+        /* Existing files grid */
+        .existing-files-grid, .file-preview-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px; margin-top: 1rem;
+        }
+        .file-thumb {
+            position: relative; border-radius: 10px; overflow: hidden;
+            border: 1px solid rgba(13,27,42,0.1);
+            background: #f8fafc; aspect-ratio: 1;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; font-size: 0.7rem; font-weight: 600;
+            color: var(--text-muted); text-align: center; padding: 6px;
+        }
+        .file-thumb img {
+            width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0;
+        }
+        .file-thumb .thumb-remove {
+            position: absolute; top: 4px; right: 4px;
+            background: rgba(220,38,38,0.85); color: #fff; border: none;
+            border-radius: 50%; width: 20px; height: 20px; font-size: 0.65rem;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10;
+        }
+        .file-thumb .thumb-name {
+            font-size: 0.65rem; margin-top: 4px; word-break: break-all;
+            line-height: 1.2; color: var(--text-muted);
+        }
+        .pdf-thumb-icon { font-size: 2rem; margin-bottom: 4px; }
+        .existing-label {
+            font-size: 0.8rem; font-weight: 700; color: var(--text-muted);
+            letter-spacing: 0.5px; margin-bottom: 6px; margin-top: 1rem;
+        }
+
+        /* Edit status badge */
+        .edit-status-bar {
+            background: rgba(212,175,55,0.07); border: 1px solid rgba(212,175,55,0.2);
+            border-radius: 10px; padding: 0.8rem 1.2rem; margin-bottom: 2rem;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .edit-status-bar .status-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--accent-gold); flex-shrink: 0;
+        }
+        .edit-status-bar p { margin: 0; font-size: 0.85rem; color: #92400e; font-weight: 600; }
     </style>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
 </head>
-<body style="background: #f8fafc;">
-    <div class="edit-container">
-        <h2 style="font-family: 'Playfair Display', serif; color: var(--primary-color); margin-bottom: 1.5rem;">Edit Expense Submission</h2>
-        <form method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            <div class="form-group">
-                <label class="form-label">Expense Title</label>
-                <input type="text" name="title" class="form-control" value="{{ expense.title }}" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Amount (₹)</label>
-                <input type="number" step="0.01" name="amount" class="form-control" value="{{ expense.amount }}" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Category</label>
-                <select name="category" class="form-control">
-                    {% for cat in categories %}
-                    <option value="{{ cat }}" {% if expense.category_display == cat %}selected{% endif %}>{{ cat }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Associated Project</label>
-                <select name="project_id" class="form-control">
-                    <option value="none">General / No Project</option>
-                    {% for proj in projects %}
-                    <option value="{{ proj.id }}" {% if expense.project_id == proj.id %}selected{% endif %}>{{ proj.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Description</label>
-                <textarea name="description" class="form-control" rows="3">{{ expense.description }}</textarea>
-            </div>
-            <button type="submit" class="btn-save">Save Changes</button>
-            <a href="{{ url_for('expenses.expenses_list') }}" style="display: block; text-align: center; margin-top: 1rem; color: var(--text-muted); text-decoration: none; font-weight: 600;">Cancel</a>
-        </form>
-    </div>
+<body class="dashboard-page">
+
+    {% include 'includes/navbar.html' %}
+
+    <main class="dash-container" style="padding: 4rem 5% 6rem 5%;">
+
+        <!-- Header -->
+        <div style="max-width: 860px; margin: 0 auto 2.5rem auto; display: flex; align-items: center; gap: 10px;">
+            <a href="{{ url_for('expenses.expenses_list') }}" style="text-decoration: none; font-size: 1.5rem; color: var(--primary-color);">←</a>
+            <h1 style="color: var(--primary-color); font-family: var(--font-heading); font-size: 2rem; margin: 0;">Edit Expense</h1>
+        </div>
+
+        {% with messages = get_flashed_messages(category_filter=["expenseerror"]) %}
+        {% if messages %}{% for message in messages %}
+        <div style="background:#fef2f2; color:#dc2626; border:1px solid #f87171; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; max-width: 860px; margin-left: auto; margin-right: auto;">{{ message }}</div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        <!-- Status notice -->
+        <div class="edit-status-bar" style="max-width: 860px; margin: 0 auto 2rem auto;">
+            <div class="status-dot"></div>
+            <p>You are editing: <strong>{{ expense.title }}</strong> — Current Status: <strong>{{ expense.status.value if expense.status else 'Pending' }}</strong></p>
+        </div>
+
+        <div class="form-panel">
+            <form action="{{ url_for('expenses.edit_expense', expense_id=expense.id) }}" method="POST" enctype="multipart/form-data" id="edit-expense-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <!-- Hidden travel JSON -->
+                <input type="hidden" name="travel_data" id="travel_data_input">
+
+                <!-- Title -->
+                <div class="form-group">
+                    <label>Title / Purpose <span style="color:#ef4444;">*</span></label>
+                    <input type="text" name="title" class="form-input" value="{{ expense.title }}" required>
+                </div>
+
+                <!-- Amount + Category -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Amount (₹) <span style="color:#ef4444;">*</span></label>
+                        <input type="number" step="0.01" name="amount" id="amount_field"
+                               class="form-input" value="{{ expense.amount }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select name="category" id="category_select" class="form-input"
+                                onchange="handleCategoryChange(this.value)">
+                            {% for cat in categories %}
+                            <option value="{{ cat }}" {% if expense.category_display == cat %}selected{% endif %}>{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Date + Project -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" name="date" class="form-input"
+                               value="{{ expense.date.strftime('%Y-%m-%d') if expense.date else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Related Project (Optional)</label>
+                        <select name="project_id" class="form-input">
+                            <option value="none">-- General Expense --</option>
+                            {% for proj in projects %}
+                            <option value="{{ proj.id }}" {% if expense.project_id == proj.id %}selected{% endif %}>{{ proj.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- ── Description (Non-travel) ── -->
+                <div class="form-group" id="description-section">
+                    <label>Description / Notes</label>
+                    <textarea name="description" id="description_field" class="form-input"
+                              style="height: 100px; padding: 0.75rem;"
+                              placeholder="Add detail about why this expense was made...">{% if expense.category_display != 'Travel' %}{{ expense.description or '' }}{% endif %}</textarea>
+                </div>
+
+                <!-- ── Travel Table ── -->
+                <div id="travel-section" style="display:none;">
+                    <div class="travel-section-header">
+                        <span>🚌</span>
+                        <h4>Travel Itinerary</h4>
+                        <span class="badge">TRAVEL CATEGORY</span>
+                    </div>
+                    <div class="travel-table-wrap">
+                        <table id="travel-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Destination / Route</th>
+                                    <th>Fare (₹)</th>
+                                    <th>Conveyance Mode</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="travel-tbody"></tbody>
+                        </table>
+                    </div>
+                    <button type="button" class="add-stop-btn" onclick="addTravelRow()">+ Add Stop / Leg</button>
+                    <div class="travel-total-bar">
+                        <span>Calculated Total:</span>
+                        <span class="travel-total-val" id="travel-total">₹0.00</span>
+                    </div>
+                </div>
+
+                <!-- ── Receipt Upload ── -->
+                <div class="form-group">
+                    <label>
+                        Add New Proof Files
+                        <span style="font-size: 0.8rem; font-weight: 400; color: var(--text-muted);">
+                            PDF, JPG, PNG — will be appended to existing
+                        </span>
+                    </label>
+
+                    <!-- Show existing receipts -->
+                    {% if expense.receipt_path %}
+                    {% set existing_files = expense.receipt_path.split(',') %}
+                    <div class="existing-label">📎 EXISTING RECEIPTS ({{ existing_files|length }})</div>
+                    <div class="existing-files-grid">
+                        {% for rf in existing_files %}
+                        {% set rf = rf.strip() %}
+                        {% if rf %}
+                        <div class="file-thumb">
+                            {% if rf.endswith('.pdf') %}
+                            <div class="pdf-thumb-icon">📄</div>
+                            <div class="thumb-name">{{ rf[-20:] }}</div>
+                            {% else %}
+                            <img src="{{ url_for('static', filename='uploads/receipts/' + rf) }}" alt="Receipt">
+                            {% endif %}
+                            <a href="{{ url_for('static', filename='uploads/receipts/' + rf) }}"
+                               target="_blank" style="position:absolute;inset:0;z-index:5;" title="View"></a>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Drop zone for new files -->
+                    <div class="drop-zone" id="drop-zone"
+                         ondragover="handleDragOver(event)"
+                         ondragleave="handleDragLeave(event)"
+                         ondrop="handleDrop(event)"
+                         style="margin-top:1rem;">
+                        <input type="file" name="receipts" id="receipts_input"
+                               accept="image/*,application/pdf" multiple
+                               onchange="handleFileSelect(this.files)">
+                        <span class="drop-zone-icon">📁</span>
+                        <div class="drop-zone-text">Drag & drop new files or click to browse</div>
+                        <div class="drop-zone-sub">Supports JPG, PNG, GIF, PDF • Multiple files OK</div>
+                    </div>
+                    <div class="file-preview-grid" id="file-preview-grid"></div>
+                    <div id="file-count-badge" style="display:none; margin-top:8px; font-size:0.85rem; font-weight:600; color:#16a34a;">
+                        ✅ <span id="file-count-text"></span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 1rem; margin-top: 3rem; justify-content: flex-end;">
+                    <a href="{{ url_for('expenses.expenses_list') }}" class="btn-action outline"
+                       style="padding: 0.9rem 2rem; background: #fff; color: var(--primary-color); border: 1px solid rgba(13,27,42,0.15);">Cancel</a>
+                    <button type="submit" class="btn-action dark"
+                            style="padding: 0.9rem 2rem; background: var(--primary-color); color: #fff;"
+                            onclick="prepareSubmit()">Save Changes</button>
+                </div>
+
+            </form>
+        </div>
+
+    </main>
+
+    <script>
+        // ─── FILE MANAGEMENT ─────────────────────────────────────────────────────
+        let selectedFiles = [];
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            document.getElementById('drop-zone').classList.add('drag-over');
+        }
+        function handleDragLeave(e) {
+            document.getElementById('drop-zone').classList.remove('drag-over');
+        }
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById('drop-zone').classList.remove('drag-over');
+            handleFileSelect(e.dataTransfer.files);
+        }
+        function handleFileSelect(newFiles) {
+            Array.from(newFiles).forEach(f => {
+                const dup = selectedFiles.find(x => x.name === f.name && x.size === f.size);
+                if (!dup) selectedFiles.push(f);
+            });
+            syncFileInput();
+            renderThumbs();
+        }
+        function removeFile(idx) {
+            selectedFiles.splice(idx, 1);
+            syncFileInput();
+            renderThumbs();
+        }
+        function syncFileInput() {
+            const dt = new DataTransfer();
+            selectedFiles.forEach(f => dt.items.add(f));
+            document.getElementById('receipts_input').files = dt.files;
+        }
+        function renderThumbs() {
+            const grid = document.getElementById('file-preview-grid');
+            const badge = document.getElementById('file-count-badge');
+            const countText = document.getElementById('file-count-text');
+            grid.innerHTML = '';
+            if (selectedFiles.length === 0) { badge.style.display = 'none'; return; }
+            selectedFiles.forEach((f, i) => {
+                const thumb = document.createElement('div');
+                thumb.className = 'file-thumb';
+                const isPdf = f.type === 'application/pdf';
+                if (isPdf) {
+                    thumb.innerHTML = `<div class="pdf-thumb-icon">📄</div><div class="thumb-name">${f.name}</div><button type="button" class="thumb-remove" onclick="removeFile(${i})">✕</button>`;
+                } else {
+                    const url = URL.createObjectURL(f);
+                    thumb.innerHTML = `<img src="${url}" alt="${f.name}"><button type="button" class="thumb-remove" onclick="removeFile(${i})">✕</button>`;
+                }
+                grid.appendChild(thumb);
+            });
+            badge.style.display = 'block';
+            countText.textContent = `${selectedFiles.length} new file${selectedFiles.length > 1 ? 's' : ''} ready to upload`;
+        }
+
+        // ─── CATEGORY TOGGLE ─────────────────────────────────────────────────────
+        function handleCategoryChange(val) {
+            const isTravel = val === 'Travel';
+            document.getElementById('description-section').style.display = isTravel ? 'none' : '';
+            document.getElementById('travel-section').style.display    = isTravel ? ''     : 'none';
+            if (isTravel && document.querySelectorAll('#travel-tbody tr').length === 0) {
+                addTravelRow();
+            }
+        }
+
+        // ─── TRAVEL TABLE ─────────────────────────────────────────────────────────
+        const MODES = [
+            'Bus', 'Local Auto', 'Metro', 'Cab / Taxi',
+            'Train', 'Flight', 'Own Vehicle', 'E-Rickshaw', 'Other'
+        ];
+        let rowCounter = 0;
+
+        function addTravelRow(destination='', fare='', mode='Bus') {
+            rowCounter++;
+            const tbody = document.getElementById('travel-tbody');
+            const tr = document.createElement('tr');
+            tr.dataset.rowId = rowCounter;
+            const modeOptions = MODES.map(m =>
+                `<option value="${m}" ${m === mode ? 'selected' : ''}>${m}</option>`
+            ).join('');
+            tr.innerHTML = `
+                <td style="font-weight:700;color:var(--text-muted);font-size:0.8rem;padding-left:1rem;">
+                    ${tbody.rows.length + 1}
+                </td>
+                <td>
+                    <input type="text" class="travel-cell-input destination-input"
+                           placeholder="e.g. Office → Client Site" value="${destination}"
+                           oninput="updateRowNumbers()">
+                </td>
+                <td>
+                    <input type="number" class="travel-cell-input fare-input"
+                           placeholder="0.00" min="0" step="0.01" value="${fare}"
+                           oninput="updateTotal()">
+                </td>
+                <td>
+                    <select class="travel-cell-input travel-mode-select">${modeOptions}</select>
+                </td>
+                <td>
+                    <button type="button" class="row-delete-btn" onclick="deleteRow(this)" title="Remove">🗑</button>
+                </td>`;
+            tbody.appendChild(tr);
+            updateTotal();
+        }
+
+        function deleteRow(btn) {
+            btn.closest('tr').remove();
+            updateRowNumbers();
+            updateTotal();
+        }
+        function updateRowNumbers() {
+            document.querySelectorAll('#travel-tbody tr').forEach((tr, i) => {
+                tr.cells[0].textContent = i + 1;
+            });
+        }
+        function updateTotal() {
+            let total = 0;
+            document.querySelectorAll('#travel-tbody .fare-input').forEach(inp => {
+                total += parseFloat(inp.value) || 0;
+            });
+            document.getElementById('travel-total').textContent = '₹' + total.toFixed(2);
+            if (document.getElementById('category_select').value === 'Travel') {
+                document.getElementById('amount_field').value = total.toFixed(2);
+            }
+        }
+        function serializeTravelRows() {
+            const rows = [];
+            document.querySelectorAll('#travel-tbody tr').forEach(tr => {
+                const dest = tr.querySelector('.destination-input').value.trim();
+                const fare = parseFloat(tr.querySelector('.fare-input').value) || 0;
+                const mode = tr.querySelector('.travel-mode-select').value;
+                rows.push({ destination: dest, fare: fare, mode: mode });
+            });
+            return rows;
+        }
+
+        // ─── FORM SUBMIT ──────────────────────────────────────────────────────────
+        function prepareSubmit() {
+            const cat = document.getElementById('category_select').value;
+            if (cat === 'Travel') {
+                const rows = serializeTravelRows();
+                document.getElementById('travel_data_input').value = JSON.stringify(rows);
+                document.getElementById('description_field').disabled = true;
+            }
+        }
+
+        // ─── INIT: Pre-populate travel rows if editing a Travel expense ──────────
+        (function init() {
+            const cat = document.getElementById('category_select').value;
+            handleCategoryChange(cat);
+            if (cat === 'Travel') {
+                // Try to parse existing description as travel JSON
+                const existingDesc = {{ (expense.description or 'null') | tojson }};
+                if (existingDesc) {
+                    try {
+                        const rows = JSON.parse(existingDesc);
+                        if (Array.isArray(rows) && rows.length > 0) {
+                            rows.forEach(r => addTravelRow(r.destination || '', r.fare || '', r.mode || 'Bus'));
+                        } else {
+                            addTravelRow();
+                        }
+                    } catch(e) {
+                        addTravelRow();
+                    }
+                } else {
+                    addTravelRow();
+                }
+            }
+        })();
+    </script>
+
 </body>
 </html>

@@ -1,3 +1,7 @@
+import os
+import uuid
+import json
+
 from flask import (
     Blueprint,
     render_template,
@@ -18,9 +22,7 @@ from model import (
     UserRole,
 )
 from datetime import datetime
-import os
 from werkzeug.utils import secure_filename
-import uuid
 from utils.security import tenant_record_id
 
 expenses_bp = Blueprint("expenses", __name__, url_prefix="/expenses")
@@ -29,6 +31,22 @@ expenses_bp = Blueprint("expenses", __name__, url_prefix="/expenses")
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "pdf"}
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def save_uploaded_files(file_list):
+    """Save a list of FileStorage objects; return comma-separated filenames string."""
+    upload_dir = os.path.join(
+        current_app.root_path, "static", "uploads", "receipts"
+    )
+    os.makedirs(upload_dir, exist_ok=True)
+    saved = []
+    for file in file_list:
+        if file and file.filename != "" and allowed_file(file.filename):
+            ext = file.filename.rsplit(".", 1)[1].lower()
+            unique_name = f"{uuid.uuid4().hex}.{ext}"
+            file.save(os.path.join(upload_dir, unique_name))
+            saved.append(unique_name)
+    return ",".join(saved) if saved else None
 
 
 @expenses_bp.route("/")
@@ -83,7 +101,6 @@ def add_expense():
         amount = request.form.get("amount")
         category_val = request.form.get("category")
         project_id = request.form.get("project_id")
-        description = request.form.get("description")
 
         # Date parsing
         date_str = request.form.get("date")
@@ -95,20 +112,23 @@ def add_expense():
             flash("Title and amount are required.", "expenseerror")
             return redirect(url_for("expenses.add_expense"))
 
-        # File Handling
+        # ── Handle description vs travel data ────────────────────────────────────
+        travel_data_raw = request.form.get("travel_data", "").strip()
+        if category_val == "Travel" and travel_data_raw:
+            # Validate it's proper JSON before storing
+            try:
+                parsed = json.loads(travel_data_raw)
+                description = json.dumps(parsed)   # Store clean JSON in description
+            except (json.JSONDecodeError, ValueError):
+                description = travel_data_raw
+        else:
+            description = request.form.get("description", "")
+
+        # ── Handle multiple file uploads ─────────────────────────────────────────
         receipt_filename = None
-        if "receipt" in request.files:
-            file = request.files["receipt"]
-            if file and file.filename != "" and allowed_file(file.filename):
-                ext = file.filename.rsplit(".", 1)[1].lower()
-                unique_name = f"{uuid.uuid4().hex}.{ext}"
-                upload_dir = os.path.join(
-                    current_app.root_path, "static", "uploads", "receipts"
-                )
-                if not os.path.exists(upload_dir):
-                    os.makedirs(upload_dir)
-                file.save(os.path.join(upload_dir, unique_name))
-                receipt_filename = unique_name
+        if "receipts" in request.files:
+            files = request.files.getlist("receipts")
+            receipt_filename = save_uploaded_files(files)
 
         category_map = {e.value: e for e in ExpenseCategory}
 
@@ -198,9 +218,22 @@ def view_expense(expense_id):
         flash("Unauthorized access.", "profileerror")
         return redirect(url_for("expenses.expenses_list"))
 
+    travel_itinerary = None
+    if expense.category_display == "Travel" and expense.description:
+        try:
+            parsed = json.loads(expense.description)
+            if isinstance(parsed, list):
+                travel_itinerary = parsed
+        except Exception:
+            travel_itinerary = None
+
+    receipt_files = [f.strip() for f in expense.receipt_path.split(",")] if expense.receipt_path else []
+
     return render_template(
         "accounts/view_expense.html",
         expense=expense,
+        travel_itinerary=travel_itinerary,
+        receipt_files=receipt_files,
         ExpenseStatus=ExpenseStatus,
         UserRole=UserRole,
     )
@@ -221,8 +254,41 @@ def edit_expense(expense_id):
     if request.method == "POST":
         expense.title = request.form.get("title")
         expense.amount = float(request.form.get("amount"))
-        expense.description = request.form.get("description")
-        # Update project if selected
+
+        category_val = request.form.get("category")
+        category_map = {e.value: e for e in ExpenseCategory}
+        expense.category = category_map.get(category_val, expense.category)
+
+        # Date
+        date_str = request.form.get("date")
+        if date_str:
+            try:
+                expense.date = datetime.strptime(date_str, "%Y-%m-%d")
+            except ValueError:
+                pass
+
+        # ── Description vs travel data ───────────────────────────────────────────
+        travel_data_raw = request.form.get("travel_data", "").strip()
+        if category_val == "Travel" and travel_data_raw:
+            try:
+                parsed = json.loads(travel_data_raw)
+                expense.description = json.dumps(parsed)
+            except (json.JSONDecodeError, ValueError):
+                expense.description = travel_data_raw
+        else:
+            expense.description = request.form.get("description", "")
+
+        # ── Handle new uploaded files (append to existing) ───────────────────────
+        if "receipts" in request.files:
+            files = request.files.getlist("receipts")
+            new_filenames = save_uploaded_files(files)
+            if new_filenames:
+                if expense.receipt_path:
+                    expense.receipt_path = expense.receipt_path + "," + new_filenames
+                else:
+                    expense.receipt_path = new_filenames
+
+        # Update project
         proj_id = request.form.get("project_id")
         expense.project_id = tenant_record_id(
             Project, proj_id, current_user.organization_id, is_deleted=False

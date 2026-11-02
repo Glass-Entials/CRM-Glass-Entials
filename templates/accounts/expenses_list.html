@@ -489,13 +489,19 @@
                             </td>
                             <td style="padding: 1.5rem; text-align: center;">
                                 {% if exp.receipt_path %}
-                                {% if exp.receipt_path.endswith('.pdf') %}
-                                <a href="{{ url_for('static', filename='uploads/receipts/' + exp.receipt_path) }}"
+                                {% set rfiles = exp.receipt_path.split(',') %}
+                                {% if rfiles|length > 1 %}
+                                <a href="{{ url_for('expenses.view_expense', expense_id=exp.id) }}"
+                                    class="receipt-link" title="{{ rfiles|length }} Receipts attached">
+                                    📎 {{ rfiles|length }} Files
+                                </a>
+                                {% elif rfiles[0].lower().endswith('.pdf') %}
+                                <a href="{{ url_for('static', filename='uploads/receipts/' + rfiles[0]) }}"
                                     target="_blank" class="receipt-link" title="View PDF Proof">
                                     📄 View PDF
                                 </a>
                                 {% else %}
-                                <a href="{{ url_for('static', filename='uploads/receipts/' + exp.receipt_path) }}"
+                                <a href="{{ url_for('static', filename='uploads/receipts/' + rfiles[0]) }}"
                                     target="_blank" class="receipt-link" title="View Receipt Image">
                                     🖼️ View Image
                                 </a>
