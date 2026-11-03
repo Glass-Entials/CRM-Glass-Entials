@@ -44,6 +44,10 @@ class Config:
             PHONEPE_BASE_URL = secrets.get("PHONEPE_BASE_URL") or os.environ.get("PHONEPE_BASE_URL", "")
             BILLING_DEFAULT_PROVIDER = secrets.get("BILLING_DEFAULT_PROVIDER") or os.environ.get("BILLING_DEFAULT_PROVIDER", "phonepe")
             RENEWAL_CRON_SECRET = secrets.get("RENEWAL_CRON_SECRET") or os.environ.get("RENEWAL_CRON_SECRET", "")
+            # PhonePe AutoPay V2 OAuth credentials (separate from legacy Salt Key / Merchant ID)
+            PHONEPE_CLIENT_ID      = secrets.get("PHONEPE_CLIENT_ID") or os.environ.get("PHONEPE_CLIENT_ID", "")
+            PHONEPE_CLIENT_SECRET  = secrets.get("PHONEPE_CLIENT_SECRET") or os.environ.get("PHONEPE_CLIENT_SECRET", "")
+            PHONEPE_CLIENT_VERSION = secrets.get("PHONEPE_CLIENT_VERSION") or os.environ.get("PHONEPE_CLIENT_VERSION", "1")
         except Exception as e:
             logging.error("Could not load AWS secrets, falling back to env")
             SECRET_KEY = os.environ.get("SECRET_KEY")
@@ -63,6 +67,10 @@ class Config:
             PHONEPE_BASE_URL = os.environ.get("PHONEPE_BASE_URL", "")
             BILLING_DEFAULT_PROVIDER = os.environ.get("BILLING_DEFAULT_PROVIDER", "phonepe")
             RENEWAL_CRON_SECRET = os.environ.get("RENEWAL_CRON_SECRET", "")
+            # PhonePe AutoPay V2 OAuth credentials (separate from legacy Salt Key / Merchant ID)
+            PHONEPE_CLIENT_ID      = os.environ.get("PHONEPE_CLIENT_ID", "")
+            PHONEPE_CLIENT_SECRET  = os.environ.get("PHONEPE_CLIENT_SECRET", "")
+            PHONEPE_CLIENT_VERSION = os.environ.get("PHONEPE_CLIENT_VERSION", "1")
     else:
         SECRET_KEY = os.environ.get("SECRET_KEY")
         SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
@@ -81,6 +89,10 @@ class Config:
         PHONEPE_BASE_URL = os.environ.get("PHONEPE_BASE_URL", "")
         BILLING_DEFAULT_PROVIDER = os.environ.get("BILLING_DEFAULT_PROVIDER", "phonepe")
         RENEWAL_CRON_SECRET = os.environ.get("RENEWAL_CRON_SECRET", "")
+        # PhonePe AutoPay V2 OAuth credentials (separate from legacy Salt Key / Merchant ID)
+        PHONEPE_CLIENT_ID      = os.environ.get("PHONEPE_CLIENT_ID", "")
+        PHONEPE_CLIENT_SECRET  = os.environ.get("PHONEPE_CLIENT_SECRET", "")
+        PHONEPE_CLIENT_VERSION = os.environ.get("PHONEPE_CLIENT_VERSION", "1")
 
     if not SECRET_KEY or SECRET_KEY == "secret123":
         raise RuntimeError("Set a strong SECRET_KEY in the environment before startup.")
