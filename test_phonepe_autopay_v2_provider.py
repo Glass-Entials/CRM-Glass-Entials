@@ -14,7 +14,9 @@ import unittest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
-from app import app
+from flask import Flask
+from sqlalchemy.pool import StaticPool
+
 from model import (
     db,
     Plan,
@@ -47,8 +49,24 @@ from services.billing.providers.phonepe_autopay_client import (
 
 
 class TestPhonePeAutoPayV2Provider(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = Flask(__name__)
+        cls.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
+        cls.app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"poolclass": StaticPool}
+        cls.app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+        cls.app.config["TESTING"] = True
+        cls.app.config["PHONEPE_ENV"] = "UAT"
+        cls.app.config["PHONEPE_MERCHANT_ID"] = "PGTESTPAYUAT"
+        cls.app.config["PHONEPE_CLIENT_ID"] = "test_client_id"
+        cls.app.config["PHONEPE_CLIENT_SECRET"] = "test_client_secret"
+        cls.app.config["PHONEPE_CLIENT_VERSION"] = 1
+        db.init_app(cls.app)
+
+        with cls.app.app_context():
+            db.create_all()
+
     def setUp(self):
-        self.app = app
         self.app_context = self.app.app_context()
         self.app_context.push()
 
@@ -67,7 +85,18 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         self.provider._client = self.mock_client
         self.provider._oauth = self.mock_oauth
 
-        # Dummy models for testing
+        # Clean DB for test run
+        db.session.query(SaaSRedemptionAttempt).delete()
+        db.session.query(SaaSPreDebitNotification).delete()
+        db.session.query(SaaSMandate).delete()
+        db.session.query(SaaSTransaction).delete()
+        db.session.query(SaaSSubscription).delete()
+        db.session.query(Organization).delete()
+        db.session.query(Plan).delete()
+        db.session.query(User).delete()
+        db.session.commit()
+
+        # Dummy models for testing seeded in SQLite DB
         self.dummy_plan = Plan(
             id=1,
             name="Pro",
@@ -75,7 +104,13 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             monthly_price_paise=100000,
             yearly_price_paise=1000000,
         )
-        self.dummy_user = User(id=42, username="testadmin", email="admin@example.com")
+        self.dummy_user = User(
+            id=42,
+            username="testadmin",
+            email="admin@example.com",
+            password="hashed_test_password",
+            organization_id=7,
+        )
         self.dummy_org = Organization(id=7, name="Acme Glass", unique_code="ACME")
         self.dummy_sub = SaaSSubscription(
             id=99,
@@ -87,8 +122,14 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             active_mandate_id=10,
         )
         self.dummy_sub.organization = self.dummy_org
+        db.session.add_all([self.dummy_plan, self.dummy_user, self.dummy_org, self.dummy_sub])
+        db.session.commit()
 
     def tearDown(self):
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
         BillingService.reset_provider_cache()
         self.app_context.pop()
 
@@ -208,7 +249,19 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
 
     # ── Test 7: Check Transaction Status COMPLETED ────────────────────────────
     def test_check_transaction_status_completed(self):
-        """Test check_transaction_status confirms success when both root and paymentDetails are COMPLETED."""
+        """Test check_transaction_status confirms success when both root and paymentDetails are COMPLETED for explicit debit."""
+        pdn = SaaSPreDebitNotification(
+            organization_id=7,
+            subscription_id=99,
+            mandate_id=10,
+            merchant_order_id="MT_V2_7_123",
+            amount_paise=118000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+        )
+        db.session.add(pdn)
+        db.session.commit()
+
         self.mock_client.get_order_status.return_value = {
             "state": "COMPLETED",
             "merchantSubscriptionId": "MSUB_V2_7_123",
@@ -222,7 +275,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             ],
         }
 
-        res = self.provider.check_transaction_status("MT_V2_7_123")
+        res = self.provider.check_transaction_status("MT_V2_7_123", organization_id=7)
 
         self.assertTrue(res.success)
         self.assertEqual(res.status, "COMPLETED")
@@ -232,6 +285,18 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
     # ── Test 8: Check Transaction Status PENDING ──────────────────────────────
     def test_check_transaction_status_pending(self):
         """Test check_transaction_status never marks success when in PENDING state."""
+        pdn = SaaSPreDebitNotification(
+            organization_id=7,
+            subscription_id=99,
+            mandate_id=10,
+            merchant_order_id="MT_V2_7_123",
+            amount_paise=118000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+        )
+        db.session.add(pdn)
+        db.session.commit()
+
         self.mock_client.get_order_status.return_value = {
             "state": "PENDING",
             "merchantSubscriptionId": "MSUB_V2_7_123",
@@ -244,7 +309,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             ],
         }
 
-        res = self.provider.check_transaction_status("MT_V2_7_123")
+        res = self.provider.check_transaction_status("MT_V2_7_123", organization_id=7)
 
         self.assertFalse(res.success)
         self.assertEqual(res.status, "PENDING")
@@ -335,6 +400,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         mock_pdn = MagicMock(
             auto_debit_snapshot=True,
             status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
             valid_upto_at=datetime.utcnow() + timedelta(days=2),
         )
         mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
@@ -357,6 +423,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         mock_pdn = MagicMock(
             auto_debit_snapshot=False,
             status=PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
             valid_upto_at=datetime.utcnow() + timedelta(days=2),
         )
         mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
@@ -380,6 +447,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         mock_pdn = MagicMock(
             auto_debit_snapshot=False,
             status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(days=1),
             valid_upto_at=datetime.utcnow() - timedelta(minutes=5),
         )
         mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
@@ -410,6 +478,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             id=5,
             auto_debit_snapshot=False,
             status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
             valid_upto_at=datetime.utcnow() + timedelta(days=1),
         )
         mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
@@ -458,6 +527,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             id=5,
             auto_debit_snapshot=False,
             status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
             valid_upto_at=datetime.utcnow() + timedelta(days=1),
         )
         mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
@@ -491,11 +561,13 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         mock_pdn = MagicMock(
             auto_debit_snapshot=False,
             status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
             valid_upto_at=datetime.utcnow() + timedelta(days=1),
         )
         mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
 
         existing_attempt = MagicMock(
+            merchant_order_id="ORDER_ALREADY_IN_FLIGHT",
             status=RedemptionAttemptStatus.PENDING_RECONCILIATION.value,
             amount_paise=118000,
         )
@@ -612,7 +684,13 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             status=RedemptionAttemptStatus.PENDING_RECONCILIATION.value,
         )
         attempt.subscription = sub
-        attempt.notification = MagicMock(status=PreDebitNotificationStatus.NOTIFIED.value)
+        attempt.notification = MagicMock(
+            id=5,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            organization_id=7,
+            subscription_id=99,
+            auto_debit_snapshot=False,
+        )
 
         self.mock_client.get_order_status.return_value = {
             "state": "COMPLETED",
@@ -668,9 +746,9 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         mock_check_tx.return_value = MagicMock(success=True, status="COMPLETED")
         payload = {"merchantOrderId": "MT_ORDER_ROUTE_01", "merchantSubscriptionId": "MSUB_01"}
 
-        res = self.provider.verify_payment(payload)
+        res = self.provider.verify_payment(payload, organization_id=7)
 
-        mock_check_tx.assert_called_once_with("MT_ORDER_ROUTE_01")
+        mock_check_tx.assert_called_once_with("MT_ORDER_ROUTE_01", organization_id=7)
         self.assertTrue(res.success)
 
     # ── Test 25: Verify Payment Routes to Subscription Check by Sub ID ───────
@@ -680,9 +758,9 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         mock_check_sub.return_value = MagicMock(success=True, status="ACTIVE")
         payload = {"merchantSubscriptionId": "MSUB_ONLY_02"}
 
-        res = self.provider.verify_payment(payload)
+        res = self.provider.verify_payment(payload, organization_id=7)
 
-        mock_check_sub.assert_called_once_with("MSUB_ONLY_02")
+        mock_check_sub.assert_called_once_with("MSUB_ONLY_02", organization_id=7)
         self.assertTrue(res.success)
 
     # ── Test 26: Webhook Merchant ID Mismatch Rejected ────────────────────────
@@ -742,6 +820,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             id=5,
             auto_debit_snapshot=False,
             status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
             valid_upto_at=datetime.utcnow() + timedelta(days=1),
         )
         mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
@@ -867,6 +946,8 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
 
         notification = MagicMock(
             id=5,
+            organization_id=7,
+            subscription_id=99,
             auto_debit_snapshot=True,
             status=PreDebitNotificationStatus.NOTIFIED.value,
         )
@@ -1103,9 +1184,12 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         )
 
     # ── Test 41: Check Transaction Status Tenant Isolation ────────────────────
+    @patch("model.SaaSPreDebitNotification.query")
     @patch("model.SaaSRedemptionAttempt.query")
-    def test_check_transaction_status_with_org_id_isolation(self, mock_attempt_query):
+    def test_check_transaction_status_with_org_id_isolation(self, mock_attempt_query, mock_pdn_query):
         """Tenant isolation: check_transaction_status strictly filters by organization_id when provided."""
+        mock_pdn = MagicMock(auto_debit_snapshot=False, organization_id=7)
+        mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
         mock_attempt = MagicMock(status=RedemptionAttemptStatus.COMPLETED.value)
         mock_attempt_query.filter_by.return_value.first.return_value = mock_attempt
         self.mock_client.get_order_status.return_value = {
@@ -1116,10 +1200,199 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         res = self.provider.check_transaction_status("ORD_TEST_999", organization_id=7)
 
         self.assertEqual(res.status, "COMPLETED")
-        mock_attempt_query.filter_by.assert_called_with(
+        mock_pdn_query.filter_by.assert_called_with(
             merchant_order_id="ORD_TEST_999",
             organization_id=7,
         )
+
+    # ── Test 42: Auto-Debit Status COMPLETED Returns Manual Recon (Phase 5.2) ──
+    def test_check_transaction_status_auto_debit_returns_manual_recon(self):
+        """Phase 5.2: Auto-debit COMPLETED order in check_transaction_status returns MANUAL_RECONCILIATION_REQUIRED and success=False."""
+        pdn = SaaSPreDebitNotification(
+            organization_id=7,
+            subscription_id=99,
+            mandate_id=10,
+            merchant_order_id="MT_AD_CHECK_001",
+            amount_paise=118000,
+            auto_debit_snapshot=True,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+        )
+        db.session.add(pdn)
+        db.session.commit()
+
+        self.mock_client.get_order_status.return_value = {
+            "state": "COMPLETED",
+            "merchantSubscriptionId": "MSUB_V2_7_99",
+            "paymentDetails": [{"state": "COMPLETED", "transactionId": "TXN_AD_001", "amount": 118000}],
+        }
+
+        res = self.provider.check_transaction_status("MT_AD_CHECK_001", organization_id=7)
+
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, "MANUAL_RECONCILIATION_REQUIRED")
+        self.assertIn("settlement", res.error_message.lower())
+
+    # ── Test 43: verify_payment Auto-Debit Blocked (Phase 5.2) ─────────────────
+    def test_verify_payment_auto_debit_blocked(self):
+        """Phase 5.2: verify_payment for auto-debit cannot bypass auto-debit restrictions and returns success=False."""
+        pdn = SaaSPreDebitNotification(
+            organization_id=7,
+            subscription_id=99,
+            mandate_id=10,
+            merchant_order_id="MT_AD_VERIFY_001",
+            amount_paise=118000,
+            auto_debit_snapshot=True,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+        )
+        db.session.add(pdn)
+        db.session.commit()
+
+        self.mock_client.get_order_status.return_value = {
+            "state": "COMPLETED",
+            "paymentDetails": [{"state": "COMPLETED", "transactionId": "TXN_AD_V001", "amount": 118000}],
+        }
+
+        payload = {"merchantOrderId": "MT_AD_VERIFY_001"}
+        res = self.provider.verify_payment(payload, organization_id=7)
+
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, "MANUAL_RECONCILIATION_REQUIRED")
+
+    # ── Test 44: Reconcile Missing Notification Relationship Safety (Phase 5.2) ─
+    @patch("services.billing.transaction_service.TransactionService.record_transaction")
+    def test_reconcile_redemption_missing_notification_sets_manual_recon(self, mock_record_tx):
+        """Phase 5.2: Missing notification relationship sets MANUAL_RECONCILIATION_REQUIRED and does not extend period."""
+        attempt = MagicMock(
+            id=77,
+            organization_id=7,
+            subscription_id=99,
+            notification_id=99999,  # Non-existent notification
+            merchant_order_id="ORD_MISSING_NOTIF",
+            amount_paise=118000,
+            status=RedemptionAttemptStatus.PENDING_RECONCILIATION.value,
+            notification=None,
+        )
+
+        res = self.provider.reconcile_redemption_status(attempt)
+
+        self.assertEqual(res.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+        self.assertIn("missing or unverified", res.failure_reason)
+        mock_record_tx.assert_not_called()
+
+    # ── Test 45: Missing Tenant Context Prevents Financial Mutation (Phase 5.2) ─
+    def test_missing_tenant_context_prevents_financial_mutation(self):
+        """Phase 5.2: organization_id=None with unresolvable context returns UNRESOLVED with zero DB mutations."""
+        self.mock_client.get_order_status.return_value = {
+            "state": "COMPLETED",
+            "merchantSubscriptionId": "",
+            "transactionId": "TXN_UNKNOWN",
+            "amount": 1000,
+        }
+        self.mock_client.get_subscription_status.return_value = {
+            "state": "ACTIVE",
+            "merchantSubscriptionId": "",
+        }
+
+        res_tx = self.provider.check_transaction_status("MT_UNRESOLVABLE_UNKNOWN", organization_id=None)
+        self.assertFalse(res_tx.success)
+        self.assertEqual(res_tx.status, "UNRESOLVED")
+
+        res_sub = self.provider.check_subscription_status("MSUB_UNRESOLVABLE_UNKNOWN", organization_id=None)
+        self.assertFalse(res_sub.success)
+        self.assertEqual(res_sub.status, "UNRESOLVED")
+
+        res_verify = self.provider.verify_payment({"merchantOrderId": "MT_UNRESOLVABLE_UNKNOWN"}, organization_id=None)
+        self.assertFalse(res_verify.success)
+        self.assertEqual(res_verify.status, "UNRESOLVED")
+
+    # ── Test 46: Atomic Claim Blocks Concurrent Redemptions (Phase 5.2) ────────
+    def test_atomic_claim_blocks_concurrent_redemptions_different_order_ids(self):
+        """Phase 5.2: Different order IDs for the same subscription cannot execute concurrently when claim lease is active."""
+        claim_token = self.provider._acquire_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id)
+        self.assertIsNotNone(claim_token)
+
+        try:
+            res = self.provider.execute_redemption(
+                subscription=self.dummy_sub,
+                amount_paise=118000,
+                merchant_transaction_id="ORD_CONCURRENT_BLOCKED",
+            )
+            self.assertFalse(res.success)
+            self.assertEqual(res.status, "PENDING")
+            self.assertIn("currently claimed by another concurrent process", res.error_message)
+        finally:
+            self.provider._release_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id, claim_token)
+
+    # ── Test 47: Lock Acquisition Failure Surfaced Safely (Phase 5.2) ──────────
+    @patch.object(PhonePeAutoPayV2Provider, "_acquire_subscription_claim")
+    def test_lock_acquisition_failure_surfaced_safely(self, mock_acquire):
+        """Phase 5.2: Concurrency lock acquisition failure is safely surfaced as FAILED without proceeding."""
+        mock_acquire.side_effect = Exception("Lock acquisition timeout on primary key")
+
+        res = self.provider.execute_redemption(
+            subscription=self.dummy_sub,
+            amount_paise=118000,
+            merchant_transaction_id="ORD_LOCK_ERROR",
+        )
+
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, "FAILED")
+        self.assertIn("Concurrency lock acquisition error", res.error_message)
+
+    # ── Test 48: Lease Ownership and Expiration (Phase 5.2) ────────────────────
+    def test_lease_ownership_and_expiration(self):
+        """Phase 5.2: Lease ownership and expiration: active lease blocks; expired lease allows new acquisition."""
+        tok1 = self.provider._acquire_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id, lease_duration_seconds=300)
+        self.assertIsNotNone(tok1)
+
+        tok2 = self.provider._acquire_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id)
+        self.assertIsNone(tok2)
+
+        sub = SaaSSubscription.query.get(self.dummy_sub.id)
+        sub.claim_expires_at = datetime.utcnow() - timedelta(seconds=10)
+        db.session.commit()
+
+        tok3 = self.provider._acquire_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id, lease_duration_seconds=300)
+        self.assertIsNotNone(tok3)
+        self.assertNotEqual(tok1, tok3)
+
+        self.provider._release_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id, tok3)
+
+    # ── Test 49: Real DB Atomic Claim Concurrency (Phase 5.2) ──────────────────
+    def test_real_db_atomic_claim_concurrency(self):
+        """Phase 5.2: Real database multi-threaded concurrency test verifying atomic claim isolation across threads."""
+        import threading
+
+        acquired_tokens = []
+        errors = []
+        barrier = threading.Barrier(5)
+
+        def worker():
+            try:
+                with self.app.app_context():
+                    barrier.wait(timeout=5)
+                    tok = self.provider._acquire_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id)
+                    if tok:
+                        acquired_tokens.append(tok)
+            except Exception as e:
+                errors.append(e)
+
+        threads = [threading.Thread(target=worker) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        self.assertEqual(len(errors), 0)
+        self.assertEqual(len(acquired_tokens), 1)
+
+        winner_tok = acquired_tokens[0]
+        released = self.provider._release_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id, winner_tok)
+        self.assertTrue(released)
+
+        new_tok = self.provider._acquire_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id)
+        self.assertIsNotNone(new_tok)
+        self.provider._release_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id, new_tok)
 
 
 if __name__ == "__main__":

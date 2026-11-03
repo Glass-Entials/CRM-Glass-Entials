@@ -204,7 +204,11 @@ class PhonePeProvider(PaymentProvider):
                 error_message=str(e),
             )
 
-    def check_subscription_status(self, merchant_subscription_id: str) -> VerificationResult:
+    def check_subscription_status(
+        self,
+        merchant_subscription_id: str,
+        organization_id: Optional[int] = None,
+    ) -> VerificationResult:
         """
         Queries PhonePe for subscription mandate status:
         GET /v3/recurring/subscription/status/{merchantId}/{merchantSubscriptionId}
@@ -256,7 +260,11 @@ class PhonePeProvider(PaymentProvider):
                 error_message=str(e),
             )
 
-    def check_transaction_status(self, merchant_transaction_id: str) -> VerificationResult:
+    def check_transaction_status(
+        self,
+        merchant_transaction_id: str,
+        organization_id: Optional[int] = None,
+    ) -> VerificationResult:
         """
         Queries PhonePe for transaction status:
         GET /v3/transaction/{merchantId}/{merchantTransactionId}/status
@@ -310,7 +318,12 @@ class PhonePeProvider(PaymentProvider):
                 error_message=str(e),
             )
 
-    def verify_payment(self, payload: Dict[str, Any], headers: Optional[Dict[str, str]] = None) -> VerificationResult:
+    def verify_payment(
+        self,
+        payload: Dict[str, Any],
+        headers: Optional[Dict[str, str]] = None,
+        organization_id: Optional[int] = None,
+    ) -> VerificationResult:
         """
         Verifies payment return from PhonePe callback.
         CRITICAL SECURITY REQUIREMENT:

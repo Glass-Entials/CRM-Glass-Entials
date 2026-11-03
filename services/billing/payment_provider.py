@@ -89,17 +89,30 @@ class PaymentProvider(ABC):
         pass
 
     @abstractmethod
-    def verify_payment(self, payload: Dict[str, Any], headers: Optional[Dict[str, str]] = None) -> VerificationResult:
+    def verify_payment(
+        self,
+        payload: Dict[str, Any],
+        headers: Optional[Dict[str, str]] = None,
+        organization_id: Optional[int] = None,
+    ) -> VerificationResult:
         """Verifies initial mandate payment authorization response."""
         pass
 
     @abstractmethod
-    def check_subscription_status(self, merchant_subscription_id: str) -> VerificationResult:
+    def check_subscription_status(
+        self,
+        merchant_subscription_id: str,
+        organization_id: Optional[int] = None,
+    ) -> VerificationResult:
         """Queries the provider's API for the current live status of a mandate."""
         pass
 
     @abstractmethod
-    def check_transaction_status(self, merchant_transaction_id: str) -> VerificationResult:
+    def check_transaction_status(
+        self,
+        merchant_transaction_id: str,
+        organization_id: Optional[int] = None,
+    ) -> VerificationResult:
         """Queries the provider's API for the status of a specific transaction."""
         pass
 

@@ -146,7 +146,8 @@ def phonepe_callback():
 
     logger.info("Received PhonePe redirect callback with keys: %s", list(payload.keys()))
 
-    verify_res = provider.verify_payment(payload, headers=dict(request.headers))
+    org_id = current_user.organization_id if (current_user.is_authenticated and getattr(current_user, "organization", None)) else None
+    verify_res = provider.verify_payment(payload, headers=dict(request.headers), organization_id=org_id)
 
     # Look up subscription
     sub = None
@@ -191,7 +192,7 @@ def verify_payment():
     data = request.get_json(silent=True) or {}
     provider = BillingService.get_provider()
 
-    verify_res = provider.verify_payment(data, headers=dict(request.headers))
+    verify_res = provider.verify_payment(data, headers=dict(request.headers), organization_id=org.id)
 
     sub = SaaSSubscription.query.filter_by(organization_id=org.id).first()
     if not sub:
