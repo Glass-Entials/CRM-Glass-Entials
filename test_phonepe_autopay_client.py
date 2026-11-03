@@ -28,6 +28,9 @@ from services.billing.providers.phonepe_autopay_client import (
 )
 
 
+_DEFAULT_UNSET = object()
+
+
 class BaseAutoPayClientTest(unittest.TestCase):
     """Base setup for mocking OAuth and HTTP session."""
 
@@ -45,12 +48,12 @@ class BaseAutoPayClientTest(unittest.TestCase):
             http_session=self.mock_session,
         )
 
-    def _make_response(self, status_code=200, json_data=None, content=b"mock", ok=None):
+    def _make_response(self, status_code=200, json_data=_DEFAULT_UNSET, content=b"mock", ok=None):
         resp = MagicMock(spec=requests.Response)
         resp.status_code = status_code
         resp.ok = (status_code < 400) if ok is None else ok
         resp.content = content
-        if json_data is not None:
+        if json_data is not _DEFAULT_UNSET:
             resp.json.return_value = json_data
         elif content == b"":
             resp.json.side_effect = ValueError("No JSON object could be decoded")
@@ -417,6 +420,110 @@ class TestErrorHandlingAndRetries(BaseAutoPayClientTest):
         self.assertEqual(self.mock_session.request.call_count, 1)
 
 
+class TestJsonResponseTypesValidation(BaseAutoPayClientTest):
+    """Regression tests for validating PhonePe JSON response types on success and error."""
+
+    def test_http_400_with_json_array(self):
+        """HTTP 400 error where PhonePe returns a JSON array."""
+        resp = self._make_response(400, json_data=["field1 required", "field2 invalid"])
+        self.mock_session.request.return_value = resp
+
+        with self.assertRaises(PhonePeResponseError) as ctx:
+            self.client.setup_subscription({"some": "data"})
+
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIsNone(ctx.exception.error_code)
+        self.assertIn("HTTP 400", str(ctx.exception))
+
+    def test_http_400_with_json_null(self):
+        """HTTP 400 error where PhonePe returns JSON null."""
+        resp = self._make_response(400, json_data=None)
+        self.mock_session.request.return_value = resp
+
+        with self.assertRaises(PhonePeResponseError) as ctx:
+            self.client.setup_subscription({"some": "data"})
+
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIsNone(ctx.exception.error_code)
+        self.assertIn("HTTP 400", str(ctx.exception))
+
+    def test_http_500_with_json_string(self):
+        """HTTP 500 error where PhonePe returns a JSON string instead of an object."""
+        resp = self._make_response(500, json_data="Internal Server Error")
+        self.mock_session.request.return_value = resp
+
+        with self.assertRaises(PhonePeResponseError) as ctx:
+            self.client.get_subscription_status("SUB_1")
+
+        self.assertEqual(ctx.exception.status_code, 500)
+        self.assertIsNone(ctx.exception.error_code)
+        self.assertIn("HTTP 500", str(ctx.exception))
+
+    def test_http_200_with_json_array(self):
+        """HTTP 200 where PhonePe returns a JSON array instead of a JSON object."""
+        resp = self._make_response(200, json_data=[{"item": "val"}])
+        self.mock_session.request.return_value = resp
+
+        with self.assertRaises(PhonePeResponseError) as ctx:
+            self.client.get_subscription_status("SUB_1")
+
+        self.assertEqual(ctx.exception.status_code, 200)
+        self.assertIn("unexpected JSON type (list)", str(ctx.exception))
+
+    def test_http_200_with_json_null(self):
+        """HTTP 200 where PhonePe returns JSON null instead of a JSON object."""
+        resp = self._make_response(200, json_data=None)
+        self.mock_session.request.return_value = resp
+
+        with self.assertRaises(PhonePeResponseError) as ctx:
+            self.client.get_subscription_status("SUB_1")
+
+        self.assertEqual(ctx.exception.status_code, 200)
+        self.assertIn("unexpected JSON type (NoneType)", str(ctx.exception))
+
+    def test_http_200_with_json_scalar(self):
+        """HTTP 200 where PhonePe returns scalar values (int, string, bool, float)."""
+        scalars = [
+            (12345, "int"),
+            ("success_string", "str"),
+            (True, "bool"),
+            (99.9, "float"),
+        ]
+        for scalar_val, expected_type in scalars:
+            with self.subTest(scalar_type=expected_type):
+                resp = self._make_response(200, json_data=scalar_val)
+                self.mock_session.request.return_value = resp
+
+                with self.assertRaises(PhonePeResponseError) as ctx:
+                    self.client.get_subscription_status("SUB_1")
+
+                self.assertEqual(ctx.exception.status_code, 200)
+                self.assertIn(f"unexpected JSON type ({expected_type})", str(ctx.exception))
+
+    def test_existing_valid_json_object_error_and_success_preserved(self):
+        """Valid JSON-object error and success responses work as expected."""
+        # 1. Success 200 dict
+        resp_200 = self._make_response(200, json_data={"state": "ACTIVE", "subscriptionId": "SUB_123"})
+        self.mock_session.request.return_value = resp_200
+        res = self.client.get_subscription_status("SUB_123")
+        self.assertEqual(res, {"state": "ACTIVE", "subscriptionId": "SUB_123"})
+
+        # 2. Empty body 200 returns {}
+        resp_empty = self._make_response(200, content=b"")
+        self.mock_session.request.return_value = resp_empty
+        res_empty = self.client.get_subscription_status("SUB_123")
+        self.assertEqual(res_empty, {})
+
+        # 3. Error 400 dict with code and message
+        resp_400 = self._make_response(400, json_data={"code": "BAD_REQUEST", "message": "Invalid params"})
+        self.mock_session.request.return_value = resp_400
+        with self.assertRaises(PhonePeResponseError) as ctx:
+            self.client.setup_subscription({"amount": 100})
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertEqual(ctx.exception.error_code, "BAD_REQUEST")
+        self.assertIn("Invalid params", str(ctx.exception))
+
+
 class TestFactoryAndRepr(BaseAutoPayClientTest):
 
     def test_from_oauth_client_factory(self):
@@ -436,3 +543,4 @@ class TestFactoryAndRepr(BaseAutoPayClientTest):
 
 if __name__ == "__main__":
     unittest.main()
+

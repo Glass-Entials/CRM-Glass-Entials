@@ -502,19 +502,23 @@ class PhonePeAutoPayClient:
             error_code = None
             error_msg  = f"HTTP {response.status_code}"
             try:
-                err_body   = response.json()
-                error_code = (
-                    err_body.get("code")
-                    or err_body.get("errorCode")
-                    or err_body.get("error")
-                )
-                error_msg  = (
-                    err_body.get("message")
-                    or err_body.get("error_description")
-                    or error_msg
-                )
-            except ValueError:
-                pass   # non-JSON body; keep the generic HTTP status message
+                err_body = response.json()
+                if isinstance(err_body, dict):
+                    raw_code = (
+                        err_body.get("code")
+                        or err_body.get("errorCode")
+                        or err_body.get("error")
+                    )
+                    if raw_code is not None:
+                        error_code = str(raw_code)
+                    raw_msg = (
+                        err_body.get("message")
+                        or err_body.get("error_description")
+                    )
+                    if raw_msg is not None:
+                        error_msg = str(raw_msg)
+            except Exception:
+                pass   # non-JSON, non-dict, or parsing failure; retain safe generic message
 
             logger.warning(
                 "PhonePe AutoPay: %s %s → HTTP %s (code=%s)",
@@ -528,17 +532,26 @@ class PhonePeAutoPayClient:
 
         # ── Parse success body ─────────────────────────────────────────────
         # Some 2xx responses may have an empty body (not 204) — handle safely.
-        if not response.content:
+        if not response.content or not response.content.strip():
             return {}
 
         try:
-            return response.json()
-        except ValueError as exc:
+            body = response.json()
+        except Exception as exc:
             raise PhonePeResponseError(
                 f"PhonePe AutoPay: {method} {path} returned non-JSON body "
                 f"(HTTP {response.status_code}).",
                 status_code=response.status_code,
             ) from exc
+
+        if not isinstance(body, dict):
+            raise PhonePeResponseError(
+                f"PhonePe AutoPay: {method} {path} returned unexpected JSON type "
+                f"({type(body).__name__}), expected JSON object (HTTP {response.status_code}).",
+                status_code=response.status_code,
+            )
+
+        return body
 
     def __repr__(self) -> str:
         return (
