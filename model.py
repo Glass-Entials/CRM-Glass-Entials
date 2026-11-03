@@ -396,6 +396,7 @@ class Organization(db.Model):
     suspension_note = db.Column(db.Text, nullable=True)
 
     # SaaS billing
+    provider_customer_id = db.Column(db.String(100), nullable=True, index=True)
     razorpay_customer_id = db.Column(db.String(100), nullable=True, index=True)
     saas_mode = db.Column(db.Boolean, nullable=False, default=True)   # True = came via SaaS signup
 
@@ -2630,7 +2631,7 @@ class CallLog(db.Model):
 # ===========================================================================
 
 class SaaSSubscription(db.Model):
-    """Tracks Razorpay subscription for each organization."""
+    """Tracks SaaS subscription for each organization (PhonePe AutoPay / Razorpay)."""
     __tablename__ = "saas_subscription"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -2638,8 +2639,23 @@ class SaaSSubscription(db.Model):
         db.Integer, db.ForeignKey("organization.id"), nullable=False, unique=True, index=True
     )
     plan_id = db.Column(db.Integer, db.ForeignKey("plan.id"), nullable=False)
+    payment_provider = db.Column(
+        db.String(50), nullable=False, default="phonepe",
+        server_default=db.text("'phonepe'"), index=True
+    )
+    # Provider-independent subscription and mandate IDs
+    provider_subscription_id = db.Column(db.String(100), nullable=True, unique=True, index=True)
+    provider_order_id = db.Column(db.String(100), nullable=True, index=True)
+    provider_transaction_id = db.Column(db.String(100), nullable=True, index=True)
+    provider_customer_reference = db.Column(db.String(100), nullable=True, index=True)
+    mandate_reference = db.Column(db.String(100), nullable=True, index=True)
+    amount_paise = db.Column(db.BigInteger, nullable=False, default=0, server_default=db.text("0"))
+    currency = db.Column(db.String(10), nullable=False, default="INR", server_default=db.text("'INR'"))
+
+    # Legacy fields preserved for backward compatibility
     razorpay_subscription_id = db.Column(db.String(100), nullable=True, unique=True, index=True)
     razorpay_plan_id = db.Column(db.String(100), nullable=True)
+
     status = db.Column(
         db.Enum(SaaSSubscriptionStatus, values_callable=lambda x: [e.value for e in x]),
         nullable=False, default=SaaSSubscriptionStatus.PENDING,
@@ -2651,7 +2667,9 @@ class SaaSSubscription(db.Model):
     )
     current_period_start = db.Column(db.DateTime, nullable=True)
     current_period_end   = db.Column(db.DateTime, nullable=True)
+    next_billing_at      = db.Column(db.DateTime, nullable=True, index=True)
     cancelled_at         = db.Column(db.DateTime, nullable=True)
+    cancellation_reason  = db.Column(db.String(255), nullable=True)
     cancel_at_period_end = db.Column(db.Boolean, nullable=False, default=False)
     grace_period_end     = db.Column(db.DateTime, nullable=True)
     last_webhook_event_id = db.Column(db.String(100), nullable=True)
@@ -2665,12 +2683,21 @@ class SaaSSubscription(db.Model):
         cascade="all, delete-orphan"
     )
 
+    @property
+    def subscription_id(self):
+        """Unified subscription identifier across providers."""
+        return self.provider_subscription_id or self.razorpay_subscription_id
+
+    @property
+    def amount_inr(self):
+        return round(self.amount_paise / 100, 2)
+
     def __repr__(self):
-        return f"<SaaSSubscription org={self.organization_id} status={self.status.value}>"
+        return f"<SaaSSubscription org={self.organization_id} provider={self.payment_provider} status={self.status.value}>"
 
 
 class SaaSTransaction(db.Model):
-    """Records every Razorpay SaaS payment event."""
+    """Records every SaaS payment transaction (PhonePe / Razorpay)."""
     __tablename__ = "saas_transaction"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -2680,6 +2707,17 @@ class SaaSTransaction(db.Model):
     subscription_id = db.Column(
         db.Integer, db.ForeignKey("saas_subscription.id"), nullable=True, index=True
     )
+    payment_provider = db.Column(
+        db.String(50), nullable=False, default="phonepe",
+        server_default=db.text("'phonepe'"), index=True
+    )
+    # Provider-independent transaction and order IDs
+    provider_payment_id      = db.Column(db.String(100), nullable=True, unique=True, index=True)
+    provider_order_id        = db.Column(db.String(100), nullable=True, index=True)
+    provider_transaction_id  = db.Column(db.String(100), nullable=True, index=True)
+    provider_subscription_id = db.Column(db.String(100), nullable=True, index=True)
+
+    # Legacy fields preserved for backward compatibility
     razorpay_payment_id      = db.Column(db.String(100), nullable=True, unique=True, index=True)
     razorpay_invoice_id      = db.Column(db.String(100), nullable=True, index=True)
     razorpay_subscription_id = db.Column(db.String(100), nullable=True, index=True)
@@ -2704,15 +2742,21 @@ class SaaSTransaction(db.Model):
     def amount_inr(self):
         return round(self.amount_paise / 100, 2)
 
+    @property
+    def payment_id(self):
+        """Unified payment/transaction identifier across providers."""
+        return self.provider_payment_id or self.razorpay_payment_id
+
     def __repr__(self):
-        return f"<SaaSTransaction payment={self.razorpay_payment_id} status={self.status.value}>"
+        return f"<SaaSTransaction id={self.id} payment={self.payment_id} provider={self.payment_provider} status={self.status.value}>"
 
 
 class SaaSWebhookEvent(db.Model):
-    """Idempotency log for processed Razorpay webhook events."""
+    """Idempotency log for processed webhook events (PhonePe / Razorpay)."""
     __tablename__ = "saas_webhook_event"
 
     id           = db.Column(db.Integer, primary_key=True)
+    payment_provider = db.Column(db.String(50), nullable=False, default="phonepe", server_default=db.text("'phonepe'"))
     event_id     = db.Column(db.String(100), nullable=False, unique=True, index=True)
     event_type   = db.Column(db.String(100), nullable=False)
     processed_at = db.Column(db.DateTime, default=datetime.utcnow)

@@ -33,6 +33,17 @@ class Config:
             GST_CLIENT_SECRET = secrets.get("GST_CLIENT_SECRET")
             RAZORPAY_KEY_ID = secrets.get("RAZORPAY_KEY_ID")
             RAZORPAY_KEY_SECRET = secrets.get("RAZORPAY_KEY_SECRET")
+            # PhonePe Payment Gateway / UPI AutoPay
+            PHONEPE_MERCHANT_ID = secrets.get("PHONEPE_MERCHANT_ID") or os.environ.get("PHONEPE_MERCHANT_ID", "PGTESTPAYUAT")
+            PHONEPE_SALT_KEY = secrets.get("PHONEPE_SALT_KEY") or os.environ.get("PHONEPE_SALT_KEY", "099eb0cd-0252-4e2a-9123-046648858427")
+            PHONEPE_SALT_INDEX = secrets.get("PHONEPE_SALT_INDEX") or os.environ.get("PHONEPE_SALT_INDEX", "1")
+            PHONEPE_ENV = secrets.get("PHONEPE_ENV") or os.environ.get("PHONEPE_ENV", "UAT")
+            PHONEPE_WEBHOOK_USERNAME = secrets.get("PHONEPE_WEBHOOK_USERNAME") or os.environ.get("PHONEPE_WEBHOOK_USERNAME", "")
+            PHONEPE_WEBHOOK_PASSWORD = secrets.get("PHONEPE_WEBHOOK_PASSWORD") or os.environ.get("PHONEPE_WEBHOOK_PASSWORD", "")
+            PHONEPE_WEBHOOK_SECRET = secrets.get("PHONEPE_WEBHOOK_SECRET") or os.environ.get("PHONEPE_WEBHOOK_SECRET", "")
+            PHONEPE_BASE_URL = secrets.get("PHONEPE_BASE_URL") or os.environ.get("PHONEPE_BASE_URL", "")
+            BILLING_DEFAULT_PROVIDER = secrets.get("BILLING_DEFAULT_PROVIDER") or os.environ.get("BILLING_DEFAULT_PROVIDER", "phonepe")
+            RENEWAL_CRON_SECRET = secrets.get("RENEWAL_CRON_SECRET") or os.environ.get("RENEWAL_CRON_SECRET", "")
         except Exception as e:
             logging.error("Could not load AWS secrets, falling back to env")
             SECRET_KEY = os.environ.get("SECRET_KEY")
@@ -41,6 +52,17 @@ class Config:
             GST_CLIENT_SECRET = os.environ.get("GST_CLIENT_SECRET")
             RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID")
             RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET")
+            # PhonePe Payment Gateway / UPI AutoPay
+            PHONEPE_MERCHANT_ID = os.environ.get("PHONEPE_MERCHANT_ID", "PGTESTPAYUAT")
+            PHONEPE_SALT_KEY = os.environ.get("PHONEPE_SALT_KEY", "099eb0cd-0252-4e2a-9123-046648858427")
+            PHONEPE_SALT_INDEX = os.environ.get("PHONEPE_SALT_INDEX", "1")
+            PHONEPE_ENV = os.environ.get("PHONEPE_ENV", "UAT")
+            PHONEPE_WEBHOOK_USERNAME = os.environ.get("PHONEPE_WEBHOOK_USERNAME", "")
+            PHONEPE_WEBHOOK_PASSWORD = os.environ.get("PHONEPE_WEBHOOK_PASSWORD", "")
+            PHONEPE_WEBHOOK_SECRET = os.environ.get("PHONEPE_WEBHOOK_SECRET", "")
+            PHONEPE_BASE_URL = os.environ.get("PHONEPE_BASE_URL", "")
+            BILLING_DEFAULT_PROVIDER = os.environ.get("BILLING_DEFAULT_PROVIDER", "phonepe")
+            RENEWAL_CRON_SECRET = os.environ.get("RENEWAL_CRON_SECRET", "")
     else:
         SECRET_KEY = os.environ.get("SECRET_KEY")
         SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
@@ -48,6 +70,17 @@ class Config:
         GST_CLIENT_SECRET = os.environ.get("GST_CLIENT_SECRET")
         RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID")
         RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET")
+        # PhonePe Payment Gateway / UPI AutoPay
+        PHONEPE_MERCHANT_ID = os.environ.get("PHONEPE_MERCHANT_ID", "PGTESTPAYUAT")
+        PHONEPE_SALT_KEY = os.environ.get("PHONEPE_SALT_KEY", "099eb0cd-0252-4e2a-9123-046648858427")
+        PHONEPE_SALT_INDEX = os.environ.get("PHONEPE_SALT_INDEX", "1")
+        PHONEPE_ENV = os.environ.get("PHONEPE_ENV", "UAT")
+        PHONEPE_WEBHOOK_USERNAME = os.environ.get("PHONEPE_WEBHOOK_USERNAME", "")
+        PHONEPE_WEBHOOK_PASSWORD = os.environ.get("PHONEPE_WEBHOOK_PASSWORD", "")
+        PHONEPE_WEBHOOK_SECRET = os.environ.get("PHONEPE_WEBHOOK_SECRET", "")
+        PHONEPE_BASE_URL = os.environ.get("PHONEPE_BASE_URL", "")
+        BILLING_DEFAULT_PROVIDER = os.environ.get("BILLING_DEFAULT_PROVIDER", "phonepe")
+        RENEWAL_CRON_SECRET = os.environ.get("RENEWAL_CRON_SECRET", "")
 
     if not SECRET_KEY or SECRET_KEY == "secret123":
         raise RuntimeError("Set a strong SECRET_KEY in the environment before startup.")

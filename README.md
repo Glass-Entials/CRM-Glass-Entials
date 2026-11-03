@@ -10,7 +10,7 @@
   <a href="#"><img src="https://img.shields.io/badge/AI%20Copilot-Private%20RAG%20%2B%20Vector%20Engine-412991?style=for-the-badge&logo=openai&logoColor=white" alt="Private AI RAG"></a>
   <a href="#"><img src="https://img.shields.io/badge/Real--Time-Bidirectional%20WebSockets-010101?style=for-the-badge&logo=socketdotio&logoColor=white" alt="Socket.IO"></a>
   <a href="#"><img src="https://img.shields.io/badge/Telephony-Android%20Hardware%20Sync-3DDC84?style=for-the-badge&logo=android&logoColor=black" alt="Android Sync"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Billing-Razorpay%20Subscription%20Engine-0070BA?style=for-the-badge&logo=razorpay&logoColor=white" alt="Razorpay"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Billing-PhonePe%20UPI%20AutoPay-5F259F?style=for-the-badge&logo=phonepe&logoColor=white" alt="PhonePe"></a>
   <a href="#"><img src="https://img.shields.io/badge/Taxation-Indian%20GST%20Automated-008080?style=for-the-badge" alt="GST"></a>
   <a href="#"><img src="https://img.shields.io/badge/Security-Argon2%20%7C%20Zero--Trust%20RBAC-success?style=for-the-badge&logo=securityscorecard&logoColor=white" alt="Security"></a>
 </p>
@@ -28,7 +28,7 @@
 
 | 🏛️ Core Platform Architecture | 🔄 System Workflows & Sequences | 🛡️ Security, Data & Specs |
 | :--- | :--- | :--- |
-| • [**Executive Topology Matrix**](#️-executive-architecture--system-topology)<br>• [**Zero-Trust Security & RBAC**](#️-zero-trust-security-compliance--data-isolation)<br>• [**Entity-Relationship (ERD)**](#-enterprise-data-model--entity-relationship-erd)<br>• [**High-Throughput Tech Stack**](#️-high-throughput-technology-stack-specs)<br>• [**Codebase Topology Map**](#-codebase-organization--topology)<br>• [**Platform Roadmap**](#️-future-architectural-roadmap) | • [**1. Multi-Tenant SaaS Lifecycle**](#1-multi-tenant-saas-lifecycle--billing-engine)<br>• [**2. Sales & Glass Fabrication Pipeline**](#2-end-to-end-sales-fabrication--project-lifecycle)<br>• [**3. Private AI RAG Copilot Workflow**](#3-privacy-first-ai-copilot-rag--vector-engine)<br>• [**4. Android Telephony Hardware Sync**](#4-android-hardware-telephony-sync--call-disposition)<br>• [**5. Financial Invoicing & Indian GST**](#5-financial-ledger-invoicing--indian-gst-engine)<br>• [**6. Real-Time WebSockets Engine**](#6-real-time-collaboration--websockets-topology) | • [**Confidentiality & Governance**](#-governance-copyright--trademarks)<br>• [**OWASP Security Guard**](#️-zero-trust-security-compliance--data-isolation)<br>• [**Database Architecture**](#-enterprise-data-model--entity-relationship-erd)<br>• [**Telephony Protocol Specs**](#module-12--android-mobile-telephony-sync-gateway)<br>• [**Razorpay SaaS Billing**](#module-2--multi-tenant-saas-subscriptions--quota-management)<br>• [**Universal Trash Station**](#module-15--enterprise-trash-station--universal-audit-logs) |
+| • [**Executive Topology Matrix**](#️-executive-architecture--system-topology)<br>• [**Zero-Trust Security & RBAC**](#️-zero-trust-security-compliance--data-isolation)<br>• [**Entity-Relationship (ERD)**](#-enterprise-data-model--entity-relationship-erd)<br>• [**High-Throughput Tech Stack**](#️-high-throughput-technology-stack-specs)<br>• [**Codebase Topology Map**](#-codebase-organization--topology)<br>• [**Platform Roadmap**](#️-future-architectural-roadmap) | • [**1. Multi-Tenant SaaS Lifecycle**](#1-multi-tenant-saas-lifecycle--billing-engine)<br>• [**2. Sales & Glass Fabrication Pipeline**](#2-end-to-end-sales-fabrication--project-lifecycle)<br>• [**3. Private AI RAG Copilot Workflow**](#3-privacy-first-ai-copilot-rag--vector-engine)<br>• [**4. Android Telephony Hardware Sync**](#4-android-hardware-telephony-sync--call-disposition)<br>• [**5. Financial Invoicing & Indian GST**](#5-financial-ledger-invoicing--indian-gst-engine)<br>• [**6. Real-Time WebSockets Engine**](#6-real-time-collaboration--websockets-topology) | • [**Confidentiality & Governance**](#-governance-copyright--trademarks)<br>• [**OWASP Security Guard**](#️-zero-trust-security-compliance--data-isolation)<br>• [**Database Architecture**](#-enterprise-data-model--entity-relationship-erd)<br>• [**Telephony Protocol Specs**](#module-12--android-mobile-telephony-sync-gateway)<br>• [**PhonePe AutoPay SaaS Billing**](#module-2--multi-tenant-saas-subscriptions--quota-management)<br>• [**Universal Trash Station**](#module-15--enterprise-trash-station--universal-audit-logs) |
 
 </div>
 
@@ -144,14 +144,14 @@ flowchart TD
 
 ### 1. Multi-Tenant SaaS Lifecycle & Billing Engine
 
-The SaaS management engine automates organization onboarding, plan assignment, seat allocation, Razorpay recurring subscriptions, and quota enforcement.
+The SaaS management engine automates organization onboarding, plan assignment, seat allocation, PhonePe UPI AutoPay recurring subscriptions, and quota enforcement.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Tenant as Tenant Executive
     participant Portal as GlassEntials Auth & SaaS
-    participant RZP as Razorpay Gateway
+    participant PPE as PhonePe UPI AutoPay
     participant Webhook as Webhook Listener (/saas/webhook)
     participant DB as Multi-Tenant Database
     participant Admin as Super Admin Fleet Plane
@@ -159,9 +159,9 @@ sequenceDiagram
     Tenant->>Portal: Registers Organization & Admin Profile
     Portal->>DB: Create Org (Status: PENDING), Seed Roles & Settings
     Portal->>Tenant: Redirect to Secure Checkout (/saas/checkout)
-    Tenant->>RZP: Selects Plan & Completes Payment
-    RZP-->>Tenant: Payment Authorization Success
-    RZP->>Webhook: Dispatches 'payment.captured' / 'subscription.charged'
+    Tenant->>PPE: Selects Plan & Completes Payment
+    PPE-->>Tenant: Payment Authorization Success
+    PPE->>Webhook: Dispatches 'payment.captured' / 'subscription.charged'
     Note over Webhook: Verify HMAC SHA-256 Signature
     Webhook->>DB: Update SaaSSubscription & OrganizationStatus -> ACTIVE
     Webhook->>DB: Log SaaSTransaction & Establish Quotas
@@ -331,7 +331,7 @@ GlassEntials incorporates a state-of-the-art **air-gapped AI Copilot** designed 
 Built from the ground up as a turnkey commercial enterprise SaaS platform.
 - **Rigorous Tenant Partitioning**: Every database record is tethered to a unique `organization_id`. System-level interceptors prevent cross-tenant data traversal.
 - **Subscription Lifecycle & Quotas**: Manage custom subscription plans featuring hard seat counts, quotation limits, storage volume caps, and feature toggles.
-- **Automated Billing via Razorpay**: Turnkey integration handling plan upgrades, payment verification, recurring renewals, and automated tax invoicing.
+- **Automated Billing via PhonePe UPI AutoPay**: Turnkey integration handling plan upgrades, payment verification, recurring renewals, and automated tax invoicing.
 - **Self-Serve Onboarding**: Automated organization initialization wizard configuring corporate metadata, user roles, initial branches, and custom quotation styling.
 
 ### Module 3: 🎯 Omnichannel Lead Management & Deal Pipeline
@@ -520,7 +520,7 @@ erDiagram
 | **Cryptography & Security** | **argon2-cffi 23.1.0** & **Flask-Talisman 1.1.0** | OWASP-grade password hashing, CSP & HSTS security |
 | **Local AI & Semantic RAG** | **Ollama** (Mistral/LLaMA3), **sentence-transformers 3.3.1** | Air-gapped AI Copilot, vector search & document indexing |
 | **Financial & Export Processing**| **Pandas 2.2.2**, **openpyxl 3.1.2**, **fpdf2 2.7.9** | GSTR Excel generator & luxury quotation PDF engine |
-| **Payment Gateway Suite** | **Razorpay 1.4.1** SDK & Secure Webhooks | Automated multi-tier SaaS billing & transaction validation |
+| **Payment Gateway Suite** | **PhonePe V3 AutoPay** Gateway & Secure Webhooks | Automated multi-tier SaaS billing & transaction validation |
 | **Cloud Infrastructure Connect** | **Boto3 1.34.0** (AWS Secrets Manager & S3) | Production secret rotation & encrypted document storage |
 | **Custom UI Design System** | **Handcrafted Glassmorphic Vanilla CSS & ES6+** | Proprietary luxury dark theme UI (Zero bulky bloatware) |
 
@@ -566,7 +566,7 @@ CRM-GlassEntials/
 │   ├── projects.py                  # Architectural project milestones & operations
 │   ├── quotations.py                # Glass fabrication estimation & PDF generator
 │   ├── quotation_settings.py        # Terms library, custom fields & tax rules
-│   ├── saas.py                      # SaaS subscription checkout & Razorpay webhooks
+│   ├── saas.py                      # SaaS subscription checkout & PhonePe UPI AutoPay webhooks
 │   ├── tasks.py                     # Employee tasks, follow-up scheduler & daily logs
 │   ├── trash.py                     # Centralized soft-delete recovery station
 │   └── vendors.py                   # Supplier management & procurement tracking
@@ -625,7 +625,7 @@ CRM-GlassEntials/
 - [x] **Phase 1: Multi-Tenant Foundation & RBAC Isolation**
 - [x] **Phase 2: Architectural Glass Fabrication Estimation Studio**
 - [x] **Phase 3: Automated Indian GST Accounting & GSTR-1/3B Compliance Engine**
-- [x] **Phase 4: SaaS Subscription Engine & Razorpay Webhook Gateway**
+- [x] **Phase 4: SaaS Subscription Engine & PhonePe UPI AutoPay Gateway**
 - [x] **Phase 5: Android Mobile Hardware Telephony Sync Gateway**
 - [x] **Phase 6: Real-Time Bidirectional WebSockets Messaging Grid**
 - [x] **Phase 7: Air-Gapped Local Vector AI Copilot (Ollama + RAG)**
