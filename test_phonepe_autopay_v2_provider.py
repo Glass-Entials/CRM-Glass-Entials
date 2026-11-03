@@ -561,7 +561,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
     # ── Test 20: Reconcile Notification Status to NOTIFIED ────────────────────
     @patch("model.db.session.commit")
     def test_reconcile_notification_status_notified(self, mock_commit):
-        """Test reconcile_notification_status transitions status to NOTIFIED upon COMPLETED order."""
+        """Test reconcile_notification_status transitions status to NOTIFIED upon authoritative NOTIFIED order."""
         notification = SaaSPreDebitNotification(
             organization_id=7,
             subscription_id=99,
@@ -572,7 +572,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         )
 
         self.mock_client.get_order_status.return_value = {
-            "state": "COMPLETED",
+            "state": "NOTIFIED",
             "validAfter": "2026-11-04T00:00:00Z",
             "validUpto": "2026-11-06T00:00:00Z",
         }
@@ -584,6 +584,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         self.assertIsNotNone(updated.valid_after_at)
         self.assertIsNotNone(updated.valid_upto_at)
         mock_commit.assert_called_once()
+        self.mock_client.get_order_status.assert_called_with("NOTIFY_ORD_RECON", details=False)
 
     # ── Test 21: Reconcile Redemption Status Completed Advances Subscription ──
     @patch("services.billing.transaction_service.TransactionService.record_transaction")
@@ -789,6 +790,336 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         dt_iso = _parse_datetime(iso_str)
         self.assertEqual(dt_iso.year, 2026)
         self.assertEqual(dt_iso.month, 11)
+
+
+    # ── Test 30: Notification Reconcile Completed Order Does Not Mark Notified ──
+    @patch("model.db.session.commit")
+    def test_reconcile_notification_status_completed_order_does_not_mark_notified(self, mock_commit):
+        """Financial Safety: Generic payment completion state 'COMPLETED' must NEVER mark notification delivery."""
+        notification = SaaSPreDebitNotification(
+            organization_id=7,
+            subscription_id=99,
+            mandate_id=10,
+            merchant_order_id="NOTIFY_ORD_COMPLETED_TEST",
+            amount_paise=118000,
+            status=PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value,
+        )
+
+        self.mock_client.get_order_status.return_value = {
+            "state": "COMPLETED",
+            "validAfter": "2026-11-04T00:00:00Z",
+            "validUpto": "2026-11-06T00:00:00Z",
+        }
+
+        updated = self.provider.reconcile_notification_status(notification)
+
+        self.assertEqual(updated.status, PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value)
+        self.assertIsNone(updated.notified_at)
+        mock_commit.assert_called_once()
+        self.mock_client.get_order_status.assert_called_with("NOTIFY_ORD_COMPLETED_TEST", details=False)
+
+    # ── Test 31: Notification Delivery and Debit Outcome Remain Separate ───────
+    @patch("services.billing.transaction_service.TransactionService.record_transaction")
+    @patch("model.db.session.commit")
+    def test_notification_delivery_and_debit_outcome_remain_separate(
+        self, mock_commit, mock_record_tx
+    ):
+        """Financial Safety: Authoritative NOTIFIED delivery must never trigger payment debit or period extension."""
+        notification = SaaSPreDebitNotification(
+            organization_id=7,
+            subscription_id=99,
+            mandate_id=10,
+            merchant_order_id="NOTIFY_DELIVERY_SEPARATION",
+            amount_paise=118000,
+            status=PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value,
+        )
+
+        self.mock_client.get_order_status.return_value = {
+            "state": "NOTIFIED",
+            "validAfter": "2026-11-04T00:00:00Z",
+            "validUpto": "2026-11-06T00:00:00Z",
+        }
+
+        updated = self.provider.reconcile_notification_status(notification)
+
+        self.assertEqual(updated.status, PreDebitNotificationStatus.NOTIFIED.value)
+        self.assertIsNotNone(updated.notified_at)
+        mock_record_tx.assert_not_called()
+        self.mock_client.redeem.assert_not_called()
+
+    # ── Test 32: Reconcile Auto-Debit COMPLETED Requires Manual Reconciliation ──
+    @patch("services.billing.transaction_service.TransactionService.record_transaction")
+    @patch("model.db.session.commit")
+    def test_reconcile_redemption_auto_debit_requires_manual_reconciliation(
+        self, mock_commit, mock_record_tx
+    ):
+        """Financial Safety: Gateway-managed auto-debit COMPLETED order cannot advance period without settlement proof."""
+        sub = SaaSSubscription(
+            id=99,
+            organization_id=7,
+            billing_cycle=SaaSBillingCycle.MONTHLY,
+            status=SaaSSubscriptionStatus.ACTIVE,
+            active_mandate_id=10,
+            current_period_start=datetime(2026, 10, 1),
+            current_period_end=datetime(2026, 11, 1),
+        )
+        sub.organization = self.dummy_org
+
+        notification = MagicMock(
+            id=5,
+            auto_debit_snapshot=True,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+        )
+
+        attempt = SaaSRedemptionAttempt(
+            id=55,
+            organization_id=7,
+            subscription_id=99,
+            notification_id=5,
+            merchant_order_id="ORD_AUTODEBIT_RECON",
+            amount_paise=118000,
+            status=RedemptionAttemptStatus.PENDING_RECONCILIATION.value,
+        )
+        attempt.subscription = sub
+        attempt.notification = notification
+
+        self.mock_client.get_order_status.return_value = {
+            "state": "COMPLETED",
+            "paymentDetails": [
+                {
+                    "state": "COMPLETED",
+                    "transactionId": "TXN_AD_CONFIRMED",
+                    "amount": 118000,
+                }
+            ],
+        }
+
+        updated = self.provider.reconcile_redemption_status(attempt)
+
+        self.assertEqual(updated.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+        self.assertIn("settlement confirmation", updated.failure_reason)
+        # Period start must NOT be advanced
+        self.assertEqual(sub.current_period_start, datetime(2026, 10, 1))
+        # Notification must NOT be marked CONSUMED
+        self.assertNotEqual(notification.status, PreDebitNotificationStatus.CONSUMED.value)
+        # No transaction should be recorded
+        mock_record_tx.assert_not_called()
+        mock_commit.assert_called()
+
+    # ── Test 33: Execute Blocked Before valid_after_at ─────────────────────────
+    @patch("model.SaaSPreDebitNotification.query")
+    def test_execute_redemption_blocked_before_valid_after_at(self, mock_pdn_query):
+        """Financial Safety: Debit cannot be executed before valid_after_at (pre-debit window not open yet)."""
+        mock_pdn = MagicMock(
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() + timedelta(hours=5),
+            valid_upto_at=datetime.utcnow() + timedelta(days=2),
+        )
+        mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
+
+        res = self.provider.execute_redemption(
+            subscription=self.dummy_sub,
+            amount_paise=118000,
+            merchant_transaction_id="ORDER_TOO_EARLY",
+        )
+
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, "FAILED")
+        self.assertIn("window has not opened yet", res.error_message)
+        self.mock_client.redeem.assert_not_called()
+
+    # ── Test 34: Execute Blocked When Validity Timestamps Missing ──────────────
+    @patch("model.SaaSPreDebitNotification.query")
+    def test_execute_redemption_blocked_missing_timestamps(self, mock_pdn_query):
+        """Financial Safety: Debit must be rejected when validity timestamps are missing or malformed."""
+        mock_pdn = MagicMock(
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=None,
+            valid_upto_at=None,
+        )
+        mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
+
+        res = self.provider.execute_redemption(
+            subscription=self.dummy_sub,
+            amount_paise=118000,
+            merchant_transaction_id="ORDER_NO_TIMESTAMPS",
+        )
+
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, "FAILED")
+        self.assertIn("missing validity window timestamps", res.error_message)
+        self.mock_client.redeem.assert_not_called()
+
+    # ── Test 35: Execute Blocked When Prior Attempt Unresolved ────────────────
+    @patch("model.SaaSRedemptionAttempt.query")
+    @patch("model.SaaSPreDebitNotification.query")
+    def test_execute_redemption_blocked_when_prior_attempt_unresolved(
+        self, mock_pdn_query, mock_attempt_query
+    ):
+        """Financial Safety: Cross-cycle debit safety blocks new redemption while any prior attempt remains unresolved."""
+        mock_pdn = MagicMock(
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
+            valid_upto_at=datetime.utcnow() + timedelta(days=1),
+        )
+        mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
+
+        unresolved_attempt = MagicMock(
+            merchant_order_id="PRIOR_CYCLE_DEBIT_UNRESOLVED",
+            status=RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value,
+        )
+        mock_attempt_query.filter_by.return_value.filter.return_value.first.return_value = unresolved_attempt
+
+        res = self.provider.execute_redemption(
+            subscription=self.dummy_sub,
+            amount_paise=118000,
+            merchant_transaction_id="NEW_CYCLE_DEBIT",
+        )
+
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, "PENDING")
+        self.assertIn("remains unresolved", res.error_message)
+        self.mock_client.redeem.assert_not_called()
+
+    # ── Test 36: Expired Notification Does Not Authorize Replacement Debit ────
+    @patch("model.SaaSPreDebitNotification.query")
+    @patch("model.db.session.commit")
+    def test_expired_notification_does_not_authorize_replacement_debit(
+        self, mock_commit, mock_pdn_query
+    ):
+        """Financial Safety: Expiry marks notification EXPIRED and rejects debit without authorizing replacement."""
+        mock_pdn = MagicMock(
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(days=3),
+            valid_upto_at=datetime.utcnow() - timedelta(minutes=15),
+        )
+        mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
+
+        res = self.provider.execute_redemption(
+            subscription=self.dummy_sub,
+            amount_paise=118000,
+            merchant_transaction_id="ORDER_EXPIRED_SAFETY",
+        )
+
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, "FAILED")
+        self.assertEqual(mock_pdn.status, PreDebitNotificationStatus.EXPIRED.value)
+        self.assertIn("expired", res.error_message)
+        self.mock_client.redeem.assert_not_called()
+
+    # ── Test 37: Cancel Status Inquiry Failure Preserves Active Mandate ────────
+    @patch("model.SaaSMandate.query")
+    @patch("model.db.session.commit")
+    def test_cancel_subscription_status_inquiry_failure_preserves_active_mandate(
+        self, mock_commit, mock_mandate_query
+    ):
+        """Financial Safety: If post-cancel S2S status inquiry fails, mandate is CANCEL_IN_PROGRESS and active_mandate_id is preserved."""
+        sub = MagicMock(organization_id=7, active_mandate_id=10)
+        mandate = MagicMock(
+            id=10,
+            merchant_subscription_id="MSUB_V2_7_99",
+            mandate_status=MandateStatus.ACTIVE.value,
+        )
+        mock_mandate_query.filter_by.return_value.first.return_value = mandate
+
+        self.mock_client.cancel_subscription.return_value = {"success": True}
+        self.mock_client.get_subscription_status.side_effect = Exception("S2S timeout during cancellation verification")
+
+        res = self.provider.cancel_subscription(sub)
+
+        self.assertFalse(res)
+        self.assertEqual(mandate.mandate_status, MandateStatus.CANCEL_IN_PROGRESS.value)
+        self.assertEqual(sub.active_mandate_id, 10)  # Must NOT be cleared!
+        mock_commit.assert_called()
+
+    # ── Test 38: Cancel In-Progress State Preserves Active Mandate ──────────────
+    @patch("model.SaaSMandate.query")
+    @patch("model.db.session.commit")
+    def test_cancel_subscription_in_progress_state_preserves_active_mandate(
+        self, mock_commit, mock_mandate_query
+    ):
+        """Financial Safety: Non-terminal cancel response keeps mandate in CANCEL_IN_PROGRESS and preserves active_mandate_id."""
+        sub = MagicMock(organization_id=7, active_mandate_id=10)
+        mandate = MagicMock(
+            id=10,
+            merchant_subscription_id="MSUB_V2_7_99",
+            mandate_status=MandateStatus.ACTIVE.value,
+        )
+        mock_mandate_query.filter_by.return_value.first.return_value = mandate
+
+        self.mock_client.cancel_subscription.return_value = {"success": True}
+        self.mock_client.get_subscription_status.return_value = {"state": "CANCEL_IN_PROGRESS"}
+
+        res = self.provider.cancel_subscription(sub)
+
+        self.assertFalse(res)
+        self.assertEqual(mandate.mandate_status, MandateStatus.CANCEL_IN_PROGRESS.value)
+        self.assertEqual(sub.active_mandate_id, 10)  # Must NOT be cleared!
+        mock_commit.assert_called()
+
+    # ── Test 39: Cancel Authoritative Confirmation Clears Active Mandate ──────
+    @patch("model.SaaSMandate.query")
+    @patch("model.db.session.commit")
+    def test_cancel_subscription_authoritative_confirmation_clears_active_mandate(
+        self, mock_commit, mock_mandate_query
+    ):
+        """Authoritative S2S confirmation (CANCELLED) sets mandate status CANCELLED and clears active_mandate_id."""
+        sub = MagicMock(organization_id=7, active_mandate_id=10)
+        mandate = MagicMock(
+            id=10,
+            merchant_subscription_id="MSUB_V2_7_99",
+            mandate_status=MandateStatus.ACTIVE.value,
+        )
+        mock_mandate_query.filter_by.return_value.first.return_value = mandate
+
+        self.mock_client.cancel_subscription.return_value = {"success": True}
+        self.mock_client.get_subscription_status.return_value = {"state": "CANCELLED"}
+
+        res = self.provider.cancel_subscription(sub)
+
+        self.assertTrue(res)
+        self.assertEqual(mandate.mandate_status, MandateStatus.CANCELLED.value)
+        self.assertIsNone(sub.active_mandate_id)
+        mock_commit.assert_called()
+
+    # ── Test 40: Check Subscription Status Tenant Isolation ───────────────────
+    @patch("model.SaaSMandate.query")
+    def test_check_subscription_status_with_org_id_isolation(self, mock_mandate_query):
+        """Tenant isolation: check_subscription_status strictly filters by organization_id when provided."""
+        mock_mandate = MagicMock(mandate_status=MandateStatus.ACTIVE.value)
+        mock_mandate_query.filter_by.return_value.first.return_value = mock_mandate
+        self.mock_client.get_subscription_status.return_value = {"state": "ACTIVE"}
+
+        res = self.provider.check_subscription_status("MSUB_TEST_123", organization_id=7)
+
+        self.assertEqual(res.status, "ACTIVE")
+        mock_mandate_query.filter_by.assert_called_with(
+            merchant_subscription_id="MSUB_TEST_123",
+            organization_id=7,
+        )
+
+    # ── Test 41: Check Transaction Status Tenant Isolation ────────────────────
+    @patch("model.SaaSRedemptionAttempt.query")
+    def test_check_transaction_status_with_org_id_isolation(self, mock_attempt_query):
+        """Tenant isolation: check_transaction_status strictly filters by organization_id when provided."""
+        mock_attempt = MagicMock(status=RedemptionAttemptStatus.COMPLETED.value)
+        mock_attempt_query.filter_by.return_value.first.return_value = mock_attempt
+        self.mock_client.get_order_status.return_value = {
+            "state": "COMPLETED",
+            "paymentDetails": [{"state": "COMPLETED", "transactionId": "TXN_777"}],
+        }
+
+        res = self.provider.check_transaction_status("ORD_TEST_999", organization_id=7)
+
+        self.assertEqual(res.status, "COMPLETED")
+        mock_attempt_query.filter_by.assert_called_with(
+            merchant_order_id="ORD_TEST_999",
+            organization_id=7,
+        )
 
 
 if __name__ == "__main__":

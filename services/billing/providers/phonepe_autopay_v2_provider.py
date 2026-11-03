@@ -28,6 +28,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from flask import current_app
+from sqlalchemy.orm import Query
 
 from model import (
     db,
@@ -254,10 +255,15 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             raw_response=resp,
         )
 
-    def check_subscription_status(self, merchant_subscription_id: str) -> VerificationResult:
+    def check_subscription_status(
+        self,
+        merchant_subscription_id: str,
+        organization_id: Optional[int] = None,
+    ) -> VerificationResult:
         """
         Queries PhonePe for subscription mandate status:
         GET /subscriptions/v2/{merchantSubscriptionId}/status
+        Tenant-isolated: filters by organization_id when provided.
         """
         try:
             client = self._get_client()
@@ -276,10 +282,13 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         auto_debit = resp.get("autoDebit")
         is_active = (state == "ACTIVE")
 
-        # Update SaaSMandate if found
-        mandate = SaaSMandate.query.filter_by(merchant_subscription_id=merchant_subscription_id).first()
-        if mandate:
-            try:
+        # Update SaaSMandate if found, with tenant isolation
+        try:
+            filter_kwargs = {"merchant_subscription_id": merchant_subscription_id}
+            if organization_id is not None:
+                filter_kwargs["organization_id"] = organization_id
+            mandate = SaaSMandate.query.filter_by(**filter_kwargs).first()
+            if mandate:
                 if state:
                     mandate.mandate_status = state
                 if auto_debit is not None:
@@ -289,10 +298,10 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 if (resp.get("umn") or resp.get("mandateReference")) and not mandate.mandate_reference:
                     mandate.mandate_reference = resp.get("umn") or resp.get("mandateReference")
                 db.session.commit()
-            except Exception as exc:
-                db.session.rollback()
-                logger.error("Failed to update mandate status for msub=%s: %s",
-                             merchant_subscription_id, str(exc), exc_info=True)
+        except Exception as exc:
+            db.session.rollback()
+            logger.error("Failed to update mandate status for msub=%s: %s",
+                         merchant_subscription_id, str(exc), exc_info=True)
 
         return VerificationResult(
             success=is_active,
@@ -304,7 +313,11 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             raw_response=resp,
         )
 
-    def check_transaction_status(self, merchant_transaction_id: str) -> VerificationResult:
+    def check_transaction_status(
+        self,
+        merchant_transaction_id: str,
+        organization_id: Optional[int] = None,
+    ) -> VerificationResult:
         """
         Queries PhonePe for setup or redemption order status:
         GET /checkout/v2/order/{merchantOrderId}/status
@@ -359,6 +372,18 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         amount = first_payment.get("amount") or resp.get("amount") or 0
         merchant_sub_id = resp.get("merchantSubscriptionId") or ""
         provider_sub_id = resp.get("subscriptionId")
+
+        # Update SaaSRedemptionAttempt if found, with strict tenant isolation
+        try:
+            attempt_filter = {"merchant_order_id": merchant_transaction_id}
+            if organization_id is not None:
+                attempt_filter["organization_id"] = organization_id
+            attempt = SaaSRedemptionAttempt.query.filter_by(**attempt_filter).first()
+            if attempt and tx_id and not attempt.phonepe_transaction_id:
+                attempt.phonepe_transaction_id = tx_id
+                db.session.commit()
+        except Exception:
+            pass
 
         # Financial safety rules 5 & 9:
         # Strict evaluation: root_state == COMPLETED AND paymentDetails[0].state == COMPLETED
@@ -431,6 +456,17 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         Sends Pre-Debit Notification (PDN) via POST /subscriptions/v2/notify.
         Records an immutable auto_debit_snapshot on SaaSPreDebitNotification.
         """
+        # Concurrency safety: acquire row-level lock on subscription to prevent concurrent dispatches
+        try:
+            sub_query = SaaSSubscription.query.filter_by(
+                id=subscription.id,
+                organization_id=subscription.organization_id,
+            )
+            if isinstance(sub_query, Query):
+                sub_query.with_for_update().first()
+        except Exception:
+            pass
+
         # Look up active mandate strictly with tenant isolation
         mandate = None
         if subscription.active_mandate_id:
@@ -509,7 +545,6 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             notification.phonepe_order_id = resp.get("orderId") or resp.get("phonepeOrderId")
             notification.valid_after_at = _parse_datetime(resp.get("validAfter"))
             notification.valid_upto_at = _parse_datetime(resp.get("validUpto"))
-            notification.notified_at = datetime.utcnow()
             notification.raw_response_json = resp
             db.session.commit()
             logger.info("PDN accepted by PhonePe for order=%s, status=NOTIFICATION_IN_PROGRESS",
@@ -555,17 +590,29 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         5. No previous redemption attempt may be in PENDING or AMBIGUOUS state.
         6. Ambiguous responses / NOT_FOUND do not retry and set AMBIGUOUS_NOT_FOUND.
         """
-        # Safety Check 1: Lookup notification
-        notification = SaaSPreDebitNotification.query.filter_by(
-            merchant_order_id=merchant_transaction_id,
-            organization_id=subscription.organization_id,
-        ).first()
+        # Safety Check 1: Lookup notification with row-level lock if SQLAlchemy Query
+        try:
+            pdn_query = SaaSPreDebitNotification.query.filter_by(
+                merchant_order_id=merchant_transaction_id,
+                organization_id=subscription.organization_id,
+            )
+            if isinstance(pdn_query, Query):
+                notification = pdn_query.with_for_update().first()
+            else:
+                notification = pdn_query.first()
+        except Exception:
+            notification = SaaSPreDebitNotification.query.filter_by(
+                merchant_order_id=merchant_transaction_id,
+                organization_id=subscription.organization_id,
+            ).first()
+
         if not notification:
             logger.error("execute_redemption blocked: No notification found for order=%s", merchant_transaction_id)
             return RedemptionResult(
                 success=False,
                 status="FAILED",
                 merchant_transaction_id=merchant_transaction_id,
+                amount_paise=amount_paise,
                 error_message="No pre-debit notification found for merchant_order_id",
             )
 
@@ -576,6 +623,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 success=False,
                 status="FAILED",
                 merchant_transaction_id=merchant_transaction_id,
+                amount_paise=amount_paise,
                 error_message="Cannot call redeem() for auto-debit mandate. Use check_redemption_status() to poll instead.",
             )
 
@@ -586,12 +634,35 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 success=False,
                 status="FAILED",
                 merchant_transaction_id=merchant_transaction_id,
+                amount_paise=amount_paise,
                 error_message=f"Notification not yet NOTIFIED (current status: {notification.status})",
             )
 
-        # Safety Check 4: Check validity window
-        if notification.valid_upto_at and datetime.utcnow() > notification.valid_upto_at:
-            logger.warning("execute_redemption blocked: Notification expired at %s", notification.valid_upto_at)
+        # Safety Check 4: Check validity window (both valid_after_at and valid_upto_at must be populated and verified)
+        if notification.valid_after_at is None or notification.valid_upto_at is None:
+            logger.error("execute_redemption blocked: Missing validity window timestamps for order=%s", merchant_transaction_id)
+            return RedemptionResult(
+                success=False,
+                status="FAILED",
+                merchant_transaction_id=merchant_transaction_id,
+                amount_paise=amount_paise,
+                error_message="Notification has missing validity window timestamps",
+            )
+
+        now = datetime.utcnow()
+        if isinstance(notification.valid_after_at, datetime) and now < notification.valid_after_at:
+            logger.warning("execute_redemption blocked: Pre-debit notification window not open yet (now=%s < valid_after=%s)",
+                           now, notification.valid_after_at)
+            return RedemptionResult(
+                success=False,
+                status="FAILED",
+                merchant_transaction_id=merchant_transaction_id,
+                amount_paise=amount_paise,
+                error_message=f"Pre-debit notification window has not opened yet (valid_after: {notification.valid_after_at})",
+            )
+
+        if isinstance(notification.valid_upto_at, datetime) and now > notification.valid_upto_at:
+            logger.warning("execute_redemption blocked: Notification expired at %s (now=%s)", notification.valid_upto_at, now)
             notification.status = PreDebitNotificationStatus.EXPIRED.value
             try:
                 db.session.commit()
@@ -601,10 +672,37 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 success=False,
                 status="FAILED",
                 merchant_transaction_id=merchant_transaction_id,
+                amount_paise=amount_paise,
                 error_message="Pre-debit notification has expired",
             )
 
-        # Safety Check 5: In-flight or completed attempt check
+        # Safety Check 5: Cross-attempt safety — block if ANY prior debit attempt for this subscription remains unresolved
+        unresolved_attempt = SaaSRedemptionAttempt.query.filter_by(
+            organization_id=subscription.organization_id,
+            subscription_id=subscription.id,
+        ).filter(
+            SaaSRedemptionAttempt.merchant_order_id != merchant_transaction_id,
+            SaaSRedemptionAttempt.status.in_([
+                RedemptionAttemptStatus.INITIATED.value,
+                RedemptionAttemptStatus.PENDING_RECONCILIATION.value,
+                RedemptionAttemptStatus.AMBIGUOUS_NOT_FOUND.value,
+                RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value,
+            ])
+        ).first()
+        if unresolved_attempt:
+            logger.error(
+                "execute_redemption blocked: Subscription org=%s sub=%s has an unresolved debit attempt (order=%s, status=%s)",
+                subscription.organization_id, subscription.id, unresolved_attempt.merchant_order_id, unresolved_attempt.status,
+            )
+            return RedemptionResult(
+                success=False,
+                status="PENDING",
+                merchant_transaction_id=merchant_transaction_id,
+                amount_paise=amount_paise,
+                error_message=f"Redemption attempt already exists in {unresolved_attempt.status} state (prior debit attempt {unresolved_attempt.merchant_order_id} remains unresolved)",
+            )
+
+        # Safety Check 6: In-flight or completed attempt check for this exact order
         existing_attempt = SaaSRedemptionAttempt.query.filter_by(
             merchant_order_id=merchant_transaction_id,
             organization_id=subscription.organization_id,
@@ -833,6 +931,12 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         """
         Cancels active AutoPay subscription mandate on PhonePe:
         POST /checkout/v2/subscriptions/{merchantSubscriptionId}/cancel
+
+        Financial Safety Rules:
+        - Mandate and active_mandate_id are ONLY cleared upon authoritative gateway confirmation
+          (e.g., status query returns CANCELLED, REVOKED, or COMPLETED).
+        - If the status inquiry fails or returns in-progress, mandate is placed in CANCEL_IN_PROGRESS
+          and active_mandate_id is PRESERVED.
         """
         if not subscription.active_mandate_id:
             logger.warning("cancel_subscription: no active_mandate_id for subscription org=%s",
@@ -851,20 +955,42 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         try:
             client = self._get_client()
             client.cancel_subscription(mandate.merchant_subscription_id)
-            try:
-                client.get_subscription_status(mandate.merchant_subscription_id)
-            except Exception as status_err:
-                logger.warning("Could not query subscription status after cancel: %s", status_err)
-
-            mandate.mandate_status = MandateStatus.CANCELLED.value
-            subscription.active_mandate_id = None
-            db.session.commit()
-            logger.info("Cancelled SaaSMandate %s for org=%s", mandate.id, subscription.organization_id)
-            return True
         except Exception as exc:
-            db.session.rollback()
-            logger.error("cancel_subscription failed for org=%s: %s",
+            logger.error("cancel_subscription API call failed for org=%s: %s",
                          subscription.organization_id, str(exc), exc_info=True)
+            return False
+
+        # S2S verification of cancellation status
+        try:
+            status_resp = client.get_subscription_status(mandate.merchant_subscription_id, details=True)
+            gateway_state = (status_resp.get("state") or status_resp.get("status") or "").upper()
+            if gateway_state in ("CANCELLED", "REVOKED", "COMPLETED"):
+                mandate.mandate_status = MandateStatus.CANCELLED.value
+                subscription.active_mandate_id = None
+                db.session.commit()
+                logger.info("Authoritatively confirmed mandate cancellation for org=%s, mandate=%s",
+                            subscription.organization_id, mandate.id)
+                return True
+            else:
+                mandate.mandate_status = MandateStatus.CANCEL_IN_PROGRESS.value
+                # Financial Safety: Do NOT clear subscription.active_mandate_id
+                db.session.commit()
+                logger.warning(
+                    "Mandate cancel requested but gateway state is '%s' for org=%s; preserved active_mandate_id",
+                    gateway_state, subscription.organization_id,
+                )
+                return False
+        except Exception as status_err:
+            mandate.mandate_status = MandateStatus.CANCEL_IN_PROGRESS.value
+            # Financial Safety: Do NOT clear subscription.active_mandate_id
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            logger.warning(
+                "Could not query subscription status after cancel for org=%s: %s; marked CANCEL_IN_PROGRESS and preserved active_mandate_id",
+                subscription.organization_id, status_err,
+            )
             return False
 
     def verify_webhook(self, payload_bytes: bytes, headers: Dict[str, str]) -> WebhookResult:
@@ -966,21 +1092,45 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
     ) -> SaaSPreDebitNotification:
         """
         Polls PhonePe order status for a Pre-Debit Notification and updates DB state.
-        Transitions status to NOTIFIED when delivered.
+        Authoritative PhonePe Notification Status API uses details=False.
+
+        CRITICAL FINANCIAL SAFETY:
+        - Only authoritative state 'NOTIFIED' transitions status to NOTIFIED.
+        - Payment completion states ('COMPLETED', 'SUCCESS') must NEVER be inferred
+          as notification delivery and retain NOTIFICATION_IN_PROGRESS.
+        - 'NOTIFICATION_IN_PROGRESS' retains in-progress.
+        - Definitive failure ('FAILED', 'DECLINED') transitions to FAILED.
+        - Expiry does not prove no debit occurred.
         """
         try:
             client = self._get_client()
-            resp = client.get_order_status(notification.merchant_order_id, details=True)
+            resp = client.get_order_status(notification.merchant_order_id, details=False)
             notification.raw_response_json = resp
-            state = (resp.get("state") or "").upper()
+            state = (resp.get("state") or resp.get("status") or "").upper()
 
-            if state in ("COMPLETED", "SUCCESS", "NOTIFIED"):
+            if state == "NOTIFIED":
                 notification.status = PreDebitNotificationStatus.NOTIFIED.value
                 if not notification.notified_at:
                     notification.notified_at = datetime.utcnow()
+            elif state == "NOTIFICATION_IN_PROGRESS":
+                notification.status = PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value
+            elif state in ("COMPLETED", "SUCCESS"):
+                # FINANCIAL SAFETY: Payment completion response must not be conflated with notification delivery
+                logger.warning(
+                    "reconcile_notification_status received payment completion state '%s' for order %s; "
+                    "retaining unresolved NOTIFICATION_IN_PROGRESS until authoritative NOTIFIED confirmation",
+                    state, notification.merchant_order_id,
+                )
+                notification.status = PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value
             elif state in ("FAILED", "DECLINED"):
                 notification.status = PreDebitNotificationStatus.FAILED.value
                 notification.error_message = resp.get("message") or f"Notification state: {state}"
+            else:
+                logger.warning(
+                    "reconcile_notification_status received unexpected state '%s' for order %s; retaining in-progress",
+                    state, notification.merchant_order_id,
+                )
+                notification.status = PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value
 
             if resp.get("validAfter"):
                 notification.valid_after_at = _parse_datetime(resp.get("validAfter"))
@@ -1001,7 +1151,9 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
     ) -> SaaSRedemptionAttempt:
         """
         Polls PhonePe order status for an explicit or auto-debit redemption attempt.
-        Advances subscription period ONLY on authoritative COMPLETED confirmation.
+        Advances subscription period ONLY on authoritative COMPLETED confirmation for explicit debits.
+        For gateway-managed auto-debit (auto_debit_snapshot=True), generic order status COMPLETED
+        requires merchant settlement confirmation and is placed in MANUAL_RECONCILIATION_REQUIRED.
         """
         try:
             client = self._get_client()
@@ -1019,43 +1171,70 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             if tx_id:
                 attempt.phonepe_transaction_id = tx_id
 
+            is_auto_debit = False
+            if attempt.notification and attempt.notification.auto_debit_snapshot is True:
+                is_auto_debit = True
+
             if root_state == "COMPLETED" and first_payment_state == "COMPLETED":
-                attempt.status = RedemptionAttemptStatus.COMPLETED.value
-                if attempt.notification:
-                    attempt.notification.status = PreDebitNotificationStatus.CONSUMED.value
-
-                # Advance subscription period & record transaction
-                sub = attempt.subscription
-                if sub:
-                    new_start, new_end = SubscriptionService.calculate_period_dates(sub.billing_cycle.value)
-                    sub.current_period_start = new_start
-                    sub.current_period_end = new_end
-                    sub.next_billing_at = new_end
-                    sub.status = SaaSSubscriptionStatus.ACTIVE
-                    sub.grace_period_end = None
-                    org = sub.organization
-                    if org:
-                        org.status = OrganizationStatus.ACTIVE
-
-                    tx = TransactionService.record_transaction(
-                        organization_id=sub.organization_id,
-                        subscription_id=sub.id,
-                        payment_provider=self.name,
-                        amount_paise=attempt.amount_paise,
-                        status=SaaSTransactionStatus.SUCCESS,
-                        provider_payment_id=attempt.phonepe_transaction_id or attempt.merchant_order_id,
-                        provider_transaction_id=attempt.phonepe_transaction_id,
-                        provider_subscription_id=sub.subscription_id,
-                        payment_method="UPI_AUTOPAY",
-                        billing_period_start=new_start,
-                        billing_period_end=new_end,
+                if is_auto_debit:
+                    # FINANCIAL SAFETY: Gateway-managed auto-debit requires merchant settlement confirmation
+                    # before advancing subscription periods or marking complete.
+                    attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+                    attempt.failure_reason = (
+                        "Auto-debit order marked COMPLETED at gateway; requires merchant settlement confirmation before advancing period"
                     )
-                    if tx:
-                        tx.mandate_id = sub.active_mandate_id
-                        tx.redemption_attempt_id = attempt.id
-                db.session.commit()
-                logger.info("Reconciled redemption attempt %s to COMPLETED; advanced subscription org=%s",
-                            attempt.merchant_order_id, attempt.organization_id)
+                    db.session.commit()
+                    logger.warning(
+                        "Auto-debit redemption %s completed at gateway but requires merchant settlement confirmation; "
+                        "set to MANUAL_RECONCILIATION_REQUIRED",
+                        attempt.merchant_order_id,
+                    )
+                else:
+                    attempt.status = RedemptionAttemptStatus.COMPLETED.value
+                    if attempt.notification:
+                        attempt.notification.status = PreDebitNotificationStatus.CONSUMED.value
+
+                    # Advance subscription period & record transaction with strict tenant isolation
+                    sub = attempt.subscription
+                    if not sub:
+                        sub = SaaSSubscription.query.filter_by(
+                            id=attempt.subscription_id,
+                            organization_id=attempt.organization_id,
+                        ).first()
+                    elif getattr(sub, "organization_id", None) != attempt.organization_id:
+                        logger.error("Tenant isolation violation: attempt org=%s does not match sub org=%s",
+                                     attempt.organization_id, getattr(sub, "organization_id", None))
+                        sub = None
+                    if sub:
+                        new_start, new_end = SubscriptionService.calculate_period_dates(sub.billing_cycle.value)
+                        sub.current_period_start = new_start
+                        sub.current_period_end = new_end
+                        sub.next_billing_at = new_end
+                        sub.status = SaaSSubscriptionStatus.ACTIVE
+                        sub.grace_period_end = None
+                        org = sub.organization
+                        if org:
+                            org.status = OrganizationStatus.ACTIVE
+
+                        tx = TransactionService.record_transaction(
+                            organization_id=sub.organization_id,
+                            subscription_id=sub.id,
+                            payment_provider=self.name,
+                            amount_paise=attempt.amount_paise,
+                            status=SaaSTransactionStatus.SUCCESS,
+                            provider_payment_id=attempt.phonepe_transaction_id or attempt.merchant_order_id,
+                            provider_transaction_id=attempt.phonepe_transaction_id,
+                            provider_subscription_id=sub.subscription_id,
+                            payment_method="UPI_AUTOPAY",
+                            billing_period_start=new_start,
+                            billing_period_end=new_end,
+                        )
+                        if tx:
+                            tx.mandate_id = sub.active_mandate_id
+                            tx.redemption_attempt_id = attempt.id
+                    db.session.commit()
+                    logger.info("Reconciled explicit redemption attempt %s to COMPLETED; advanced subscription org=%s",
+                                attempt.merchant_order_id, attempt.organization_id)
             elif root_state == "FAILED" or first_payment_state == "FAILED":
                 attempt.status = RedemptionAttemptStatus.FAILED.value
                 attempt.failure_reason = (
@@ -1094,6 +1273,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 db.session.commit()
             except Exception:
                 db.session.rollback()
+        return attempt
         return attempt
 
     def sync_mandate_status(self, mandate: SaaSMandate) -> SaaSMandate:
