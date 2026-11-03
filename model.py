@@ -2,6 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from enum import Enum
 from datetime import datetime
+from sqlalchemy.orm import validates
 
 db = SQLAlchemy()
 
@@ -306,6 +307,49 @@ class SaaSTransactionStatus(Enum):
     FAILED  = "failed"
     PENDING = "pending"
     REFUNDED = "refunded"
+
+
+class MandateStatus(Enum):
+    INITIATED = "INITIATED"
+    CREATED = "CREATED"
+    ACTIVE = "ACTIVE"
+    PAUSE_IN_PROGRESS = "PAUSE_IN_PROGRESS"
+    PAUSED = "PAUSED"
+    UNPAUSE_IN_PROGRESS = "UNPAUSE_IN_PROGRESS"
+    REVOKE_IN_PROGRESS = "REVOKE_IN_PROGRESS"
+    REVOKED = "REVOKED"
+    CANCEL_IN_PROGRESS = "CANCEL_IN_PROGRESS"
+    CANCELLED = "CANCELLED"
+    COMPLETED = "COMPLETED"
+    EXPIRED = "EXPIRED"
+    FAILED = "FAILED"
+
+    @classmethod
+    def terminal_states(cls):
+        """Set of terminal mandate states where the mandate cannot be further used."""
+        return {cls.REVOKED, cls.CANCELLED, cls.COMPLETED, cls.EXPIRED, cls.FAILED}
+
+    @property
+    def is_terminal(self) -> bool:
+        return self in self.terminal_states()
+
+
+class PreDebitNotificationStatus(Enum):
+    INITIATED = "INITIATED"
+    NOTIFICATION_IN_PROGRESS = "NOTIFICATION_IN_PROGRESS"
+    NOTIFIED = "NOTIFIED"
+    FAILED = "FAILED"
+    CONSUMED = "CONSUMED"
+    EXPIRED = "EXPIRED"
+
+
+class RedemptionAttemptStatus(Enum):
+    INITIATED = "INITIATED"
+    PENDING_RECONCILIATION = "PENDING_RECONCILIATION"
+    AMBIGUOUS_NOT_FOUND = "AMBIGUOUS_NOT_FOUND"
+    MANUAL_RECONCILIATION_REQUIRED = "MANUAL_RECONCILIATION_REQUIRED"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
 
 
 class Plan(db.Model):
@@ -2673,8 +2717,20 @@ class SaaSSubscription(db.Model):
     cancel_at_period_end = db.Column(db.Boolean, nullable=False, default=False)
     grace_period_end     = db.Column(db.DateTime, nullable=True)
     last_webhook_event_id = db.Column(db.String(100), nullable=True)
+    # PhonePe AutoPay V2 extensions
+    active_mandate_id = db.Column(
+        db.Integer, db.ForeignKey("saas_mandate.id", ondelete="RESTRICT"), nullable=True
+    )
+    claim_token = db.Column(db.String(64), nullable=True)
+    claim_expires_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint("id", "organization_id", name="uq_saas_sub_id_org"),
+        db.Index("ix_saas_sub_claim", "claim_token", "claim_expires_at"),
+    )
 
     organization = db.relationship("Organization", backref=db.backref("saas_subscription", uselist=False))
     plan = db.relationship("Plan", backref="saas_subscriptions")
@@ -2682,10 +2738,13 @@ class SaaSSubscription(db.Model):
         "SaaSTransaction", back_populates="subscription",
         cascade="all, delete-orphan"
     )
+    active_mandate = db.relationship("SaaSMandate", foreign_keys=[active_mandate_id], post_update=True)
 
     @property
     def subscription_id(self):
         """Unified subscription identifier across providers."""
+        if self.active_mandate and self.active_mandate.merchant_subscription_id:
+            return self.active_mandate.merchant_subscription_id
         return self.provider_subscription_id or self.razorpay_subscription_id
 
     @property
@@ -2735,8 +2794,18 @@ class SaaSTransaction(db.Model):
     billing_period_end   = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # PhonePe AutoPay V2 linkages
+    mandate_id = db.Column(
+        db.Integer, db.ForeignKey("saas_mandate.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    redemption_attempt_id = db.Column(
+        db.Integer, db.ForeignKey("saas_redemption_attempt.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+
     organization = db.relationship("Organization", backref="saas_transactions")
     subscription = db.relationship("SaaSSubscription", back_populates="transactions")
+    mandate = db.relationship("SaaSMandate", back_populates="transactions")
+    redemption_attempt = db.relationship("SaaSRedemptionAttempt", back_populates="transactions")
 
     @property
     def amount_inr(self):
@@ -2764,6 +2833,189 @@ class SaaSWebhookEvent(db.Model):
 
     def __repr__(self):
         return f"<SaaSWebhookEvent {self.event_id} type={self.event_type}>"
+
+
+# ===========================================================================
+# PHONEPE AUTOPAY V2 MODELS
+# ===========================================================================
+
+class SaaSMandate(db.Model):
+    """
+    SaaSMandate — Single Source of Truth (SSOT) for Banking / Gateway Mandate State.
+    Enforces tenant isolation via composite unique constraints and RESTRICT foreign keys.
+    """
+    __tablename__ = "saas_mandate"
+    __table_args__ = (
+        db.UniqueConstraint("id", "organization_id", name="uq_saas_mandate_id_org"),
+        db.UniqueConstraint("organization_id", "merchant_subscription_id", name="uq_saas_mandate_merchant_sub"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    subscription_id = db.Column(
+        db.Integer, db.ForeignKey("saas_subscription.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    payment_provider = db.Column(
+        db.String(50), nullable=False, default="phonepe_v2", server_default=db.text("'phonepe_v2'")
+    )
+    merchant_subscription_id = db.Column(db.String(100), nullable=False)
+    provider_subscription_id = db.Column(db.String(100), nullable=True)
+    mandate_reference = db.Column(db.String(100), nullable=True)
+    mandate_status = db.Column(
+        db.String(50), nullable=False, default=MandateStatus.INITIATED.value,
+        server_default=db.text("'INITIATED'"), index=True
+    )
+    auth_workflow_type = db.Column(
+        db.String(50), nullable=False, default="TRANSACTION", server_default=db.text("'TRANSACTION'")
+    )
+    amount_type = db.Column(
+        db.String(20), nullable=False, default="VARIABLE", server_default=db.text("'VARIABLE'")
+    )
+    max_amount_paise = db.Column(db.BigInteger, nullable=False)
+    frequency = db.Column(db.String(20), nullable=False)
+    # auto_debit: SSOT for mandate debit mode (gateway-managed vs merchant-initiated)
+    auto_debit = db.Column(db.Boolean, nullable=False, default=False, server_default=db.text("0"))
+    start_date = db.Column(db.DateTime, nullable=True)
+    end_date = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    organization = db.relationship("Organization", backref="saas_mandates")
+    subscription = db.relationship("SaaSSubscription", backref="mandates", foreign_keys=[subscription_id])
+    pre_debit_notifications = db.relationship("SaaSPreDebitNotification", back_populates="mandate")
+    transactions = db.relationship("SaaSTransaction", back_populates="mandate")
+
+    @validates("mandate_status")
+    def validate_mandate_status(self, key, value):
+        if hasattr(value, "value"):
+            return value.value
+        return str(value)
+
+    @property
+    def max_amount_inr(self):
+        return round(self.max_amount_paise / 100, 2)
+
+    def __repr__(self):
+        return f"<SaaSMandate id={self.id} org={self.organization_id} msub={self.merchant_subscription_id} status={self.mandate_status}>"
+
+
+class SaaSPreDebitNotification(db.Model):
+    """
+    SaaSPreDebitNotification — RBI-mandated 24-48h pre-debit notification lifecycle.
+    
+    CRITICAL CONTRACT: auto_debit_snapshot is IMMUTABLE at creation. It records an
+    immutable historical snapshot of mandate.auto_debit at the exact moment the notification
+    was dispatched to PhonePe. It must never be mutated after creation.
+    """
+    __tablename__ = "saas_pre_debit_notification"
+    __table_args__ = (
+        db.UniqueConstraint("id", "organization_id", name="uq_saas_pdn_id_org"),
+        db.UniqueConstraint("organization_id", "merchant_order_id", name="uq_saas_pdn_order"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    subscription_id = db.Column(
+        db.Integer, db.ForeignKey("saas_subscription.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    mandate_id = db.Column(
+        db.Integer, db.ForeignKey("saas_mandate.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    merchant_order_id = db.Column(db.String(100), nullable=False)
+    phonepe_order_id = db.Column(db.String(100), nullable=True)
+    amount_paise = db.Column(db.BigInteger, nullable=False)
+    # auto_debit_snapshot: IMMUTABLE historical snapshot at notification dispatch. Never update.
+    auto_debit_snapshot = db.Column(db.Boolean, nullable=False, default=False, server_default=db.text("0"))
+    valid_after_at = db.Column(db.DateTime, nullable=True)
+    valid_upto_at = db.Column(db.DateTime, nullable=True)
+    notified_at = db.Column(db.DateTime, nullable=True)
+    status = db.Column(
+        db.String(50), nullable=False, default=PreDebitNotificationStatus.INITIATED.value,
+        server_default=db.text("'INITIATED'"), index=True
+    )
+    error_code = db.Column(db.String(100), nullable=True)
+    error_message = db.Column(db.Text, nullable=True)
+    raw_response_json = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    organization = db.relationship("Organization", backref="saas_pre_debit_notifications")
+    subscription = db.relationship("SaaSSubscription", backref="pre_debit_notifications")
+    mandate = db.relationship("SaaSMandate", back_populates="pre_debit_notifications")
+    redemption_attempts = db.relationship("SaaSRedemptionAttempt", back_populates="notification")
+
+    @validates("status")
+    def validate_status(self, key, value):
+        if hasattr(value, "value"):
+            return value.value
+        return str(value)
+
+    @property
+    def amount_inr(self):
+        return round(self.amount_paise / 100, 2)
+
+    def __repr__(self):
+        return f"<SaaSPreDebitNotification id={self.id} org={self.organization_id} order={self.merchant_order_id} status={self.status}>"
+
+
+class SaaSRedemptionAttempt(db.Model):
+    """
+    SaaSRedemptionAttempt — Tracks explicit recurring debit execution attempts
+    and status reconciliation under PhonePe AutoPay V2.
+    """
+    __tablename__ = "saas_redemption_attempt"
+    __table_args__ = (
+        db.UniqueConstraint("id", "organization_id", name="uq_saas_redemption_id_org"),
+        db.UniqueConstraint("organization_id", "merchant_order_id", "attempt_number", name="uq_saas_redemption_attempt"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    subscription_id = db.Column(
+        db.Integer, db.ForeignKey("saas_subscription.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    notification_id = db.Column(
+        db.Integer, db.ForeignKey("saas_pre_debit_notification.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    merchant_order_id = db.Column(db.String(100), nullable=False)
+    phonepe_transaction_id = db.Column(db.String(100), nullable=True)
+    amount_paise = db.Column(db.BigInteger, nullable=False)
+    status = db.Column(
+        db.String(50), nullable=False, default=RedemptionAttemptStatus.INITIATED.value,
+        server_default=db.text("'INITIATED'"), index=True
+    )
+    attempt_number = db.Column(db.Integer, nullable=False, default=1, server_default=db.text("1"))
+    failure_reason = db.Column(db.Text, nullable=True)
+    raw_response_json = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    organization = db.relationship("Organization", backref="saas_redemption_attempts")
+    subscription = db.relationship("SaaSSubscription", backref="redemption_attempts")
+    notification = db.relationship("SaaSPreDebitNotification", back_populates="redemption_attempts")
+    transactions = db.relationship("SaaSTransaction", back_populates="redemption_attempt")
+
+    @validates("status")
+    def validate_status(self, key, value):
+        if hasattr(value, "value"):
+            return value.value
+        return str(value)
+
+    @property
+    def amount_inr(self):
+        return round(self.amount_paise / 100, 2)
+
+    def __repr__(self):
+        return f"<SaaSRedemptionAttempt id={self.id} org={self.organization_id} order={self.merchant_order_id} attempt={self.attempt_number} status={self.status}>"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
