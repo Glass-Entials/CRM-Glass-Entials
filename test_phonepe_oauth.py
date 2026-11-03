@@ -413,9 +413,194 @@ class TestInvalidateCache(unittest.TestCase):
         }
         mock_session.post.return_value = fresh
 
+
         token = client.get_access_token()
         self.assertEqual(token, "second_token")
         self.assertEqual(mock_session.post.call_count, 2)
+
+
+# ── NEW: Strict environment validation tests (Fix 1) ──────────────────────────
+
+class TestStrictEnvironmentValidation(unittest.TestCase):
+    """Strict env validation: only 'UAT' and 'PRODUCTION' (case-insensitive)."""
+
+    # -- Invalid values that must raise PhonePeOAuthConfigError ---------------
+
+    def test_invalid_env_staging_raises(self):
+        with self.assertRaises(PhonePeOAuthConfigError) as ctx:
+            PhonePeOAuthClient(client_id="id", client_secret="sec", env="staging")
+        self.assertIn("PHONEPE_ENV", str(ctx.exception))
+
+    def test_invalid_env_sandbox_raises(self):
+        with self.assertRaises(PhonePeOAuthConfigError):
+            PhonePeOAuthClient(client_id="id", client_secret="sec", env="sandbox")
+
+    def test_invalid_env_empty_string_raises(self):
+        with self.assertRaises(PhonePeOAuthConfigError):
+            PhonePeOAuthClient(client_id="id", client_secret="sec", env="")
+
+    def test_invalid_env_dev_raises(self):
+        with self.assertRaises(PhonePeOAuthConfigError):
+            PhonePeOAuthClient(client_id="id", client_secret="sec", env="dev")
+
+    def test_invalid_env_test_raises(self):
+        with self.assertRaises(PhonePeOAuthConfigError):
+            PhonePeOAuthClient(client_id="id", client_secret="sec", env="test")
+
+    def test_invalid_env_is_config_error_not_generic(self):
+        """Must be PhonePeOAuthConfigError (a subclass of PhonePeOAuthError)."""
+        with self.assertRaises(PhonePeOAuthConfigError):
+            PhonePeOAuthClient(client_id="id", client_secret="sec", env="PROD")
+
+    # -- Valid lowercase values must be accepted without error -----------------
+
+    def test_lowercase_uat_accepted(self):
+        mock_session, _ = _make_session()
+        client = PhonePeOAuthClient(
+            client_id="id", client_secret="sec", env="uat",
+            http_session=mock_session,
+        )
+        self.assertEqual(client.env, "UAT")
+        self.assertEqual(client.oauth_url, UAT_OAUTH_URL)
+
+    def test_lowercase_production_accepted(self):
+        mock_session, _ = _make_session()
+        client = PhonePeOAuthClient(
+            client_id="id", client_secret="sec", env="production",
+            http_session=mock_session,
+        )
+        self.assertEqual(client.env, "PRODUCTION")
+        self.assertEqual(client.oauth_url, PROD_OAUTH_URL)
+
+    def test_mixed_case_uat_accepted(self):
+        mock_session, _ = _make_session()
+        client = PhonePeOAuthClient(
+            client_id="id", client_secret="sec", env="Uat",
+            http_session=mock_session,
+        )
+        self.assertEqual(client.env, "UAT")
+
+    def test_mixed_case_production_accepted(self):
+        mock_session, _ = _make_session()
+        client = PhonePeOAuthClient(
+            client_id="id", client_secret="sec", env="Production",
+            http_session=mock_session,
+        )
+        self.assertEqual(client.env, "PRODUCTION")
+
+    def test_from_config_invalid_env_raises(self):
+        with self.assertRaises(PhonePeOAuthConfigError):
+            PhonePeOAuthClient.from_config({
+                "PHONEPE_CLIENT_ID":     "id",
+                "PHONEPE_CLIENT_SECRET": "sec",
+                "PHONEPE_ENV":           "sandbox",
+            })
+
+
+# ── NEW: Strict expires_at validation tests (Fix 2) ───────────────────────────
+
+class TestStrictExpiresAtValidation(unittest.TestCase):
+    """Strict expires_at: missing/null/non-numeric/zero/negative/past are all rejected."""
+
+    def _response_with(self, expires_at_value, include_key=True):
+        """Build a mock session whose POST returns a response with the given expires_at."""
+        body = {"access_token": "tok", "token_type": "O-Bearer"}
+        if include_key:
+            body["expires_at"] = expires_at_value
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.ok = True
+        mock_response.json.return_value = body
+        mock_session = MagicMock()
+        mock_session.post.return_value = mock_response
+        return mock_session
+
+    # -- Missing / null --------------------------------------------------------
+
+    def test_missing_expires_at_raises(self):
+        mock_session = self._response_with(None, include_key=False)
+        client = _make_client(mock_session)
+        with self.assertRaises(PhonePeOAuthError):
+            client.get_access_token()
+
+    def test_null_expires_at_raises(self):
+        mock_session = self._response_with(None, include_key=True)
+        client = _make_client(mock_session)
+        with self.assertRaises(PhonePeOAuthError):
+            client.get_access_token()
+
+    # -- Non-numeric -----------------------------------------------------------
+
+    def test_string_nonnumeric_expires_at_raises(self):
+        mock_session = self._response_with("never")
+        client = _make_client(mock_session)
+        with self.assertRaises(PhonePeOAuthError):
+            client.get_access_token()
+
+    def test_empty_string_expires_at_raises(self):
+        mock_session = self._response_with("")
+        client = _make_client(mock_session)
+        with self.assertRaises(PhonePeOAuthError):
+            client.get_access_token()
+
+    def test_dict_expires_at_raises(self):
+        mock_session = self._response_with({"ts": 9999999999})
+        client = _make_client(mock_session)
+        with self.assertRaises(PhonePeOAuthError):
+            client.get_access_token()
+
+    # -- Zero / negative -------------------------------------------------------
+
+    def test_zero_expires_at_raises(self):
+        mock_session = self._response_with(0)
+        client = _make_client(mock_session)
+        with self.assertRaises(PhonePeOAuthError):
+            client.get_access_token()
+
+    def test_negative_expires_at_raises(self):
+        mock_session = self._response_with(-1000)
+        client = _make_client(mock_session)
+        with self.assertRaises(PhonePeOAuthError):
+            client.get_access_token()
+
+    # -- Already expired -------------------------------------------------------
+
+    def test_already_expired_timestamp_raises(self):
+        past = int(time.time()) - 600   # 10 minutes ago
+        mock_session = self._response_with(past)
+        client = _make_client(mock_session)
+        with self.assertRaises(PhonePeOAuthError):
+            client.get_access_token()
+
+    # -- Valid numeric types that MUST succeed ---------------------------------
+
+    def test_integer_expires_at_accepted(self):
+        future = int(time.time()) + 3600
+        mock_session = self._response_with(future)
+        client = _make_client(mock_session)
+        token = client.get_access_token()
+        self.assertEqual(token, "tok")
+
+    def test_float_expires_at_accepted(self):
+        future = time.time() + 3600.5
+        mock_session = self._response_with(future)
+        client = _make_client(mock_session)
+        token = client.get_access_token()
+        self.assertEqual(token, "tok")
+
+    def test_numeric_string_expires_at_accepted(self):
+        future = str(int(time.time()) + 3600)
+        mock_session = self._response_with(future)
+        client = _make_client(mock_session)
+        token = client.get_access_token()
+        self.assertEqual(token, "tok")
+
+    def test_numeric_float_string_expires_at_accepted(self):
+        future = str(time.time() + 3600.0)
+        mock_session = self._response_with(future)
+        client = _make_client(mock_session)
+        token = client.get_access_token()
+        self.assertEqual(token, "tok")
 
 
 if __name__ == "__main__":

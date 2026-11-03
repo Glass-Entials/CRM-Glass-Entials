@@ -131,9 +131,17 @@ class PhonePeOAuthClient:
         self._client_id      = client_id
         self._client_secret  = client_secret
         self._client_version = str(client_version or "1")
-        self.env             = env.upper()
         self._connect_timeout = connect_timeout
         self._read_timeout    = read_timeout
+
+        # Strict environment validation — only UAT or PRODUCTION are accepted.
+        # Never silently fall back to UAT for an unrecognised value.
+        _env_upper = env.upper() if isinstance(env, str) else ""
+        if _env_upper not in {"UAT", "PRODUCTION"}:
+            raise PhonePeOAuthConfigError(
+                f"PHONEPE_ENV must be 'UAT' or 'PRODUCTION'; got {env!r}."
+            )
+        self.env = _env_upper
 
         # Endpoints selected by environment
         if self.env == "PRODUCTION":
@@ -328,11 +336,12 @@ class PhonePeOAuthClient:
         Extract and validate fields from the OAuth JSON response.
 
         PhonePe documents ``expires_at`` as a Unix epoch integer (seconds).
-        We handle int, float, and numeric-string inputs defensively.
-        If ``expires_at`` is missing the token is treated as expiring in 30
-        minutes and a warning is logged.
+        Integer, float and numeric-string inputs are accepted.
 
-        Raises ``PhonePeOAuthError`` if ``access_token`` is absent or empty.
+        Raises ``PhonePeOAuthError`` if:
+        * ``access_token`` is absent or empty.
+        * ``expires_at`` is missing, null, non-numeric, zero, negative, or
+          already in the past.  No silent fallback is applied.
         """
         access_token = body.get("access_token", "")
         if not access_token:
@@ -342,22 +351,37 @@ class PhonePeOAuthClient:
 
         token_type = body.get("token_type", "O-Bearer")
 
-        # Robustly parse expires_at regardless of numeric type
+        # Strictly parse and validate expires_at.
+        # PhonePe documents this as a Unix epoch integer (seconds).
+        # We also accept float and numeric-string inputs defensively.
+        # Missing, null, non-numeric, zero, negative, or already-expired
+        # values are all rejected — no silent 30-minute fallback.
         raw_expires = body.get("expires_at")
         if raw_expires is None:
-            logger.warning(
-                "PhonePe OAuth: 'expires_at' missing from token response; "
-                "defaulting to 30 minutes."
+            raise PhonePeOAuthError(
+                "PhonePe OAuth: 'expires_at' is missing from the token response. "
+                "The token cannot be cached safely without a known expiry time."
             )
-            expires_at = time.time() + 1800.0
-        else:
-            try:
-                expires_at = float(raw_expires)
-            except (TypeError, ValueError) as exc:
-                raise PhonePeOAuthError(
-                    f"PhonePe OAuth: 'expires_at' value could not be parsed as a "
-                    f"number (got type {type(raw_expires).__name__})."
-                ) from exc
+
+        try:
+            expires_at = float(raw_expires)
+        except (TypeError, ValueError) as exc:
+            raise PhonePeOAuthError(
+                f"PhonePe OAuth: 'expires_at' value could not be parsed as a "
+                f"number (got type {type(raw_expires).__name__!r}, value {raw_expires!r})."
+            ) from exc
+
+        if expires_at <= 0:
+            raise PhonePeOAuthError(
+                f"PhonePe OAuth: 'expires_at' is zero or negative ({expires_at!r}), "
+                "which is not a valid Unix epoch timestamp."
+            )
+
+        if expires_at <= time.time():
+            raise PhonePeOAuthError(
+                f"PhonePe OAuth: 'expires_at' ({expires_at!r}) is already in the past. "
+                "The token is expired and cannot be used."
+            )
 
         return TokenResponse(
             access_token=access_token,
