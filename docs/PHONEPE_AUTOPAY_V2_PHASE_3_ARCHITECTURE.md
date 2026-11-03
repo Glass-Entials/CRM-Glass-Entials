@@ -1,9 +1,9 @@
 # PhonePe AutoPay V2: Database & Subscription Lifecycle Architecture
 
-**Document Version:** 1.2.0 (Architecture Review Revision 2)  
+**Document Version:** 1.2.1 (Architecture Review Final Revision)  
 **Phase:** 3 — Architecture Analysis & Design  
 **Target Repository:** `Glass-Entials/CRM-Glass-Entials`  
-**Status:** REVISED & PROPOSED (Pending Review & Explicit Approval)  
+**Status:** REVISED & PROPOSED (Pending Explicit Review & Approval)  
 **Author:** AI Architecture Team  
 **Date:** November 2026  
 
@@ -26,7 +26,7 @@ This document specifies the target **Database Architecture, Subscription Lifecyc
 2. [Current Billing Flow & Deficiencies](#2-current-billing-flow--deficiencies)
 3. [Proposed System Architecture](#3-proposed-system-architecture)
 4. [Database Schema Design & Single Sources of Truth](#4-database-schema-design--single-sources-of-truth)
-5. [Enforced Multi-Tenant Ownership via Composite Database Constraints](#5-enforced-multi-tenant-ownership-via-composite-database-constraints)
+5. [Enforced Multi-Tenant Ownership & Composite Constraints](#5-enforced-multi-tenant-ownership--composite-constraints)
 6. [Entity Relationship Diagram (Updated)](#6-entity-relationship-diagram-updated)
 7. [Subscription, Mandate & Notification Lifecycle State Machines](#7-subscription-mandate--notification-lifecycle-state-machines)
 8. [Payment & Redemption Sequence Diagrams](#8-payment--redemption-sequence-diagrams)
@@ -40,6 +40,7 @@ This document specifies the target **Database Architecture, Subscription Lifecyc
 16. [Implementation Roadmap](#16-implementation-roadmap)
 17. [Open Questions, Gateway Dependencies & Risks](#17-open-questions-gateway-dependencies--risks)
 18. [Architecture Review Corrections — Version 1.2](#18-architecture-review-corrections--version-12)
+19. [Architecture Review Corrections — Version 1.2.1 (Final Corrections)](#19-architecture-review-corrections--version-121-final-corrections)
 
 ---
 
@@ -71,16 +72,16 @@ The GlassEntials CRM SaaS billing module is built on **Flask + SQLAlchemy + MySQ
 ### 1.2 Domain Services (`services/billing/`)
 - **`SubscriptionService`**: Coordinates mandate initiation, activation, suspension, cancellation, and grace period entry.
 - **`TransactionService`**: Records transactions, provides idempotency lookups on `provider_payment_id`.
-- **`RenewalService`**: Handles pre-debit notifications and recurring redemptions. (Note: currently relies on a temporary in-memory timestamp bump `sub.next_billing_at = now + 30m` rather than a database-level atomic claim).
+- **`RenewalService`**: Handles pre-debit notifications and recurring redemptions. (Note: currently relies on an in-memory timestamp bump `sub.next_billing_at = now + 30m` rather than a true database-level atomic claim).
 - **`BillingService` (`services/billing/billing_service.py`)**:
-  - **Correction**: `BillingService` currently registers **only `PhonePeProvider`**. There is **no operational `RazorpayProvider` class registered** in the factory; requesting any provider other than `'phonepe'` raises `ValueError("Unsupported payment provider")`. Razorpay exists strictly as a historical schema and configuration artifact that must be preserved.
+  - **Verified Code State**: `BillingService` currently registers **only `PhonePeProvider`**. There is **no operational `RazorpayProvider` class registered** in the factory; requesting any provider other than `'phonepe'` raises `ValueError("Unsupported payment provider")`. Razorpay exists strictly as a historical schema and configuration artifact that must be preserved.
 
 ### 1.3 HTTP Endpoints (`routes/saas.py`)
 - `GET /saas/checkout`: Renders checkout page for organizations with `OrganizationStatus.PENDING`.
 - `POST /saas/api/create-subscription`: Initiates mandate creation and returns the redirect URL.
 - `GET / POST /saas/phonepe-callback`: Browser return URL from PhonePe checkout. Executes S2S transaction inquiry before activating organization.
 - `POST /saas/api/verify-payment`: Client-side verification endpoint.
-- `POST /saas/phonepe-webhook`: Receives asynchronous S2S notifications. Exempt from CSRF (`csrf.exempt(saas_bp)` in `app.py`).
+- `POST /saas/phonepe-webhook`: Receives asynchronous S2S notifications. Exempt from CSRF (`csrf.exempt(saas_bp)` in `app.py`) because server-to-server webhook requests do not use browser sessions or CSRF cookies.
 - `POST /saas/api/process-renewals`: Cron trigger endpoint protected by `RENEWAL_CRON_SECRET` using `hmac.compare_digest`.
 
 ---
@@ -127,7 +128,7 @@ SubscriptionService.activate_subscription() -> Org ACTIVE, SaaSSubscription ACTI
 
 ## 3. Proposed System Architecture
 
-To support PhonePe AutoPay V2 cleanly without breaking Razorpay or legacy PhonePe V3, we adopt a **modular provider architecture**. 
+To support PhonePe AutoPay V2 cleanly without breaking Razorpay or legacy PhonePe V3, we adopt a **modular provider architecture**.
 
 > **Important Architecture Distinction**:
 > `BillingService` does NOT instantiate an operational Razorpay provider. Razorpay is maintained strictly as preserved dormant database schema, historical transaction records, and environment variables.
@@ -190,29 +191,35 @@ To eliminate state desynchronization and race conditions, domain attributes are 
 
 ---
 
-## 5. Enforced Multi-Tenant Ownership via Composite Database Constraints
+## 5. Enforced Multi-Tenant Ownership & Composite Constraints
 
-Standard foreign keys only verify that a referenced ID exists; they do not verify that the referenced record belongs to the **same tenant organization**. To guarantee database-level tenant isolation, the schema introduces **composite unique constraints and composite foreign keys**:
+Standard foreign keys only verify that a referenced ID exists; they do not verify that the referenced record belongs to the **same tenant organization**. To guarantee database-level tenant isolation, the schema introduces **composite unique constraints and composite foreign keys**.
 
-1. **Parent Table Composite Keys**:
-   - `saas_subscription`: `CONSTRAINT uq_saas_sub_id_org UNIQUE (id, organization_id)`
-   - `saas_mandate`: `CONSTRAINT uq_saas_mandate_id_org UNIQUE (id, organization_id)`
-   - `saas_pre_debit_notification`: `CONSTRAINT uq_saas_pdn_id_org UNIQUE (id, organization_id)`
-2. **Child Table Composite Foreign Keys**:
-   - `saas_mandate` references `saas_subscription`:
-     `FOREIGN KEY (subscription_id, organization_id) REFERENCES saas_subscription(id, organization_id) ON DELETE CASCADE`
-   - `saas_pre_debit_notification` references `saas_mandate`:
-     `FOREIGN KEY (mandate_id, organization_id) REFERENCES saas_mandate(id, organization_id) ON DELETE CASCADE`
-   - `saas_pre_debit_notification` references `saas_subscription`:
-     `FOREIGN KEY (subscription_id, organization_id) REFERENCES saas_subscription(id, organization_id) ON DELETE CASCADE`
-   - `saas_redemption_attempt` references `saas_pre_debit_notification`:
-     `FOREIGN KEY (notification_id, organization_id) REFERENCES saas_pre_debit_notification(id, organization_id) ON DELETE CASCADE`
-   - `saas_redemption_attempt` references `saas_subscription`:
-     `FOREIGN KEY (subscription_id, organization_id) REFERENCES saas_subscription(id, organization_id) ON DELETE CASCADE`
-   - `saas_subscription` references its active `saas_mandate`:
-     `FOREIGN KEY (active_mandate_id, organization_id) REFERENCES saas_mandate(id, organization_id) ON DELETE SET NULL`
+### 5.1 Resolving MySQL 8.0 Composite Foreign Key Deletion Behavior
+In MySQL 8.0, an `ON DELETE SET NULL` composite foreign key is **invalid or rejected** when any of the composite foreign key columns is `NOT NULL`. Because `organization_id` is the core multi-tenant discriminator across every billing table, it **MUST REMAIN `NOT NULL`** at all times.
 
-Under this design, MySQL physically rejects any attempt to associate an Organization A notification with an Organization B mandate or subscription.
+To resolve this conflict safely in MySQL 8.0:
+1. **Financial Audit Preservation via `ON DELETE RESTRICT`**:
+   - Financial ledger tables (`saas_transaction`), mandate history (`saas_mandate`), notification logs (`saas_pre_debit_notification`), and debit attempts (`saas_redemption_attempt`) use `ON DELETE RESTRICT`.
+   - Physical deletion (`DELETE FROM`) of an organization or subscription is **physically prohibited** by MySQL if financial records exist.
+   - In SaaS operations, subscriptions are **cancelled** (`status = 'cancelled'`), never physically deleted.
+2. **Safe Unlinking for `active_mandate_id` on `saas_subscription`**:
+   - The foreign key referencing `saas_mandate(id, organization_id)` uses `ON DELETE RESTRICT`.
+   - A mandate cannot be physically dropped from `saas_mandate` while it is pointed to by an active subscription.
+   - If a mandate is cancelled or replaced, application logic explicitly sets `subscription.active_mandate_id = NULL` before any potential archival.
+
+```sql
+-- Composite Tenant Enforcement Matrix:
+-- 1. saas_subscription(id, organization_id) is UNIQUE
+-- 2. saas_mandate(subscription_id, organization_id) REFERENCES saas_subscription(id, organization_id) ON DELETE RESTRICT
+-- 3. saas_pre_debit_notification(mandate_id, organization_id) REFERENCES saas_mandate(id, organization_id) ON DELETE RESTRICT
+-- 4. saas_pre_debit_notification(subscription_id, organization_id) REFERENCES saas_subscription(id, organization_id) ON DELETE RESTRICT
+-- 5. saas_redemption_attempt(notification_id, organization_id) REFERENCES saas_pre_debit_notification(id, organization_id) ON DELETE RESTRICT
+-- 6. saas_redemption_attempt(subscription_id, organization_id) REFERENCES saas_subscription(id, organization_id) ON DELETE RESTRICT
+-- 7. saas_subscription(active_mandate_id, organization_id) REFERENCES saas_mandate(id, organization_id) ON DELETE RESTRICT
+-- 8. saas_transaction(mandate_id, organization_id) REFERENCES saas_mandate(id, organization_id) ON DELETE RESTRICT
+-- 9. saas_transaction(subscription_id, organization_id) REFERENCES saas_subscription(id, organization_id) ON DELETE RESTRICT
+```
 
 ---
 
@@ -225,16 +232,16 @@ erDiagram
     ORGANIZATION ||--o{ SAAS_TRANSACTION : "incurs"
     PLAN ||--o{ SAAS_SUBSCRIPTION : "classifies"
     
-    SAAS_SUBSCRIPTION ||--o| SAAS_MANDATE : "points_to_active(active_mandate_id,organization_id)"
-    SAAS_SUBSCRIPTION ||--o{ SAAS_MANDATE : "has_history(subscription_id,organization_id)"
-    SAAS_SUBSCRIPTION ||--o{ SAAS_PRE_DEBIT_NOTIFICATION : "schedules(subscription_id,organization_id)"
-    SAAS_SUBSCRIPTION ||--o{ SAAS_TRANSACTION : "records(subscription_id,organization_id)"
+    SAAS_SUBSCRIPTION ||--o| SAAS_MANDATE : "points_to_active(active_mandate_id,organization_id)[RESTRICT]"
+    SAAS_SUBSCRIPTION ||--o{ SAAS_MANDATE : "has_history(subscription_id,organization_id)[RESTRICT]"
+    SAAS_SUBSCRIPTION ||--o{ SAAS_PRE_DEBIT_NOTIFICATION : "schedules(subscription_id,organization_id)[RESTRICT]"
+    SAAS_SUBSCRIPTION ||--o{ SAAS_TRANSACTION : "records(subscription_id,organization_id)[RESTRICT]"
     
-    SAAS_MANDATE ||--o{ SAAS_PRE_DEBIT_NOTIFICATION : "authorizes_debit(mandate_id,organization_id)"
-    SAAS_MANDATE ||--o{ SAAS_TRANSACTION : "executes(mandate_id,organization_id)"
+    SAAS_MANDATE ||--o{ SAAS_PRE_DEBIT_NOTIFICATION : "authorizes_debit(mandate_id,organization_id)[RESTRICT]"
+    SAAS_MANDATE ||--o{ SAAS_TRANSACTION : "executes(mandate_id,organization_id)[RESTRICT]"
     
-    SAAS_PRE_DEBIT_NOTIFICATION ||--o{ SAAS_REDEMPTION_ATTEMPT : "triggers(notification_id,organization_id)"
-    SAAS_REDEMPTION_ATTEMPT ||--o| SAAS_TRANSACTION : "finalizes(redemption_attempt_id,organization_id)"
+    SAAS_PRE_DEBIT_NOTIFICATION ||--o{ SAAS_REDEMPTION_ATTEMPT : "triggers(notification_id,organization_id)[RESTRICT]"
+    SAAS_REDEMPTION_ATTEMPT ||--o| SAAS_TRANSACTION : "finalizes(redemption_attempt_id,organization_id)[RESTRICT]"
     
     SAAS_WEBHOOK_EVENT ||--o| SAAS_SUBSCRIPTION : "reconciles"
 
@@ -251,7 +258,7 @@ erDiagram
         int id PK
         int organization_id FK "uq(id,organization_id)"
         int plan_id FK
-        int active_mandate_id FK "composite fk(active_mandate_id,organization_id)"
+        int active_mandate_id FK "composite fk(active_mandate_id,organization_id)[RESTRICT]"
         string payment_provider
         string status
         string billing_cycle
@@ -266,7 +273,7 @@ erDiagram
     SAAS_MANDATE {
         int id PK "uq(id,organization_id)"
         int organization_id FK
-        int subscription_id FK "composite fk(subscription_id,organization_id)"
+        int subscription_id FK "composite fk(subscription_id,organization_id)[RESTRICT]"
         string merchant_subscription_id UK
         string provider_subscription_id
         string mandate_reference
@@ -281,8 +288,8 @@ erDiagram
     SAAS_PRE_DEBIT_NOTIFICATION {
         int id PK "uq(id,organization_id)"
         int organization_id FK
-        int subscription_id FK "composite fk(subscription_id,organization_id)"
-        int mandate_id FK "composite fk(mandate_id,organization_id)"
+        int subscription_id FK "composite fk(subscription_id,organization_id)[RESTRICT]"
+        int mandate_id FK "composite fk(mandate_id,organization_id)[RESTRICT]"
         string merchant_order_id UK
         string phonepe_order_id
         bigint amount_paise
@@ -296,8 +303,8 @@ erDiagram
     SAAS_REDEMPTION_ATTEMPT {
         int id PK
         int organization_id FK
-        int subscription_id FK "composite fk(subscription_id,organization_id)"
-        int notification_id FK "composite fk(notification_id,organization_id)"
+        int subscription_id FK "composite fk(subscription_id,organization_id)[RESTRICT]"
+        int notification_id FK "composite fk(notification_id,organization_id)[RESTRICT]"
         string merchant_order_id
         string phonepe_transaction_id
         bigint amount_paise
@@ -308,8 +315,8 @@ erDiagram
     SAAS_TRANSACTION {
         int id PK
         int organization_id FK
-        int subscription_id FK
-        int mandate_id FK
+        int subscription_id FK "composite fk(subscription_id,organization_id)[RESTRICT]"
+        int mandate_id FK "composite fk(mandate_id,organization_id)[RESTRICT]"
         int redemption_attempt_id FK
         string payment_provider
         string provider_payment_id UK
@@ -337,7 +344,7 @@ Controls customer feature access in the CRM.
 ```mermaid
 stateDiagram-v2
     [*] --> PENDING : Organization created / Checkout initiated
-    PENDING --> ACTIVE : Mandate & Initial Payment Authorized (S2S Verified)
+    PENDING --> ACTIVE : Mandate ACTIVE + Initial Payment COMPLETED (S2S Verified)
     PENDING --> CANCELLED : Abandoned checkout / Expired
     
     ACTIVE --> GRACE : Scheduled redemption failed (7-day window)
@@ -397,8 +404,8 @@ stateDiagram-v2
     INITIATED --> NOTIFICATION_IN_PROGRESS : Accepted by PhonePe /notify endpoint
     INITIATED --> FAILED : Rejected by PhonePe (e.g. invalid mandate)
     
-    NOTIFICATION_IN_PROGRESS --> NOTIFIED : Confirmed delivered to customer via NPCI
-    NOTIFICATION_IN_PROGRESS --> FAILED : Undeliverable / Bank rail rejection
+    NOTIFICATION_IN_PROGRESS --> NOTIFIED : S2S Order Status confirms customer delivery via NPCI
+    NOTIFICATION_IN_PROGRESS --> FAILED : Undeliverable / Bank rail rejection confirmed
     
     NOTIFIED --> CONSUMED : Redemption executed against this notification
     NOTIFIED --> EXPIRED : validUpto timestamp passed without execution
@@ -433,7 +440,10 @@ stateDiagram-v2
 
 ## 8. Payment & Redemption Sequence Diagrams
 
-### 8.1 Scenario 1: Initial Mandate Setup & Authorization (Standard Checkout)
+### 8.1 Scenario 1: Initial Mandate Setup, Mandate Activation & Separate Payment Verification
+
+> **Critical Safety Invariant**:  
+> In UPI AutoPay, `mandate_status == ACTIVE` activates the mandate registration with NPCI only. It does **NOT** independently prove that the initial payment succeeded. Paid SaaS entitlement is granted **only after the initial payment order is independently confirmed as `COMPLETED`**.
 
 ```mermaid
 sequenceDiagram
@@ -460,21 +470,34 @@ sequenceDiagram
     Customer->>UPIApp: Enter UPI PIN & Authorize Mandate
     UPIApp-->>PhonePe: Mandate Authorized + First Payment Captured
     
-    par S2S Webhook (Primary Notification Rail)
+    par S2S Webhook (Primary Notification Rail - Untrusted Hint)
         PhonePe->>SaaS: POST /saas/phonepe-webhook (Event Hint)
         SaaS->>Client: get_subscription_status(merchantSubscriptionId)
-        Client->>PhonePe: GET /subscriptions/v2/{id}/status
-        PhonePe-->>Client: 200 OK {state: "ACTIVE", subscriptionId: "OMS..."}
-        SaaS->>SaaS: Activate SaaSMandate, SaaSSubscription & Organization
+        Client-->>SaaS: 200 OK {state: "ACTIVE"} -> Update SaaSMandate(status="ACTIVE")
+        SaaS->>Client: get_order_status(merchantOrderId)
+        Client-->>SaaS: 200 OK {state: "COMPLETED"} -> Verify Initial Payment
+        SaaS->>SaaS: Set SaaSSubscription(status="ACTIVE") & Org(status="ACTIVE")
+        SaaS->>SaaS: Record SaaSTransaction(status="SUCCESS")
     and Browser Callback (User Return Rail)
         PhonePe-->>WebBrowser: Redirect to /saas/phonepe-callback
         WebBrowser->>SaaS: GET /saas/phonepe-callback?merchantSubscriptionId=...
         SaaS->>Client: get_subscription_status(merchantSubscriptionId)
-        Client->>PhonePe: GET /subscriptions/v2/{id}/status
-        PhonePe-->>Client: 200 OK {state: "ACTIVE", subscriptionId: "OMS..."}
-        SaaS->>SaaS: Activate SaaSSubscription & Organization
-        SaaS->>SaaS: Record initial SaaSTransaction (SUCCESS)
-        SaaS-->>WebBrowser: Redirect to / (Welcome to GlassEntials)
+        Client-->>SaaS: 200 OK {state: "ACTIVE"} -> Update SaaSMandate(status="ACTIVE")
+        SaaS->>Client: get_order_status(merchantOrderId)
+        alt Initial Payment is COMPLETED
+            Client-->>SaaS: 200 OK {state: "COMPLETED"}
+            SaaS->>SaaS: Set SaaSSubscription(status="ACTIVE") & Org(status="ACTIVE")
+            SaaS->>SaaS: Record SaaSTransaction(status="SUCCESS")
+            SaaS-->>WebBrowser: Redirect to / (Welcome to GlassEntials)
+        alt Initial Payment is PENDING
+            Client-->>SaaS: 200 OK {state: "PENDING"}
+            SaaS->>SaaS: Record SaaSTransaction(status="PENDING")
+            SaaS-->>WebBrowser: Redirect to /saas/checkout (Payment Pending Banner)
+        alt Initial Payment FAILED
+            Client-->>SaaS: 200 OK {state: "FAILED"}
+            SaaS->>SaaS: Record SaaSTransaction(status="FAILED")
+            SaaS-->>WebBrowser: Redirect to /saas/checkout (Payment Failed Error)
+        end
     end
 ```
 
@@ -508,7 +531,7 @@ sequenceDiagram
     end
 ```
 
-### 8.3 Scenario 3: Recurring Debit Execution (Manual vs AutoDebit)
+### 8.3 Scenario 3: Notification Delivery Reconciliation & Recurring Debit Execution
 
 ```mermaid
 sequenceDiagram
@@ -522,26 +545,40 @@ sequenceDiagram
     Cron->>Renewal: Trigger process_due_renewals()
     Renewal->>DB: Atomic Lease Claim: Fetch due subscriptions (where next_billing_at <= NOW)
     loop For each claimed subscription
-        Renewal->>DB: Find NOTIFIED SaasPreDebitNotification WHERE valid_after_at <= NOW AND valid_upto_at >= NOW
-        alt auto_debit_snapshot is TRUE
+        opt Notification in NOTIFICATION_IN_PROGRESS
             Renewal->>Client: get_order_status(notification.merchant_order_id)
-            Client->>PhonePe: GET /checkout/v2/order/{merchantOrderId}/status
-            PhonePe-->>Client: 200 OK {state: "COMPLETED", transactionId: "TX..."}
-            Renewal->>DB: Advance next_billing_at (+1 month/year)
-            Renewal->>DB: Mark notification CONSUMED & Record SaaSTransaction (SUCCESS)
-        else auto_debit_snapshot is FALSE (Merchant-Initiated)
-            Renewal->>DB: Insert SaasRedemptionAttempt (status="INITIATED")
-            Renewal->>Client: redeem({merchantOrderId: notification.merchant_order_id, amount})
-            Client->>PhonePe: POST /subscriptions/v2/redeem
-            alt Immediate SUCCESS
-                PhonePe-->>Client: 200 OK {state: "COMPLETED"}
-                Renewal->>DB: Advance billing period & Record SaaSTransaction (SUCCESS)
-            alt In-Flight PENDING
+            alt Confirmed delivered
+                PhonePe-->>Client: 200 OK {state: "COMPLETED/NOTIFIED"}
+                Renewal->>DB: Update SaasPreDebitNotification (status="NOTIFIED")
+            alt In-Flight with NPCI
                 PhonePe-->>Client: 200 OK {state: "PENDING"}
-                Renewal->>DB: Set status="PENDING_RECONCILIATION", reschedule check in 1h
-            alt Debit FAILED
-                PhonePe-->>Client: 4xx/5xx or FAILED
-                Renewal->>DB: Enter GRACE period (7 days) & schedule retry in 24h
+                Renewal->>DB: Keep NOTIFICATION_IN_PROGRESS, skip redemption for this run
+            alt Delivery Failed
+                PhonePe-->>Client: 200 OK {state: "FAILED"}
+                Renewal->>DB: Update SaasPreDebitNotification (status="FAILED")
+            end
+        end
+
+        opt Notification is NOTIFIED and validity window satisfied (valid_after_at <= NOW <= valid_upto_at)
+            alt auto_debit_snapshot is TRUE
+                Renewal->>Client: get_order_status(notification.merchant_order_id)
+                PhonePe-->>Client: 200 OK {state: "COMPLETED", transactionId: "TX..."}
+                Renewal->>DB: Advance next_billing_at (+1 month/year)
+                Renewal->>DB: Mark notification CONSUMED & Record SaaSTransaction (SUCCESS)
+            else auto_debit_snapshot is FALSE (Merchant-Initiated)
+                Renewal->>DB: Insert SaasRedemptionAttempt (status="INITIATED")
+                Renewal->>Client: redeem({merchantOrderId: notification.merchant_order_id, amount})
+                Client->>PhonePe: POST /subscriptions/v2/redeem
+                alt Immediate SUCCESS
+                    PhonePe-->>Client: 200 OK {state: "COMPLETED"}
+                    Renewal->>DB: Advance billing period & Record SaaSTransaction (SUCCESS)
+                alt In-Flight PENDING
+                    PhonePe-->>Client: 200 OK {state: "PENDING"}
+                    Renewal->>DB: Set status="PENDING_RECONCILIATION", reschedule check in 1h
+                alt Debit FAILED
+                    PhonePe-->>Client: 4xx/5xx or FAILED
+                    Renewal->>DB: Enter GRACE period (7 days) & schedule retry in 24h
+                end
             end
         end
     end
@@ -558,7 +595,8 @@ The exact webhook verification scheme in PhonePe AutoPay V2 is configured at the
 3. **OAuth Bearer Authentication**: Header `Authorization: Bearer <token>` validated against identity provider.
 
 > **Architecture Principle: Webhooks are Untrusted Transport Hints**  
-> Because the merchant dashboard configuration is an external operational dependency, the application **does not treat webhook payloads as cryptographic proof of payment**.
+> Because the merchant dashboard configuration is an external operational dependency that is currently unverified in production, the application **does not treat webhook payloads as cryptographic proof of payment**.
+> - `/saas/phonepe-webhook` is CSRF-exempt because S2S automated webhooks do not carry browser sessions.
 > - Inbound webhooks acknowledge receipt (`200 OK`) and log to `saas_webhook_event`.
 > - **Before performing financial or entitlement mutations, CRM executes an authoritative S2S status inquiry** using `PhonePeAutoPayClient`:
 >   - For subscription/mandate changes: `client.get_subscription_status(merchantSubscriptionId)`
@@ -633,15 +671,15 @@ When checking the status of an in-flight, timed-out, or pending redemption reque
 
 ## 13. Database Migration Sequencing & Historical Compatibility
 
-### 13.1 Strict Migration Sequencing (No Unresolvable Foreign Keys)
-To prevent Alembic / MySQL errors where foreign keys reference non-existent tables or non-unique columns, the forward migration is strictly ordered:
+### 13.1 Strict Migration Sequencing (MySQL 8.0 Valid Constraints & RESTRICT Deletion)
+To prevent Alembic / MySQL errors where foreign keys reference non-existent tables, violate `SET NULL` on `NOT NULL` columns, or delete audit histories, the forward migration is strictly ordered:
 
 ```sql
 -- Step 1: Add composite unique key on existing parent table saas_subscription
 ALTER TABLE saas_subscription
     ADD CONSTRAINT uq_saas_sub_id_org UNIQUE (id, organization_id);
 
--- Step 2: Create child table saas_mandate (has composite unique key and FK to saas_subscription)
+-- Step 2: Create child table saas_mandate (with composite unique key and RESTRICT FK to saas_subscription)
 CREATE TABLE saas_mandate (
     id INT AUTO_INCREMENT PRIMARY KEY,
     organization_id INT NOT NULL,
@@ -663,20 +701,20 @@ CREATE TABLE saas_mandate (
     CONSTRAINT uq_saas_mandate_id_org UNIQUE (id, organization_id),
     CONSTRAINT uq_saas_mandate_merchant_sub UNIQUE (organization_id, merchant_subscription_id),
     CONSTRAINT fk_saas_mandate_sub_org FOREIGN KEY (subscription_id, organization_id)
-        REFERENCES saas_subscription(id, organization_id) ON DELETE CASCADE,
+        REFERENCES saas_subscription(id, organization_id) ON DELETE RESTRICT,
     INDEX ix_saas_mandate_status (mandate_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Step 3: Extend saas_subscription with active_mandate_id FK and worker claim columns
+-- Step 3: Extend saas_subscription with active_mandate_id (RESTRICT FK) and worker claim columns
 ALTER TABLE saas_subscription
     ADD COLUMN active_mandate_id INT NULL,
     ADD COLUMN claim_token VARCHAR(64) NULL,
     ADD COLUMN claim_expires_at DATETIME NULL,
     ADD CONSTRAINT fk_saas_sub_active_mandate_org FOREIGN KEY (active_mandate_id, organization_id)
-        REFERENCES saas_mandate(id, organization_id) ON DELETE SET NULL,
+        REFERENCES saas_mandate(id, organization_id) ON DELETE RESTRICT,
     ADD INDEX ix_saas_sub_claim (claim_token, claim_expires_at);
 
--- Step 4: Create child table saas_pre_debit_notification
+-- Step 4: Create child table saas_pre_debit_notification (RESTRICT FKs)
 CREATE TABLE saas_pre_debit_notification (
     id INT AUTO_INCREMENT PRIMARY KEY,
     organization_id INT NOT NULL,
@@ -698,13 +736,13 @@ CREATE TABLE saas_pre_debit_notification (
     CONSTRAINT uq_saas_pdn_id_org UNIQUE (id, organization_id),
     CONSTRAINT uq_saas_pdn_order UNIQUE (organization_id, merchant_order_id),
     CONSTRAINT fk_saas_pdn_mandate_org FOREIGN KEY (mandate_id, organization_id)
-        REFERENCES saas_mandate(id, organization_id) ON DELETE CASCADE,
+        REFERENCES saas_mandate(id, organization_id) ON DELETE RESTRICT,
     CONSTRAINT fk_saas_pdn_sub_org FOREIGN KEY (subscription_id, organization_id)
-        REFERENCES saas_subscription(id, organization_id) ON DELETE CASCADE,
+        REFERENCES saas_subscription(id, organization_id) ON DELETE RESTRICT,
     INDEX ix_saas_pdn_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Step 5: Create child table saas_redemption_attempt
+-- Step 5: Create child table saas_redemption_attempt (RESTRICT FKs)
 CREATE TABLE saas_redemption_attempt (
     id INT AUTO_INCREMENT PRIMARY KEY,
     organization_id INT NOT NULL,
@@ -721,20 +759,20 @@ CREATE TABLE saas_redemption_attempt (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT uq_saas_redemption_attempt UNIQUE (organization_id, merchant_order_id, attempt_number),
     CONSTRAINT fk_saas_redemption_pdn_org FOREIGN KEY (notification_id, organization_id)
-        REFERENCES saas_pre_debit_notification(id, organization_id) ON DELETE CASCADE,
+        REFERENCES saas_pre_debit_notification(id, organization_id) ON DELETE RESTRICT,
     CONSTRAINT fk_saas_redemption_sub_org FOREIGN KEY (subscription_id, organization_id)
-        REFERENCES saas_subscription(id, organization_id) ON DELETE CASCADE,
+        REFERENCES saas_subscription(id, organization_id) ON DELETE RESTRICT,
     INDEX ix_saas_redemption_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Step 6: Extend saas_transaction with mandate and redemption linkages
+-- Step 6: Extend saas_transaction with mandate and redemption linkages (RESTRICT FKs)
 ALTER TABLE saas_transaction
     ADD COLUMN mandate_id INT NULL,
     ADD COLUMN redemption_attempt_id INT NULL,
     ADD CONSTRAINT fk_saas_tx_mandate_org FOREIGN KEY (mandate_id, organization_id)
-        REFERENCES saas_mandate(id, organization_id) ON DELETE SET NULL,
+        REFERENCES saas_mandate(id, organization_id) ON DELETE RESTRICT,
     ADD CONSTRAINT fk_saas_tx_sub_org FOREIGN KEY (subscription_id, organization_id)
-        REFERENCES saas_subscription(id, organization_id) ON DELETE SET NULL;
+        REFERENCES saas_subscription(id, organization_id) ON DELETE RESTRICT;
 ```
 
 ### 13.2 Handling Legacy `provider_subscription_id`
@@ -749,9 +787,9 @@ ALTER TABLE saas_transaction
 
 ## 14. Tenant Isolation & Security Architecture
 
-1. **Composite Foreign Key Enforcement**: As detailed in Section 5, foreign keys strictly enforce tenant ownership at the MySQL engine level.
+1. **Composite Foreign Key Enforcement**: As detailed in Section 5 and Section 13, foreign keys strictly enforce tenant ownership at the MySQL engine level with `ON DELETE RESTRICT`.
 2. **Secret Hygiene**: Access tokens, Client Secrets, and webhook authorization headers are never logged or stored in application database records.
-3. **Endpoint CSRF Exemption**: `/saas/phonepe-webhook` is CSRF-exempt because S2S servers cannot obtain browser CSRF cookies; protected cryptographically via signature verification.
+3. **Endpoint CSRF Exemption**: `/saas/phonepe-webhook` is CSRF-exempt because S2S servers cannot obtain browser CSRF cookies; protected via mandatory authoritative S2S API verification before performing state changes.
 
 ---
 
@@ -824,19 +862,33 @@ Prior to production activation, implementations must pass:
 
 ## 18. Architecture Review Corrections — Version 1.2
 
-This section details the resolutions for all 9 items identified in the Version 1.2 review:
+This section details the resolutions for items identified in the Version 1.2 review:
 
 | Review Item | Issue Identified in Review | Resolution in Version 1.2 |
 |---|---|---|
-| **1. Database-Level Tenant Ownership** | Organization-scoped UNIQUE constraints did not prevent a child record from referencing another tenant's parent record. | **Designed composite foreign keys**: Added `(id, organization_id)` composite unique keys to parent tables (`saas_subscription`, `saas_mandate`, `saas_pre_debit_notification`) and enforced composite foreign keys on all child relationships. MySQL physically blocks cross-tenant associations. |
-| **2. Removal of 24h NOT_FOUND Assumption** | Document asserted that 24 hours of `NOT_FOUND` proves an order was dropped, which could lead to duplicate debits. | **Removed assumption**. `NOT_FOUND` is strictly treated as ambiguous. The scheduler never issues a new debit for an ambiguous order. Orders with extended `NOT_FOUND` enter `MANUAL_RECONCILIATION_REQUIRED` for written gateway confirmation. |
-| **3. Pre-Debit Notification Lifecycle** | Used `COMPLETED` as the successful Notify state and conflated notification with debit completion. | **Corrected states**: `INITIATED`, `NOTIFICATION_IN_PROGRESS`, `NOTIFIED`, `FAILED`, `CONSUMED`, `EXPIRED`. Persist authoritative gateway timestamps `validAfter`, `validUpto`, and `notifiedAt`. Scheduler requires `NOW() >= valid_after_at AND status = 'NOTIFIED'` before execution. |
-| **4. Normalized Mandate Status Mappings** | Schema and API mapping omitted intermediate states and mapped raw strings directly. | **Documented all PhonePe V2 states**: `CREATED`, `ACTIVE`, `PAUSE_IN_PROGRESS`, `PAUSED`, `UNPAUSE_IN_PROGRESS`, `REVOKE_IN_PROGRESS`, `REVOKED`, `CANCEL_IN_PROGRESS`, `CANCELLED`, `COMPLETED`, `EXPIRED`, `FAILED`. In-progress states block new debits until settled. |
-| **5. Clarification of auto_debit SSOT** | Having `auto_debit` on both `saas_mandate` and `saas_pre_debit_notification` risked dual ownership. | `saas_mandate.auto_debit` is the **only mutable SSOT**. On `saas_pre_debit_notification`, it is defined as an **immutable historical snapshot** (`auto_debit_snapshot`) recorded at notification dispatch. |
-| **6. Migration Dependency Ordering** | SQL proposed adding foreign key `fk_saas_sub_active_mandate` before `saas_mandate` was created. | **Reordered migration sequence**: 1. Unique constraint on `saas_subscription(id, organization_id)`; 2. Create `saas_mandate`; 3. Add `active_mandate_id` FK to `saas_subscription`; 4. Create `saas_pre_debit_notification`; 5. Create `saas_redemption_attempt`; 6. Extend `saas_transaction`. |
-| **7. provider_subscription_id Compatibility** | Ambiguity regarding how legacy unique constraint coexists with multiple V2 historical mandates. | **Frozen for V2**: `saas_subscription.provider_subscription_id` is deprecated and left NULL for V2 rows. Canonical V2 mandate IDs reside exclusively in `saas_mandate`. Unique constraint is preserved for historical V3 and Razorpay rows without resubscription collisions. |
-| **8. Webhook Security Wording** | Document claimed cryptographic protection was active before merchant configuration was confirmed. | **Corrected**: Acknowledged that dashboard configuration (Basic Auth vs SHA256 vs Bearer) is unverified. Established defense-in-depth rule: webhooks are treated as unauthenticated hints, requiring S2S API status checks before any financial or entitlement state change. |
-| **9. Razorpay Architecture Diagram** | Diagram depicted an operational `RazorpayProvider` class inside `BillingService`. | **Corrected diagram**: Removed `RazorpayProvider` from factory. Represented Razorpay strictly as preserved dormant schema, DB rows, and configuration artifacts. |
+| **1. Database-Level Tenant Ownership** | Organization-scoped UNIQUE constraints did not prevent a child record from referencing another tenant's parent record. | Added composite unique keys to parent tables and enforced composite foreign keys on all child relationships. |
+| **2. Removal of 24h NOT_FOUND Assumption** | Document asserted that 24 hours of `NOT_FOUND` proves an order was dropped, risking duplicate debits. | Removed assumption. `NOT_FOUND` is strictly treated as ambiguous. Orders with extended `NOT_FOUND` enter `MANUAL_RECONCILIATION_REQUIRED`. |
+| **3. Pre-Debit Notification Lifecycle** | Used `COMPLETED` as the successful Notify state and conflated notification with debit completion. | Corrected states: `INITIATED`, `NOTIFICATION_IN_PROGRESS`, `NOTIFIED`, `FAILED`, `CONSUMED`, `EXPIRED`. Persist authoritative gateway timestamps `validAfter`, `validUpto`, and `notifiedAt`. |
+| **4. Normalized Mandate Status Mappings** | Schema and API mapping omitted intermediate states. | Documented all 12 PhonePe V2 states: `CREATED`, `ACTIVE`, `PAUSE_IN_PROGRESS`, `PAUSED`, `UNPAUSE_IN_PROGRESS`, `REVOKE_IN_PROGRESS`, `REVOKED`, `CANCEL_IN_PROGRESS`, `CANCELLED`, `COMPLETED`, `EXPIRED`, `FAILED`. |
+| **5. Clarification of auto_debit SSOT** | Having `auto_debit` on both `saas_mandate` and `saas_pre_debit_notification` risked dual ownership. | `saas_mandate.auto_debit` is the only mutable SSOT. On `saas_pre_debit_notification`, it is an immutable snapshot (`auto_debit_snapshot`). |
+| **6. Migration Dependency Ordering** | SQL proposed adding foreign key `fk_saas_sub_active_mandate` before `saas_mandate` was created. | Reordered migration sequence to guarantee referenced tables and composite keys exist prior to foreign key creation. |
+| **7. provider_subscription_id Compatibility** | Ambiguity regarding how legacy unique constraint coexists with multiple V2 historical mandates. | `saas_subscription.provider_subscription_id` is deprecated and left NULL for V2 rows. Canonical V2 mandate IDs reside in `saas_mandate`. |
+| **8. Webhook Security Wording** | Document claimed cryptographic protection was active before merchant configuration was confirmed. | Corrected: webhooks are treated as unauthenticated hints, requiring S2S API status checks before any financial or entitlement state change. |
+| **9. Razorpay Architecture Diagram** | Diagram depicted an operational `RazorpayProvider` class inside `BillingService`. | Corrected diagram: represented Razorpay strictly as preserved dormant schema, DB rows, and configuration artifacts. |
+
+---
+
+## 19. Architecture Review Corrections — Version 1.2.1 (Final Corrections)
+
+This section details the resolutions for the five remaining review findings resolved in Version 1.2.1:
+
+| Finding | Defect in Previous Version | Architectural Resolution in Version 1.2.1 |
+|---|---|---|
+| **1. Invalid Composite `ON DELETE SET NULL`** | Composite foreign key `(active_mandate_id, organization_id)` had `ON DELETE SET NULL`, which is invalid in MySQL 8.0 because `organization_id` is `NOT NULL`. | **Replaced with `ON DELETE RESTRICT`**. A mandate cannot be physically dropped while linked as `active_mandate_id`. Application logic unlinks `active_mandate_id = NULL` before archival. `organization_id` remains strictly `NOT NULL` across all tables. |
+| **2. Webhook Security Contradictions** | Section 14 claimed cryptographic signature verification was active, contradicting Section 9 which noted transport auth is unverified. | **Harmonized all sections**: Confirmed that `/saas/phonepe-webhook` is CSRF-exempt because it is a machine-to-machine POST without browser cookies. Removed claims of active cryptographic verification. Mandated that webhooks are strictly untrusted hints; S2S status check is required before any state change. |
+| **3. Notification Delivery Reconciliation** | Notifications were created in `NOTIFICATION_IN_PROGRESS`, but the mechanism for transitioning to `NOTIFIED` before redemption was undefined. | **Defined the S2S reconciliation workflow**: The scheduler runs `client.get_order_status(merchant_order_id, details=True)` to confirm gateway delivery (`NOTIFIED`). Redemption is strictly blocked while in `NOTIFICATION_IN_PROGRESS` or ambiguous states. |
+| **4. Mandate Activation vs. Payment Success** | Section 8.1 assumed `mandate_status == ACTIVE` was sufficient to grant paid SaaS entitlement and record `SaaSTransaction(SUCCESS)`. | **Decoupled mandate from payment verification**: Mandate `ACTIVE` activates mandate registration only. Paid entitlement and `SaaSTransaction(SUCCESS)` require independent S2S confirmation (`get_order_status() -> COMPLETED`). PENDING/FAILED payments do NOT grant paid access. |
+| **5. Preserving Financial Audit History** | Tables `saas_mandate`, `saas_pre_debit_notification`, and `saas_redemption_attempt` used `ON DELETE CASCADE`, risking silent audit destruction. | **Replaced all cascades on financial tables with `ON DELETE RESTRICT`**. Subscriptions are cancelled in application logic (`status = 'cancelled'`), never physically deleted. Financial records are preserved permanently for RBI and tax audit compliance. |
 
 ---
 
@@ -844,5 +896,5 @@ This section details the resolutions for all 9 items identified in the Version 1
 
 | Role | Name | Status | Date |
 |---|---|---|---|
-| Lead Architect | AI Architecture Team | Revised & Submitted (v1.2) | November 2026 |
-| Engineering Lead | User / Reviewer | Pending Review | — |
+| Lead Architect | AI Architecture Team | Revised & Submitted (v1.2.1 Final) | November 2026 |
+| Engineering Lead | User / Reviewer | Pending Explicit Review & Approval | — |
