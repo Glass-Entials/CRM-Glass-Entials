@@ -1,6 +1,6 @@
 # PhonePe AutoPay V2: Database & Subscription Lifecycle Architecture
 
-**Document Version:** 1.2.1 (Architecture Review Final Revision)  
+**Document Version:** 1.2.2 (Lifecycle & Notification Architecture Refinements)  
 **Phase:** 3 — Architecture Analysis & Design  
 **Target Repository:** `Glass-Entials/CRM-Glass-Entials`  
 **Status:** REVISED & PROPOSED (Pending Explicit Review & Approval)  
@@ -28,7 +28,7 @@ This document specifies the target **Database Architecture, Subscription Lifecyc
 4. [Database Schema Design & Single Sources of Truth](#4-database-schema-design--single-sources-of-truth)
 5. [Enforced Multi-Tenant Ownership & Composite Constraints](#5-enforced-multi-tenant-ownership--composite-constraints)
 6. [Entity Relationship Diagram (Updated)](#6-entity-relationship-diagram-updated)
-7. [Subscription, Mandate & Notification Lifecycle State Machines](#7-subscription-mandate--notification-lifecycle-state-machines)
+7. [Subscription, Mandate, Notification & Redemption Lifecycle State Machines](#7-subscription-mandate-notification--redemption-lifecycle-state-machines)
 8. [Payment & Redemption Sequence Diagrams](#8-payment--redemption-sequence-diagrams)
 9. [Webhook Architecture & Verification Contract](#9-webhook-architecture--verification-contract)
 10. [Financial Safety, Idempotency & Concurrency Strategy](#10-financial-safety-idempotency--concurrency-strategy)
@@ -41,6 +41,7 @@ This document specifies the target **Database Architecture, Subscription Lifecyc
 17. [Open Questions, Gateway Dependencies & Risks](#17-open-questions-gateway-dependencies--risks)
 18. [Architecture Review Corrections — Version 1.2](#18-architecture-review-corrections--version-12)
 19. [Architecture Review Corrections — Version 1.2.1 (Final Corrections)](#19-architecture-review-corrections--version-121-final-corrections)
+20. [Architecture Review Corrections — Version 1.2.2 (Lifecycle & Notification Refinements)](#20-architecture-review-corrections--version-122-lifecycle--notification-refinements)
 
 ---
 
@@ -130,7 +131,7 @@ SubscriptionService.activate_subscription() -> Org ACTIVE, SaaSSubscription ACTI
 
 To support PhonePe AutoPay V2 cleanly without breaking Razorpay or legacy PhonePe V3, we adopt a **modular provider architecture**.
 
-> **Important Architecture Distinction**:
+> **Important Architecture Distinction**:  
 > `BillingService` does NOT instantiate an operational Razorpay provider. Razorpay is maintained strictly as preserved dormant database schema, historical transaction records, and environment variables.
 
 ```
@@ -188,6 +189,11 @@ To eliminate state desynchronization and race conditions, domain attributes are 
 3. **`saas_pre_debit_notification.auto_debit_snapshot` is an Immutable Historical Snapshot**:
    - `saas_pre_debit_notification` does **NOT** maintain a mutable `auto_debit` status.
    - It records `auto_debit_snapshot` (`BOOLEAN NOT NULL`) at the exact moment the notification is dispatched to PhonePe. This preserves an immutable audit trail of the execution mode submitted for that specific billing cycle.
+4. **Separation of Notification Delivery from Payment / Debit Completion**:
+   - `saas_pre_debit_notification.status = 'NOTIFIED'` indicates ONLY that the RBI-mandated customer pre-debit alert was delivered via NPCI. It does **NOT** constitute payment success or entitlement renewal.
+   - Entitlement renewal (`saas_subscription.current_period_end` extension) and financial recognition (`SaaSTransaction(SUCCESS)`) require an authoritative debit payment confirmation (`state == 'COMPLETED'` and `paymentDetails[0].state == 'COMPLETED'`).
+   - Upon confirmed debit payment completion (via automatic gateway debit or merchant redemption), the notification transitions from `NOTIFIED` to `CONSUMED`.
+   - If the notification validity window (`valid_upto_at`) expires without confirmed payment, the notification transitions from `NOTIFIED` to `EXPIRED`.
 
 ---
 
@@ -207,6 +213,10 @@ To resolve this conflict safely in MySQL 8.0:
    - The foreign key referencing `saas_mandate(id, organization_id)` uses `ON DELETE RESTRICT`.
    - A mandate cannot be physically dropped from `saas_mandate` while it is pointed to by an active subscription.
    - If a mandate is cancelled or replaced, application logic explicitly sets `subscription.active_mandate_id = NULL` before any potential archival.
+3. **Composite Foreign Key Linking `saas_transaction` to `saas_redemption_attempt`**:
+   - `saas_redemption_attempt` defines `UNIQUE KEY uq_saas_redemption_id_org (id, organization_id)`.
+   - `saas_transaction` references `saas_redemption_attempt(id, organization_id)` with `ON DELETE RESTRICT`.
+   - `redemption_attempt_id` is nullable (`INT NULL`) because initial mandate setup transactions and legacy Razorpay payments do not originate from a recurring redemption attempt. In MySQL 8.0, foreign keys containing a NULL column are valid; when non-NULL, tenant ownership is strictly enforced at the engine level.
 
 ```sql
 -- Composite Tenant Enforcement Matrix:
@@ -219,6 +229,7 @@ To resolve this conflict safely in MySQL 8.0:
 -- 7. saas_subscription(active_mandate_id, organization_id) REFERENCES saas_mandate(id, organization_id) ON DELETE RESTRICT
 -- 8. saas_transaction(mandate_id, organization_id) REFERENCES saas_mandate(id, organization_id) ON DELETE RESTRICT
 -- 9. saas_transaction(subscription_id, organization_id) REFERENCES saas_subscription(id, organization_id) ON DELETE RESTRICT
+-- 10. saas_transaction(redemption_attempt_id, organization_id) REFERENCES saas_redemption_attempt(id, organization_id) ON DELETE RESTRICT
 ```
 
 ---
@@ -241,7 +252,7 @@ erDiagram
     SAAS_MANDATE ||--o{ SAAS_TRANSACTION : "executes(mandate_id,organization_id)[RESTRICT]"
     
     SAAS_PRE_DEBIT_NOTIFICATION ||--o{ SAAS_REDEMPTION_ATTEMPT : "triggers(notification_id,organization_id)[RESTRICT]"
-    SAAS_REDEMPTION_ATTEMPT ||--o| SAAS_TRANSACTION : "finalizes(redemption_attempt_id,organization_id)[RESTRICT]"
+    SAAS_REDEMPTION_ATTEMPT ||--o| SAAS_TRANSACTION : "links(redemption_attempt_id,organization_id)[RESTRICT]"
     
     SAAS_WEBHOOK_EVENT ||--o| SAAS_SUBSCRIPTION : "reconciles"
 
@@ -301,7 +312,7 @@ erDiagram
     }
 
     SAAS_REDEMPTION_ATTEMPT {
-        int id PK
+        int id PK "uq(id,organization_id)"
         int organization_id FK
         int subscription_id FK "composite fk(subscription_id,organization_id)[RESTRICT]"
         int notification_id FK "composite fk(notification_id,organization_id)[RESTRICT]"
@@ -317,7 +328,7 @@ erDiagram
         int organization_id FK
         int subscription_id FK "composite fk(subscription_id,organization_id)[RESTRICT]"
         int mandate_id FK "composite fk(mandate_id,organization_id)[RESTRICT]"
-        int redemption_attempt_id FK
+        int redemption_attempt_id FK "composite fk(redemption_attempt_id,organization_id)[RESTRICT]"
         string payment_provider
         string provider_payment_id UK
         string provider_order_id
@@ -336,7 +347,7 @@ erDiagram
 
 ---
 
-## 7. Subscription, Mandate & Notification Lifecycle State Machines
+## 7. Subscription, Mandate, Notification & Redemption Lifecycle State Machines
 
 ### 7.1 State Machine 1: `SaaSSubscriptionStatus` (CRM Application Entitlement)
 Controls customer feature access in the CRM.
@@ -401,21 +412,61 @@ Separates notification delivery from debit execution.
 ```mermaid
 stateDiagram-v2
     [*] --> INITIATED : Local notification record created
-    INITIATED --> NOTIFICATION_IN_PROGRESS : Accepted by PhonePe /notify endpoint
-    INITIATED --> FAILED : Rejected by PhonePe (e.g. invalid mandate)
+    INITIATED --> NOTIFICATION_IN_PROGRESS : Accepted by PhonePe POST /subscriptions/v2/notify
+    INITIATED --> FAILED : Initial Notify request rejected (e.g. 400 Bad Request)
     
-    NOTIFICATION_IN_PROGRESS --> NOTIFIED : S2S Order Status confirms customer delivery via NPCI
-    NOTIFICATION_IN_PROGRESS --> FAILED : Undeliverable / Bank rail rejection confirmed
+    NOTIFICATION_IN_PROGRESS --> NOTIFIED : S2S Notification Status returns state == "NOTIFIED"
+    NOTIFICATION_IN_PROGRESS --> EXPIRED : Validity window elapsed without NOTIFIED confirmation
     
-    NOTIFIED --> CONSUMED : Redemption executed against this notification
-    NOTIFIED --> EXPIRED : validUpto timestamp passed without execution
+    NOTIFIED --> CONSUMED : Corresponding debit confirmed COMPLETED (Auto-Debit or Merchant Redeem)
+    NOTIFIED --> EXPIRED : Validity window (validUpto) elapsed without completed debit
     
     CONSUMED --> [*]
     FAILED --> [*]
     EXPIRED --> [*]
 ```
 
-### 7.4 Decoupled Entitlement vs. Mandate Transition Rules
+#### Detailed Notification State Rules:
+1. **Documented Notification Delivery States**:
+   - The official PhonePe Notification Status API (`GET /checkout/v2/order/{merchantOrderId}/status`) documents **only two states**:
+     - `NOTIFICATION_IN_PROGRESS`: The pre-debit notification is accepted by PhonePe and is actively traversing NPCI and the customer's issuing bank.
+     - `NOTIFIED`: The customer notification has been successfully delivered to the customer's UPI app.
+   - The Notification Status API does **NOT** return `COMPLETED` (which is exclusively a payment state) and does **NOT** return `FAILED`.
+2. **Definitive Rejections vs. Status Inquiries**:
+   - A definitive rejection from the original `POST /subscriptions/v2/notify` request (e.g., HTTP 400 with invalid mandate or invalid amount) is recorded as a local failure (`status = 'FAILED'`).
+   - A status inquiry (`get_order_status()`) that returns ambiguous responses, network timeouts, or unknown payloads must **never** be interpreted as successful delivery; the record remains in `NOTIFICATION_IN_PROGRESS`.
+3. **No Financial Mutations on `NOTIFIED`**:
+   - `NOTIFIED` proves only that the customer received the RBI-mandated advance notification. It does **not** indicate payment success, does not create a `SaaSTransaction(SUCCESS)`, and does not advance the subscription billing cycle.
+4. **Transition to `CONSUMED`**:
+   - Occurs **only** after the subsequent debit order (whether automatic gateway debit or merchant redemption) is authoritatively confirmed as `COMPLETED`.
+5. **Transition to `EXPIRED`**:
+   - If the `validUpto` timestamp elapses without an authoritatively completed debit, the notification transitions to `EXPIRED`. A new pre-debit notification must be dispatched before any future debit attempt.
+
+### 7.4 State Machine 4: `SaaSRedemptionAttemptStatus` & Debit Payment Lifecycle
+Tracks explicit recurring debit execution attempts and status reconciliation.
+
+```mermaid
+stateDiagram-v2
+    [*] --> INITIATED : Local redemption attempt row created
+    
+    INITIATED --> COMPLETED : Order status confirmed COMPLETED with paymentDetails[0].state=COMPLETED
+    INITIATED --> PENDING_RECONCILIATION : In-flight (200 OK state=PENDING, network timeout, or NOT_FOUND)
+    INITIATED --> FAILED : Terminal payment failure (insufficient funds, bank decline)
+    
+    PENDING_RECONCILIATION --> COMPLETED : S2S status reconciliation confirms COMPLETED
+    PENDING_RECONCILIATION --> FAILED : S2S status reconciliation confirms FAILED
+    
+    COMPLETED --> [*] : Triggers SaaSTransaction(SUCCESS), Notification CONSUMED, Period Advance
+    FAILED --> [*] : Triggers SaaSTransaction(FAILED) & GRACE period entry
+```
+
+#### Authoritative Debit Payment Confirmation Criteria:
+Payment completion is recognized **only** when `GET /checkout/v2/order/{merchantOrderId}/status?details=true` satisfies all of the following:
+1. Root response `state == "COMPLETED"`.
+2. The `paymentDetails` array is non-empty and contains an attempt with `state == "COMPLETED"`.
+3. An authoritative `transactionId` (or gateway payment reference) and `amount` are extracted and persisted to `saas_transaction(provider_payment_id)`.
+
+### 7.5 Decoupled Entitlement vs. Mandate Transition Rules
 
 1. **Customer pauses mandate in UPI app (`PAUSED`)**:
    - `saas_mandate.mandate_status = 'PAUSED'`.
@@ -546,38 +597,52 @@ sequenceDiagram
     Renewal->>DB: Atomic Lease Claim: Fetch due subscriptions (where next_billing_at <= NOW)
     loop For each claimed subscription
         opt Notification in NOTIFICATION_IN_PROGRESS
-            Renewal->>Client: get_order_status(notification.merchant_order_id)
-            alt Confirmed delivered
-                PhonePe-->>Client: 200 OK {state: "COMPLETED/NOTIFIED"}
-                Renewal->>DB: Update SaasPreDebitNotification (status="NOTIFIED")
-            alt In-Flight with NPCI
-                PhonePe-->>Client: 200 OK {state: "PENDING"}
-                Renewal->>DB: Keep NOTIFICATION_IN_PROGRESS, skip redemption for this run
-            alt Delivery Failed
-                PhonePe-->>Client: 200 OK {state: "FAILED"}
-                Renewal->>DB: Update SaasPreDebitNotification (status="FAILED")
+            Renewal->>Client: get_order_status(notification.merchant_order_id, details=False)
+            Note over Client,PhonePe: Official Notification Status returns NOTIFIED or NOTIFICATION_IN_PROGRESS
+            alt Delivered via NPCI
+                PhonePe-->>Client: 200 OK {state: "NOTIFIED"}
+                Renewal->>DB: Update SaasPreDebitNotification (status="NOTIFIED", notified_at=NOW)
+            alt Still in progress with NPCI
+                PhonePe-->>Client: 200 OK {state: "NOTIFICATION_IN_PROGRESS"}
+                Renewal->>DB: Retain NOTIFICATION_IN_PROGRESS; skip debit for this cycle
+            alt Ambiguous / Network Timeout
+                PhonePe-->>Client: Timeout / Ambiguous
+                Renewal->>DB: Retain NOTIFICATION_IN_PROGRESS; do not assume delivered
             end
         end
 
         opt Notification is NOTIFIED and validity window satisfied (valid_after_at <= NOW <= valid_upto_at)
-            alt auto_debit_snapshot is TRUE
-                Renewal->>Client: get_order_status(notification.merchant_order_id)
-                PhonePe-->>Client: 200 OK {state: "COMPLETED", transactionId: "TX..."}
-                Renewal->>DB: Advance next_billing_at (+1 month/year)
-                Renewal->>DB: Mark notification CONSUMED & Record SaaSTransaction (SUCCESS)
-            else auto_debit_snapshot is FALSE (Merchant-Initiated)
-                Renewal->>DB: Insert SaasRedemptionAttempt (status="INITIATED")
+            alt auto_debit_snapshot is TRUE (Gateway Auto-Debit Mode)
+                Note over Renewal,PhonePe: NEVER call redeem() for autoDebit=true mandates
+                Renewal->>Client: get_order_status(notification.merchant_order_id, details=True)
+                alt Payment COMPLETED
+                    PhonePe-->>Client: 200 OK {state: "COMPLETED", paymentDetails: [{state: "COMPLETED", transactionId: "TX...", amount: 49900}]}
+                    Renewal->>DB: Advance next_billing_at & current_period_end (+1 cycle)
+                    Renewal->>DB: Mark notification CONSUMED
+                    Renewal->>DB: Record SaaSTransaction(status="SUCCESS", provider_payment_id="TX...", redemption_attempt_id=NULL)
+                alt Payment PENDING
+                    PhonePe-->>Client: 200 OK {state: "PENDING"}
+                    Renewal->>DB: Retain under reconciliation; do NOT advance billing period
+                alt Payment FAILED
+                    PhonePe-->>Client: 200 OK {state: "FAILED"}
+                    Renewal->>DB: Enter GRACE period (7 days) & Record SaaSTransaction(status="FAILED")
+                end
+            else auto_debit_snapshot is FALSE (Merchant-Initiated Mode)
+                Renewal->>DB: Insert SaasRedemptionAttempt (status="INITIATED", merchant_order_id=notification.merchant_order_id)
                 Renewal->>Client: redeem({merchantOrderId: notification.merchant_order_id, amount})
                 Client->>PhonePe: POST /subscriptions/v2/redeem
-                alt Immediate SUCCESS
-                    PhonePe-->>Client: 200 OK {state: "COMPLETED"}
-                    Renewal->>DB: Advance billing period & Record SaaSTransaction (SUCCESS)
+                alt Immediate COMPLETED
+                    PhonePe-->>Client: 200 OK {state: "COMPLETED", paymentDetails: [{state: "COMPLETED", transactionId: "TX..."}]}
+                    Renewal->>DB: Update SaasRedemptionAttempt(status="COMPLETED")
+                    Renewal->>DB: Advance billing period & clear grace
+                    Renewal->>DB: Mark notification CONSUMED
+                    Renewal->>DB: Record SaaSTransaction(status="SUCCESS", redemption_attempt_id=attempt.id)
                 alt In-Flight PENDING
                     PhonePe-->>Client: 200 OK {state: "PENDING"}
-                    Renewal->>DB: Set status="PENDING_RECONCILIATION", reschedule check in 1h
+                    Renewal->>DB: Update SaasRedemptionAttempt(status="PENDING_RECONCILIATION"), reschedule check in 1h
                 alt Debit FAILED
-                    PhonePe-->>Client: 4xx/5xx or FAILED
-                    Renewal->>DB: Enter GRACE period (7 days) & schedule retry in 24h
+                    PhonePe-->>Client: 4xx/5xx or {state: "FAILED"}
+                    Renewal->>DB: Update SaasRedemptionAttempt(status="FAILED"), enter GRACE period
                 end
             end
         end
@@ -600,7 +665,7 @@ The exact webhook verification scheme in PhonePe AutoPay V2 is configured at the
 > - Inbound webhooks acknowledge receipt (`200 OK`) and log to `saas_webhook_event`.
 > - **Before performing financial or entitlement mutations, CRM executes an authoritative S2S status inquiry** using `PhonePeAutoPayClient`:
 >   - For subscription/mandate changes: `client.get_subscription_status(merchantSubscriptionId)`
->   - For payment/redemption changes: `client.get_order_status(merchantOrderId)`
+>   - For payment/redemption changes: `client.get_order_status(merchantOrderId, details=True)`
 > - State transitions occur **only** on verified TLS responses from PhonePe's API servers.
 
 ---
@@ -642,19 +707,20 @@ Workers query `WHERE claim_token = :worker_uuid`. Upon completion, `claim_token`
 | **Mandate Setup** | `setup_subscription()` | `POST /subscriptions/v2/setup` | `200 OK`, `redirectInfo.url` | Insert `SaaSMandate(CREATED)`, redirect user |
 | **Mandate Status Inquiry** | `get_subscription_status()` | `GET /subscriptions/v2/{id}/status` | `CREATED`, `ACTIVE`, `PAUSE_IN_PROGRESS`, `PAUSED`, `UNPAUSE_IN_PROGRESS`, `REVOKE_IN_PROGRESS`, `REVOKED`, `CANCEL_IN_PROGRESS`, `CANCELLED`, `COMPLETED`, `EXPIRED`, `FAILED` | Update `saas_mandate.mandate_status` according to mapped transition rules |
 | **Pre-Debit Notification** | `notify_redemption()` | `POST /subscriptions/v2/notify` | `200 OK`, `validAfter`, `validUpto`, `notifiedAt` | Insert `SaasPreDebitNotification(status="NOTIFICATION_IN_PROGRESS")`, persist validity timestamps |
-| **Order Status Inquiry** | `get_order_status()` | `GET /checkout/v2/order/{id}/status` | `COMPLETED`, `PENDING`, `FAILED` | Authoritative check for setup and redemption orders; for notifications, confirms `NOTIFIED` |
-| **Recurring Debit** | `redeem()` | `POST /subscriptions/v2/redeem` | `COMPLETED`, `PENDING`, `FAILED` | Update `SaasRedemptionAttempt`; on `COMPLETED`, advance cycle |
+| **Notification Status Inquiry** | `get_order_status()` | `GET /checkout/v2/order/{merchantOrderId}/status` | `NOTIFICATION_IN_PROGRESS`, `NOTIFIED` | On `NOTIFIED`, set `status="NOTIFIED"`, persist `notified_at`. On `NOTIFICATION_IN_PROGRESS`, retain in-progress. *Does not return COMPLETED or FAILED.* |
+| **Payment Order Status Inquiry** | `get_order_status()` | `GET /checkout/v2/order/{merchantOrderId}/status?details=true` | `COMPLETED`, `PENDING`, `FAILED` (with `paymentDetails` array) | Authoritative check for setup debit and redemption orders. On `COMPLETED` with `paymentDetails[0].state == 'COMPLETED'`, record `SaaSTransaction(SUCCESS)`, mark notification `CONSUMED`, advance cycle |
+| **Recurring Debit (Merchant-Initiated)** | `redeem()` | `POST /subscriptions/v2/redeem` | `COMPLETED`, `PENDING`, `FAILED` | Execute debit using Notify `merchantOrderId`. Update `SaasRedemptionAttempt`. On `COMPLETED`, record transaction & advance cycle |
 | **Cancel Mandate** | `cancel_subscription()` | `POST /checkout/v2/subscriptions/{id}/cancel` | `HTTP 204 No Content` | Confirm via `get_subscription_status()` -> `CANCELLED` |
 
 ---
 
 ## 12. Failure Handling, Timeouts & Ambiguity Reconciliation Engine
 
-### 12.1 The 5 Reconciliation Outcomes (Removal of False 24-Hour Assumption)
+### 12.1 The 5 Payment Redemption Reconciliation Outcomes (Removal of False 24-Hour Assumption)
 When checking the status of an in-flight, timed-out, or pending redemption request:
 
 1. **Definitive `COMPLETED`**:
-   Authoritative debit confirmed. Advance `current_period_end` and `next_billing_at`, clear `grace_period_end`, record `SaaSTransaction(SUCCESS)`.
+   Authoritative debit confirmed (`root state == 'COMPLETED'` and `paymentDetails[0].state == 'COMPLETED'`). Advance `current_period_end` and `next_billing_at`, clear `grace_period_end`, record `SaaSTransaction(SUCCESS)`, transition notification to `CONSUMED`.
 2. **Definitive `FAILED`** (Terminal gateway failure code from PhonePe):
    Authoritative debit failure. Mark attempt as `FAILED`. Enter `GRACE` period. Safe to reschedule retry in 24h if within 7-day grace window.
 3. **`PENDING`**:
@@ -666,6 +732,15 @@ When checking the status of an in-flight, timed-out, or pending redemption reque
    - The system **never initiates a new debit request** while an order is in `NOT_FOUND`.
    - The attempt is placed into `AMBIGUOUS_NOT_FOUND` and polled with exponential backoff (1h, 2h, 4h, 8h, 24h).
    - If `NOT_FOUND` persists beyond 24 hours, the order is locked into `MANUAL_RECONCILIATION_REQUIRED` and flagged for Super Admin review. A new debit is permitted **only** after PhonePe merchant support / settlement report explicitly confirms the order was never presented to NPCI.
+
+### 12.2 Notification Status Ambiguity & Delivery Reconciliation
+When polling `GET /checkout/v2/order/{merchantOrderId}/status` for an active pre-debit notification:
+1. **`NOTIFIED`**:
+   Authoritative proof of customer delivery. Update `saas_pre_debit_notification.status = 'NOTIFIED'` and record `notified_at`. Allows redemption execution once current time enters `[valid_after_at, valid_upto_at]`.
+2. **`NOTIFICATION_IN_PROGRESS`**:
+   Delivery remains pending on NPCI or customer issuing bank rails. Notification remains in `NOTIFICATION_IN_PROGRESS`. Debit execution is strictly blocked.
+3. **Ambiguous Status, Network Timeout, or Gateway 5xx**:
+   Ambiguous. Notification remains in `NOTIFICATION_IN_PROGRESS`. Never assume delivered. Polled on subsequent scheduler runs. If `valid_upto_at` elapses without confirmed `NOTIFIED`, transition notification to `EXPIRED` and enter `GRACE` period.
 
 ---
 
@@ -742,7 +817,7 @@ CREATE TABLE saas_pre_debit_notification (
     INDEX ix_saas_pdn_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Step 5: Create child table saas_redemption_attempt (RESTRICT FKs)
+-- Step 5: Create child table saas_redemption_attempt (with parent composite UNIQUE key and RESTRICT FKs)
 CREATE TABLE saas_redemption_attempt (
     id INT AUTO_INCREMENT PRIMARY KEY,
     organization_id INT NOT NULL,
@@ -757,6 +832,7 @@ CREATE TABLE saas_redemption_attempt (
     raw_response_json JSON NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT uq_saas_redemption_id_org UNIQUE (id, organization_id),
     CONSTRAINT uq_saas_redemption_attempt UNIQUE (organization_id, merchant_order_id, attempt_number),
     CONSTRAINT fk_saas_redemption_pdn_org FOREIGN KEY (notification_id, organization_id)
         REFERENCES saas_pre_debit_notification(id, organization_id) ON DELETE RESTRICT,
@@ -772,7 +848,9 @@ ALTER TABLE saas_transaction
     ADD CONSTRAINT fk_saas_tx_mandate_org FOREIGN KEY (mandate_id, organization_id)
         REFERENCES saas_mandate(id, organization_id) ON DELETE RESTRICT,
     ADD CONSTRAINT fk_saas_tx_sub_org FOREIGN KEY (subscription_id, organization_id)
-        REFERENCES saas_subscription(id, organization_id) ON DELETE RESTRICT;
+        REFERENCES saas_subscription(id, organization_id) ON DELETE RESTRICT,
+    ADD CONSTRAINT fk_saas_tx_redemption_org FOREIGN KEY (redemption_attempt_id, organization_id)
+        REFERENCES saas_redemption_attempt(id, organization_id) ON DELETE RESTRICT;
 ```
 
 ### 13.2 Handling Legacy `provider_subscription_id`
@@ -797,7 +875,7 @@ ALTER TABLE saas_transaction
 
 Prior to production activation, implementations must pass:
 1. **Unit Tests (100% Mocked)**:
-   - State transition validations for `SaaSSubscriptionStatus`, `MandateStatus`, and `PreDebitNotificationStatus`.
+   - State transition validations for `SaaSSubscriptionStatus`, `MandateStatus`, `PreDebitNotificationStatus`, and `SaaSRedemptionAttemptStatus`.
    - Idempotency checks: duplicate webhooks, duplicate notifications, duplicate claims.
    - Timeout recovery: simulated network drops during `redeem()`.
 2. **Concurrency Tests**:
@@ -852,7 +930,7 @@ Prior to production activation, implementations must pass:
 
 1. **Merchant AutoDebit Mode**:
    - Does our approved PhonePe merchant account have `autoDebit: true` (gateway-managed debits) or `autoDebit: false` (merchant-triggered debits)?
-   - *Design accommodation*: Supported cleanly via the `auto_debit` boolean flag on `saas_mandate`.
+   - *Design accommodation*: Supported cleanly via the `auto_debit` boolean flag on `saas_mandate` and `auto_debit_snapshot` on `saas_pre_debit_notification`.
 2. **Webhook Cryptographic Signature Format**:
    - Must verify whether merchant dashboard transmits webhooks with Basic auth, SHA256 X-VERIFY, or asymmetric public-key signatures.
 3. **Production Sandbox Provisioning**:
@@ -880,15 +958,29 @@ This section details the resolutions for items identified in the Version 1.2 rev
 
 ## 19. Architecture Review Corrections — Version 1.2.1 (Final Corrections)
 
-This section details the resolutions for the five remaining review findings resolved in Version 1.2.1:
+This section details the resolutions for the five review findings resolved in Version 1.2.1:
 
 | Finding | Defect in Previous Version | Architectural Resolution in Version 1.2.1 |
 |---|---|---|
 | **1. Invalid Composite `ON DELETE SET NULL`** | Composite foreign key `(active_mandate_id, organization_id)` had `ON DELETE SET NULL`, which is invalid in MySQL 8.0 because `organization_id` is `NOT NULL`. | **Replaced with `ON DELETE RESTRICT`**. A mandate cannot be physically dropped while linked as `active_mandate_id`. Application logic unlinks `active_mandate_id = NULL` before archival. `organization_id` remains strictly `NOT NULL` across all tables. |
 | **2. Webhook Security Contradictions** | Section 14 claimed cryptographic signature verification was active, contradicting Section 9 which noted transport auth is unverified. | **Harmonized all sections**: Confirmed that `/saas/phonepe-webhook` is CSRF-exempt because it is a machine-to-machine POST without browser cookies. Removed claims of active cryptographic verification. Mandated that webhooks are strictly untrusted hints; S2S status check is required before any state change. |
-| **3. Notification Delivery Reconciliation** | Notifications were created in `NOTIFICATION_IN_PROGRESS`, but the mechanism for transitioning to `NOTIFIED` before redemption was undefined. | **Defined the S2S reconciliation workflow**: The scheduler runs `client.get_order_status(merchant_order_id, details=True)` to confirm gateway delivery (`NOTIFIED`). Redemption is strictly blocked while in `NOTIFICATION_IN_PROGRESS` or ambiguous states. |
+| **3. Notification Delivery Reconciliation** | Notifications were created in `NOTIFICATION_IN_PROGRESS`, but the mechanism for transitioning to `NOTIFIED` before redemption was undefined. | **Defined the S2S reconciliation workflow**: The scheduler runs `client.get_order_status(merchant_order_id, details=False)` to confirm gateway delivery (`NOTIFIED`). Redemption is strictly blocked while in `NOTIFICATION_IN_PROGRESS` or ambiguous states. |
 | **4. Mandate Activation vs. Payment Success** | Section 8.1 assumed `mandate_status == ACTIVE` was sufficient to grant paid SaaS entitlement and record `SaaSTransaction(SUCCESS)`. | **Decoupled mandate from payment verification**: Mandate `ACTIVE` activates mandate registration only. Paid entitlement and `SaaSTransaction(SUCCESS)` require independent S2S confirmation (`get_order_status() -> COMPLETED`). PENDING/FAILED payments do NOT grant paid access. |
 | **5. Preserving Financial Audit History** | Tables `saas_mandate`, `saas_pre_debit_notification`, and `saas_redemption_attempt` used `ON DELETE CASCADE`, risking silent audit destruction. | **Replaced all cascades on financial tables with `ON DELETE RESTRICT`**. Subscriptions are cancelled in application logic (`status = 'cancelled'`), never physically deleted. Financial records are preserved permanently for RBI and tax audit compliance. |
+
+---
+
+## 20. Architecture Review Corrections — Version 1.2.2 (Lifecycle & Notification Refinements)
+
+This section details the resolutions for the review findings resolved in Version 1.2.2:
+
+| Finding | Defect in Previous Version | Architectural Resolution in Version 1.2.2 |
+|---|---|---|
+| **1. Notification Status API Mapping** | Sections 8.3 and 11 conflated payment order status with Notification Status, incorrectly treating `COMPLETED` and `FAILED` as possible responses of the Notification Status inquiry. | **Corrected to documented states**: `GET /checkout/v2/order/{merchantOrderId}/status` documents **only** `NOTIFICATION_IN_PROGRESS` and `NOTIFIED`. `COMPLETED` is strictly a payment order state, not a notification delivery state. Status inquiry never invents `FAILED`; unknown or ambiguous responses keep notification in `NOTIFICATION_IN_PROGRESS`. |
+| **2. Decoupling Notification Delivery from Debit Completion** | Narrative and diagrams risked implying that receiving `NOTIFIED` authorized financial recognition or advanced the subscription billing period. | **Separated notification from payment**: `NOTIFIED` confirms customer delivery only. Entitlement renewal and `SaaSTransaction(SUCCESS)` require confirmed payment (`state == 'COMPLETED'` and `paymentDetails[0].state == 'COMPLETED'`). Automatic debit (`auto_debit_snapshot = True`) **never** calls `redeem()`; merchant debit reuses the exact Notify `merchantOrderId`. Upon confirmed debit, notification transitions to `CONSUMED`. |
+| **3. Complete Notification and Redemption State Machines** | Section 7.3 lacked explicit state modeling for debit redemption outcomes, notification expiration, and consumption. | **Added State Machine 4 & Refined State Machine 3**: Documented complete transitions: `NOTIFICATION_IN_PROGRESS -> NOTIFIED -> CONSUMED` (on confirmed payment) or `EXPIRED` (on validity window lapse). Added `SaaSRedemptionAttemptStatus` (`INITIATED -> PENDING_RECONCILIATION / COMPLETED / FAILED`). Supported both automatic and merchant debit modes. |
+| **4. Transaction-to-Redemption Composite Foreign Key** | ER diagram depicted a foreign key between `saas_transaction` and `saas_redemption_attempt`, but the migration DDL omitted the parent composite unique key and the child composite foreign key. | **Implemented in Migration SQL (Step 5 & Step 6)**: Added `CONSTRAINT uq_saas_redemption_id_org UNIQUE (id, organization_id)` on `saas_redemption_attempt`. Added `CONSTRAINT fk_saas_tx_redemption_org FOREIGN KEY (redemption_attempt_id, organization_id) REFERENCES saas_redemption_attempt(id, organization_id) ON DELETE RESTRICT` on `saas_transaction`. Kept `redemption_attempt_id` nullable (`INT NULL`) to accommodate initial checkout and legacy transactions. |
+| **5. Preservation of Approved Architecture** | Risk of regression on earlier review decisions. | **All V1.2 and V1.2.1 invariants preserved**: Composite tenant enforcement, SSOT definitions, immutability of `auto_debit_snapshot`, `NOT_FOUND` ambiguity handling, `ON DELETE RESTRICT` audit protection, frozen legacy `provider_subscription_id`, and dormant Razorpay preservation. |
 
 ---
 
@@ -896,5 +988,5 @@ This section details the resolutions for the five remaining review findings reso
 
 | Role | Name | Status | Date |
 |---|---|---|---|
-| Lead Architect | AI Architecture Team | Revised & Submitted (v1.2.1 Final) | November 2026 |
+| Lead Architect | AI Architecture Team | Revised & Submitted (v1.2.2 Lifecycle Refinements) | November 2026 |
 | Engineering Lead | User / Reviewer | Pending Explicit Review & Approval | — |
