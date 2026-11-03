@@ -3,6 +3,7 @@ from typing import Optional
 from flask import current_app
 from services.billing.payment_provider import PaymentProvider
 from services.billing.providers.phonepe_provider import PhonePeProvider
+from services.billing.providers.phonepe_autopay_v2_provider import PhonePeAutoPayV2Provider
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,10 @@ class BillingService:
         if provider_name == "phonepe":
             provider = PhonePeProvider()
             _providers["phonepe"] = provider
+            return provider
+        elif provider_name == "phonepe_v2":
+            provider = PhonePeAutoPayV2Provider()
+            _providers["phonepe_v2"] = provider
             return provider
         else:
             raise ValueError(f"Unsupported payment provider: {provider_name}")
