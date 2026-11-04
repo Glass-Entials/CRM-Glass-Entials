@@ -497,10 +497,13 @@ def _validate_setup_payment_evidence(
     if not is_root_amt_valid:
         return False, f"Invalid root order amount in gateway response: {root_amt_err}", None
 
-    # If both raw_resp['amount'] and tx_res.amount_paise are present, verify consistency
-    if getattr(tx_res, "amount_paise", None) is not None and raw_resp.get("amount") is not None:
-        is_tx_amt_valid, _, tx_amt_int = _parse_and_validate_amount(getattr(tx_res, "amount_paise", None))
-        if is_tx_amt_valid and tx_amt_int != root_amt_int:
+    # Requirement 6: If tx_res.amount_paise is present, validate it strictly; reject if invalid or mismatched
+    tx_amt_raw = getattr(tx_res, "amount_paise", None)
+    if tx_amt_raw is not None:
+        is_tx_amt_valid, tx_amt_err, tx_amt_int = _parse_and_validate_amount(tx_amt_raw)
+        if not is_tx_amt_valid:
+            return False, f"Invalid amount_paise in verification result: {tx_amt_err}", None
+        if tx_amt_int != root_amt_int:
             return False, f"Root response amount ({root_amt_int}) does not match verification result amount ({tx_amt_int})", None
 
     # Validate root amount against expected setup total (including GST)

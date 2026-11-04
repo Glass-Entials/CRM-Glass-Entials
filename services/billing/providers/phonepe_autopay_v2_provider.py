@@ -840,18 +840,46 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 )
             else:
                 # Verified Mandate Setup Order (SUBSCRIPTION_SETUP)
-                if root_state == "COMPLETED" and first_state == "COMPLETED":
-                    is_success = True
-                    status = "COMPLETED"
-                elif root_state == "PENDING" or first_state == "PENDING":
+                # Align status interpretation with documented PhonePe response contract:
+                # paymentDetails contains individual attempts; historical failed attempts
+                # at index 0 must not override a later successful attempt when root is COMPLETED.
+                completed_details = [
+                    p for p in payment_details
+                    if isinstance(p, dict) and (p.get("state") or "").strip().upper() == "COMPLETED"
+                ]
+
+                if root_state == "COMPLETED":
+                    if len(completed_details) == 1:
+                        # Exactly one completed attempt confirms successful collection
+                        succ_entry = completed_details[0]
+                        is_success = True
+                        status = "COMPLETED"
+                        tx_id = succ_entry.get("transactionId") or resp.get("transactionId")
+                        amount = succ_entry.get("amount") if succ_entry.get("amount") is not None else (resp.get("amount") or 0)
+                    elif len(completed_details) > 1:
+                        # Multiple completed details: ambiguous per contract.
+                        # Forward to strict validator without arbitrary attempt selection.
+                        is_success = True
+                        status = "COMPLETED"
+                        tx_id = resp.get("transactionId")
+                        amount = resp.get("amount") or 0
+                    else:
+                        # Root says COMPLETED but zero completed attempts found
+                        is_success = False
+                        has_pending = any(
+                            isinstance(p, dict) and (p.get("state") or "").strip().upper() == "PENDING"
+                            for p in payment_details
+                        )
+                        status = "PENDING" if has_pending else "FAILED"
+                elif root_state == "PENDING":
                     is_success = False
                     status = "PENDING"
-                elif root_state == "FAILED" or first_state == "FAILED":
+                elif root_state == "FAILED":
                     is_success = False
                     status = "FAILED"
                 else:
                     is_success = False
-                    status = "PENDING"
+                    status = root_state or "PENDING"
 
         return VerificationResult(
             success=is_success,

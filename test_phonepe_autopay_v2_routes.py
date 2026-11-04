@@ -43,6 +43,7 @@ from routes.saas import saas_bp
 from services.billing.billing_service import BillingService
 from services.billing.subscription_service import SubscriptionService
 from services.billing.payment_provider import VerificationResult, WebhookResult, RedemptionResult
+from services.billing.providers.phonepe_autopay_v2_provider import PhonePeAutoPayV2Provider
 
 
 class TestPhonePeAutoPayV2Routes(unittest.TestCase):
@@ -1445,6 +1446,242 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
         # Verify in fresh query that no PROCESSED event was committed
         evt = SaaSWebhookEvent.query.filter_by(event_id=event_id).first()
         self.assertIsNone(evt)
+
+    # ── Group G: Phase 5.4.2.4 Provider-to-Validator Integration ───────────────
+
+    def test_provider_check_transaction_status_and_setup_evidence_integration(self):
+        """
+        Phase 5.4.2.4: Integration test exercising actual provider check_transaction_status()
+        together with setup evidence validation using mocked PhonePe API responses (rather than
+        mocking the provider's VerificationResult).
+        Scenarios:
+          1. One COMPLETED attempt: accepted when all evidence matches.
+          2. FAILED followed by COMPLETED: accepted when root order and successful attempt evidence match.
+          3. COMPLETED followed by FAILED: accepted only when the provider contract confirms the successful attempt.
+          4. Multiple COMPLETED attempts: manual reconciliation; no activation.
+          5. Root order not COMPLETED: no activation.
+          6. Invalid verification-result amount: no activation.
+        """
+        self.client.get(f"/test-login/{self.v2_user.id}")
+
+        scenarios = [
+            (
+                "one_completed_attempt",
+                {
+                    "orderId": "OMO_SETUP_001",
+                    "state": "COMPLETED",
+                    "amount": 118000,
+                    "currency": "INR",
+                    "merchantSubscriptionId": "MSUB_V2_20_MANDATE",
+                    "paymentDetails": [
+                        {
+                            "transactionId": "TXN_SINGLE_COMPLETED",
+                            "paymentMode": "UPI_INTENT",
+                            "state": "COMPLETED",
+                            "amount": 118000,
+                            "currency": "INR",
+                        }
+                    ],
+                },
+                True,
+            ),
+            (
+                "failed_followed_by_completed",
+                {
+                    "orderId": "OMO_SETUP_002",
+                    "state": "COMPLETED",
+                    "amount": 118000,
+                    "currency": "INR",
+                    "merchantSubscriptionId": "MSUB_V2_20_MANDATE",
+                    "paymentDetails": [
+                        {
+                            "transactionId": "TXN_HISTORICAL_FAILED",
+                            "paymentMode": "UPI_INTENT",
+                            "state": "FAILED",
+                            "amount": 118000,
+                            "currency": "INR",
+                        },
+                        {
+                            "transactionId": "TXN_SUCCESSFUL_RETRY",
+                            "paymentMode": "CARD",
+                            "state": "COMPLETED",
+                            "amount": 118000,
+                            "currency": "INR",
+                        },
+                    ],
+                },
+                True,
+            ),
+            (
+                "completed_followed_by_failed",
+                {
+                    "orderId": "OMO_SETUP_003",
+                    "state": "COMPLETED",
+                    "amount": 118000,
+                    "currency": "INR",
+                    "merchantSubscriptionId": "MSUB_V2_20_MANDATE",
+                    "paymentDetails": [
+                        {
+                            "transactionId": "TXN_FIRST_COMPLETED",
+                            "paymentMode": "UPI_INTENT",
+                            "state": "COMPLETED",
+                            "amount": 118000,
+                            "currency": "INR",
+                        },
+                        {
+                            "transactionId": "TXN_SECOND_FAILED",
+                            "paymentMode": "UPI_COLLECT",
+                            "state": "FAILED",
+                            "amount": 118000,
+                            "currency": "INR",
+                        },
+                    ],
+                },
+                True,
+            ),
+            (
+                "multiple_completed_attempts_ambiguous",
+                {
+                    "orderId": "OMO_SETUP_004",
+                    "state": "COMPLETED",
+                    "amount": 118000,
+                    "currency": "INR",
+                    "merchantSubscriptionId": "MSUB_V2_20_MANDATE",
+                    "paymentDetails": [
+                        {
+                            "transactionId": "TXN_SPLIT_1",
+                            "paymentMode": "UPI_INTENT",
+                            "state": "COMPLETED",
+                            "amount": 59000,
+                            "currency": "INR",
+                        },
+                        {
+                            "transactionId": "TXN_SPLIT_2",
+                            "paymentMode": "CARD",
+                            "state": "COMPLETED",
+                            "amount": 59000,
+                            "currency": "INR",
+                        },
+                    ],
+                },
+                False,
+            ),
+            (
+                "root_order_not_completed_pending",
+                {
+                    "orderId": "OMO_SETUP_005",
+                    "state": "PENDING",
+                    "amount": 118000,
+                    "currency": "INR",
+                    "merchantSubscriptionId": "MSUB_V2_20_MANDATE",
+                    "paymentDetails": [
+                        {
+                            "transactionId": "TXN_PENDING",
+                            "paymentMode": "UPI_INTENT",
+                            "state": "PENDING",
+                            "amount": 118000,
+                            "currency": "INR",
+                        }
+                    ],
+                },
+                False,
+            ),
+            (
+                "invalid_verification_result_amount",
+                {
+                    "orderId": "OMO_SETUP_006",
+                    "state": "COMPLETED",
+                    "amount": 118000.5,
+                    "currency": "INR",
+                    "merchantSubscriptionId": "MSUB_V2_20_MANDATE",
+                    "paymentDetails": [
+                        {
+                            "transactionId": "TXN_FLOAT",
+                            "paymentMode": "UPI_INTENT",
+                            "state": "COMPLETED",
+                            "amount": 118000.5,
+                            "currency": "INR",
+                        }
+                    ],
+                },
+                False,
+            ),
+        ]
+
+        # Instantiate actual PhonePeAutoPayV2Provider
+        real_provider = PhonePeAutoPayV2Provider()
+
+        for name, api_resp, should_activate in scenarios:
+            with self.subTest(scenario=name):
+                # Reset subscription state
+                self.v2_sub.status = SaaSSubscriptionStatus.PENDING
+                self.v2_sub.provider_order_id = f"ORDER_INTEG_{name}"
+                db.session.commit()
+
+                # Mock ONLY the transport client's get_order_status and get_subscription_status (NOT check_transaction_status!)
+                mock_client = MagicMock()
+                mock_client.get_order_status.return_value = api_resp
+                mock_client.get_subscription_status.return_value = {
+                    "state": "ACTIVE",
+                    "subscriptionId": "PP_SUB_123",
+                }
+
+                with patch.object(real_provider, "_get_client", return_value=mock_client), \
+                     patch("services.billing.billing_service.BillingService.get_provider", return_value=real_provider), \
+                     patch("services.billing.subscription_service.SubscriptionService.activate_subscription", wraps=SubscriptionService.activate_subscription) as mock_activate:
+
+                    # 1. Test via browser callback route
+                    response = self.client.get(
+                        f"/saas/phonepe-callback?merchantSubscriptionId={self.v2_mandate.merchant_subscription_id}"
+                    )
+
+                    self.assertEqual(response.status_code, 302)
+                    db.session.refresh(self.v2_sub)
+
+                    if should_activate:
+                        self.assertIn("/home", response.location)
+                        self.assertEqual(self.v2_sub.status, SaaSSubscriptionStatus.ACTIVE)
+                        mock_activate.assert_called_once()
+                    else:
+                        self.assertIn("/saas/checkout", response.location)
+                        self.assertEqual(self.v2_sub.status, SaaSSubscriptionStatus.PENDING)
+                        mock_activate.assert_not_called()
+
+                # Reset subscription state for webhook verification
+                self.v2_sub.status = SaaSSubscriptionStatus.PENDING
+                db.session.commit()
+
+                correct_sha = hashlib.sha256(b"webhook_test_user:webhook_test_pass").hexdigest()
+                headers = {
+                    "Authorization": f"Basic {correct_sha}",
+                    "Content-Type": "application/json",
+                }
+                event_id = f"EVT_INTEG_{name}"
+                payload = json.dumps({
+                    "merchantSubscriptionId": self.v2_mandate.merchant_subscription_id,
+                    "eventId": event_id,
+                    "event": "SUBSCRIPTION_ACTIVE",
+                })
+
+                with patch.object(real_provider, "_get_client", return_value=mock_client), \
+                     patch("services.billing.billing_service.BillingService.get_provider", return_value=real_provider), \
+                     patch("services.billing.subscription_service.SubscriptionService.activate_subscription", wraps=SubscriptionService.activate_subscription) as mock_activate_wh:
+
+                    # 2. Test via S2S webhook route
+                    wh_response = self.client.post("/saas/phonepe-webhook", data=payload, headers=headers)
+
+                    db.session.refresh(self.v2_sub)
+
+                    if should_activate:
+                        self.assertEqual(wh_response.status_code, 200)
+                        self.assertEqual(wh_response.get_json().get("status"), "success")
+                        self.assertEqual(self.v2_sub.status, SaaSSubscriptionStatus.ACTIVE)
+                        mock_activate_wh.assert_called_once()
+                    else:
+                        self.assertEqual(wh_response.status_code, 422)
+                        self.assertEqual(wh_response.get_json().get("status"), "UNRESOLVED")
+                        self.assertEqual(self.v2_sub.status, SaaSSubscriptionStatus.PENDING)
+                        mock_activate_wh.assert_not_called()
 
 
 if __name__ == "__main__":
