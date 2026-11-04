@@ -1,20 +1,25 @@
 """
 test_mysql_concurrency_validation.py
 ====================================
-Validates MySQL 8.0.42 InnoDB concurrency, durable debit idempotency,
-and recovery semantics across all 7 scenarios specified in Phase 5.4.
+Validates MySQL 8.0.42 InnoDB genuine multi-threaded concurrency,
+durable debit idempotency, and failure recovery semantics across all
+scenarios specified in Phase 5.4.1.
+
+Requires DATABASE_URL in environment. No credentials hardcoded.
 """
 
 from __future__ import annotations
 
 import os
 import sys
+import threading
 import time
 import unittest
 from datetime import datetime, timedelta
 
 from flask import Flask
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from model import (
     db,
@@ -40,12 +45,13 @@ from services.billing.providers.phonepe_autopay_v2_provider import (
 class TestMySQLConcurrencyValidation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # Configure app connecting directly to MySQL 8 InnoDB
+        mysql_url = os.environ.get("DATABASE_URL")
+        if not mysql_url:
+            raise unittest.SkipTest(
+                "DATABASE_URL environment variable is required to execute live MySQL concurrency tests."
+            )
+
         cls.app = Flask(__name__)
-        mysql_url = os.environ.get(
-            "DATABASE_URL",
-            "mysql+pymysql://root:R%40j%40t2004@localhost/crm_db"
-        )
         cls.app.config["SQLALCHEMY_DATABASE_URI"] = mysql_url
         cls.app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
         cls.app.config["TESTING"] = True
@@ -59,13 +65,16 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         cls.ctx = cls.app.app_context()
         cls.ctx.push()
 
+        # Independent sessionmaker for genuine multi-threaded concurrency tests
+        cls.engine = create_engine(mysql_url, pool_pre_ping=True)
+        cls.SessionFactory = sessionmaker(bind=cls.engine, expire_on_commit=False)
+
         cls.provider = PhonePeAutoPayV2Provider()
 
         # Seed isolated test tenant and plan
         cls.org_id = 98765
         cls.sub_id = 87654
 
-        # Clean existing test artifacts if any
         cls._cleanup()
 
         org = Organization.query.get(cls.org_id)
@@ -98,7 +107,6 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls._cleanup()
-        # Remove test sub and org
         sub = SaaSSubscription.query.get(cls.sub_id)
         if sub:
             db.session.delete(sub)
@@ -110,6 +118,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             db.session.delete(plan)
         db.session.commit()
         cls.ctx.pop()
+        cls.engine.dispose()
 
     @classmethod
     def _cleanup(cls):
@@ -128,46 +137,125 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         sub.current_period_end = datetime(2026, 12, 1, 0, 0, 0)
         db.session.commit()
 
-    # ── Scenario 1: Competing Workers for Same Billing Period ──────────────────
+    # ── Scenario 1: Genuine Concurrency - Simultaneous Competing Workers ──────
 
-    def test_scenario_1_competing_workers_blocked_by_database_constraint(self):
+    def test_scenario_1_simultaneous_competing_workers_blocked_by_database_constraint(self):
         """
-        Scenario 1: Two concurrent workers with different merchant_order_id values
-        for the same billing period. Database UniqueConstraint strictly blocks worker 2.
+        Genuine concurrency test: Two synchronized threads running on independent
+        SQLAlchemy sessions and distinct physical database connections simultaneously
+        attempt to reserve the same billing period with different merchant order IDs.
+        Asserts exactly one reservation is created, and the losing worker cannot debit.
         """
         bpk = f"{self.sub_id}_2026-11"
+        barrier = threading.Barrier(2)
+        results = {}
 
-        # Worker 1 reserves the billing period
-        ok1, err1, res1 = self.provider._reserve_billing_period(
-            subscription_id=self.sub_id,
-            organization_id=self.org_id,
-            billing_period_key=bpk,
-            merchant_order_id="ORD_WORKER_1_ALPHA",
-        )
-        self.assertTrue(ok1)
-        self.assertIsNone(err1)
-        self.assertIsNotNone(res1)
-        self.assertEqual(res1.status, BillingPeriodReservationStatus.RESERVED.value)
+        def worker(worker_id: str, order_id: str):
+            session = self.SessionFactory()
+            try:
+                # Synchronize threads to release at the exact same instant
+                barrier.wait(timeout=5)
+                ok, err, res = self.provider._reserve_billing_period(
+                    subscription_id=self.sub_id,
+                    organization_id=self.org_id,
+                    billing_period_key=bpk,
+                    merchant_order_id=order_id,
+                    session=session,
+                )
+                results[worker_id] = (ok, err, res)
+            finally:
+                session.close()
 
-        # Worker 2 simultaneously attempts to reserve the same period with a different order ID
-        ok2, err2, res2 = self.provider._reserve_billing_period(
-            subscription_id=self.sub_id,
-            organization_id=self.org_id,
-            billing_period_key=bpk,
-            merchant_order_id="ORD_WORKER_2_BETA",
-        )
-        self.assertFalse(ok2)
-        self.assertIn("already reserved", err2)
-        self.assertIn("Duplicate debit prevented", err2)
+        t1 = threading.Thread(target=worker, args=("worker_1", "ORD_CONC_ALPHA"))
+        t2 = threading.Thread(target=worker, args=("worker_2", "ORD_CONC_BETA"))
+
+        t1.start()
+        t2.start()
+        t1.join(timeout=10)
+        t2.join(timeout=10)
+
+        w1_ok, w1_err, _ = results["worker_1"]
+        w2_ok, w2_err, _ = results["worker_2"]
+
+        # Exactly one worker succeeded and one failed
+        self.assertTrue((w1_ok and not w2_ok) or (w2_ok and not w1_ok))
+
+        # Losing worker is blocked
+        losing_err = w2_err if w1_ok else w1_err
+        self.assertIn("already reserved", losing_err)
+        self.assertIn("Duplicate debit prevented", losing_err)
 
         # Direct database verification on MySQL 8 InnoDB
-        records = SaaSBillingPeriodReservation.query.filter_by(
-            organization_id=self.org_id,
-            subscription_id=self.sub_id,
-            billing_period_key=bpk,
-        ).all()
-        self.assertEqual(len(records), 1)
-        self.assertEqual(records[0].merchant_order_id, "ORD_WORKER_1_ALPHA")
+        verify_session = self.SessionFactory()
+        try:
+            records = verify_session.query(SaaSBillingPeriodReservation).filter_by(
+                organization_id=self.org_id,
+                subscription_id=self.sub_id,
+                billing_period_key=bpk,
+            ).all()
+            self.assertEqual(len(records), 1)
+            winning_order = "ORD_CONC_ALPHA" if w1_ok else "ORD_CONC_BETA"
+            self.assertEqual(records[0].merchant_order_id, winning_order)
+            self.assertEqual(records[0].status, BillingPeriodReservationStatus.RESERVED.value)
+        finally:
+            verify_session.close()
+
+    # ── Scenario 1b: Genuine Concurrency - Simultaneous Retries with Same ID ───
+
+    def test_scenario_1b_simultaneous_idempotent_retries_same_order_id(self):
+        """
+        Genuine concurrency test: Two synchronized threads simultaneously attempt
+        to reserve the same billing period using the exact SAME merchant order ID.
+        Both workers succeed idempotently, and exactly one reservation row exists in MySQL InnoDB.
+        """
+        bpk = f"{self.sub_id}_2026-11"
+        barrier = threading.Barrier(2)
+        results = {}
+
+        def worker(worker_id: str):
+            session = self.SessionFactory()
+            try:
+                barrier.wait(timeout=5)
+                ok, err, res = self.provider._reserve_billing_period(
+                    subscription_id=self.sub_id,
+                    organization_id=self.org_id,
+                    billing_period_key=bpk,
+                    merchant_order_id="ORD_IDEMPOTENT_SAME_ID",
+                    session=session,
+                )
+                results[worker_id] = (ok, err, res)
+            finally:
+                session.close()
+
+        t1 = threading.Thread(target=worker, args=("worker_1",))
+        t2 = threading.Thread(target=worker, args=("worker_2",))
+
+        t1.start()
+        t2.start()
+        t1.join(timeout=10)
+        t2.join(timeout=10)
+
+        w1_ok, w1_err, _ = results["worker_1"]
+        w2_ok, w2_err, _ = results["worker_2"]
+
+        # Both workers succeed idempotently
+        self.assertTrue(w1_ok)
+        self.assertTrue(w2_ok)
+        self.assertIsNone(w1_err)
+        self.assertIsNone(w2_err)
+
+        # Direct verification against MySQL InnoDB: exactly 1 reservation row exists
+        verify_session = self.SessionFactory()
+        try:
+            records = verify_session.query(SaaSBillingPeriodReservation).filter_by(
+                organization_id=self.org_id,
+                subscription_id=self.sub_id,
+                billing_period_key=bpk,
+            ).all()
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0].merchant_order_id, "ORD_IDEMPOTENT_SAME_ID")
+        finally:
+            verify_session.close()
 
     # ── Scenario 2: Lease Expiry with Reservation Intact ───────────────────────
 
@@ -262,7 +350,6 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         Scenario 5: When the subscription advances to the next billing period,
         a new billing_period_key is generated and can be cleanly reserved.
         """
-        # Period 1 (November 2026) is completed
         bpk_nov = f"{self.sub_id}_2026-11"
         ok1, _, res1 = self.provider._reserve_billing_period(
             self.sub_id, self.org_id, bpk_nov, "ORD_NOV_PAID"

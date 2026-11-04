@@ -69,6 +69,8 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         cls.app.config["PHONEPE_CLIENT_ID"] = "test_client_id"
         cls.app.config["PHONEPE_CLIENT_SECRET"] = "test_client_secret"
         cls.app.config["PHONEPE_CLIENT_VERSION"] = 1
+        cls.app.config["PHONEPE_WEBHOOK_USERNAME"] = "test_wh_user"
+        cls.app.config["PHONEPE_WEBHOOK_PASSWORD"] = "test_wh_password"
         db.init_app(cls.app)
 
         with cls.app.app_context():
@@ -628,8 +630,9 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             },
         }
         raw_bytes = json.dumps(payload).encode("utf-8")
+        auth_token = hashlib.sha256(b"test_wh_user:test_wh_password").hexdigest()
 
-        res = self.provider.verify_webhook(raw_bytes, headers={})
+        res = self.provider.verify_webhook(raw_bytes, headers={"Authorization": f"Basic {auth_token}"})
 
         self.assertTrue(res.is_valid)
         self.assertEqual(res.event_id, "EVT_V2_999")
@@ -1675,9 +1678,10 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         self.assertEqual(res.status, "UNRESOLVED")
         self.assertIn("Relational mismatch", res.error_message)
 
-    # ── Test 57: Webhook Multi-Mode Authentication Verification (Phase 5.4) ─────
+    # ── Test 57: Webhook Authentication Verification Contract (Phase 5.4.1) ───
     def test_webhook_multi_mode_authentication_verification(self):
-        """Phase 5.4: verify_webhook enforces valid authentication (Basic Auth, HMAC, X-VERIFY) and rejects invalid."""
+        """Phase 5.4.1: verify_webhook enforces documented PhonePe Basic Auth (SHA256/Base64) and rejects invalid/missing/malformed."""
+        import base64
         payload_dict = {
             "merchantId": "PGTESTPAYUAT",
             "eventId": "EVT_TEST_123",
@@ -1686,36 +1690,49 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         }
         payload_bytes = json.dumps(payload_dict).encode("utf-8")
 
-        # Test A: Merchant ID mismatch
+        # 1. Merchant ID mismatch
         mismatch_payload = json.dumps({"merchantId": "WRONG_MERCHANT", "eventId": "EVT_99"}).encode("utf-8")
-        res_mismatch = self.provider.verify_webhook(mismatch_payload, {})
+        res_mismatch = self.provider.verify_webhook(mismatch_payload, {"Authorization": "Basic test"})
         self.assertFalse(res_mismatch.is_valid)
         self.assertIn("Merchant ID mismatch", res_mismatch.error_message)
 
-        # Test B: Basic Auth in configured environment
         with patch.dict(self.app.config, {"PHONEPE_WEBHOOK_USERNAME": "test_wh_user", "PHONEPE_WEBHOOK_PASSWORD": "test_wh_password"}):
-            # Invalid credentials
-            res_bad_auth = self.provider.verify_webhook(payload_bytes, {"Authorization": "Basic wrong_token"})
+            # 2. Missing Authorization header
+            res_missing = self.provider.verify_webhook(payload_bytes, {})
+            self.assertFalse(res_missing.is_valid)
+            self.assertEqual(res_missing.error_message, "Missing Authorization header")
+
+            # 3. Malformed Authorization header (non-Basic scheme)
+            res_malformed_scheme = self.provider.verify_webhook(payload_bytes, {"Authorization": "Bearer sometoken"})
+            self.assertFalse(res_malformed_scheme.is_valid)
+            self.assertIn("Malformed Authorization header; expected Basic authentication", res_malformed_scheme.error_message)
+
+            # 4. Malformed Authorization header (empty token)
+            res_empty_token = self.provider.verify_webhook(payload_bytes, {"Authorization": "Basic  "})
+            self.assertFalse(res_empty_token.is_valid)
+            self.assertIn("empty Basic authentication token", res_empty_token.error_message)
+
+            # 5. Invalid credentials (wrong digest)
+            res_bad_auth = self.provider.verify_webhook(payload_bytes, {"Authorization": "Basic wrong_token_value"})
             self.assertFalse(res_bad_auth.is_valid)
+            self.assertEqual(res_bad_auth.error_message, "Invalid webhook authorization credentials")
 
-            # Valid credentials
-            correct_token = hashlib.sha256(b"test_wh_user:test_wh_password").hexdigest()
-            res_good_auth = self.provider.verify_webhook(payload_bytes, {"Authorization": f"Basic {correct_token}"})
-            self.assertTrue(res_good_auth.is_valid)
-            self.assertEqual(res_good_auth.event_id, "EVT_TEST_123")
+            # 6. Valid documented PhonePe SHA-256 hash
+            correct_sha256 = hashlib.sha256(b"test_wh_user:test_wh_password").hexdigest()
+            res_good_sha = self.provider.verify_webhook(payload_bytes, {"Authorization": f"Basic {correct_sha256}"})
+            self.assertTrue(res_good_sha.is_valid)
+            self.assertEqual(res_good_sha.event_id, "EVT_TEST_123")
 
-        # Test C: HMAC Secret verification
-        with patch.dict(self.app.config, {"PHONEPE_WEBHOOK_SECRET": "test_wh_secret"}):
-            raw_text = payload_bytes.decode("utf-8")
-            correct_hmac = hmac.new(b"test_wh_secret", payload_bytes, hashlib.sha256).hexdigest()
+            # 7. Valid standard RFC 7617 Base64
+            correct_base64 = base64.b64encode(b"test_wh_user:test_wh_password").decode("utf-8")
+            res_good_b64 = self.provider.verify_webhook(payload_bytes, {"Authorization": f"Basic {correct_base64}"})
+            self.assertTrue(res_good_b64.is_valid)
+            self.assertEqual(res_good_b64.event_id, "EVT_TEST_123")
 
-            # Bad HMAC
-            res_bad_hmac = self.provider.verify_webhook(payload_bytes, {"Authorization": "HMAC-SHA256 invalid_hmac"})
-            self.assertFalse(res_bad_hmac.is_valid)
-
-            # Good HMAC
-            res_good_hmac = self.provider.verify_webhook(payload_bytes, {"Authorization": f"HMAC-SHA256 {correct_hmac}"})
-            self.assertTrue(res_good_hmac.is_valid)
+            # 8. Arbitrary HMAC schemes rejected
+            res_hmac = self.provider.verify_webhook(payload_bytes, {"Authorization": "HMAC-SHA256 random_hash"})
+            self.assertFalse(res_hmac.is_valid)
+            self.assertIn("Malformed Authorization header", res_hmac.error_message)
 
 
 if __name__ == "__main__":

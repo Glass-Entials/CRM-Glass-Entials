@@ -466,6 +466,150 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
             # Must NOT call sync_mandate_status on duplicate
             mock_v2_provider.sync_mandate_status.assert_not_called()
 
+    def test_v2_auto_debit_webhook_reconciliation_invokes_provider_with_attempt_object(self):
+        """Phase 5.4.1: V2 auto-debit webhook resolves/creates SaaSRedemptionAttempt and invokes provider with attempt object."""
+        # Update self.v2_pdn to be an auto-debit notification
+        self.v2_pdn.auto_debit_snapshot = True
+        db.session.commit()
+
+        auth_token = hashlib.sha256("webhook_test_user:webhook_test_pass".encode("utf-8")).hexdigest()
+        headers = {"Authorization": f"Basic {auth_token}"}
+        payload = json.dumps({
+            "merchantOrderId": "ORDER_V2_PDN_301",
+            "event": "PAYMENT_SUCCESS",
+            "eventId": "EVT_AUTODEBIT_001",
+        })
+
+        mock_v2_provider = MagicMock()
+        mock_v2_provider.name = "phonepe_v2"
+        mock_v2_provider.verify_webhook.return_value = WebhookResult(
+            is_valid=True,
+            event_id="EVT_AUTODEBIT_001",
+            event_type="PAYMENT_SUCCESS",
+            merchant_subscription_id="MSUB_V2_20_MANDATE",
+            provider_payment_id="ORDER_V2_PDN_301",
+            state="COMPLETED",
+        )
+
+        with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider:
+            mock_get_provider.return_value = mock_v2_provider
+
+            response = self.client.post(
+                "/saas/phonepe-webhook",
+                data=payload,
+                content_type="application/json",
+                headers=headers,
+            )
+
+            self.assertEqual(response.status_code, 200)
+            data = response.get_json()
+            self.assertEqual(data.get("status"), "success")
+            self.assertTrue(data.get("reconciled"))
+
+            # Assert reconcile_redemption_status was called with SaaSRedemptionAttempt object!
+            mock_v2_provider.reconcile_redemption_status.assert_called_once()
+            call_arg = mock_v2_provider.reconcile_redemption_status.call_args[0][0]
+            self.assertIsInstance(call_arg, SaaSRedemptionAttempt)
+            self.assertEqual(call_arg.merchant_order_id, "ORDER_V2_PDN_301")
+            self.assertEqual(call_arg.organization_id, 20)
+            self.assertEqual(call_arg.notification_id, self.v2_pdn.id)
+
+    def test_setup_order_reconciliation_uses_internal_order_id_not_transaction_or_event_id(self):
+        """Phase 5.4.1: Initial setup order reconciliation strictly uses internal merchant_order_id, never transactionId or eventId."""
+        # Set subscription to PENDING with specific provider_order_id
+        self.v2_sub.status = SaaSSubscriptionStatus.PENDING
+        self.v2_sub.provider_order_id = "MT_V2_INTERNAL_SETUP_555"
+        self.v2_mandate.mandate_status = "ACTIVE"
+        db.session.commit()
+
+        auth_token = hashlib.sha256("webhook_test_user:webhook_test_pass".encode("utf-8")).hexdigest()
+        headers = {"Authorization": f"Basic {auth_token}"}
+        payload = json.dumps({
+            "merchantSubscriptionId": "MSUB_V2_20_MANDATE",
+            "transactionId": "TXN_GATEWAY_SUBSTITUTE_TRAP",
+            "eventId": "EVT_SETUP_001",
+            "event": "SUBSCRIPTION_ACTIVE",
+        })
+
+        mock_v2_provider = MagicMock()
+        mock_v2_provider.name = "phonepe_v2"
+        mock_v2_provider.verify_webhook.return_value = WebhookResult(
+            is_valid=True,
+            event_id="EVT_SETUP_001",
+            event_type="SUBSCRIPTION_ACTIVE",
+            merchant_subscription_id="MSUB_V2_20_MANDATE",
+            provider_payment_id="TXN_GATEWAY_SUBSTITUTE_TRAP",
+            state="ACTIVE",
+        )
+        mock_v2_provider.check_transaction_status.return_value = VerificationResult(
+            success=True,
+            status="COMPLETED",
+            merchant_subscription_id="MT_V2_INTERNAL_SETUP_555",
+            provider_transaction_id="TXN_GATEWAY_SUBSTITUTE_TRAP",
+            amount_paise=118000,
+        )
+
+        with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider, \
+             patch("services.billing.subscription_service.SubscriptionService.activate_subscription") as mock_activate:
+            mock_get_provider.return_value = mock_v2_provider
+
+            response = self.client.post(
+                "/saas/phonepe-webhook",
+                data=payload,
+                content_type="application/json",
+                headers=headers,
+            )
+
+            self.assertEqual(response.status_code, 200)
+
+            # check_transaction_status MUST be called with "MT_V2_INTERNAL_SETUP_555", NOT transactionId or eventId!
+            mock_v2_provider.check_transaction_status.assert_called_once()
+            called_order_id = mock_v2_provider.check_transaction_status.call_args[0][0]
+            self.assertEqual(called_order_id, "MT_V2_INTERNAL_SETUP_555")
+            self.assertNotEqual(called_order_id, "TXN_GATEWAY_SUBSTITUTE_TRAP")
+            self.assertNotEqual(called_order_id, "EVT_SETUP_001")
+            mock_activate.assert_called_once()
+
+    def test_unmatched_callback_cannot_activate_unrelated_subscription(self):
+        """Phase 5.4.1: Unmatched callback with unknown order ID cannot activate an unrelated subscription in the tenant."""
+        # Log in as Org 20 user
+        self.client.get(f"/test-login/{self.v2_user.id}")
+
+        # Ensure subscription is PENDING
+        self.v2_sub.status = SaaSSubscriptionStatus.PENDING
+        db.session.commit()
+
+        mock_v2_provider = MagicMock()
+        mock_v2_provider.name = "phonepe"
+        # Simulate payment gateway returning success for unknown order
+        mock_v2_provider.verify_payment.return_value = VerificationResult(
+            success=True,
+            status="SUCCESS",
+            merchant_subscription_id="UNKNOWN_UNMATCHED_ORDER_888",
+            provider_subscription_id="PP_SUB_UNKNOWN",
+            amount_paise=118000,
+        )
+
+        with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider, \
+             patch("services.billing.subscription_service.SubscriptionService.activate_subscription") as mock_activate:
+            mock_get_provider.return_value = mock_v2_provider
+
+            # Client reaches callback with an unrelated / unmatched order
+            response = self.client.get(
+                "/saas/phonepe-callback?merchantOrderId=UNKNOWN_UNMATCHED_ORDER_888"
+            )
+
+            # Response must redirect to checkout (not activate subscription)
+            self.assertEqual(response.status_code, 302)
+            self.assertIn("/saas/checkout", response.location)
+
+            # activate_subscription MUST NOT be called!
+            mock_activate.assert_not_called()
+
+            # Subscription status MUST remain PENDING
+            sub = db.session.get(SaaSSubscription, self.v2_sub.id)
+            self.assertEqual(sub.status, SaaSSubscriptionStatus.PENDING)
+
     # ── Group C: Trusted Tenant Context Security ───────────────────────────────
 
     def test_verify_payment_uses_server_side_org_id(self):
@@ -579,6 +723,46 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
             # Resolved org_id must be 20 from SaaSMandate
             self.assertEqual(call_kwargs.get("organization_id"), 20)
             mock_activate.assert_called_once()
+
+    def test_unmatched_callback_cannot_activate_unrelated_subscription(self):
+        """Phase 5.4.1: Unmatched callback with unknown order ID cannot activate an unrelated subscription in the tenant."""
+        # Log in as Org 20 user
+        self.client.get(f"/test-login/{self.v2_user.id}")
+
+        # Ensure subscription is PENDING
+        self.v2_sub.status = SaaSSubscriptionStatus.PENDING
+        db.session.commit()
+
+        mock_v2_provider = MagicMock()
+        mock_v2_provider.name = "phonepe"
+        # Simulate payment gateway returning success for unknown order
+        mock_v2_provider.verify_payment.return_value = VerificationResult(
+            success=True,
+            status="SUCCESS",
+            merchant_subscription_id="UNKNOWN_UNMATCHED_ORDER_888",
+            provider_subscription_id="PP_SUB_UNKNOWN",
+            amount_paise=118000,
+        )
+
+        with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider, \
+             patch("services.billing.subscription_service.SubscriptionService.activate_subscription") as mock_activate:
+            mock_get_provider.return_value = mock_v2_provider
+
+            # Client reaches callback with an unrelated / unmatched order
+            response = self.client.get(
+                "/saas/phonepe-callback?merchantOrderId=UNKNOWN_UNMATCHED_ORDER_888"
+            )
+
+            # Response must redirect to checkout (not activate subscription)
+            self.assertEqual(response.status_code, 302)
+            self.assertIn("/saas/checkout", response.location)
+
+            # activate_subscription MUST NOT be called!
+            mock_activate.assert_not_called()
+
+            # Subscription status MUST remain PENDING
+            sub = db.session.get(SaaSSubscription, self.v2_sub.id)
+            self.assertEqual(sub.status, SaaSSubscriptionStatus.PENDING)
 
     # ── Group D: Duplicate Debit Prevention across Requests ────────────────────
 

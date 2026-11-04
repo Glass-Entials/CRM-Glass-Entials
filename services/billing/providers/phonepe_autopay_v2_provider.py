@@ -285,6 +285,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         organization_id: int,
         billing_period_key: str,
         merchant_order_id: str,
+        session=None,
     ) -> tuple[bool, Optional[str], Optional[SaaSBillingPeriodReservation]]:
         """
         Durable, database-level billing period reservation backed by SaaSBillingPeriodReservation.
@@ -293,9 +294,10 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
 
         Returns: (success: bool, error_message: Optional[str], reservation: Optional[SaaSBillingPeriodReservation])
         """
+        s = session or db.session
         try:
             # 1. Check for prior successful redemption attempt for this billing period key
-            prior_successful_attempt = SaaSRedemptionAttempt.query.filter_by(
+            prior_successful_attempt = s.query(SaaSRedemptionAttempt).filter_by(
                 organization_id=organization_id,
                 subscription_id=subscription_id,
                 billing_period_key=billing_period_key,
@@ -305,7 +307,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 return False, f"A successful debit already exists for billing period {billing_period_key}. Only one debit is permitted per billing period.", None
 
             # 2. Query for existing reservation
-            existing = SaaSBillingPeriodReservation.query.filter_by(
+            existing = s.query(SaaSBillingPeriodReservation).filter_by(
                 organization_id=organization_id,
                 subscription_id=subscription_id,
                 billing_period_key=billing_period_key,
@@ -323,7 +325,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                         return False, f"A successful debit already exists for billing period {billing_period_key}. Only one debit is permitted per billing period.", existing
                     return False, f"Billing period {billing_period_key} is already reserved by order {existing.merchant_order_id} (status: {existing.status}). Duplicate debit prevented.", existing
 
-            # 2. Insert new reservation (enforces database-level UNIQUE constraint on org_id, sub_id, bpk)
+            # 3. Insert new reservation (enforces database-level UNIQUE constraint on org_id, sub_id, bpk)
             reservation = SaaSBillingPeriodReservation(
                 organization_id=organization_id,
                 subscription_id=subscription_id,
@@ -331,17 +333,17 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 merchant_order_id=merchant_order_id,
                 status=BillingPeriodReservationStatus.RESERVED.value,
             )
-            db.session.add(reservation)
-            db.session.commit()
+            s.add(reservation)
+            s.commit()
             return True, None, reservation
 
         except Exception as exc:
-            db.session.rollback()
+            s.rollback()
             logger.warning(
                 "Billing period reservation collision or error org=%s sub=%s key=%s for order=%s: %s",
                 organization_id, subscription_id, billing_period_key, merchant_order_id, str(exc),
             )
-            existing = SaaSBillingPeriodReservation.query.filter_by(
+            existing = s.query(SaaSBillingPeriodReservation).filter_by(
                 organization_id=organization_id,
                 subscription_id=subscription_id,
                 billing_period_key=billing_period_key,
@@ -1592,60 +1594,68 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 error_message=f"Merchant ID mismatch: {incoming_mid}",
             )
 
-        # Webhook Authentication Verification
-        # Supports:
-        # 1. HTTP Basic Authentication (Authorization header)
-        # 2. X-VERIFY SHA256 Checksum header
-        # 3. HMAC-SHA256 signature header
+        # Webhook Authentication Verification:
+        # Documented PhonePe production contract: HTTP Basic Authentication using SHA-256 of username:password
+        # (or standard base64 encoded username:password).
+        # API salt keys and arbitrary HMAC schemes are strictly rejected without documented merchant-specific confirmation.
         try:
             env = current_app.config.get("PHONEPE_ENV", "UAT").upper() if current_app else "UAT"
             webhook_user = current_app.config.get("PHONEPE_WEBHOOK_USERNAME") if current_app else None
             webhook_pass = current_app.config.get("PHONEPE_WEBHOOK_PASSWORD") if current_app else None
-            webhook_secret = current_app.config.get("PHONEPE_WEBHOOK_SECRET") if current_app else None
-            salt_key = current_app.config.get("PHONEPE_SALT_KEY") if current_app else None
-            salt_index = current_app.config.get("PHONEPE_SALT_INDEX", "1") if current_app else "1"
         except RuntimeError:
             env = "UAT"
             webhook_user = None
             webhook_pass = None
-            webhook_secret = None
-            salt_key = None
-            salt_index = "1"
 
         auth_header = headers.get("Authorization") or headers.get("authorization")
-        x_verify_header = headers.get("X-Verify") or headers.get("X-VERIFY") or headers.get("x-verify")
-        has_credentials_configured = bool(webhook_user and webhook_pass) or bool(webhook_secret) or bool(salt_key)
+        if not auth_header:
+            logger.warning("PhonePe V2 Webhook rejected: missing Authorization header")
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message="Missing Authorization header",
+            )
 
+        auth_header_str = auth_header.strip()
+        if not auth_header_str.startswith("Basic"):
+            logger.warning("PhonePe V2 Webhook rejected: malformed Authorization header (expected 'Basic <token>')")
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message="Malformed Authorization header; expected Basic authentication",
+            )
+
+        token = auth_header_str[5:].strip()
+        if not token:
+            logger.warning("PhonePe V2 Webhook rejected: empty Basic auth token")
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message="Malformed Authorization header; empty Basic authentication token",
+            )
+
+        # Validate against configured webhook credentials using constant-time comparison
         is_authenticated = False
+        if webhook_user and webhook_pass:
+            # 1. Documented PhonePe S2S hash format: SHA256(username:password)
+            expected_sha256 = hashlib.sha256(f"{webhook_user}:{webhook_pass}".encode("utf-8")).hexdigest()
+            # 2. Standard RFC 7617 base64 format: Base64(username:password)
+            import base64
+            expected_base64 = base64.b64encode(f"{webhook_user}:{webhook_pass}".encode("utf-8")).decode("utf-8")
 
-        # Mode A: HTTP Basic Auth
-        if auth_header and webhook_user and webhook_pass:
-            expected_token = hashlib.sha256(f"{webhook_user}:{webhook_pass}".encode("utf-8")).hexdigest()
-            raw_token = auth_header.replace("Basic ", "").replace("Bearer ", "").strip()
-            if hmac.compare_digest(raw_token, expected_token):
+            if hmac.compare_digest(token, expected_sha256) or hmac.compare_digest(token, expected_base64):
                 is_authenticated = True
 
-        # Mode B: X-VERIFY SHA256 Checksum
-        if not is_authenticated and x_verify_header and salt_key:
-            hash_calc = f"{hashlib.sha256((raw_text + salt_key).encode('utf-8')).hexdigest()}###{salt_index}"
-            if hmac.compare_digest(x_verify_header.strip(), hash_calc):
-                is_authenticated = True
-
-        # Mode C: HMAC-SHA256 Signature
-        if not is_authenticated and webhook_secret and auth_header:
-            expected_hmac = hmac.new(webhook_secret.encode("utf-8"), raw_text.encode("utf-8"), hashlib.sha256).hexdigest()
-            raw_auth = auth_header.replace("HMAC-SHA256 ", "").strip()
-            if hmac.compare_digest(raw_auth, expected_hmac):
-                is_authenticated = True
-
-        # If credentials are configured or running in PRODUCTION, require explicit authentication
-        if (env == "PRODUCTION" or has_credentials_configured) and not is_authenticated:
+        if not is_authenticated:
             logger.warning("PhonePe V2 Webhook authentication verification failed.")
             return WebhookResult(
                 is_valid=False,
                 event_id="",
                 event_type="",
-                error_message="Invalid webhook signature or authorization credentials",
+                error_message="Invalid webhook authorization credentials",
             )
 
         event_id = (

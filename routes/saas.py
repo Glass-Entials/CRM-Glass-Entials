@@ -19,6 +19,7 @@ from model import (
     OrganizationStatus,
     SaaSMandate,
     SaaSPreDebitNotification,
+    SaaSRedemptionAttempt,
     SaaSSubscription,
     SaaSSubscriptionStatus,
     SaaSTransaction,
@@ -26,6 +27,7 @@ from model import (
     SaaSWebhookEvent,
     MandateStatus,
     PreDebitNotificationStatus,
+    RedemptionAttemptStatus,
     UserRole,
 )
 from services.billing import (
@@ -168,20 +170,23 @@ def phonepe_callback():
     if merchant_subscription_id:
         v2_mandate = SaaSMandate.query.filter_by(
             merchant_subscription_id=merchant_subscription_id,
+            payment_provider="phonepe_v2",
         ).first()
-        if v2_mandate and v2_mandate.payment_provider == "phonepe_v2":
+        if v2_mandate:
             is_v2 = True
     if not is_v2 and merchant_transaction_id:
         v2_pdn = SaaSPreDebitNotification.query.filter_by(
             merchant_order_id=merchant_transaction_id,
         ).first()
         if v2_pdn:
-            is_v2 = True
             if v2_pdn.mandate_id:
                 v2_mandate = SaaSMandate.query.filter_by(
                     id=v2_pdn.mandate_id,
                     organization_id=v2_pdn.organization_id,
+                    payment_provider="phonepe_v2",
                 ).first()
+            if v2_mandate:
+                is_v2 = True
 
     provider = BillingService.get_provider("phonepe_v2" if is_v2 else "phonepe")
 
@@ -193,7 +198,10 @@ def phonepe_callback():
     elif v2_pdn:
         record_org_id = v2_pdn.organization_id
     elif merchant_subscription_id:
-        v3_sub = SaaSSubscription.query.filter_by(provider_subscription_id=merchant_subscription_id).first()
+        v3_sub = SaaSSubscription.query.filter_by(
+            provider_subscription_id=merchant_subscription_id,
+            payment_provider="phonepe",
+        ).first()
         if v3_sub:
             record_org_id = v3_sub.organization_id
 
@@ -210,10 +218,22 @@ def phonepe_callback():
 
     verify_res = provider.verify_payment(payload, headers=dict(request.headers), organization_id=resolved_org_id)
 
-    # Look up subscription strictly with tenant scoping
+    # Look up subscription strictly through exact verified internal financial relationships
     sub = None
     if resolved_org_id:
-        if verify_res.merchant_subscription_id:
+        if v2_mandate and v2_mandate.organization_id == resolved_org_id:
+            sub = SaaSSubscription.query.filter_by(
+                organization_id=resolved_org_id,
+                id=v2_mandate.subscription_id,
+                payment_provider="phonepe_v2",
+            ).first()
+        elif v2_pdn and v2_pdn.organization_id == resolved_org_id:
+            sub = SaaSSubscription.query.filter_by(
+                organization_id=resolved_org_id,
+                id=v2_pdn.subscription_id,
+                payment_provider="phonepe_v2",
+            ).first()
+        elif verify_res.merchant_subscription_id:
             sub = SaaSSubscription.query.filter_by(
                 organization_id=resolved_org_id,
                 provider_subscription_id=verify_res.merchant_subscription_id,
@@ -223,18 +243,6 @@ def phonepe_callback():
                     organization_id=resolved_org_id,
                     provider_order_id=verify_res.merchant_subscription_id,
                 ).first()
-        if not sub and v2_mandate and v2_mandate.organization_id == resolved_org_id:
-            sub = SaaSSubscription.query.filter_by(
-                organization_id=resolved_org_id,
-                id=v2_mandate.subscription_id,
-            ).first()
-        if not sub and v2_pdn and v2_pdn.organization_id == resolved_org_id:
-            sub = SaaSSubscription.query.filter_by(
-                organization_id=resolved_org_id,
-                id=v2_pdn.subscription_id,
-            ).first()
-        if not sub and current_user.is_authenticated and current_user.organization_id == resolved_org_id:
-            sub = SaaSSubscription.query.filter_by(organization_id=resolved_org_id).first()
 
     if verify_res.success:
         if sub:
@@ -249,8 +257,13 @@ def phonepe_callback():
             flash("UPI AutoPay subscription activated successfully! Welcome to GlassEntials CRM.", "success")
             return redirect(url_for("home_page"))
         else:
-            flash("Payment succeeded, but subscription record could not be matched. Please contact support.", "warning")
-            return redirect(url_for("home_page"))
+            logger.error(
+                "phonepe_callback: Payment succeeded at gateway but no exact verified subscription match found "
+                "(org=%s, msub=%s, morder=%s). Setting to manual reconciliation.",
+                resolved_org_id, merchant_subscription_id, merchant_transaction_id,
+            )
+            flash("Payment completed at gateway, but subscription record could not be authoritatively established. Logged for manual reconciliation.", "warning")
+            return redirect(url_for("saas.checkout"))
     else:
         err = verify_res.error_message or "Payment was not authorized or cancelled."
         flash(f"Payment verification failed: {err}", "error")
@@ -327,31 +340,112 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
         if v2_mandate:
             provider.sync_mandate_status(v2_mandate)
 
-        # B. If associated with a notification / redemption: perform S2S order verification
+        # B. If associated with a notification / redemption: perform authoritative S2S redemption reconciliation
         if v2_pdn:
             if v2_pdn.auto_debit_snapshot:
-                provider.reconcile_redemption_status(v2_pdn.id, organization_id=org_id)
-            elif v2_pdn.status == PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value:
-                provider.reconcile_notification_status(v2_pdn)
+                # Resolve the redemption attempt associated with the pre-debit notification
+                attempt = SaaSRedemptionAttempt.query.filter_by(
+                    notification_id=v2_pdn.id,
+                    organization_id=org_id,
+                ).order_by(SaaSRedemptionAttempt.id.desc()).first()
+                if not attempt:
+                    attempt = SaaSRedemptionAttempt.query.filter_by(
+                        merchant_order_id=v2_pdn.merchant_order_id,
+                        organization_id=org_id,
+                    ).order_by(SaaSRedemptionAttempt.id.desc()).first()
+
+                # Validate organization, subscription, mandate and notification relationships
+                if attempt:
+                    if (
+                        attempt.organization_id != org_id
+                        or attempt.subscription_id != v2_pdn.subscription_id
+                        or (v2_mandate and v2_pdn.mandate_id != v2_mandate.id)
+                    ):
+                        logger.error(
+                            "V2 auto-debit webhook: relational mismatch (attempt org=%s sub=%s, pdn org=%s sub=%s, mandate=%s)",
+                            attempt.organization_id, attempt.subscription_id, v2_pdn.organization_id, v2_pdn.subscription_id,
+                            v2_mandate.id if v2_mandate else None,
+                        )
+                        attempt = None
+                else:
+                    # Gateway-managed auto-debit: create an initial SaaSRedemptionAttempt to track reconciliation
+                    # (preserving gateway-managed auto-debit manual reconciliation safety rules)
+                    attempt = SaaSRedemptionAttempt(
+                        organization_id=org_id,
+                        subscription_id=v2_pdn.subscription_id,
+                        notification_id=v2_pdn.id,
+                        merchant_order_id=v2_pdn.merchant_order_id,
+                        amount_paise=v2_pdn.amount_paise,
+                        attempt_number=1,
+                        status=RedemptionAttemptStatus.INITIATED.value,
+                        billing_period_key=v2_pdn.billing_period_key,
+                    )
+                    db.session.add(attempt)
+                    db.session.flush()
+
+                if attempt:
+                    # Pass the correctly resolved SaaSRedemptionAttempt object to provider
+                    provider.reconcile_redemption_status(attempt)
+            else:
+                # Explicit merchant-initiated debit notification
+                attempt = SaaSRedemptionAttempt.query.filter_by(
+                    notification_id=v2_pdn.id,
+                    organization_id=org_id,
+                ).order_by(SaaSRedemptionAttempt.id.desc()).first()
+                if attempt:
+                    provider.reconcile_redemption_status(attempt)
+                elif v2_pdn.status == PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value:
+                    provider.reconcile_notification_status(v2_pdn)
 
         # C. Initial mandate setup order check (if this was the initial checkout transaction)
         sub = None
         if v2_mandate:
-            sub = SaaSSubscription.query.filter_by(id=v2_mandate.subscription_id, organization_id=org_id).first()
+            sub = SaaSSubscription.query.filter_by(
+                id=v2_mandate.subscription_id,
+                organization_id=org_id,
+                payment_provider="phonepe_v2",
+            ).first()
+
         if sub and sub.status == SaaSSubscriptionStatus.PENDING and v2_mandate.mandate_status == "ACTIVE":
-            order_id_to_check = v2_pdn.merchant_order_id if v2_pdn else (webhook_res.provider_payment_id or webhook_res.event_id)
-            if order_id_to_check:
-                tx_res = provider.check_transaction_status(order_id_to_check, organization_id=org_id)
+            # Resolve original merchant order ID strictly from internal setup records
+            setup_order_id = sub.provider_order_id
+            if not setup_order_id:
+                setup_tx = SaaSTransaction.query.filter_by(
+                    organization_id=org_id,
+                    subscription_id=sub.id,
+                    payment_provider="phonepe_v2",
+                ).order_by(SaaSTransaction.id.desc()).first()
+                if setup_tx and setup_tx.provider_order_id:
+                    setup_order_id = setup_tx.provider_order_id
+
+            # NEVER substitute transactionId or eventId for merchantOrderId
+            if setup_order_id:
+                tx_res = provider.check_transaction_status(setup_order_id, organization_id=org_id)
+                expected_base = sub.plan.yearly_price_paise if (sub.billing_cycle and sub.billing_cycle.value == "yearly") else (sub.plan.monthly_price_paise if sub.plan else sub.amount_paise)
+                expected_total = expected_base + int(round(expected_base * 0.18))
+
                 if tx_res.success and tx_res.status == "COMPLETED":
-                    SubscriptionService.activate_subscription(
-                        subscription=sub,
-                        provider_subscription_id=v2_mandate.provider_subscription_id,
-                        provider_transaction_id=tx_res.provider_transaction_id,
-                        provider_payment_id=tx_res.provider_payment_id,
-                        amount_paise=tx_res.amount_paise or sub.amount_paise,
-                        mandate_reference=v2_mandate.mandate_reference,
-                    )
-                    sub.last_webhook_event_id = event_id
+                    # Validate amount and subscription relationship
+                    if tx_res.amount_paise and tx_res.amount_paise < expected_total:
+                        logger.error(
+                            "Setup order reconciliation underpayment: received %s paise, expected %s paise for sub=%s",
+                            tx_res.amount_paise, expected_total, sub.id,
+                        )
+                    else:
+                        SubscriptionService.activate_subscription(
+                            subscription=sub,
+                            provider_subscription_id=v2_mandate.provider_subscription_id,
+                            provider_transaction_id=tx_res.provider_transaction_id,
+                            provider_payment_id=tx_res.provider_payment_id,
+                            amount_paise=tx_res.amount_paise or sub.amount_paise,
+                            mandate_reference=v2_mandate.mandate_reference,
+                        )
+                        sub.last_webhook_event_id = event_id
+            else:
+                logger.warning(
+                    "Setup order reconciliation skipped: no authentic merchant_order_id found in internal records for sub=%s",
+                    sub.id,
+                )
 
         # 5. Persist Webhook Event record for durable idempotency
         ev = SaaSWebhookEvent(
