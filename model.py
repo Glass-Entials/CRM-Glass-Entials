@@ -3059,6 +3059,11 @@ class SaaSBillingPeriodReservation(db.Model):
         db.String(50), nullable=False, default=BillingPeriodReservationStatus.RESERVED.value,
         server_default=db.text("'RESERVED'"), index=True
     )
+    # Execution ownership fields to prevent concurrent debits for the same order
+    owner_token = db.Column(db.String(64), nullable=True, index=True)
+    owner_expires_at = db.Column(db.DateTime, nullable=True, index=True)
+    redemption_initiated_at = db.Column(db.DateTime, nullable=True, index=True)
+    gateway_state = db.Column(db.String(50), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 

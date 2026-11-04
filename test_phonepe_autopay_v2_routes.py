@@ -697,6 +697,9 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
         # Make sure no user is logged in
         self.client.get("/test-login/999999")  # unauthenticated
 
+        self.v2_sub.provider_order_id = "ORDER_SETUP_V2_2001"
+        db.session.commit()
+
         mock_v2_provider = MagicMock()
         mock_v2_provider.name = "phonepe_v2"
         mock_v2_provider.verify_payment.return_value = VerificationResult(
@@ -706,6 +709,15 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
             provider_subscription_id="PP_SUB_V2_999",
             provider_transaction_id="TXN_UNAUTH_RESOLVE",
             amount_paise=118000,
+        )
+        mock_v2_provider.check_transaction_status.return_value = VerificationResult(
+            success=True,
+            status="COMPLETED",
+            merchant_subscription_id="MSUB_V2_20_MANDATE",
+            amount_paise=118000,
+            provider_transaction_id="TXN_UNAUTH_RESOLVE",
+            provider_payment_id="PAY_UNAUTH_RESOLVE",
+            raw_response={"currency": "INR", "paymentDetails": [{"currency": "INR", "state": "COMPLETED"}]},
         )
 
         with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider, \
@@ -846,11 +858,217 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
 
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.get_json().get("status"), "success")
-
-            # Check that V3 subscription was activated
             sub = db.session.get(SaaSSubscription, 1001)
             self.assertEqual(sub.status, SaaSSubscriptionStatus.ACTIVE)
             self.assertEqual(sub.provider_subscription_id, "PP_V3_SUB_777")
+
+    # ── Group F: Phase 5.4.2 Financial Integrity & Callback Enforcement ─────────
+
+    def test_callback_amount_mismatch_rejected(self):
+        """Phase 5.4.2 Requirement 2: Browser callback with amount mismatch against plan is rejected and subscription not activated."""
+        self.v2_sub.status = SaaSSubscriptionStatus.PENDING
+        self.v2_sub.provider_order_id = "ORDER_SETUP_MISMATCH_AMOUNT"
+        db.session.commit()
+
+        mock_v2_provider = MagicMock()
+        mock_v2_provider.name = "phonepe_v2"
+        mock_v2_provider.verify_payment.return_value = VerificationResult(
+            success=True,
+            status="SUCCESS",
+            merchant_subscription_id="MSUB_V2_20_MANDATE",
+            provider_subscription_id="PP_SUB_V2_999",
+            amount_paise=100000,
+        )
+        # S2S returns 100000 paise (underpayment: expected 118000 paise including GST)
+        mock_v2_provider.check_transaction_status.return_value = VerificationResult(
+            success=True,
+            status="COMPLETED",
+            merchant_subscription_id="MSUB_V2_20_MANDATE",
+            amount_paise=100000,
+            provider_transaction_id="TXN_UNDERPAY",
+            raw_response={"currency": "INR", "paymentDetails": [{"currency": "INR", "state": "COMPLETED"}]},
+        )
+
+        with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider, \
+             patch("services.billing.subscription_service.SubscriptionService.activate_subscription") as mock_activate:
+            mock_get_provider.return_value = mock_v2_provider
+
+            response = self.client.get(
+                "/saas/phonepe-callback?merchantSubscriptionId=MSUB_V2_20_MANDATE"
+            )
+
+            self.assertEqual(response.status_code, 302)
+            self.assertIn("/saas/checkout", response.location)
+            mock_activate.assert_not_called()
+            sub = db.session.get(SaaSSubscription, self.v2_sub.id)
+            self.assertEqual(sub.status, SaaSSubscriptionStatus.PENDING)
+
+    def test_callback_currency_mismatch_rejected(self):
+        """Phase 5.4.2 Requirement 2: Browser callback with currency other than INR is rejected and subscription not activated."""
+        self.v2_sub.status = SaaSSubscriptionStatus.PENDING
+        self.v2_sub.provider_order_id = "ORDER_SETUP_MISMATCH_CURRENCY"
+        db.session.commit()
+
+        mock_v2_provider = MagicMock()
+        mock_v2_provider.name = "phonepe_v2"
+        mock_v2_provider.verify_payment.return_value = VerificationResult(
+            success=True,
+            status="SUCCESS",
+            merchant_subscription_id="MSUB_V2_20_MANDATE",
+            provider_subscription_id="PP_SUB_V2_999",
+            amount_paise=118000,
+        )
+        # S2S returns USD currency
+        mock_v2_provider.check_transaction_status.return_value = VerificationResult(
+            success=True,
+            status="COMPLETED",
+            merchant_subscription_id="MSUB_V2_20_MANDATE",
+            amount_paise=118000,
+            provider_transaction_id="TXN_USD",
+            raw_response={"currency": "USD", "paymentDetails": [{"currency": "USD", "state": "COMPLETED"}]},
+        )
+
+        with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider, \
+             patch("services.billing.subscription_service.SubscriptionService.activate_subscription") as mock_activate:
+            mock_get_provider.return_value = mock_v2_provider
+
+            response = self.client.get(
+                "/saas/phonepe-callback?merchantSubscriptionId=MSUB_V2_20_MANDATE"
+            )
+
+            self.assertEqual(response.status_code, 302)
+            self.assertIn("/saas/checkout", response.location)
+            mock_activate.assert_not_called()
+            sub = db.session.get(SaaSSubscription, self.v2_sub.id)
+            self.assertEqual(sub.status, SaaSSubscriptionStatus.PENDING)
+
+    def test_webhook_ambiguous_mandate_returns_422(self):
+        """Phase 5.4.2 Requirement 5: Ambiguous mandate across multiple organizations in webhook is rejected with HTTP 422."""
+        # Create a second mandate in Org 10 with the same merchant_subscription_id to simulate cross-tenant collision
+        duplicate_mandate = SaaSMandate(
+            id=202,
+            organization_id=10,
+            subscription_id=1001,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id="MSUB_V2_20_MANDATE",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        db.session.add(duplicate_mandate)
+        db.session.commit()
+
+        correct_sha = hashlib.sha256(b"webhook_test_user:webhook_test_pass").hexdigest()
+        headers = {
+            "Authorization": f"Basic {correct_sha}",
+            "Content-Type": "application/json",
+        }
+        payload = json.dumps({
+            "merchantSubscriptionId": "MSUB_V2_20_MANDATE",
+            "event": "SUBSCRIPTION_ACTIVE",
+            "eventId": "EVT_AMBIGUOUS_MANDATE_001",
+        })
+
+        response = self.client.post("/saas/phonepe-webhook", data=payload, headers=headers)
+        self.assertEqual(response.status_code, 422)
+        data = response.get_json()
+        self.assertIn("Ambiguous mandate reference", data.get("error"))
+
+    def test_webhook_ambiguous_pdn_returns_422(self):
+        """Phase 5.4.2 Requirement 5: Ambiguous PDN across multiple organizations in webhook is rejected with HTTP 422."""
+        # Create a second PDN in Org 10 with the same merchant_order_id to simulate cross-tenant collision
+        duplicate_pdn = SaaSPreDebitNotification(
+            id=302,
+            organization_id=10,
+            subscription_id=1001,
+            mandate_id=201,
+            merchant_order_id="ORDER_V2_PDN_301",
+            amount_paise=118000,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+        )
+        db.session.add(duplicate_pdn)
+        db.session.commit()
+
+        correct_sha = hashlib.sha256(b"webhook_test_user:webhook_test_pass").hexdigest()
+        headers = {
+            "Authorization": f"Basic {correct_sha}",
+            "Content-Type": "application/json",
+        }
+        payload = json.dumps({
+            "merchantOrderId": "ORDER_V2_PDN_301",
+            "event": "REDEMPTION_COMPLETED",
+            "eventId": "EVT_AMBIGUOUS_PDN_001",
+        })
+
+        response = self.client.post("/saas/phonepe-webhook", data=payload, headers=headers)
+        self.assertEqual(response.status_code, 422)
+        data = response.get_json()
+        self.assertIn("Ambiguous notification reference", data.get("error"))
+
+    def test_webhook_unresolved_relational_mismatch_retryable(self):
+        """Phase 5.4.2 Requirement 3: Relational mismatch records UNRESOLVED state, returns HTTP 422 with retryable=True, and allows subsequent retries."""
+        # Create an attempt with wrong organization_id (99 instead of 20)
+        mismatched_attempt = SaaSRedemptionAttempt(
+            id=501,
+            organization_id=99,
+            subscription_id=self.v2_sub.id,
+            notification_id=self.v2_pdn.id,
+            merchant_order_id=self.v2_pdn.merchant_order_id,
+            amount_paise=118000,
+            status=RedemptionAttemptStatus.INITIATED.value,
+        )
+        db.session.add(mismatched_attempt)
+        db.session.commit()
+
+        correct_sha = hashlib.sha256(b"webhook_test_user:webhook_test_pass").hexdigest()
+        headers = {
+            "Authorization": f"Basic {correct_sha}",
+            "Content-Type": "application/json",
+        }
+        payload = json.dumps({
+            "merchantOrderId": self.v2_pdn.merchant_order_id,
+            "event": "REDEMPTION_COMPLETED",
+            "eventId": "EVT_RELATIONAL_MISMATCH_001",
+        })
+
+        # 1. First webhook attempt encounters relational mismatch
+        response1 = self.client.post("/saas/phonepe-webhook", data=payload, headers=headers)
+        self.assertEqual(response1.status_code, 422)
+        data1 = response1.get_json()
+        self.assertEqual(data1.get("status"), "UNRESOLVED")
+        self.assertTrue(data1.get("retryable"))
+
+        # Verify idempotency record exists with processing_state="UNRESOLVED" (NOT PROCESSED)
+        event_record = SaaSWebhookEvent.query.filter_by(event_id="EVT_RELATIONAL_MISMATCH_001").first()
+        self.assertIsNotNone(event_record)
+        summary = json.loads(event_record.payload_summary)
+        self.assertEqual(summary.get("processing_state"), "UNRESOLVED")
+
+        # 2. Fix the relational mismatch
+        mismatched_attempt.organization_id = 20
+        db.session.commit()
+
+        # 3. Second webhook retry for the SAME eventId must NOT be dropped by deduplication
+        with patch("services.billing.providers.phonepe_autopay_v2_provider.PhonePeAutoPayV2Provider.reconcile_redemption_status") as mock_recon:
+            def side_effect(attempt):
+                attempt.status = RedemptionAttemptStatus.COMPLETED.value
+                return attempt
+            mock_recon.side_effect = side_effect
+
+            response2 = self.client.post("/saas/phonepe-webhook", data=payload, headers=headers)
+            self.assertEqual(response2.status_code, 200)
+            data2 = response2.get_json()
+            self.assertEqual(data2.get("status"), "success")
+
+            # Verify idempotency record is now updated to PROCESSED
+            db.session.refresh(event_record)
+            summary2 = json.loads(event_record.payload_summary)
+            self.assertEqual(summary2.get("processing_state"), "PROCESSED")
+
+        # 4. Third webhook delivery for identical event is now cleanly recognized as already_processed
+        response3 = self.client.post("/saas/phonepe-webhook", data=payload, headers=headers)
+        self.assertEqual(response3.status_code, 200)
+        self.assertEqual(response3.get_json().get("status"), "already_processed")
 
 
 if __name__ == "__main__":

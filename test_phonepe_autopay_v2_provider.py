@@ -1734,6 +1734,140 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             self.assertFalse(res_hmac.is_valid)
             self.assertIn("Malformed Authorization header", res_hmac.error_message)
 
+    def test_webhook_event_deduplication_composite_fallback_distinguishes_event_types(self):
+        """Phase 5.4.2 Requirement 4: When PhonePe eventId is missing, distinct lifecycle event types for the same order produce different event IDs."""
+        correct_sha256 = hashlib.sha256(b"test_wh_user:test_wh_password").hexdigest()
+        headers = {"Authorization": f"Basic {correct_sha256}"}
+
+        # Event 1: Pre-Debit Notification Success for order ORDER_SHARED_100
+        payload_notif = {
+            "merchantId": "PGTESTPAYUAT",
+            "event": "NOTIFICATION_SUCCESS",
+            "payload": {
+                "merchantOrderId": "ORDER_SHARED_100",
+                "merchantSubscriptionId": "MSUB_SHARED_200",
+                "state": "NOTIFIED",
+                "amount": 118000,
+            }
+        }
+        res_notif = self.provider.verify_webhook(json.dumps(payload_notif).encode("utf-8"), headers)
+        self.assertTrue(res_notif.is_valid)
+        self.assertEqual(res_notif.event_id, "PGTESTPAYUAT:NOTIFICATION_SUCCESS:ORDER_SHARED_100:MSUB_SHARED_200:NOTIFIED")
+
+        # Event 2: Payment Success for SAME order ORDER_SHARED_100
+        payload_payment = {
+            "merchantId": "PGTESTPAYUAT",
+            "event": "PAYMENT_SUCCESS",
+            "payload": {
+                "merchantOrderId": "ORDER_SHARED_100",
+                "merchantSubscriptionId": "MSUB_SHARED_200",
+                "state": "COMPLETED",
+                "amount": 118000,
+            }
+        }
+        res_payment = self.provider.verify_webhook(json.dumps(payload_payment).encode("utf-8"), headers)
+        self.assertTrue(res_payment.is_valid)
+        self.assertEqual(res_payment.event_id, "PGTESTPAYUAT:PAYMENT_SUCCESS:ORDER_SHARED_100:MSUB_SHARED_200:COMPLETED")
+
+        # Event 3: Payment Failed for SAME order ORDER_SHARED_100
+        payload_failed = {
+            "merchantId": "PGTESTPAYUAT",
+            "event": "PAYMENT_FAILED",
+            "payload": {
+                "merchantOrderId": "ORDER_SHARED_100",
+                "merchantSubscriptionId": "MSUB_SHARED_200",
+                "state": "FAILED",
+                "amount": 118000,
+            }
+        }
+        res_failed = self.provider.verify_webhook(json.dumps(payload_failed).encode("utf-8"), headers)
+        self.assertTrue(res_failed.is_valid)
+        self.assertEqual(res_failed.event_id, "PGTESTPAYUAT:PAYMENT_FAILED:ORDER_SHARED_100:MSUB_SHARED_200:FAILED")
+
+        # Verify that all 3 event IDs are distinct despite sharing the exact same merchantOrderId
+        event_ids = {res_notif.event_id, res_payment.event_id, res_failed.event_id}
+        self.assertEqual(len(event_ids), 3, "Lifecycle events sharing merchantOrderId must not collide or suppress each other")
+
+        # Verify that an actual duplicate of Event 2 produces the identical event ID
+        res_payment_duplicate = self.provider.verify_webhook(json.dumps(payload_payment).encode("utf-8"), headers)
+        self.assertEqual(res_payment_duplicate.event_id, res_payment.event_id)
+
+    def test_billing_period_reservation_execution_lease_crash_recovery(self):
+        """Phase 5.4.2 Requirement 1: Worker crash recovery after lease expires allows new worker to acquire ownership reusing same order ID."""
+        bpk = "sub_99_2026-11"
+        order_id = "ORD_CRASH_RECOVER_01"
+
+        # Worker 1 reserves period but crashes before initiating gateway call (redemption_initiated_at is None)
+        success1, err1, res1 = self.provider._reserve_billing_period(
+            subscription_id=99,
+            organization_id=7,
+            billing_period_key=bpk,
+            merchant_order_id=order_id,
+            owner_token="worker_1_token",
+        )
+        self.assertTrue(success1)
+        self.assertEqual(res1.owner_token, "worker_1_token")
+        self.assertIsNone(res1.redemption_initiated_at)
+
+        # Worker 2 attempts while Worker 1 lease is still active -> blocked
+        success2, err2, res2 = self.provider._reserve_billing_period(
+            subscription_id=99,
+            organization_id=7,
+            billing_period_key=bpk,
+            merchant_order_id=order_id,
+            owner_token="worker_2_token",
+        )
+        self.assertFalse(success2)
+        self.assertIn("currently owned by active worker", err2)
+
+        # Simulate Worker 1 lease expiration
+        res1.owner_expires_at = datetime.utcnow() - timedelta(seconds=10)
+        db.session.commit()
+
+        # Worker 2 attempts after Worker 1 lease expired -> safely acquires ownership reusing same order
+        success3, err3, res3 = self.provider._reserve_billing_period(
+            subscription_id=99,
+            organization_id=7,
+            billing_period_key=bpk,
+            merchant_order_id=order_id,
+            owner_token="worker_2_token",
+        )
+        self.assertTrue(success3)
+        self.assertIsNone(err3)
+        self.assertEqual(res3.owner_token, "worker_2_token")
+        self.assertEqual(res3.merchant_order_id, order_id)
+
+    def test_billing_period_reservation_lease_expired_after_gateway_dispatch_blocks_second_debit(self):
+        """Phase 5.4.2 Requirement 1: Expired lease cannot authorize a second debit if gateway was already initiated; outcome must remain PENDING_RECONCILIATION."""
+        bpk = "sub_99_2026-12"
+        order_id = "ORD_DISPATCHED_CRASH_02"
+
+        # Worker 1 reserves period and dispatches to PhonePe (redemption_initiated_at is set)
+        success1, err1, res1 = self.provider._reserve_billing_period(
+            subscription_id=99,
+            organization_id=7,
+            billing_period_key=bpk,
+            merchant_order_id=order_id,
+            owner_token="worker_1_token",
+        )
+        self.assertTrue(success1)
+        res1.redemption_initiated_at = datetime.utcnow() - timedelta(minutes=5)
+        res1.owner_expires_at = datetime.utcnow() - timedelta(minutes=3)  # lease expired
+        db.session.commit()
+
+        # Worker 2 attempts to reserve same order after lease expiry
+        # Because redemption was already dispatched to gateway, Worker 2 must NOT be allowed to initiate a second debit
+        success2, err2, res2 = self.provider._reserve_billing_period(
+            subscription_id=99,
+            organization_id=7,
+            billing_period_key=bpk,
+            merchant_order_id=order_id,
+            owner_token="worker_2_token",
+        )
+        self.assertFalse(success2)
+        self.assertIn("was already initiated with gateway", err2)
+        self.assertEqual(res2.status, BillingPeriodReservationStatus.PENDING_RECONCILIATION.value)
+
 
 if __name__ == "__main__":
     unittest.main()

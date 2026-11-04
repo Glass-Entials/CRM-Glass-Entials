@@ -286,15 +286,22 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         billing_period_key: str,
         merchant_order_id: str,
         session=None,
+        owner_token: Optional[str] = None,
     ) -> tuple[bool, Optional[str], Optional[SaaSBillingPeriodReservation]]:
         """
         Durable, database-level billing period reservation backed by SaaSBillingPeriodReservation.
-        Enforces that only one debit can be in progress or completed for a given billing period,
-        guaranteeing mutual exclusion across concurrent workers and sequential duplicate requests.
+        Enforces execution ownership so only ONE worker can execute redemption for a given period.
+        A second worker using the same merchant order ID cannot independently invoke PhonePe redeem.
+        Supports lease expiration and safe crash recovery without creating duplicate debits.
 
         Returns: (success: bool, error_message: Optional[str], reservation: Optional[SaaSBillingPeriodReservation])
         """
         s = session or db.session
+        now = datetime.utcnow()
+        lease_seconds = 120
+        expires_at = now + timedelta(seconds=lease_seconds)
+        worker_token = owner_token or f"owner_{uuid.uuid4().hex}"
+
         try:
             # 1. Check for prior successful redemption attempt for this billing period key
             prior_successful_attempt = s.query(SaaSRedemptionAttempt).filter_by(
@@ -314,24 +321,63 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             ).first()
 
             if existing:
-                if existing.merchant_order_id == merchant_order_id:
-                    # Idempotent retry with the exact same order ID
-                    if existing.status == BillingPeriodReservationStatus.COMPLETED.value:
-                        return False, f"A successful debit already exists for billing period {billing_period_key}.", existing
-                    return True, None, existing
-                else:
+                if existing.merchant_order_id != merchant_order_id:
                     # Different order ID attempting to debit the same billing period
                     if existing.status == BillingPeriodReservationStatus.COMPLETED.value:
                         return False, f"A successful debit already exists for billing period {billing_period_key}. Only one debit is permitted per billing period.", existing
                     return False, f"Billing period {billing_period_key} is already reserved by order {existing.merchant_order_id} (status: {existing.status}). Duplicate debit prevented.", existing
 
-            # 3. Insert new reservation (enforces database-level UNIQUE constraint on org_id, sub_id, bpk)
+                # Same order ID: Check execution ownership and gateway dispatch state
+                if existing.status == BillingPeriodReservationStatus.COMPLETED.value:
+                    return False, f"A successful debit already exists for billing period {billing_period_key}.", existing
+
+                if existing.status == BillingPeriodReservationStatus.PENDING_RECONCILIATION.value:
+                    return False, f"Billing period {billing_period_key} for order {merchant_order_id} is in PENDING_RECONCILIATION. Gateway outcome is ambiguous; must be reconciled before retry.", existing
+
+                # Check if another active worker holds the execution lease
+                if (
+                    existing.owner_token
+                    and existing.owner_expires_at
+                    and existing.owner_expires_at >= now
+                    and existing.owner_token != worker_token
+                ):
+                    logger.warning(
+                        "Concurrent same-order debit blocked: order %s actively owned by %s until %s",
+                        merchant_order_id, existing.owner_token, existing.owner_expires_at
+                    )
+                    return False, f"Redemption execution for order {merchant_order_id} is currently owned by active worker {existing.owner_token}. Concurrent execution blocked.", existing
+
+                # Check if gateway request was already initiated previously
+                if existing.redemption_initiated_at is not None:
+                    existing.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                    try:
+                        s.commit()
+                    except Exception:
+                        s.rollback()
+                    logger.warning(
+                        "Order %s gateway request was already initiated at %s before lease expired; requires status reconciliation",
+                        merchant_order_id, existing.redemption_initiated_at
+                    )
+                    return False, f"Redemption for order {merchant_order_id} was already initiated with gateway at {existing.redemption_initiated_at}. Outcome is ambiguous; authoritative status reconciliation required before retry.", existing
+
+                # Safe acquisition / refresh of execution ownership
+                existing.owner_token = worker_token
+                existing.owner_expires_at = expires_at
+                try:
+                    s.commit()
+                except Exception:
+                    s.rollback()
+                return True, None, existing
+
+            # 3. Insert new reservation with execution ownership
             reservation = SaaSBillingPeriodReservation(
                 organization_id=organization_id,
                 subscription_id=subscription_id,
                 billing_period_key=billing_period_key,
                 merchant_order_id=merchant_order_id,
                 status=BillingPeriodReservationStatus.RESERVED.value,
+                owner_token=worker_token,
+                owner_expires_at=expires_at,
             )
             s.add(reservation)
             s.commit()
@@ -351,6 +397,12 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             if existing and existing.merchant_order_id == merchant_order_id:
                 if existing.status == BillingPeriodReservationStatus.COMPLETED.value:
                     return False, f"A successful debit already exists for billing period {billing_period_key}.", existing
+                if existing.status == BillingPeriodReservationStatus.PENDING_RECONCILIATION.value:
+                    return False, f"Billing period {billing_period_key} for order {merchant_order_id} is in PENDING_RECONCILIATION. Gateway outcome is ambiguous; must be reconciled before retry.", existing
+                if existing.owner_token and existing.owner_expires_at and existing.owner_expires_at >= now and existing.owner_token != worker_token:
+                    return False, f"Redemption execution for order {merchant_order_id} is currently owned by active worker {existing.owner_token}. Concurrent execution blocked.", existing
+                if existing.redemption_initiated_at is not None:
+                    return False, f"Redemption for order {merchant_order_id} was already initiated with gateway at {existing.redemption_initiated_at}. Outcome is ambiguous; authoritative status reconciliation required before retry.", existing
                 return True, None, existing
             return False, f"Billing period {billing_period_key} is already reserved by another worker. Duplicate debit prevented.", None
 
@@ -1275,11 +1327,13 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             organization_id=subscription.organization_id,
         ).count()
 
-        # Safety Check 7: Durable Database-level Billing-Period Reservation
+        # Safety Check 7: Durable Database-level Billing-Period Reservation with Execution Ownership
+        worker_owner_token = f"exec_{uuid.uuid4().hex}"
         if subscription.current_period_start:
             bpk = _compute_billing_period_key(subscription.id, subscription.current_period_start)
             res_ok, res_err, reservation = self._reserve_billing_period(
-                subscription.id, subscription.organization_id, bpk, merchant_transaction_id
+                subscription.id, subscription.organization_id, bpk, merchant_transaction_id,
+                owner_token=worker_owner_token
             )
             if not res_ok:
                 logger.error(
@@ -1339,6 +1393,14 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             "amount": amount_paise,
         }
 
+        # Mark gateway request initiated in database before sending request to PhonePe
+        if reservation:
+            reservation.redemption_initiated_at = datetime.utcnow()
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
         try:
             client = self._get_client()
             resp = client.redeem(payload)
@@ -1353,6 +1415,9 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 attempt.failure_reason = f"Gateway returned NOT_FOUND (ambiguous): {str(exc)}"
                 if reservation:
                     reservation.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                    reservation.gateway_state = "NOT_FOUND"
+                    reservation.owner_token = None
+                    reservation.owner_expires_at = None
                 try:
                     db.session.commit()
                 except Exception:
@@ -1369,6 +1434,9 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             attempt.failure_reason = str(exc)
             if reservation:
                 reservation.status = BillingPeriodReservationStatus.FAILED.value
+                reservation.gateway_state = "FAILED"
+                reservation.owner_token = None
+                reservation.owner_expires_at = None
             try:
                 db.session.commit()
             except Exception:
@@ -1386,6 +1454,9 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             attempt.failure_reason = f"Ambiguous transport exception: {str(exc)}"
             if reservation:
                 reservation.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                reservation.gateway_state = "AMBIGUOUS"
+                reservation.owner_token = None
+                reservation.owner_expires_at = None
             try:
                 db.session.commit()
             except Exception:
@@ -1419,6 +1490,9 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             notification.status = PreDebitNotificationStatus.CONSUMED.value
             if reservation:
                 reservation.status = BillingPeriodReservationStatus.COMPLETED.value
+                reservation.gateway_state = "COMPLETED"
+                reservation.owner_token = None
+                reservation.owner_expires_at = None
             try:
                 db.session.commit()
             except Exception:
@@ -1437,6 +1511,9 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             attempt.status = RedemptionAttemptStatus.PENDING_RECONCILIATION.value
             if reservation:
                 reservation.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                reservation.gateway_state = "PENDING"
+                reservation.owner_token = None
+                reservation.owner_expires_at = None
             try:
                 db.session.commit()
             except Exception:
@@ -1455,6 +1532,9 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             attempt.status = RedemptionAttemptStatus.FAILED.value
             if reservation:
                 reservation.status = BillingPeriodReservationStatus.FAILED.value
+                reservation.gateway_state = "FAILED"
+                reservation.owner_token = None
+                reservation.owner_expires_at = None
             attempt.failure_reason = (
                 resp.get("message")
                 or first_payment.get("responseCodeDescription")
@@ -1479,6 +1559,11 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             # Ambiguous/unknown state
             attempt.status = RedemptionAttemptStatus.PENDING_RECONCILIATION.value
             attempt.failure_reason = f"Ambiguous response state: {root_state}"
+            if reservation:
+                reservation.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                reservation.gateway_state = root_state
+                reservation.owner_token = None
+                reservation.owner_expires_at = None
             try:
                 db.session.commit()
             except Exception:
@@ -1658,13 +1743,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 error_message="Invalid webhook authorization credentials",
             )
 
-        event_id = (
-            data.get("eventId")
-            or data.get("id")
-            or payload_body.get("transactionId")
-            or payload_body.get("merchantOrderId")
-            or f"evt_{hashlib.sha256(raw_text.encode('utf-8')).hexdigest()[:32]}"
-        )
+        actual_event_id = data.get("eventId") or data.get("id")
         event_type = (
             data.get("event")
             or data.get("type")
@@ -1672,11 +1751,21 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             or payload_body.get("state")
             or "unknown"
         )
+        merchant_order_id = payload_body.get("merchantOrderId") or data.get("merchantOrderId")
         merchant_sub_id = payload_body.get("merchantSubscriptionId") or data.get("merchantSubscriptionId")
         provider_sub_id = payload_body.get("subscriptionId") or data.get("subscriptionId")
         provider_payment_id = payload_body.get("transactionId")
         amount = payload_body.get("amount") or 0
         state = (payload_body.get("state") or "").upper()
+        mid = incoming_mid or self.merchant_id or "default"
+
+        if actual_event_id:
+            event_id = str(actual_event_id)
+        else:
+            # Deterministic composite key so different event types for the same order remain independently processable
+            # while genuine duplicates are deduplicated.
+            # Never use merchantOrderId alone as event ID fallback!
+            event_id = f"{mid}:{event_type}:{merchant_order_id or 'no_order'}:{merchant_sub_id or 'no_sub'}:{state or 'no_state'}"
 
         return WebhookResult(
             is_valid=True,
@@ -1824,6 +1913,17 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                     attempt.failure_reason = (
                         "Auto-debit order marked COMPLETED at gateway; requires merchant settlement confirmation before advancing period"
                     )
+                    if attempt.billing_period_key:
+                        bpr = SaaSBillingPeriodReservation.query.filter_by(
+                            organization_id=attempt.organization_id,
+                            subscription_id=attempt.subscription_id,
+                            billing_period_key=attempt.billing_period_key,
+                        ).first()
+                        if bpr:
+                            bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                            bpr.gateway_state = root_state
+                            bpr.owner_token = None
+                            bpr.owner_expires_at = None
                     db.session.commit()
                     logger.warning(
                         "Auto-debit redemption %s completed at gateway but requires merchant settlement confirmation; "
@@ -1881,6 +1981,9 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                         ).first()
                         if bpr:
                             bpr.status = BillingPeriodReservationStatus.COMPLETED.value
+                            bpr.gateway_state = root_state
+                            bpr.owner_token = None
+                            bpr.owner_expires_at = None
 
                     db.session.commit()
                     logger.info("Reconciled explicit redemption attempt %s to COMPLETED; advanced subscription org=%s",
@@ -1900,6 +2003,9 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                     ).first()
                     if bpr:
                         bpr.status = BillingPeriodReservationStatus.FAILED.value
+                        bpr.gateway_state = root_state
+                        bpr.owner_token = None
+                        bpr.owner_expires_at = None
                 db.session.commit()
                 logger.warning("Reconciled redemption attempt %s to FAILED", attempt.merchant_order_id)
             elif root_state == "PENDING" or first_payment_state == "PENDING":
@@ -1912,6 +2018,9 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                     ).first()
                     if bpr:
                         bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                        bpr.gateway_state = root_state
+                        bpr.owner_token = None
+                        bpr.owner_expires_at = None
                 db.session.commit()
             else:
                 attempt.status = RedemptionAttemptStatus.PENDING_RECONCILIATION.value
@@ -1923,6 +2032,9 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                     ).first()
                     if bpr:
                         bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                        bpr.gateway_state = root_state
+                        bpr.owner_token = None
+                        bpr.owner_expires_at = None
                 db.session.commit()
         except PhonePeResponseError as exc:
             is_not_found = (
@@ -1936,6 +2048,20 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             else:
                 attempt.status = RedemptionAttemptStatus.FAILED.value
                 attempt.failure_reason = str(exc)
+            if attempt.billing_period_key:
+                bpr = SaaSBillingPeriodReservation.query.filter_by(
+                    organization_id=attempt.organization_id,
+                    subscription_id=attempt.subscription_id,
+                    billing_period_key=attempt.billing_period_key,
+                ).first()
+                if bpr:
+                    bpr.gateway_state = "NOT_FOUND" if is_not_found else "FAILED"
+                    bpr.owner_token = None
+                    bpr.owner_expires_at = None
+                    if not is_not_found:
+                        bpr.status = BillingPeriodReservationStatus.FAILED.value
+                    else:
+                        bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
             try:
                 db.session.commit()
             except Exception:
@@ -1943,6 +2069,17 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         except Exception as exc:
             attempt.status = RedemptionAttemptStatus.PENDING_RECONCILIATION.value
             attempt.failure_reason = f"Ambiguous transport exception: {str(exc)}"
+            if attempt.billing_period_key:
+                bpr = SaaSBillingPeriodReservation.query.filter_by(
+                    organization_id=attempt.organization_id,
+                    subscription_id=attempt.subscription_id,
+                    billing_period_key=attempt.billing_period_key,
+                ).first()
+                if bpr:
+                    bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                    bpr.gateway_state = "AMBIGUOUS"
+                    bpr.owner_token = None
+                    bpr.owner_expires_at = None
             try:
                 db.session.commit()
             except Exception:

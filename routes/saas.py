@@ -1,3 +1,4 @@
+from datetime import datetime
 import hmac
 import json
 import logging
@@ -168,17 +169,27 @@ def phonepe_callback():
     v2_mandate = None
     v2_pdn = None
     if merchant_subscription_id:
-        v2_mandate = SaaSMandate.query.filter_by(
+        v2_mandates = SaaSMandate.query.filter_by(
             merchant_subscription_id=merchant_subscription_id,
             payment_provider="phonepe_v2",
-        ).first()
-        if v2_mandate:
+        ).all()
+        if len(v2_mandates) > 1:
+            logger.error("phonepe_callback: Ambiguous V2 mandate match for merchant_subscription_id=%s across tenants", merchant_subscription_id)
+            flash("Ambiguous payment reference detected. Please contact support.", "error")
+            return redirect(url_for("saas.checkout"))
+        if v2_mandates:
+            v2_mandate = v2_mandates[0]
             is_v2 = True
     if not is_v2 and merchant_transaction_id:
-        v2_pdn = SaaSPreDebitNotification.query.filter_by(
+        v2_pdns = SaaSPreDebitNotification.query.filter_by(
             merchant_order_id=merchant_transaction_id,
-        ).first()
-        if v2_pdn:
+        ).all()
+        if len(v2_pdns) > 1:
+            logger.error("phonepe_callback: Ambiguous V2 PDN match for merchant_order_id=%s across tenants", merchant_transaction_id)
+            flash("Ambiguous payment reference detected. Please contact support.", "error")
+            return redirect(url_for("saas.checkout"))
+        if v2_pdns:
+            v2_pdn = v2_pdns[0]
             if v2_pdn.mandate_id:
                 v2_mandate = SaaSMandate.query.filter_by(
                     id=v2_pdn.mandate_id,
@@ -198,12 +209,16 @@ def phonepe_callback():
     elif v2_pdn:
         record_org_id = v2_pdn.organization_id
     elif merchant_subscription_id:
-        v3_sub = SaaSSubscription.query.filter_by(
+        v3_subs = SaaSSubscription.query.filter_by(
             provider_subscription_id=merchant_subscription_id,
             payment_provider="phonepe",
-        ).first()
-        if v3_sub:
-            record_org_id = v3_sub.organization_id
+        ).all()
+        if len(v3_subs) > 1:
+            logger.error("phonepe_callback: Ambiguous V3 subscription match for %s across tenants", merchant_subscription_id)
+            flash("Ambiguous payment reference detected. Please contact support.", "error")
+            return redirect(url_for("saas.checkout"))
+        if v3_subs:
+            record_org_id = v3_subs[0].organization_id
 
     # Cross-validate authenticated user against matched internal financial record
     if auth_org_id is not None and record_org_id is not None and auth_org_id != record_org_id:
@@ -217,6 +232,11 @@ def phonepe_callback():
     resolved_org_id = auth_org_id or record_org_id
 
     verify_res = provider.verify_payment(payload, headers=dict(request.headers), organization_id=resolved_org_id)
+
+    if not resolved_org_id:
+        logger.error("phonepe_callback: Unable to resolve trusted tenant context")
+        flash("Unable to resolve organization context for payment.", "error")
+        return redirect(url_for("saas.checkout"))
 
     # Look up subscription strictly through exact verified internal financial relationships
     sub = None
@@ -233,17 +253,114 @@ def phonepe_callback():
                 id=v2_pdn.subscription_id,
                 payment_provider="phonepe_v2",
             ).first()
-        elif verify_res.merchant_subscription_id:
+        elif not is_v2 and verify_res.merchant_subscription_id:
             sub = SaaSSubscription.query.filter_by(
                 organization_id=resolved_org_id,
                 provider_subscription_id=verify_res.merchant_subscription_id,
+                payment_provider="phonepe",
             ).first()
             if not sub:
                 sub = SaaSSubscription.query.filter_by(
                     organization_id=resolved_org_id,
                     provider_order_id=verify_res.merchant_subscription_id,
+                    payment_provider="phonepe",
                 ).first()
 
+    if is_v2:
+        if not verify_res.success:
+            err = verify_res.error_message or "Payment was not authorized or cancelled."
+            flash(f"Payment verification failed: {err}", "error")
+            return redirect(url_for("saas.checkout"))
+
+        if not sub or not v2_mandate:
+            logger.error(
+                "phonepe_callback: V2 payment succeeded at gateway but sub (%s) or mandate (%s) missing for org=%s",
+                bool(sub), bool(v2_mandate), resolved_org_id,
+            )
+            flash("Payment completed at gateway, but subscription record could not be authoritatively established. Logged for manual reconciliation.", "warning")
+            return redirect(url_for("saas.checkout"))
+
+        # Validate organization, subscription, and mandate relationships
+        if (
+            sub.organization_id != resolved_org_id
+            or v2_mandate.organization_id != resolved_org_id
+            or v2_mandate.subscription_id != sub.id
+        ):
+            logger.error(
+                "phonepe_callback: Relational mismatch (sub org=%s, mandate org=%s, mandate sub=%s, resolved org=%s)",
+                sub.organization_id, v2_mandate.organization_id, v2_mandate.subscription_id, resolved_org_id,
+            )
+            flash("Payment relationship mismatch detected. Logged for manual reconciliation.", "error")
+            return redirect(url_for("saas.checkout"))
+
+        # Resolve exact internal setup transaction and merchant order ID
+        setup_order_id = sub.provider_order_id
+        setup_tx = None
+        if not setup_order_id:
+            setup_tx = SaaSTransaction.query.filter_by(
+                organization_id=resolved_org_id,
+                subscription_id=sub.id,
+                payment_provider="phonepe_v2",
+            ).order_by(SaaSTransaction.id.desc()).first()
+            if setup_tx and setup_tx.provider_order_id:
+                setup_order_id = setup_tx.provider_order_id
+
+        if not setup_order_id:
+            logger.error("phonepe_callback: No authentic internal setup merchant order ID found for sub=%s", sub.id)
+            flash("Setup order reference missing from internal records. Subscription activation blocked.", "error")
+            return redirect(url_for("saas.checkout"))
+
+        # Check if setup_tx exists and validate its relationship
+        if setup_tx and (setup_tx.organization_id != resolved_org_id or setup_tx.subscription_id != sub.id):
+            logger.error("phonepe_callback: Setup transaction relational mismatch for sub=%s, tx=%s", sub.id, setup_tx.id)
+            flash("Setup transaction record invalid. Subscription activation blocked.", "error")
+            return redirect(url_for("saas.checkout"))
+
+        # Authoritatively verify payment state with PhonePe S2S status check before activation
+        # Do not use gateway transaction ID as merchant order ID!
+        tx_res = provider.check_transaction_status(setup_order_id, organization_id=resolved_org_id)
+        if not tx_res.success or tx_res.status != "COMPLETED":
+            logger.error(
+                "phonepe_callback: Authoritative S2S check failed for setup order %s (status=%s, err=%s)",
+                setup_order_id, tx_res.status, tx_res.error_message,
+            )
+            flash(f"Payment verification pending or failed at gateway: {tx_res.error_message or tx_res.status}", "error")
+            return redirect(url_for("saas.checkout"))
+
+        # Validate amount and INR currency
+        expected_base = sub.plan.yearly_price_paise if (sub.billing_cycle and sub.billing_cycle.value == "yearly") else (sub.plan.monthly_price_paise if sub.plan else sub.amount_paise)
+        expected_total = expected_base + int(round(expected_base * 0.18))
+
+        if tx_res.amount_paise and tx_res.amount_paise != expected_total:
+            logger.error(
+                "phonepe_callback: Amount mismatch for sub=%s: received %s paise, expected %s paise",
+                sub.id, tx_res.amount_paise, expected_total,
+            )
+            flash("Payment amount does not match plan price. Subscription activation blocked.", "error")
+            return redirect(url_for("saas.checkout"))
+
+        raw_resp = tx_res.raw_response or {}
+        pay_details = raw_resp.get("paymentDetails") or []
+        first_pay = pay_details[0] if (isinstance(pay_details, list) and len(pay_details) > 0 and isinstance(pay_details[0], dict)) else {}
+        currency = (first_pay.get("currency") or raw_resp.get("currency") or "INR").upper()
+        if currency != "INR":
+            logger.error("phonepe_callback: Currency mismatch for sub=%s: received %s, expected INR", sub.id, currency)
+            flash("Invalid payment currency. Only INR is supported.", "error")
+            return redirect(url_for("saas.checkout"))
+
+        # All checks passed authoritatively
+        SubscriptionService.activate_subscription(
+            subscription=sub,
+            provider_subscription_id=v2_mandate.provider_subscription_id or verify_res.provider_subscription_id,
+            provider_transaction_id=tx_res.provider_transaction_id or verify_res.provider_transaction_id,
+            provider_payment_id=tx_res.provider_payment_id or verify_res.provider_payment_id,
+            amount_paise=tx_res.amount_paise or expected_total,
+            mandate_reference=v2_mandate.mandate_reference or verify_res.mandate_reference,
+        )
+        flash("UPI AutoPay subscription activated successfully! Welcome to GlassEntials CRM.", "success")
+        return redirect(url_for("home_page"))
+
+    # Legacy V3 Activation
     if verify_res.success:
         if sub:
             SubscriptionService.activate_subscription(
@@ -301,6 +418,38 @@ def verify_payment():
         return jsonify({"error": verify_res.error_message or "Payment verification failed"}), 400
 
 
+def _record_v2_webhook_event(event_id: str, event_type: str, processing_state: str, details: dict):
+    """
+    Durably records or updates a PhonePe V2 webhook event idempotency log with explicit processing_state.
+    States:
+      - PROCESSED: S2S reconciliation completed successfully.
+      - UNRESOLVED: Relational mismatch or uncertain gateway outcome requiring retry/reconciliation.
+      - FAILED: Authoritatively failed.
+    """
+    summary = dict(details)
+    summary["processing_state"] = processing_state
+    summary["updated_at"] = datetime.utcnow().isoformat()
+    try:
+        existing = SaaSWebhookEvent.query.filter_by(payment_provider="phonepe_v2", event_id=event_id).first()
+        if existing:
+            existing.event_type = event_type
+            existing.processed_at = datetime.utcnow()
+            existing.payload_summary = json.dumps(summary)
+        else:
+            existing = SaaSWebhookEvent(
+                payment_provider="phonepe_v2",
+                event_id=event_id,
+                event_type=event_type,
+                processed_at=datetime.utcnow(),
+                payload_summary=json.dumps(summary),
+            )
+            db.session.add(existing)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logger.error("Failed to persist SaaSWebhookEvent %s: %s", event_id, exc)
+
+
 def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, body_json: dict):
     """
     Dedicated, secure PhonePe AutoPay V2 S2S Webhook Processing.
@@ -309,6 +458,8 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
     - Webhook events are UNTRUSTED HINTS: triggers authoritative S2S reconciliation.
     - Idempotent processing with SaaSWebhookEvent deduplication.
     - Returns HTTP 200 only after successful reconciliation and durable logging.
+    - Distinguishes PROCESSED, UNRESOLVED, and FAILED states.
+    - Returns retryable HTTP 422 for UNRESOLVED events so PhonePe can retry.
     """
     provider = BillingService.get_provider("phonepe_v2")
 
@@ -322,18 +473,49 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
     event_type = webhook_res.event_type
 
     # 2. Idempotent Event Deduplication
-    if SaaSWebhookEvent.query.filter_by(payment_provider="phonepe_v2", event_id=event_id).first():
-        logger.info("PhonePe V2 Webhook event %s already processed; skipping.", event_id)
-        return jsonify({"status": "already_processed", "event_id": event_id}), 200
+    existing_event = SaaSWebhookEvent.query.filter_by(payment_provider="phonepe_v2", event_id=event_id).first()
+    if existing_event:
+        prev_summary = {}
+        if existing_event.payload_summary:
+            try:
+                prev_summary = json.loads(existing_event.payload_summary)
+            except Exception:
+                pass
+        prev_state = prev_summary.get("processing_state", "PROCESSED")
+        if prev_state == "PROCESSED":
+            logger.info("PhonePe V2 Webhook event %s already processed; skipping.", event_id)
+            return jsonify({"status": "already_processed", "event_id": event_id}), 200
+        else:
+            logger.info(
+                "PhonePe V2 Webhook event %s was previously %s; allowing retry reconciliation.",
+                event_id, prev_state
+            )
 
     # 3. Resolve tenant context from verified internal record
     org_id = v2_mandate.organization_id if v2_mandate else (v2_pdn.organization_id if v2_pdn else None)
     if not org_id:
         logger.error("V2 webhook rejected: cannot resolve trusted tenant for event %s", event_id)
-        return jsonify({"error": "Unresolved tenant context"}), 400
+        _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
+            "error": "Unresolved tenant context",
+            "event_id": event_id,
+        })
+        return jsonify({"error": "Unresolved tenant context", "status": "UNRESOLVED", "retryable": True}), 422
+
+    # Check for relational tenant mismatch between mandate and pdn if both present
+    if v2_mandate and v2_pdn and v2_mandate.organization_id != v2_pdn.organization_id:
+        logger.error("V2 webhook rejected: tenant conflict between mandate (%s) and pdn (%s)",
+                     v2_mandate.organization_id, v2_pdn.organization_id)
+        _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
+            "error": "Tenant conflict between mandate and notification",
+            "event_id": event_id,
+        })
+        return jsonify({"error": "Conflicting tenant references across records", "status": "UNRESOLVED", "retryable": False}), 422
 
     # 4. Webhooks are UNTRUSTED TRANSPORT HINTS: Perform Authoritative PhonePe S2S Verification
     logger.info("Triggering authoritative S2S reconciliation for V2 webhook event %s (%s)", event_id, event_type)
+
+    reconciliation_state = "PROCESSED"
+    unresolved_reason = None
 
     try:
         # A. If associated with a mandate: sync mandate status S2S
@@ -346,12 +528,10 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
                 # Resolve the redemption attempt associated with the pre-debit notification
                 attempt = SaaSRedemptionAttempt.query.filter_by(
                     notification_id=v2_pdn.id,
-                    organization_id=org_id,
                 ).order_by(SaaSRedemptionAttempt.id.desc()).first()
                 if not attempt:
                     attempt = SaaSRedemptionAttempt.query.filter_by(
                         merchant_order_id=v2_pdn.merchant_order_id,
-                        organization_id=org_id,
                     ).order_by(SaaSRedemptionAttempt.id.desc()).first()
 
                 # Validate organization, subscription, mandate and notification relationships
@@ -366,7 +546,16 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
                             attempt.organization_id, attempt.subscription_id, v2_pdn.organization_id, v2_pdn.subscription_id,
                             v2_mandate.id if v2_mandate else None,
                         )
-                        attempt = None
+                        _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
+                            "error": "Relational mismatch between attempt, notification, and mandate",
+                            "org_id": org_id,
+                            "merchant_order_id": v2_pdn.merchant_order_id,
+                        })
+                        return jsonify({
+                            "error": "Relational mismatch detected across financial records",
+                            "status": "UNRESOLVED",
+                            "retryable": True,
+                        }), 422
                 else:
                     # Gateway-managed auto-debit: create an initial SaaSRedemptionAttempt to track reconciliation
                     # (preserving gateway-managed auto-debit manual reconciliation safety rules)
@@ -386,16 +575,57 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
                 if attempt:
                     # Pass the correctly resolved SaaSRedemptionAttempt object to provider
                     provider.reconcile_redemption_status(attempt)
+                    if attempt.status in (
+                        RedemptionAttemptStatus.PENDING_RECONCILIATION.value,
+                        RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value,
+                        RedemptionAttemptStatus.AMBIGUOUS_NOT_FOUND.value,
+                    ):
+                        reconciliation_state = "UNRESOLVED"
+                        unresolved_reason = attempt.failure_reason or f"Redemption in {attempt.status} state"
+                    elif attempt.status == RedemptionAttemptStatus.FAILED.value:
+                        reconciliation_state = "FAILED"
+                        unresolved_reason = attempt.failure_reason
             else:
                 # Explicit merchant-initiated debit notification
                 attempt = SaaSRedemptionAttempt.query.filter_by(
                     notification_id=v2_pdn.id,
-                    organization_id=org_id,
                 ).order_by(SaaSRedemptionAttempt.id.desc()).first()
+                if not attempt:
+                    attempt = SaaSRedemptionAttempt.query.filter_by(
+                        merchant_order_id=v2_pdn.merchant_order_id,
+                    ).order_by(SaaSRedemptionAttempt.id.desc()).first()
                 if attempt:
+                    if (
+                        attempt.organization_id != org_id
+                        or attempt.subscription_id != v2_pdn.subscription_id
+                        or (v2_mandate and v2_pdn.mandate_id != v2_mandate.id)
+                    ):
+                        logger.error("V2 explicit debit webhook: relational mismatch")
+                        _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
+                            "error": "Relational mismatch",
+                            "org_id": org_id,
+                        })
+                        return jsonify({
+                            "error": "Relational mismatch detected across financial records",
+                            "status": "UNRESOLVED",
+                            "retryable": True,
+                        }), 422
                     provider.reconcile_redemption_status(attempt)
+                    if attempt.status in (
+                        RedemptionAttemptStatus.PENDING_RECONCILIATION.value,
+                        RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value,
+                        RedemptionAttemptStatus.AMBIGUOUS_NOT_FOUND.value,
+                    ):
+                        reconciliation_state = "UNRESOLVED"
+                        unresolved_reason = attempt.failure_reason or f"Redemption in {attempt.status} state"
+                    elif attempt.status == RedemptionAttemptStatus.FAILED.value:
+                        reconciliation_state = "FAILED"
+                        unresolved_reason = attempt.failure_reason
                 elif v2_pdn.status == PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value:
                     provider.reconcile_notification_status(v2_pdn)
+                    if v2_pdn.status != PreDebitNotificationStatus.NOTIFIED.value:
+                        reconciliation_state = "UNRESOLVED"
+                        unresolved_reason = f"Notification in {v2_pdn.status} state"
 
         # C. Initial mandate setup order check (if this was the initial checkout transaction)
         sub = None
@@ -425,12 +655,21 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
                 expected_total = expected_base + int(round(expected_base * 0.18))
 
                 if tx_res.success and tx_res.status == "COMPLETED":
-                    # Validate amount and subscription relationship
-                    if tx_res.amount_paise and tx_res.amount_paise < expected_total:
+                    raw_r = tx_res.raw_response or {}
+                    pay_d = raw_r.get("paymentDetails") or []
+                    f_pay = pay_d[0] if (isinstance(pay_d, list) and len(pay_d) > 0 and isinstance(pay_d[0], dict)) else {}
+                    cur = (f_pay.get("currency") or raw_r.get("currency") or "INR").upper()
+
+                    if cur != "INR":
+                        reconciliation_state = "UNRESOLVED"
+                        unresolved_reason = f"Currency mismatch: {cur}"
+                    elif tx_res.amount_paise and tx_res.amount_paise != expected_total:
                         logger.error(
                             "Setup order reconciliation underpayment: received %s paise, expected %s paise for sub=%s",
                             tx_res.amount_paise, expected_total, sub.id,
                         )
+                        reconciliation_state = "UNRESOLVED"
+                        unresolved_reason = f"Amount mismatch: received {tx_res.amount_paise}, expected {expected_total}"
                     else:
                         SubscriptionService.activate_subscription(
                             subscription=sub,
@@ -441,34 +680,68 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
                             mandate_reference=v2_mandate.mandate_reference,
                         )
                         sub.last_webhook_event_id = event_id
+                        try:
+                            db.session.commit()
+                        except Exception:
+                            db.session.rollback()
+                elif tx_res.status == "FAILED":
+                    reconciliation_state = "FAILED"
+                    unresolved_reason = tx_res.error_message
+                else:
+                    reconciliation_state = "UNRESOLVED"
+                    unresolved_reason = f"Setup transaction in {tx_res.status} state"
             else:
                 logger.warning(
                     "Setup order reconciliation skipped: no authentic merchant_order_id found in internal records for sub=%s",
                     sub.id,
                 )
+                reconciliation_state = "UNRESOLVED"
+                unresolved_reason = "No authentic internal setup merchant order ID found"
 
         # 5. Persist Webhook Event record for durable idempotency
-        ev = SaaSWebhookEvent(
-            payment_provider="phonepe_v2",
+        _record_v2_webhook_event(
             event_id=event_id,
             event_type=event_type,
-            payload_summary=json.dumps({
+            processing_state=reconciliation_state,
+            details={
                 "merchant_subscription_id": v2_mandate.merchant_subscription_id if v2_mandate else None,
                 "merchant_order_id": v2_pdn.merchant_order_id if v2_pdn else None,
                 "org_id": org_id,
                 "state": webhook_res.state,
-            }),
+                "reason": unresolved_reason,
+            }
         )
-        db.session.add(ev)
-        db.session.commit()
+
+        if reconciliation_state == "UNRESOLVED":
+            logger.warning("V2 webhook event %s reconciliation unresolved: %s", event_id, unresolved_reason)
+            return jsonify({
+                "status": "UNRESOLVED",
+                "retryable": True,
+                "event_id": event_id,
+                "reason": unresolved_reason,
+            }), 422
+        elif reconciliation_state == "FAILED":
+            logger.info("V2 webhook event %s reconciled to FAILED: %s", event_id, unresolved_reason)
+            return jsonify({
+                "status": "FAILED",
+                "retryable": False,
+                "event_id": event_id,
+                "reason": unresolved_reason,
+            }), 200
+
         logger.info("Successfully processed and recorded V2 webhook event %s (%s)", event_id, event_type)
+        return jsonify({"status": "success", "event_id": event_id, "reconciled": True}), 200
 
     except Exception as e:
         db.session.rollback()
         logger.error("Error during authoritative S2S reconciliation for V2 webhook %s: %s", event_id, str(e), exc_info=True)
-        return jsonify({"error": f"Reconciliation failed: {str(e)}"}), 500
-
-    return jsonify({"status": "success", "event_id": event_id, "reconciled": True}), 200
+        _record_v2_webhook_event(
+            event_id=event_id,
+            event_type=event_type,
+            processing_state="UNRESOLVED",
+            details={"error": str(e), "org_id": org_id}
+        )
+        return jsonify({"error": f"Reconciliation failed: {str(e)}", "status": "UNRESOLVED", "retryable": True}), 500
 
 
 @saas_bp.route("/phonepe-webhook", methods=["POST"])
@@ -501,21 +774,31 @@ def phonepe_webhook():
             if isinstance(body_json, dict) else None
         )
         if merchant_sub_id_in_body:
-            v2_mandate = SaaSMandate.query.filter_by(
+            v2_mandates = SaaSMandate.query.filter_by(
                 merchant_subscription_id=merchant_sub_id_in_body,
-            ).first()
-            if v2_mandate and v2_mandate.payment_provider == "phonepe_v2":
+                payment_provider="phonepe_v2",
+            ).all()
+            if len(v2_mandates) > 1:
+                logger.error("V2 webhook rejected: ambiguous mandate for %s across tenants", merchant_sub_id_in_body)
+                return jsonify({"error": "Ambiguous mandate reference across organizations", "retryable": False}), 422
+            if v2_mandates:
+                v2_mandate = v2_mandates[0]
                 is_v2 = True
         if not is_v2 and merchant_order_id_in_body:
-            v2_pdn = SaaSPreDebitNotification.query.filter_by(
+            v2_pdns = SaaSPreDebitNotification.query.filter_by(
                 merchant_order_id=merchant_order_id_in_body,
-            ).first()
-            if v2_pdn:
+            ).all()
+            if len(v2_pdns) > 1:
+                logger.error("V2 webhook rejected: ambiguous PDN for %s across tenants", merchant_order_id_in_body)
+                return jsonify({"error": "Ambiguous notification reference across organizations", "retryable": False}), 422
+            if v2_pdns:
+                v2_pdn = v2_pdns[0]
                 is_v2 = True
                 if v2_pdn.mandate_id:
                     v2_mandate = SaaSMandate.query.filter_by(
                         id=v2_pdn.mandate_id,
                         organization_id=v2_pdn.organization_id,
+                        payment_provider="phonepe_v2",
                     ).first()
     except Exception:
         body_json = {}
