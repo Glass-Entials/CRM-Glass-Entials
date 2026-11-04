@@ -7,6 +7,8 @@ trusted tenant context isolation, and duplicate debit prevention.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import unittest
 from datetime import datetime, timedelta
@@ -30,8 +32,10 @@ from model import (
     SaaSTransaction,
     SaaSTransactionStatus,
     SaaSWebhookEvent,
+    SaaSBillingPeriodReservation,
     PreDebitNotificationStatus,
     RedemptionAttemptStatus,
+    BillingPeriodReservationStatus,
     User,
     UserRole,
 )
@@ -54,6 +58,15 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
         cls.app.config["SECRET_KEY"] = "test-secret-key-phase53"
         cls.app.config["WTF_CSRF_ENABLED"] = False
         cls.app.config["BILLING_DEFAULT_PROVIDER"] = "phonepe"
+        cls.app.config["PHONEPE_ENV"] = "UAT"
+        cls.app.config["PHONEPE_MERCHANT_ID"] = "PGTESTPAYUAT"
+        cls.app.config["PHONEPE_CLIENT_ID"] = "test_client_id"
+        cls.app.config["PHONEPE_CLIENT_SECRET"] = "test_client_secret"
+        cls.app.config["PHONEPE_CLIENT_VERSION"] = 1
+        cls.app.config["PHONEPE_SALT_KEY"] = "test_salt_key_routes"
+        cls.app.config["PHONEPE_SALT_INDEX"] = "1"
+        cls.app.config["PHONEPE_WEBHOOK_USERNAME"] = "webhook_test_user"
+        cls.app.config["PHONEPE_WEBHOOK_PASSWORD"] = "webhook_test_pass"
 
         # Initialize LoginManager
         login_manager = LoginManager()
@@ -91,6 +104,7 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
         BillingService.reset_provider_cache()
 
         # Clean DB tables
+        db.session.query(SaaSBillingPeriodReservation).delete()
         db.session.query(SaaSWebhookEvent).delete()
         db.session.query(SaaSTransaction).delete()
         db.session.query(SaaSRedemptionAttempt).delete()
@@ -300,37 +314,157 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
 
             mock_get_provider.assert_called_with("phonepe_v2")
 
-    def test_v2_webhook_with_mandate_acknowledged(self):
-        """V2 webhook event matching a V2 mandate is acknowledged immediately without V3 processing."""
+    def test_v2_webhook_invalid_authentication_rejected(self):
+        """V2 webhook request with invalid or missing authentication is strictly rejected with HTTP 401."""
         payload = json.dumps({
             "merchantSubscriptionId": "MSUB_V2_20_MANDATE",
             "event": "SUBSCRIPTION_ACTIVE",
         })
+        # Missing auth headers -> 401
         response = self.client.post(
             "/saas/phonepe-webhook",
             data=payload,
             content_type="application/json",
+            headers={"Authorization": "Basic invalid_credentials"},
+        )
+        self.assertEqual(response.status_code, 401)
+        data = response.get_json()
+        self.assertIn("error", data)
+
+    def test_v2_webhook_with_mandate_reconciled(self):
+        """V2 webhook event matching a V2 mandate with valid auth triggers S2S reconciliation and returns HTTP 200."""
+        payload = json.dumps({
+            "merchantSubscriptionId": "MSUB_V2_20_MANDATE",
+            "event": "SUBSCRIPTION_ACTIVE",
+            "eventId": "EVT_V2_MANDATE_001",
+        })
+        # Compute valid Basic Auth token matching configured credentials
+        auth_token = hashlib.sha256("webhook_test_user:webhook_test_pass".encode("utf-8")).hexdigest()
+        headers = {
+            "Authorization": f"Basic {auth_token}",
+        }
+
+        mock_v2_provider = MagicMock()
+        mock_v2_provider.name = "phonepe_v2"
+        mock_v2_provider.verify_webhook.return_value = WebhookResult(
+            is_valid=True,
+            event_id="EVT_V2_MANDATE_001",
+            event_type="SUBSCRIPTION_ACTIVE",
+            merchant_subscription_id="MSUB_V2_20_MANDATE",
+            state="ACTIVE",
         )
 
-        self.assertEqual(response.status_code, 200)
-        data = response.get_json()
-        self.assertEqual(data.get("status"), "v2_event_acknowledged")
+        with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider:
+            mock_get_provider.return_value = mock_v2_provider
 
-    def test_v2_webhook_with_order_id_acknowledged(self):
-        """V2 webhook event matching a V2 pre-debit order is acknowledged without V3 processing."""
+            response = self.client.post(
+                "/saas/phonepe-webhook",
+                data=payload,
+                content_type="application/json",
+                headers=headers,
+            )
+
+            self.assertEqual(response.status_code, 200)
+            data = response.get_json()
+            self.assertEqual(data.get("status"), "success")
+            self.assertTrue(data.get("reconciled"))
+            self.assertEqual(data.get("event_id"), "EVT_V2_MANDATE_001")
+
+            # Verify S2S mandate sync was triggered
+            mock_v2_provider.sync_mandate_status.assert_called_once()
+            called_mandate = mock_v2_provider.sync_mandate_status.call_args[0][0]
+            self.assertEqual(called_mandate.id, 201)
+
+            # Verify durable webhook event logged
+            evt = SaaSWebhookEvent.query.filter_by(event_id="EVT_V2_MANDATE_001").first()
+            self.assertIsNotNone(evt)
+            self.assertEqual(evt.payment_provider, "phonepe_v2")
+
+    def test_v2_webhook_with_order_id_reconciled(self):
+        """V2 webhook event matching a V2 pre-debit order triggers S2S order reconciliation and returns HTTP 200."""
         payload = json.dumps({
             "merchantOrderId": "ORDER_V2_PDN_301",
             "event": "PAYMENT_SUCCESS",
+            "eventId": "EVT_V2_ORDER_002",
         })
-        response = self.client.post(
-            "/saas/phonepe-webhook",
-            data=payload,
-            content_type="application/json",
+        auth_token = hashlib.sha256("webhook_test_user:webhook_test_pass".encode("utf-8")).hexdigest()
+        headers = {
+            "Authorization": f"Basic {auth_token}",
+        }
+
+        mock_v2_provider = MagicMock()
+        mock_v2_provider.name = "phonepe_v2"
+        mock_v2_provider.verify_webhook.return_value = WebhookResult(
+            is_valid=True,
+            event_id="EVT_V2_ORDER_002",
+            event_type="PAYMENT_SUCCESS",
+            merchant_subscription_id="MSUB_V2_20_MANDATE",
+            provider_payment_id="ORDER_V2_PDN_301",
+            state="COMPLETED",
         )
 
-        self.assertEqual(response.status_code, 200)
-        data = response.get_json()
-        self.assertEqual(data.get("status"), "v2_event_acknowledged")
+        with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider:
+            mock_get_provider.return_value = mock_v2_provider
+
+            response = self.client.post(
+                "/saas/phonepe-webhook",
+                data=payload,
+                content_type="application/json",
+                headers=headers,
+            )
+
+            self.assertEqual(response.status_code, 200)
+            data = response.get_json()
+            self.assertEqual(data.get("status"), "success")
+            self.assertTrue(data.get("reconciled"))
+
+            # Verify S2S mandate sync was called
+            mock_v2_provider.sync_mandate_status.assert_called_once()
+            evt = SaaSWebhookEvent.query.filter_by(event_id="EVT_V2_ORDER_002").first()
+            self.assertIsNotNone(evt)
+
+    def test_v2_webhook_idempotent_duplicate_acknowledged(self):
+        """Repeated delivery of an already processed V2 webhook event returns already_processed without re-reconciling."""
+        prior_evt = SaaSWebhookEvent(
+            payment_provider="phonepe_v2",
+            event_id="EVT_V2_DUPLICATE_999",
+            event_type="SUBSCRIPTION_ACTIVE",
+            payload_summary="{}",
+        )
+        db.session.add(prior_evt)
+        db.session.commit()
+
+        auth_token = hashlib.sha256("webhook_test_user:webhook_test_pass".encode("utf-8")).hexdigest()
+        headers = {"Authorization": f"Basic {auth_token}"}
+        payload = json.dumps({
+            "merchantSubscriptionId": "MSUB_V2_20_MANDATE",
+            "eventId": "EVT_V2_DUPLICATE_999",
+            "event": "SUBSCRIPTION_ACTIVE",
+        })
+
+        mock_v2_provider = MagicMock()
+        mock_v2_provider.name = "phonepe_v2"
+        mock_v2_provider.verify_webhook.return_value = WebhookResult(
+            is_valid=True,
+            event_id="EVT_V2_DUPLICATE_999",
+            event_type="SUBSCRIPTION_ACTIVE",
+            merchant_subscription_id="MSUB_V2_20_MANDATE",
+        )
+
+        with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider:
+            mock_get_provider.return_value = mock_v2_provider
+            response = self.client.post(
+                "/saas/phonepe-webhook",
+                data=payload,
+                content_type="application/json",
+                headers=headers,
+            )
+
+            self.assertEqual(response.status_code, 200)
+            data = response.get_json()
+            self.assertEqual(data.get("status"), "already_processed")
+            # Must NOT call sync_mandate_status on duplicate
+            mock_v2_provider.sync_mandate_status.assert_not_called()
 
     # ── Group C: Trusted Tenant Context Security ───────────────────────────────
 
@@ -389,8 +523,62 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
 
             mock_provider.verify_payment.assert_called_once()
             call_kwargs = mock_provider.verify_payment.call_args[1]
-            # Since user is unauthenticated, org_id passed to provider must be None
+            # Since user is unauthenticated and record not found, org_id passed to provider must be None
             self.assertIsNone(call_kwargs.get("organization_id"))
+
+    def test_callback_tenant_mismatch_redirects_to_checkout(self):
+        """Cross-tenant callback manipulation (logged-in user accessing another tenant's payment) redirects to checkout."""
+        # Log in user belonging to Org 10
+        self.client.get(f"/test-login/{self.v3_user.id}")
+
+        mock_v2_provider = MagicMock()
+        mock_v2_provider.name = "phonepe_v2"
+
+        with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider:
+            mock_get_provider.return_value = mock_v2_provider
+
+            # Callback parameter references Org 20 mandate
+            response = self.client.get(
+                "/saas/phonepe-callback?merchantSubscriptionId=MSUB_V2_20_MANDATE"
+            )
+
+            # Verification: Tenant mismatch redirects to checkout
+            self.assertEqual(response.status_code, 302)
+            self.assertIn("/saas/checkout", response.location)
+            # verify_payment must NOT be called
+            mock_v2_provider.verify_payment.assert_not_called()
+
+    def test_callback_unauthenticated_resolves_tenant_from_record(self):
+        """Unauthenticated callback securely resolves tenant context from internal financial record."""
+        # Make sure no user is logged in
+        self.client.get("/test-login/999999")  # unauthenticated
+
+        mock_v2_provider = MagicMock()
+        mock_v2_provider.name = "phonepe_v2"
+        mock_v2_provider.verify_payment.return_value = VerificationResult(
+            success=True,
+            status="SUCCESS",
+            merchant_subscription_id="MSUB_V2_20_MANDATE",
+            provider_subscription_id="PP_SUB_V2_999",
+            provider_transaction_id="TXN_UNAUTH_RESOLVE",
+            amount_paise=118000,
+        )
+
+        with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider, \
+             patch("services.billing.subscription_service.SubscriptionService.activate_subscription") as mock_activate:
+            mock_get_provider.return_value = mock_v2_provider
+
+            response = self.client.get(
+                "/saas/phonepe-callback?merchantSubscriptionId=MSUB_V2_20_MANDATE"
+            )
+
+            self.assertEqual(response.status_code, 302)
+            self.assertIn("/home", response.location)
+            mock_v2_provider.verify_payment.assert_called_once()
+            call_kwargs = mock_v2_provider.verify_payment.call_args[1]
+            # Resolved org_id must be 20 from SaaSMandate
+            self.assertEqual(call_kwargs.get("organization_id"), 20)
+            mock_activate.assert_called_once()
 
     # ── Group D: Duplicate Debit Prevention across Requests ────────────────────
 

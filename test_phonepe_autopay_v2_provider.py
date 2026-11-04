@@ -9,6 +9,8 @@ guards, tenant isolation, and backward compatibility with PhonePe V3.
 from __future__ import annotations
 
 import base64
+import hashlib
+import hmac
 import json
 import unittest
 from datetime import datetime, timedelta
@@ -16,17 +18,20 @@ from unittest.mock import MagicMock, patch
 
 from flask import Flask
 from sqlalchemy.pool import StaticPool
+from services.billing.payment_provider import VerificationResult, WebhookResult, RedemptionResult
 
 from model import (
     db,
     Plan,
     Organization,
     OrganizationStatus,
+    SaaSBillingPeriodReservation,
     SaaSMandate,
     SaaSPreDebitNotification,
     SaaSRedemptionAttempt,
     SaaSSubscription,
     SaaSTransaction,
+    BillingPeriodReservationStatus,
     MandateStatus,
     PreDebitNotificationStatus,
     RedemptionAttemptStatus,
@@ -89,6 +94,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         self.provider._oauth = self.mock_oauth
 
         # Clean DB for test run
+        db.session.query(SaaSBillingPeriodReservation).delete()
         db.session.query(SaaSRedemptionAttempt).delete()
         db.session.query(SaaSPreDebitNotification).delete()
         db.session.query(SaaSMandate).delete()
@@ -1401,19 +1407,22 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         self.assertIsNotNone(new_tok)
         self.provider._release_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id, new_tok)
 
-    # ── Test 50: Billing Period Idempotency Blocks Duplicate PDN (Phase 5.3) ──
-    @patch("model.SaaSRedemptionAttempt.query")
-    def test_billing_period_idempotency_blocks_duplicate_pdn(self, mock_attempt_query):
-        """Phase 5.3: notify_redemption blocked if a COMPLETED debit already exists for the billing period."""
+    # ── Test 50: Billing Period Idempotency Blocks Duplicate PDN (Phase 5.3 & 5.4) ──
+    def test_billing_period_idempotency_blocks_duplicate_pdn(self):
+        """Phase 5.4: notify_redemption blocked if a durable reservation exists for the billing period under diff order."""
         self.dummy_sub.current_period_start = datetime(2026, 11, 1, 0, 0, 0)
         expected_bpk = f"{self.dummy_sub.id}_2026-11"
 
-        mock_completed_attempt = MagicMock(
-            merchant_order_id="ORDER_PREV_COMPLETED",
-            status=RedemptionAttemptStatus.COMPLETED.value,
+        # Durable reservation created by a prior order
+        resv = SaaSBillingPeriodReservation(
+            organization_id=self.dummy_sub.organization_id,
+            subscription_id=self.dummy_sub.id,
             billing_period_key=expected_bpk,
+            merchant_order_id="ORDER_PREV_RESERVED",
+            status=BillingPeriodReservationStatus.RESERVED.value,
         )
-        mock_attempt_query.filter_by.return_value.first.return_value = mock_completed_attempt
+        db.session.add(resv)
+        db.session.commit()
 
         res = self.provider.notify_redemption(
             subscription=self.dummy_sub,
@@ -1423,38 +1432,36 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
 
         self.assertFalse(res.success)
         self.assertEqual(res.status, "FAILED")
-        self.assertIn("successful debit already exists for billing period", res.error_message)
+        self.assertIn("already reserved", res.error_message)
 
-    # ── Test 51: Billing Period Idempotency Blocks Duplicate Execute (Phase 5.3) ──
-    @patch("model.SaaSRedemptionAttempt.query")
-    @patch("model.SaaSPreDebitNotification.query")
-    def test_billing_period_idempotency_blocks_duplicate_execute_redemption(
-        self, mock_pdn_query, mock_attempt_query
-    ):
-        """Phase 5.3: execute_redemption blocked if a COMPLETED debit already exists for billing period with diff order ID."""
+    # ── Test 51: Billing Period Idempotency Blocks Duplicate Execute (Phase 5.3 & 5.4) ──
+    def test_billing_period_idempotency_blocks_duplicate_execute_redemption(self):
+        """Phase 5.4: execute_redemption blocked if a completed durable reservation exists for billing period."""
         self.dummy_sub.current_period_start = datetime(2026, 11, 1, 0, 0, 0)
         expected_bpk = f"{self.dummy_sub.id}_2026-11"
 
-        mock_pdn = MagicMock(
-            id=12,
+        pdn = SaaSPreDebitNotification(
+            organization_id=self.dummy_sub.organization_id,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=self.dummy_sub.active_mandate_id,
+            merchant_order_id="ORDER_NEW_REDEEM_SAME_PERIOD",
+            amount_paise=118000,
             auto_debit_snapshot=False,
             status=PreDebitNotificationStatus.NOTIFIED.value,
             valid_after_at=datetime.utcnow() - timedelta(hours=1),
             valid_upto_at=datetime.utcnow() + timedelta(days=1),
-        )
-        mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
-
-        # No unresolved attempt, no existing attempt for this exact order ID
-        mock_attempt_query.filter_by.return_value.filter.return_value.first.return_value = None
-        mock_attempt_query.filter_by.return_value.count.return_value = 0
-
-        # But a COMPLETED attempt exists for this billing period
-        mock_completed_attempt = MagicMock(
-            merchant_order_id="ORDER_PAID_ALREADY",
-            status=RedemptionAttemptStatus.COMPLETED.value,
             billing_period_key=expected_bpk,
         )
-        mock_attempt_query.filter_by.return_value.first.return_value = mock_completed_attempt
+        # Prior completed reservation under different order
+        resv = SaaSBillingPeriodReservation(
+            organization_id=self.dummy_sub.organization_id,
+            subscription_id=self.dummy_sub.id,
+            billing_period_key=expected_bpk,
+            merchant_order_id="ORDER_PAID_ALREADY",
+            status=BillingPeriodReservationStatus.COMPLETED.value,
+        )
+        db.session.add_all([pdn, resv])
+        db.session.commit()
 
         res = self.provider.execute_redemption(
             subscription=self.dummy_sub,
@@ -1466,35 +1473,46 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         self.assertEqual(res.status, "FAILED")
         self.assertIn("successful debit already exists for billing period", res.error_message)
 
-    # ── Test 52: Period Advancement Allows Legitimate Renewal (Phase 5.3) ───────
-    @patch("model.SaaSRedemptionAttempt.query")
-    @patch("model.SaaSMandate.query")
-    @patch("model.SaaSPreDebitNotification.query")
-    @patch("model.db.session.commit")
-    @patch("model.db.session.add")
-    def test_billing_period_advancement_allows_new_debit(
-        self, mock_add, mock_commit, mock_pdn_query, mock_mandate_query, mock_attempt_query
-    ):
-        """Phase 5.3: Advancing to a new billing period allows legitimate recurring debit."""
-        # Previous period 2026-11 had completed debit; now subscription advanced to 2026-12
+    # ── Test 52: Period Advancement Allows Legitimate Renewal (Phase 5.3 & 5.4) ───────
+    def test_billing_period_advancement_allows_new_debit(self):
+        """Phase 5.4: Advancing to a new billing period creates a distinct durable reservation and allows debit."""
+        # Previous period 2026-11 completed
+        prev_resv = SaaSBillingPeriodReservation(
+            organization_id=self.dummy_sub.organization_id,
+            subscription_id=self.dummy_sub.id,
+            billing_period_key=f"{self.dummy_sub.id}_2026-11",
+            merchant_order_id="ORDER_NOVEMBER_PAID",
+            status=BillingPeriodReservationStatus.COMPLETED.value,
+        )
+        # Now subscription period advances to 2026-12
         self.dummy_sub.current_period_start = datetime(2026, 12, 1, 0, 0, 0)
 
-        mock_pdn = MagicMock(
+        mandate = SaaSMandate(
+            id=10,
+            organization_id=self.dummy_sub.organization_id,
+            subscription_id=self.dummy_sub.id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id="MSUB_V2_7_99",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+            auto_debit=False,
+        )
+        pdn = SaaSPreDebitNotification(
             id=15,
+            organization_id=self.dummy_sub.organization_id,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=10,
+            merchant_order_id="ORDER_DECEMBER_RENEWAL",
+            amount_paise=118000,
             auto_debit_snapshot=False,
             status=PreDebitNotificationStatus.NOTIFIED.value,
             valid_after_at=datetime.utcnow() - timedelta(hours=1),
             valid_upto_at=datetime.utcnow() + timedelta(days=1),
+            billing_period_key=f"{self.dummy_sub.id}_2026-12",
         )
-        mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
-
-        # For 2026-12, no completed attempt exists
-        mock_attempt_query.filter_by.return_value.filter.return_value.first.return_value = None
-        mock_attempt_query.filter_by.return_value.first.return_value = None
-        mock_attempt_query.filter_by.return_value.count.return_value = 0
-
-        mock_mandate = MagicMock(id=10, merchant_subscription_id="MSUB_V2_7_99")
-        mock_mandate_query.filter_by.return_value.first.return_value = mock_mandate
+        db.session.add_all([prev_resv, mandate, pdn])
+        db.session.commit()
 
         self.mock_client.redeem.return_value = {
             "state": "COMPLETED",
@@ -1510,6 +1528,194 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         self.assertTrue(res.success)
         self.assertEqual(res.status, "SUCCESS")
         self.assertEqual(res.provider_payment_id, "TXN_NEW_PERIOD_001")
+
+        # Verify durable reservation was persisted and transitioned to COMPLETED
+        resv_dec = SaaSBillingPeriodReservation.query.filter_by(
+            organization_id=self.dummy_sub.organization_id,
+            subscription_id=self.dummy_sub.id,
+            billing_period_key=f"{self.dummy_sub.id}_2026-12",
+        ).first()
+        self.assertIsNotNone(resv_dec)
+        self.assertEqual(resv_dec.status, BillingPeriodReservationStatus.COMPLETED.value)
+
+    # ── Test 53: Tenant Resolution Ignores Client Payload (Phase 5.4) ───────────
+    def test_tenant_resolution_ignores_client_supplied_org_id(self):
+        """Phase 5.4: verify_payment strictly ignores forged client payload organizationId."""
+        mandate = SaaSMandate(
+            id=25,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id="MSUB_HONEST_ORG7",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        db.session.add(mandate)
+        db.session.commit()
+
+        with patch.object(self.provider, "check_subscription_status") as mock_check:
+            mock_check.return_value = VerificationResult(success=True, status="ACTIVE", merchant_subscription_id="MSUB_HONEST_ORG7")
+
+            # Client maliciously supplies organizationId = 99999
+            res = self.provider.verify_payment(
+                payload={"merchantSubscriptionId": "MSUB_HONEST_ORG7", "organizationId": 99999, "organization_id": 99999},
+                organization_id=None,
+            )
+
+            mock_check.assert_called_once_with("MSUB_HONEST_ORG7", organization_id=7)
+            self.assertTrue(res.success)
+
+    # ── Test 54: Tenant Mismatch with Authenticated Session (Phase 5.4) ─────────
+    def test_tenant_mismatch_with_authenticated_session_returns_unresolved(self):
+        """Phase 5.4: verify_payment returns UNRESOLVED when authenticated org_id conflicts with internal record."""
+        mandate = SaaSMandate(
+            id=26,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id="MSUB_ORG7_MANDATE",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        db.session.add(mandate)
+        db.session.commit()
+
+        # Authenticated user is from org 99, but internal record is org 7
+        res = self.provider.verify_payment(
+            payload={"merchantSubscriptionId": "MSUB_ORG7_MANDATE"},
+            organization_id=99,
+        )
+
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, "UNRESOLVED")
+        self.assertIn("Tenant context mismatch", res.error_message)
+
+    # ── Test 55: Ambiguous Tenant Between Order and Mandate (Phase 5.4) ─────────
+    def test_ambiguous_tenant_between_order_and_mandate_returns_unresolved(self):
+        """Phase 5.4: verify_payment returns UNRESOLVED when order and mandate belong to conflicting tenants."""
+        org_other = Organization(id=8, name="Other Corp", unique_code="OTHER")
+        sub_other = SaaSSubscription(id=108, organization_id=8, plan_id=1, payment_provider="phonepe_v2")
+        db.session.add_all([org_other, sub_other])
+
+        mandate = SaaSMandate(
+            id=30,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id="MSUB_ORG7_RECORD",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        pdn_other = SaaSPreDebitNotification(
+            id=40,
+            organization_id=8,  # Different org!
+            subscription_id=108,
+            mandate_id=30,
+            merchant_order_id="ORDER_ORG8_RECORD",
+            amount_paise=118000,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+        )
+        db.session.add_all([mandate, pdn_other])
+        db.session.commit()
+
+        res = self.provider.verify_payment(
+            payload={"merchantOrderId": "ORDER_ORG8_RECORD", "merchantSubscriptionId": "MSUB_ORG7_RECORD"},
+            organization_id=None,
+        )
+
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, "UNRESOLVED")
+        self.assertIn("conflicting tenant", res.error_message.lower())
+
+    # ── Test 56: Relational Mismatch Between PDN and Mandate (Phase 5.4) ────────
+    def test_relational_mismatch_between_pdn_and_mandate_returns_unresolved(self):
+        """Phase 5.4: verify_payment returns UNRESOLVED when PDN mandate_id does not match Mandate id."""
+        mandate1 = SaaSMandate(
+            id=35,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id="MSUB_MANDATE_35",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        mandate2 = SaaSMandate(
+            id=36,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id="MSUB_MANDATE_36",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        pdn = SaaSPreDebitNotification(
+            id=50,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=35,  # Points to mandate 35
+            merchant_order_id="ORDER_LINKED_TO_35",
+            amount_paise=118000,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+        )
+        db.session.add_all([mandate1, mandate2, pdn])
+        db.session.commit()
+
+        # Verification payload mixes ORDER_LINKED_TO_35 with MSUB_MANDATE_36
+        res = self.provider.verify_payment(
+            payload={"merchantOrderId": "ORDER_LINKED_TO_35", "merchantSubscriptionId": "MSUB_MANDATE_36"},
+            organization_id=7,
+        )
+
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, "UNRESOLVED")
+        self.assertIn("Relational mismatch", res.error_message)
+
+    # ── Test 57: Webhook Multi-Mode Authentication Verification (Phase 5.4) ─────
+    def test_webhook_multi_mode_authentication_verification(self):
+        """Phase 5.4: verify_webhook enforces valid authentication (Basic Auth, HMAC, X-VERIFY) and rejects invalid."""
+        payload_dict = {
+            "merchantId": "PGTESTPAYUAT",
+            "eventId": "EVT_TEST_123",
+            "event": "SUBSCRIPTION_ACTIVE",
+            "payload": {"merchantSubscriptionId": "MSUB_V2_TEST"},
+        }
+        payload_bytes = json.dumps(payload_dict).encode("utf-8")
+
+        # Test A: Merchant ID mismatch
+        mismatch_payload = json.dumps({"merchantId": "WRONG_MERCHANT", "eventId": "EVT_99"}).encode("utf-8")
+        res_mismatch = self.provider.verify_webhook(mismatch_payload, {})
+        self.assertFalse(res_mismatch.is_valid)
+        self.assertIn("Merchant ID mismatch", res_mismatch.error_message)
+
+        # Test B: Basic Auth in configured environment
+        with patch.dict(self.app.config, {"PHONEPE_WEBHOOK_USERNAME": "test_wh_user", "PHONEPE_WEBHOOK_PASSWORD": "test_wh_password"}):
+            # Invalid credentials
+            res_bad_auth = self.provider.verify_webhook(payload_bytes, {"Authorization": "Basic wrong_token"})
+            self.assertFalse(res_bad_auth.is_valid)
+
+            # Valid credentials
+            correct_token = hashlib.sha256(b"test_wh_user:test_wh_password").hexdigest()
+            res_good_auth = self.provider.verify_webhook(payload_bytes, {"Authorization": f"Basic {correct_token}"})
+            self.assertTrue(res_good_auth.is_valid)
+            self.assertEqual(res_good_auth.event_id, "EVT_TEST_123")
+
+        # Test C: HMAC Secret verification
+        with patch.dict(self.app.config, {"PHONEPE_WEBHOOK_SECRET": "test_wh_secret"}):
+            raw_text = payload_bytes.decode("utf-8")
+            correct_hmac = hmac.new(b"test_wh_secret", payload_bytes, hashlib.sha256).hexdigest()
+
+            # Bad HMAC
+            res_bad_hmac = self.provider.verify_webhook(payload_bytes, {"Authorization": "HMAC-SHA256 invalid_hmac"})
+            self.assertFalse(res_bad_hmac.is_valid)
+
+            # Good HMAC
+            res_good_hmac = self.provider.verify_webhook(payload_bytes, {"Authorization": f"HMAC-SHA256 {correct_hmac}"})
+            self.assertTrue(res_good_hmac.is_valid)
 
 
 if __name__ == "__main__":

@@ -34,11 +34,13 @@ from sqlalchemy.orm import Query
 from model import (
     db,
     OrganizationStatus,
+    SaaSBillingPeriodReservation,
     SaaSMandate,
     SaaSPreDebitNotification,
     SaaSRedemptionAttempt,
     SaaSSubscription,
     SaaSTransaction,
+    BillingPeriodReservationStatus,
     MandateStatus,
     PreDebitNotificationStatus,
     RedemptionAttemptStatus,
@@ -276,6 +278,79 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             logger.error("Error releasing subscription claim for org=%s sub=%s token=%s: %s",
                          organization_id, subscription_id, claim_token, str(exc), exc_info=True)
             return False
+
+    def _reserve_billing_period(
+        self,
+        subscription_id: int,
+        organization_id: int,
+        billing_period_key: str,
+        merchant_order_id: str,
+    ) -> tuple[bool, Optional[str], Optional[SaaSBillingPeriodReservation]]:
+        """
+        Durable, database-level billing period reservation backed by SaaSBillingPeriodReservation.
+        Enforces that only one debit can be in progress or completed for a given billing period,
+        guaranteeing mutual exclusion across concurrent workers and sequential duplicate requests.
+
+        Returns: (success: bool, error_message: Optional[str], reservation: Optional[SaaSBillingPeriodReservation])
+        """
+        try:
+            # 1. Check for prior successful redemption attempt for this billing period key
+            prior_successful_attempt = SaaSRedemptionAttempt.query.filter_by(
+                organization_id=organization_id,
+                subscription_id=subscription_id,
+                billing_period_key=billing_period_key,
+                status=RedemptionAttemptStatus.COMPLETED.value,
+            ).first()
+            if prior_successful_attempt and prior_successful_attempt.merchant_order_id != merchant_order_id:
+                return False, f"A successful debit already exists for billing period {billing_period_key}. Only one debit is permitted per billing period.", None
+
+            # 2. Query for existing reservation
+            existing = SaaSBillingPeriodReservation.query.filter_by(
+                organization_id=organization_id,
+                subscription_id=subscription_id,
+                billing_period_key=billing_period_key,
+            ).first()
+
+            if existing:
+                if existing.merchant_order_id == merchant_order_id:
+                    # Idempotent retry with the exact same order ID
+                    if existing.status == BillingPeriodReservationStatus.COMPLETED.value:
+                        return False, f"A successful debit already exists for billing period {billing_period_key}.", existing
+                    return True, None, existing
+                else:
+                    # Different order ID attempting to debit the same billing period
+                    if existing.status == BillingPeriodReservationStatus.COMPLETED.value:
+                        return False, f"A successful debit already exists for billing period {billing_period_key}. Only one debit is permitted per billing period.", existing
+                    return False, f"Billing period {billing_period_key} is already reserved by order {existing.merchant_order_id} (status: {existing.status}). Duplicate debit prevented.", existing
+
+            # 2. Insert new reservation (enforces database-level UNIQUE constraint on org_id, sub_id, bpk)
+            reservation = SaaSBillingPeriodReservation(
+                organization_id=organization_id,
+                subscription_id=subscription_id,
+                billing_period_key=billing_period_key,
+                merchant_order_id=merchant_order_id,
+                status=BillingPeriodReservationStatus.RESERVED.value,
+            )
+            db.session.add(reservation)
+            db.session.commit()
+            return True, None, reservation
+
+        except Exception as exc:
+            db.session.rollback()
+            logger.warning(
+                "Billing period reservation collision or error org=%s sub=%s key=%s for order=%s: %s",
+                organization_id, subscription_id, billing_period_key, merchant_order_id, str(exc),
+            )
+            existing = SaaSBillingPeriodReservation.query.filter_by(
+                organization_id=organization_id,
+                subscription_id=subscription_id,
+                billing_period_key=billing_period_key,
+            ).first()
+            if existing and existing.merchant_order_id == merchant_order_id:
+                if existing.status == BillingPeriodReservationStatus.COMPLETED.value:
+                    return False, f"A successful debit already exists for billing period {billing_period_key}.", existing
+                return True, None, existing
+            return False, f"Billing period {billing_period_key} is already reserved by another worker. Duplicate debit prevented.", None
 
     # ── ABC Implementation ───────────────────────────────────────────────────
 
@@ -707,22 +782,76 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             merchant_order_id = payload["data"].get("merchantOrderId") or payload["data"].get("merchantTransactionId")
             merchant_sub_id = merchant_sub_id or payload["data"].get("merchantSubscriptionId")
 
-        # Resolve organization_id
+        # Resolve and validate trusted tenant context
+        # SECURITY: Never inspect payload for organizationId/organization_id.
         resolved_org_id = organization_id
-        if resolved_org_id is None:
-            resolved_org_id = payload.get("organizationId") or payload.get("organization_id")
-        if resolved_org_id is None and merchant_order_id:
-            pdn = SaaSPreDebitNotification.query.filter_by(merchant_order_id=merchant_order_id).first()
-            if pdn:
-                resolved_org_id = pdn.organization_id
-            else:
-                att = SaaSRedemptionAttempt.query.filter_by(merchant_order_id=merchant_order_id).first()
-                if att:
-                    resolved_org_id = att.organization_id
-        if resolved_org_id is None and merchant_sub_id:
-            mandate = SaaSMandate.query.filter_by(merchant_subscription_id=merchant_sub_id).first()
-            if mandate:
-                resolved_org_id = mandate.organization_id
+
+        # Look up internal records matching identifiers
+        record_org_ids = set()
+        matched_mandate = None
+        matched_pdn = None
+        matched_attempt = None
+
+        if merchant_order_id:
+            matched_pdn = SaaSPreDebitNotification.query.filter_by(merchant_order_id=merchant_order_id).first()
+            if matched_pdn:
+                record_org_ids.add(matched_pdn.organization_id)
+            matched_attempt = SaaSRedemptionAttempt.query.filter_by(merchant_order_id=merchant_order_id).first()
+            if matched_attempt:
+                record_org_ids.add(matched_attempt.organization_id)
+
+        if merchant_sub_id:
+            matched_mandate = SaaSMandate.query.filter_by(merchant_subscription_id=merchant_sub_id).first()
+            if matched_mandate:
+                record_org_ids.add(matched_mandate.organization_id)
+
+        # Reject ambiguous or conflicting internal tenant records
+        if len(record_org_ids) > 1:
+            logger.error(
+                "verify_payment: Conflicting tenant records found for order=%s, sub=%s: %s",
+                merchant_order_id, merchant_sub_id, record_org_ids,
+            )
+            return VerificationResult(
+                success=False,
+                status="UNRESOLVED",
+                merchant_subscription_id=merchant_sub_id or "",
+                provider_transaction_id=merchant_order_id,
+                error_message="Ambiguous or conflicting tenant relationships detected across internal records",
+            )
+
+        internal_org_id = record_org_ids.pop() if record_org_ids else None
+
+        # Cross-validate authenticated server-side org_id against internal record org_id
+        if resolved_org_id is not None and internal_org_id is not None:
+            if resolved_org_id != internal_org_id:
+                logger.error(
+                    "verify_payment: Mismatched tenant context: authenticated org_id=%s != internal record org_id=%s",
+                    resolved_org_id, internal_org_id,
+                )
+                return VerificationResult(
+                    success=False,
+                    status="UNRESOLVED",
+                    merchant_subscription_id=merchant_sub_id or "",
+                    provider_transaction_id=merchant_order_id,
+                    error_message="Tenant context mismatch between authenticated session and financial record",
+                )
+        elif resolved_org_id is None:
+            resolved_org_id = internal_org_id
+
+        # Verify cross-record relational integrity between notification and mandate
+        if matched_pdn and matched_mandate:
+            if matched_pdn.mandate_id != matched_mandate.id or matched_pdn.subscription_id != matched_mandate.subscription_id:
+                logger.error(
+                    "verify_payment: Relational mismatch between PDN (mandate=%s, sub=%s) and Mandate (id=%s, sub=%s)",
+                    matched_pdn.mandate_id, matched_pdn.subscription_id, matched_mandate.id, matched_mandate.subscription_id,
+                )
+                return VerificationResult(
+                    success=False,
+                    status="UNRESOLVED",
+                    merchant_subscription_id=merchant_sub_id or "",
+                    provider_transaction_id=merchant_order_id,
+                    error_message="Relational mismatch between notification and mandate records",
+                )
 
         if resolved_org_id is None:
             logger.error("verify_payment: Cannot resolve trusted tenant context for order=%s, sub=%s",
@@ -833,27 +962,23 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
 
             auto_debit_snap = mandate.auto_debit if mandate else False
 
-            # Billing-period idempotency: block if a COMPLETED redemption already exists for this billing period
+            # Durable Database-level Billing-Period Reservation
             if subscription.current_period_start:
                 bpk = _compute_billing_period_key(subscription.id, subscription.current_period_start)
-                # Check for any COMPLETED redemption attempt for this billing period
-                completed_for_period = SaaSRedemptionAttempt.query.filter_by(
-                    organization_id=subscription.organization_id,
-                    subscription_id=subscription.id,
-                    billing_period_key=bpk,
-                    status=RedemptionAttemptStatus.COMPLETED.value,
-                ).first()
-                if completed_for_period:
+                res_ok, res_err, reservation = self._reserve_billing_period(
+                    subscription.id, subscription.organization_id, bpk, merchant_transaction_id
+                )
+                if not res_ok:
                     logger.error(
-                        "notify_redemption blocked: Subscription org=%s sub=%s already has a COMPLETED debit for billing period %s (order=%s)",
-                        subscription.organization_id, subscription.id, bpk, completed_for_period.merchant_order_id,
+                        "notify_redemption blocked: %s (org=%s, sub=%s, order=%s)",
+                        res_err, subscription.organization_id, subscription.id, merchant_transaction_id,
                     )
                     return RedemptionResult(
                         success=False,
                         status="FAILED",
                         merchant_transaction_id=merchant_transaction_id,
                         amount_paise=amount_paise,
-                        error_message=f"A successful debit already exists for billing period {bpk}. Use a new billing period for the next renewal.",
+                        error_message=res_err,
                     )
             else:
                 bpk = None
@@ -1148,29 +1273,27 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             organization_id=subscription.organization_id,
         ).count()
 
-        # Safety Check 7: Billing-period idempotency — block if a COMPLETED redemption exists for this period
+        # Safety Check 7: Durable Database-level Billing-Period Reservation
         if subscription.current_period_start:
             bpk = _compute_billing_period_key(subscription.id, subscription.current_period_start)
-            completed_for_period = SaaSRedemptionAttempt.query.filter_by(
-                organization_id=subscription.organization_id,
-                subscription_id=subscription.id,
-                billing_period_key=bpk,
-                status=RedemptionAttemptStatus.COMPLETED.value,
-            ).first()
-            if completed_for_period:
+            res_ok, res_err, reservation = self._reserve_billing_period(
+                subscription.id, subscription.organization_id, bpk, merchant_transaction_id
+            )
+            if not res_ok:
                 logger.error(
-                    "execute_redemption blocked: COMPLETED debit already exists for billing period %s (prior order=%s)",
-                    bpk, completed_for_period.merchant_order_id,
+                    "execute_redemption blocked: %s (org=%s, sub=%s, order=%s)",
+                    res_err, subscription.organization_id, subscription.id, merchant_transaction_id,
                 )
                 return RedemptionResult(
                     success=False,
                     status="FAILED",
                     merchant_transaction_id=merchant_transaction_id,
                     amount_paise=amount_paise,
-                    error_message=f"A successful debit already exists for billing period {bpk}. Only one debit is permitted per billing period.",
+                    error_message=res_err,
                 )
         else:
             bpk = None
+            reservation = None
 
         attempt = SaaSRedemptionAttempt(
             organization_id=subscription.organization_id,
@@ -1226,6 +1349,8 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             if is_not_found:
                 attempt.status = RedemptionAttemptStatus.AMBIGUOUS_NOT_FOUND.value
                 attempt.failure_reason = f"Gateway returned NOT_FOUND (ambiguous): {str(exc)}"
+                if reservation:
+                    reservation.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
                 try:
                     db.session.commit()
                 except Exception:
@@ -1240,6 +1365,8 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 )
             attempt.status = RedemptionAttemptStatus.FAILED.value
             attempt.failure_reason = str(exc)
+            if reservation:
+                reservation.status = BillingPeriodReservationStatus.FAILED.value
             try:
                 db.session.commit()
             except Exception:
@@ -1255,6 +1382,8 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         except Exception as exc:
             attempt.status = RedemptionAttemptStatus.PENDING_RECONCILIATION.value
             attempt.failure_reason = f"Ambiguous transport exception: {str(exc)}"
+            if reservation:
+                reservation.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
             try:
                 db.session.commit()
             except Exception:
@@ -1286,6 +1415,8 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         if root_state == "COMPLETED" and first_payment_state == "COMPLETED":
             attempt.status = RedemptionAttemptStatus.COMPLETED.value
             notification.status = PreDebitNotificationStatus.CONSUMED.value
+            if reservation:
+                reservation.status = BillingPeriodReservationStatus.COMPLETED.value
             try:
                 db.session.commit()
             except Exception:
@@ -1302,6 +1433,8 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             )
         elif root_state == "PENDING" or first_payment_state == "PENDING":
             attempt.status = RedemptionAttemptStatus.PENDING_RECONCILIATION.value
+            if reservation:
+                reservation.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
             try:
                 db.session.commit()
             except Exception:
@@ -1318,6 +1451,8 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             )
         elif root_state == "FAILED" or first_payment_state == "FAILED":
             attempt.status = RedemptionAttemptStatus.FAILED.value
+            if reservation:
+                reservation.status = BillingPeriodReservationStatus.FAILED.value
             attempt.failure_reason = (
                 resp.get("message")
                 or first_payment.get("responseCodeDescription")
@@ -1457,34 +1592,61 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 error_message=f"Merchant ID mismatch: {incoming_mid}",
             )
 
-        # Production basic auth verification if configured
+        # Webhook Authentication Verification
+        # Supports:
+        # 1. HTTP Basic Authentication (Authorization header)
+        # 2. X-VERIFY SHA256 Checksum header
+        # 3. HMAC-SHA256 signature header
         try:
             env = current_app.config.get("PHONEPE_ENV", "UAT").upper() if current_app else "UAT"
             webhook_user = current_app.config.get("PHONEPE_WEBHOOK_USERNAME") if current_app else None
             webhook_pass = current_app.config.get("PHONEPE_WEBHOOK_PASSWORD") if current_app else None
+            webhook_secret = current_app.config.get("PHONEPE_WEBHOOK_SECRET") if current_app else None
+            salt_key = current_app.config.get("PHONEPE_SALT_KEY") if current_app else None
+            salt_index = current_app.config.get("PHONEPE_SALT_INDEX", "1") if current_app else "1"
         except RuntimeError:
             env = "UAT"
             webhook_user = None
             webhook_pass = None
+            webhook_secret = None
+            salt_key = None
+            salt_index = "1"
 
-        if env == "PRODUCTION" and webhook_user and webhook_pass:
-            auth_header = headers.get("Authorization") or headers.get("authorization")
-            if not auth_header:
-                return WebhookResult(
-                    is_valid=False,
-                    event_id="",
-                    event_type="",
-                    error_message="Missing Authorization header in production webhook",
-                )
+        auth_header = headers.get("Authorization") or headers.get("authorization")
+        x_verify_header = headers.get("X-Verify") or headers.get("X-VERIFY") or headers.get("x-verify")
+        has_credentials_configured = bool(webhook_user and webhook_pass) or bool(webhook_secret) or bool(salt_key)
+
+        is_authenticated = False
+
+        # Mode A: HTTP Basic Auth
+        if auth_header and webhook_user and webhook_pass:
             expected_token = hashlib.sha256(f"{webhook_user}:{webhook_pass}".encode("utf-8")).hexdigest()
-            token = auth_header.replace("Basic ", "").strip()
-            if not hmac.compare_digest(token, expected_token):
-                return WebhookResult(
-                    is_valid=False,
-                    event_id="",
-                    event_type="",
-                    error_message="Invalid webhook authorization token",
-                )
+            raw_token = auth_header.replace("Basic ", "").replace("Bearer ", "").strip()
+            if hmac.compare_digest(raw_token, expected_token):
+                is_authenticated = True
+
+        # Mode B: X-VERIFY SHA256 Checksum
+        if not is_authenticated and x_verify_header and salt_key:
+            hash_calc = f"{hashlib.sha256((raw_text + salt_key).encode('utf-8')).hexdigest()}###{salt_index}"
+            if hmac.compare_digest(x_verify_header.strip(), hash_calc):
+                is_authenticated = True
+
+        # Mode C: HMAC-SHA256 Signature
+        if not is_authenticated and webhook_secret and auth_header:
+            expected_hmac = hmac.new(webhook_secret.encode("utf-8"), raw_text.encode("utf-8"), hashlib.sha256).hexdigest()
+            raw_auth = auth_header.replace("HMAC-SHA256 ", "").strip()
+            if hmac.compare_digest(raw_auth, expected_hmac):
+                is_authenticated = True
+
+        # If credentials are configured or running in PRODUCTION, require explicit authentication
+        if (env == "PRODUCTION" or has_credentials_configured) and not is_authenticated:
+            logger.warning("PhonePe V2 Webhook authentication verification failed.")
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message="Invalid webhook signature or authorization credentials",
+            )
 
         event_id = (
             data.get("eventId")
@@ -1700,6 +1862,16 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                         if tx:
                             tx.mandate_id = sub.active_mandate_id
                             tx.redemption_attempt_id = attempt.id
+
+                    if attempt.billing_period_key:
+                        bpr = SaaSBillingPeriodReservation.query.filter_by(
+                            organization_id=attempt.organization_id,
+                            subscription_id=attempt.subscription_id,
+                            billing_period_key=attempt.billing_period_key,
+                        ).first()
+                        if bpr:
+                            bpr.status = BillingPeriodReservationStatus.COMPLETED.value
+
                     db.session.commit()
                     logger.info("Reconciled explicit redemption attempt %s to COMPLETED; advanced subscription org=%s",
                                 attempt.merchant_order_id, attempt.organization_id)
@@ -1710,13 +1882,37 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                     or first_payment.get("responseCodeDescription")
                     or "Debit failed"
                 )
+                if attempt.billing_period_key:
+                    bpr = SaaSBillingPeriodReservation.query.filter_by(
+                        organization_id=attempt.organization_id,
+                        subscription_id=attempt.subscription_id,
+                        billing_period_key=attempt.billing_period_key,
+                    ).first()
+                    if bpr:
+                        bpr.status = BillingPeriodReservationStatus.FAILED.value
                 db.session.commit()
                 logger.warning("Reconciled redemption attempt %s to FAILED", attempt.merchant_order_id)
             elif root_state == "PENDING" or first_payment_state == "PENDING":
                 attempt.status = RedemptionAttemptStatus.PENDING_RECONCILIATION.value
+                if attempt.billing_period_key:
+                    bpr = SaaSBillingPeriodReservation.query.filter_by(
+                        organization_id=attempt.organization_id,
+                        subscription_id=attempt.subscription_id,
+                        billing_period_key=attempt.billing_period_key,
+                    ).first()
+                    if bpr:
+                        bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
                 db.session.commit()
             else:
                 attempt.status = RedemptionAttemptStatus.PENDING_RECONCILIATION.value
+                if attempt.billing_period_key:
+                    bpr = SaaSBillingPeriodReservation.query.filter_by(
+                        organization_id=attempt.organization_id,
+                        subscription_id=attempt.subscription_id,
+                        billing_period_key=attempt.billing_period_key,
+                    ).first()
+                    if bpr:
+                        bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
                 db.session.commit()
         except PhonePeResponseError as exc:
             is_not_found = (

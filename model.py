@@ -352,6 +352,13 @@ class RedemptionAttemptStatus(Enum):
     FAILED = "FAILED"
 
 
+class BillingPeriodReservationStatus(Enum):
+    RESERVED = "RESERVED"
+    COMPLETED = "COMPLETED"
+    PENDING_RECONCILIATION = "PENDING_RECONCILIATION"
+    FAILED = "FAILED"
+
+
 class Plan(db.Model):
     """SaaS Plan definition — defines default limits for organizations."""
     __tablename__ = "plan"
@@ -3018,6 +3025,55 @@ class SaaSRedemptionAttempt(db.Model):
 
     def __repr__(self):
         return f"<SaaSRedemptionAttempt id={self.id} org={self.organization_id} order={self.merchant_order_id} attempt={self.attempt_number} status={self.status}>"
+
+
+class SaaSBillingPeriodReservation(db.Model):
+    """
+    SaaSBillingPeriodReservation - Durable database-level idempotency reservation
+    for subscription billing periods. Prevents concurrent and sequential duplicate
+    debits within the same billing period across all workers and order IDs.
+    """
+    __tablename__ = "saas_billing_period_reservation"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "organization_id", "subscription_id", "billing_period_key",
+            name="uq_bpr_org_sub_period"
+        ),
+        db.UniqueConstraint("id", "organization_id", name="uq_bpr_id_org"),
+        db.ForeignKeyConstraint(
+            ["subscription_id", "organization_id"],
+            ["saas_subscription.id", "saas_subscription.organization_id"],
+            name="fk_bpr_sub_org",
+            ondelete="RESTRICT",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    subscription_id = db.Column(db.Integer, nullable=False, index=True)
+    billing_period_key = db.Column(db.String(64), nullable=False, index=True)
+    merchant_order_id = db.Column(db.String(100), nullable=False, index=True)
+    status = db.Column(
+        db.String(50), nullable=False, default=BillingPeriodReservationStatus.RESERVED.value,
+        server_default=db.text("'RESERVED'"), index=True
+    )
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    organization = db.relationship("Organization")
+    subscription = db.relationship("SaaSSubscription", overlaps="organization")
+
+    @validates("status")
+    def validate_status(self, key, value):
+        if hasattr(value, "value"):
+            return value.value
+        return str(value)
+
+    def __repr__(self):
+        return f"<SaaSBillingPeriodReservation id={self.id} org={self.organization_id} sub={self.subscription_id} key={self.billing_period_key} order={self.merchant_order_id} status={self.status}>"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -24,6 +24,8 @@ from model import (
     SaaSTransaction,
     SaaSTransactionStatus,
     SaaSWebhookEvent,
+    MandateStatus,
+    PreDebitNotificationStatus,
     UserRole,
 )
 from services.billing import (
@@ -161,6 +163,8 @@ def phonepe_callback():
 
     # Determine whether this callback belongs to a V2 mandate
     is_v2 = False
+    v2_mandate = None
+    v2_pdn = None
     if merchant_subscription_id:
         v2_mandate = SaaSMandate.query.filter_by(
             merchant_subscription_id=merchant_subscription_id,
@@ -173,24 +177,64 @@ def phonepe_callback():
         ).first()
         if v2_pdn:
             is_v2 = True
+            if v2_pdn.mandate_id:
+                v2_mandate = SaaSMandate.query.filter_by(
+                    id=v2_pdn.mandate_id,
+                    organization_id=v2_pdn.organization_id,
+                ).first()
 
     provider = BillingService.get_provider("phonepe_v2" if is_v2 else "phonepe")
 
-    # org_id is sourced from server-side authenticated session, never from request params
-    org_id = current_user.organization_id if (current_user.is_authenticated and getattr(current_user, "organization", None)) else None
-    verify_res = provider.verify_payment(payload, headers=dict(request.headers), organization_id=org_id)
+    # Secure tenant context resolution
+    auth_org_id = current_user.organization_id if (current_user.is_authenticated and getattr(current_user, "organization", None)) else None
+    record_org_id = None
+    if v2_mandate:
+        record_org_id = v2_mandate.organization_id
+    elif v2_pdn:
+        record_org_id = v2_pdn.organization_id
+    elif merchant_subscription_id:
+        v3_sub = SaaSSubscription.query.filter_by(provider_subscription_id=merchant_subscription_id).first()
+        if v3_sub:
+            record_org_id = v3_sub.organization_id
 
-    # Look up subscription
+    # Cross-validate authenticated user against matched internal financial record
+    if auth_org_id is not None and record_org_id is not None and auth_org_id != record_org_id:
+        logger.error(
+            "phonepe_callback: Tenant mismatch! Authenticated user org=%s attempted callback for record org=%s",
+            auth_org_id, record_org_id,
+        )
+        flash("Unauthorized payment callback: tenant mismatch detected.", "error")
+        return redirect(url_for("saas.checkout"))
+
+    resolved_org_id = auth_org_id or record_org_id
+
+    verify_res = provider.verify_payment(payload, headers=dict(request.headers), organization_id=resolved_org_id)
+
+    # Look up subscription strictly with tenant scoping
     sub = None
-    if verify_res.merchant_subscription_id:
-        sub = SaaSSubscription.query.filter(
-            (SaaSSubscription.provider_subscription_id == verify_res.merchant_subscription_id) |
-            (SaaSSubscription.provider_order_id == verify_res.merchant_subscription_id)
-        ).first()
-
-    # If sub not found by ID and user is logged in, use their organization's subscription
-    if not sub and current_user.is_authenticated and current_user.organization:
-        sub = SaaSSubscription.query.filter_by(organization_id=current_user.organization_id).first()
+    if resolved_org_id:
+        if verify_res.merchant_subscription_id:
+            sub = SaaSSubscription.query.filter_by(
+                organization_id=resolved_org_id,
+                provider_subscription_id=verify_res.merchant_subscription_id,
+            ).first()
+            if not sub:
+                sub = SaaSSubscription.query.filter_by(
+                    organization_id=resolved_org_id,
+                    provider_order_id=verify_res.merchant_subscription_id,
+                ).first()
+        if not sub and v2_mandate and v2_mandate.organization_id == resolved_org_id:
+            sub = SaaSSubscription.query.filter_by(
+                organization_id=resolved_org_id,
+                id=v2_mandate.subscription_id,
+            ).first()
+        if not sub and v2_pdn and v2_pdn.organization_id == resolved_org_id:
+            sub = SaaSSubscription.query.filter_by(
+                organization_id=resolved_org_id,
+                id=v2_pdn.subscription_id,
+            ).first()
+        if not sub and current_user.is_authenticated and current_user.organization_id == resolved_org_id:
+            sub = SaaSSubscription.query.filter_by(organization_id=resolved_org_id).first()
 
     if verify_res.success:
         if sub:
@@ -244,33 +288,122 @@ def verify_payment():
         return jsonify({"error": verify_res.error_message or "Payment verification failed"}), 400
 
 
+def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, body_json: dict):
+    """
+    Dedicated, secure PhonePe AutoPay V2 S2S Webhook Processing.
+    - Webhook verification is executed using PhonePe merchant authentication.
+    - Invalid authentication is rejected immediately with HTTP 401.
+    - Webhook events are UNTRUSTED HINTS: triggers authoritative S2S reconciliation.
+    - Idempotent processing with SaaSWebhookEvent deduplication.
+    - Returns HTTP 200 only after successful reconciliation and durable logging.
+    """
+    provider = BillingService.get_provider("phonepe_v2")
+
+    # 1. Authoritative Webhook Authentication Verification
+    webhook_res = provider.verify_webhook(payload_bytes, headers)
+    if not webhook_res.is_valid:
+        logger.warning("Rejected unauthenticated PhonePe V2 webhook: %s", webhook_res.error_message)
+        return jsonify({"error": webhook_res.error_message or "Invalid webhook authentication credentials"}), 401
+
+    event_id = webhook_res.event_id
+    event_type = webhook_res.event_type
+
+    # 2. Idempotent Event Deduplication
+    if SaaSWebhookEvent.query.filter_by(payment_provider="phonepe_v2", event_id=event_id).first():
+        logger.info("PhonePe V2 Webhook event %s already processed; skipping.", event_id)
+        return jsonify({"status": "already_processed", "event_id": event_id}), 200
+
+    # 3. Resolve tenant context from verified internal record
+    org_id = v2_mandate.organization_id if v2_mandate else (v2_pdn.organization_id if v2_pdn else None)
+    if not org_id:
+        logger.error("V2 webhook rejected: cannot resolve trusted tenant for event %s", event_id)
+        return jsonify({"error": "Unresolved tenant context"}), 400
+
+    # 4. Webhooks are UNTRUSTED TRANSPORT HINTS: Perform Authoritative PhonePe S2S Verification
+    logger.info("Triggering authoritative S2S reconciliation for V2 webhook event %s (%s)", event_id, event_type)
+
+    try:
+        # A. If associated with a mandate: sync mandate status S2S
+        if v2_mandate:
+            provider.sync_mandate_status(v2_mandate)
+
+        # B. If associated with a notification / redemption: perform S2S order verification
+        if v2_pdn:
+            if v2_pdn.auto_debit_snapshot:
+                provider.reconcile_redemption_status(v2_pdn.id, organization_id=org_id)
+            elif v2_pdn.status == PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value:
+                provider.reconcile_notification_status(v2_pdn)
+
+        # C. Initial mandate setup order check (if this was the initial checkout transaction)
+        sub = None
+        if v2_mandate:
+            sub = SaaSSubscription.query.filter_by(id=v2_mandate.subscription_id, organization_id=org_id).first()
+        if sub and sub.status == SaaSSubscriptionStatus.PENDING and v2_mandate.mandate_status == "ACTIVE":
+            order_id_to_check = v2_pdn.merchant_order_id if v2_pdn else (webhook_res.provider_payment_id or webhook_res.event_id)
+            if order_id_to_check:
+                tx_res = provider.check_transaction_status(order_id_to_check, organization_id=org_id)
+                if tx_res.success and tx_res.status == "COMPLETED":
+                    SubscriptionService.activate_subscription(
+                        subscription=sub,
+                        provider_subscription_id=v2_mandate.provider_subscription_id,
+                        provider_transaction_id=tx_res.provider_transaction_id,
+                        provider_payment_id=tx_res.provider_payment_id,
+                        amount_paise=tx_res.amount_paise or sub.amount_paise,
+                        mandate_reference=v2_mandate.mandate_reference,
+                    )
+                    sub.last_webhook_event_id = event_id
+
+        # 5. Persist Webhook Event record for durable idempotency
+        ev = SaaSWebhookEvent(
+            payment_provider="phonepe_v2",
+            event_id=event_id,
+            event_type=event_type,
+            payload_summary=json.dumps({
+                "merchant_subscription_id": v2_mandate.merchant_subscription_id if v2_mandate else None,
+                "merchant_order_id": v2_pdn.merchant_order_id if v2_pdn else None,
+                "org_id": org_id,
+                "state": webhook_res.state,
+            }),
+        )
+        db.session.add(ev)
+        db.session.commit()
+        logger.info("Successfully processed and recorded V2 webhook event %s (%s)", event_id, event_type)
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error("Error during authoritative S2S reconciliation for V2 webhook %s: %s", event_id, str(e), exc_info=True)
+        return jsonify({"error": f"Reconciliation failed: {str(e)}"}), 500
+
+    return jsonify({"status": "success", "event_id": event_id, "reconciled": True}), 200
+
+
 @saas_bp.route("/phonepe-webhook", methods=["POST"])
 @saas_bp.route("/webhook", methods=["POST"])
 def phonepe_webhook():
     """
     Handles server-to-server (S2S) webhooks for PhonePe AutoPay.
-    Manages mandate activation, pause, cancellation, and recurring redemptions.
-
-    V2 mandate events (redirects and S2S notifications) arrive at /saas/phonepe-callback,
-    NOT at this S2S webhook endpoint. If a V2 event is detected here, it is acknowledged
-    immediately without processing, since the callback endpoint handles V2 lifecycle.
-    All existing V3 webhook event handling code is preserved completely unchanged.
+    Routes V2 events to _handle_v2_webhook with authoritative S2S reconciliation.
+    Preserves all existing V3 webhook event handling code completely unchanged.
     """
     payload_bytes = request.get_data()
     headers = dict(request.headers)
 
-    # Detect if this is a V2 event by parsing the JSON body
+    # Detect if this is a V2 event by parsing the JSON body and matching internal financial records
     is_v2 = False
+    v2_mandate = None
+    v2_pdn = None
     try:
         body_json = json.loads(payload_bytes) if payload_bytes else {}
         merchant_sub_id_in_body = (
             body_json.get("merchantSubscriptionId")
             or body_json.get("data", {}).get("merchantSubscriptionId")
+            or body_json.get("payload", {}).get("merchantSubscriptionId")
             if isinstance(body_json, dict) else None
         )
         merchant_order_id_in_body = (
             body_json.get("merchantOrderId")
             or body_json.get("data", {}).get("merchantOrderId")
+            or body_json.get("payload", {}).get("merchantOrderId")
             if isinstance(body_json, dict) else None
         )
         if merchant_sub_id_in_body:
@@ -285,17 +418,16 @@ def phonepe_webhook():
             ).first()
             if v2_pdn:
                 is_v2 = True
+                if v2_pdn.mandate_id:
+                    v2_mandate = SaaSMandate.query.filter_by(
+                        id=v2_pdn.mandate_id,
+                        organization_id=v2_pdn.organization_id,
+                    ).first()
     except Exception:
-        pass  # Parsing failure — treat as V3
+        body_json = {}
 
     if is_v2:
-        # V2 events are handled via the /saas/phonepe-callback endpoint (HMAC-verified redirect/S2S).
-        # Acknowledge without processing to avoid double-processing.
-        logger.info(
-            "phonepe_webhook: Received payload for a V2 mandate/order; acknowledging without V3 processing. "
-            "V2 events are handled at the /saas/phonepe-callback endpoint."
-        )
-        return jsonify({"status": "v2_event_acknowledged"}), 200
+        return _handle_v2_webhook(payload_bytes, headers, v2_mandate, v2_pdn, body_json)
 
     # ── V3 Legacy PhonePe Webhook Processing (preserved completely) ───────────
     provider = BillingService.get_provider("phonepe")
