@@ -29,6 +29,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 from flask import current_app
+from sqlalchemy import or_
 from sqlalchemy.orm import Query
 
 from model import (
@@ -313,12 +314,16 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             if prior_successful_attempt and prior_successful_attempt.merchant_order_id != merchant_order_id:
                 return False, f"A successful debit already exists for billing period {billing_period_key}. Only one debit is permitted per billing period.", None
 
-            # 2. Query for existing reservation
-            existing = s.query(SaaSBillingPeriodReservation).filter_by(
+            # 2. Query for existing reservation with row-level lock (SELECT FOR UPDATE)
+            query = s.query(SaaSBillingPeriodReservation).filter_by(
                 organization_id=organization_id,
                 subscription_id=subscription_id,
                 billing_period_key=billing_period_key,
-            ).first()
+            )
+            try:
+                existing = query.with_for_update().first()
+            except Exception:
+                existing = query.first()
 
             if existing:
                 if existing.merchant_order_id != merchant_order_id:
@@ -348,6 +353,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                     return False, f"Redemption execution for order {merchant_order_id} is currently owned by active worker {existing.owner_token}. Concurrent execution blocked.", existing
 
                 # Check if gateway request was already initiated previously
+                # Once gateway dispatch is recorded, lease expiry must NEVER authorize a second debit!
                 if existing.redemption_initiated_at is not None:
                     existing.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
                     try:
@@ -360,13 +366,32 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                     )
                     return False, f"Redemption for order {merchant_order_id} was already initiated with gateway at {existing.redemption_initiated_at}. Outcome is ambiguous; authoritative status reconciliation required before retry.", existing
 
-                # Safe acquisition / refresh of execution ownership
-                existing.owner_token = worker_token
-                existing.owner_expires_at = expires_at
-                try:
-                    s.commit()
-                except Exception:
+                # Atomic conditional UPDATE with owner token and expiry conditions:
+                # Two workers must never both believe they acquired an expired reservation.
+                updated_count = s.query(SaaSBillingPeriodReservation).filter(
+                    SaaSBillingPeriodReservation.id == existing.id,
+                    or_(
+                        SaaSBillingPeriodReservation.owner_token.is_(None),
+                        SaaSBillingPeriodReservation.owner_expires_at < now,
+                        SaaSBillingPeriodReservation.owner_token == worker_token,
+                    )
+                ).update({
+                    SaaSBillingPeriodReservation.owner_token: worker_token,
+                    SaaSBillingPeriodReservation.owner_expires_at: expires_at,
+                }, synchronize_session=False)
+
+                if updated_count == 0:
                     s.rollback()
+                    logger.warning(
+                        "Worker %s lost atomic expired-lease acquisition race for order %s (0 rows updated)",
+                        worker_token, merchant_order_id,
+                    )
+                    winning = s.query(SaaSBillingPeriodReservation).get(existing.id)
+                    current_owner = winning.owner_token if winning else "another worker"
+                    return False, f"Redemption execution for order {merchant_order_id} is currently owned by active worker {current_owner}. Concurrent execution blocked.", winning
+
+                s.commit()
+                s.refresh(existing)
                 return True, None, existing
 
             # 3. Insert new reservation with execution ownership
@@ -403,7 +428,27 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                     return False, f"Redemption execution for order {merchant_order_id} is currently owned by active worker {existing.owner_token}. Concurrent execution blocked.", existing
                 if existing.redemption_initiated_at is not None:
                     return False, f"Redemption for order {merchant_order_id} was already initiated with gateway at {existing.redemption_initiated_at}. Outcome is ambiguous; authoritative status reconciliation required before retry.", existing
-                return True, None, existing
+                # Atomic conditional UPDATE fallback
+                updated_count = s.query(SaaSBillingPeriodReservation).filter(
+                    SaaSBillingPeriodReservation.id == existing.id,
+                    or_(
+                        SaaSBillingPeriodReservation.owner_token.is_(None),
+                        SaaSBillingPeriodReservation.owner_expires_at < now,
+                        SaaSBillingPeriodReservation.owner_token == worker_token,
+                    )
+                ).update({
+                    SaaSBillingPeriodReservation.owner_token: worker_token,
+                    SaaSBillingPeriodReservation.owner_expires_at: expires_at,
+                }, synchronize_session=False)
+                if updated_count > 0:
+                    s.commit()
+                    s.refresh(existing)
+                    return True, None, existing
+                else:
+                    s.rollback()
+                    winning = s.query(SaaSBillingPeriodReservation).get(existing.id)
+                    current_owner = winning.owner_token if winning else "another worker"
+                    return False, f"Redemption execution for order {merchant_order_id} is currently owned by active worker {current_owner}. Concurrent execution blocked.", winning
             return False, f"Billing period {billing_period_key} is already reserved by another worker. Duplicate debit prevented.", None
 
     # ── ABC Implementation ───────────────────────────────────────────────────
@@ -1394,12 +1439,53 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         }
 
         # Mark gateway request initiated in database before sending request to PhonePe
+        # Verify owner identity in database before gateway dispatch
         if reservation:
+            db.session.refresh(reservation)
+            if reservation.owner_token != worker_owner_token:
+                logger.error(
+                    "execute_redemption aborted: worker %s lost lease ownership to %s for order %s before gateway dispatch",
+                    worker_owner_token, reservation.owner_token, merchant_transaction_id,
+                )
+                return RedemptionResult(
+                    success=False,
+                    status="FAILED",
+                    merchant_transaction_id=merchant_transaction_id,
+                    amount_paise=amount_paise,
+                    error_message=f"Execution lease was lost before gateway dispatch (current owner: {reservation.owner_token})",
+                )
+
+            if reservation.redemption_initiated_at is not None:
+                logger.error(
+                    "execute_redemption aborted: gateway request already initiated at %s for order %s",
+                    reservation.redemption_initiated_at, merchant_transaction_id,
+                )
+                reservation.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                return RedemptionResult(
+                    success=False,
+                    status="PENDING",
+                    merchant_transaction_id=merchant_transaction_id,
+                    amount_paise=amount_paise,
+                    error_message="Redemption was already initiated with gateway; duplicate dispatch blocked pending reconciliation",
+                )
+
             reservation.redemption_initiated_at = datetime.utcnow()
             try:
                 db.session.commit()
-            except Exception:
+            except Exception as exc:
                 db.session.rollback()
+                logger.error("Failed to commit redemption_initiated_at for order %s: %s", merchant_transaction_id, exc)
+                return RedemptionResult(
+                    success=False,
+                    status="FAILED",
+                    merchant_transaction_id=merchant_transaction_id,
+                    amount_paise=amount_paise,
+                    error_message=f"Failed to record gateway dispatch: {exc}",
+                )
 
         try:
             client = self._get_client()
@@ -1856,6 +1942,11 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         """
         if not attempt or not getattr(attempt, "organization_id", None):
             logger.error("reconcile_redemption_status: missing mandatory tenant context on attempt")
+            return attempt
+
+        # If already COMPLETED, skip re-execution to prevent duplicate subscription period advancement
+        if attempt.status == RedemptionAttemptStatus.COMPLETED.value:
+            logger.info("reconcile_redemption_status: attempt %s already COMPLETED; skipping re-execution", attempt.merchant_order_id)
             return attempt
 
         # Authoritative resolution and verification of notification relationship

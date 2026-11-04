@@ -41,6 +41,7 @@ from model import (
 )
 from routes.saas import saas_bp
 from services.billing.billing_service import BillingService
+from services.billing.subscription_service import SubscriptionService
 from services.billing.payment_provider import VerificationResult, WebhookResult, RedemptionResult
 
 
@@ -547,6 +548,10 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
             merchant_subscription_id="MT_V2_INTERNAL_SETUP_555",
             provider_transaction_id="TXN_GATEWAY_SUBSTITUTE_TRAP",
             amount_paise=118000,
+            raw_response={
+                "paymentDetails": [{"amount": 118000, "currency": "INR", "state": "COMPLETED"}],
+                "currency": "INR",
+            },
         )
 
         with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider, \
@@ -1069,6 +1074,281 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
         response3 = self.client.post("/saas/phonepe-webhook", data=payload, headers=headers)
         self.assertEqual(response3.status_code, 200)
         self.assertEqual(response3.get_json().get("status"), "already_processed")
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # Phase 5.4.2.1 Tests: Strict Setup Amount/Currency Validation & Durable Persistence
+    # ═════════════════════════════════════════════════════════════════════════
+
+    def test_callback_setup_amount_and_currency_scenarios(self):
+        """
+        Phase 5.4.2.1 Requirement 1: Authoritative S2S setup payment amount & currency validation in phonepe_callback.
+        Tests all 8 scenarios:
+          1. Exact amount and INR: activation allowed.
+          2. Underpayment: activation blocked.
+          3. Overpayment: activation blocked.
+          4. Missing amount: activation blocked.
+          5. Zero amount: activation blocked.
+          6. Missing currency: activation blocked.
+          7. Non-INR currency: activation blocked.
+          8. Incomplete paymentDetails: activation blocked.
+        """
+        self.client.get(f"/test-login/{self.v2_user.id}")
+
+        test_cases = [
+            # (name, raw_resp, amount_paise, should_activate)
+            (
+                "1_exact_amount_and_inr",
+                {"paymentDetails": [{"amount": 118000, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                118000,
+                True,
+            ),
+            (
+                "2_underpayment",
+                {"paymentDetails": [{"amount": 100000, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                100000,
+                False,
+            ),
+            (
+                "3_overpayment",
+                {"paymentDetails": [{"amount": 150000, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                150000,
+                False,
+            ),
+            (
+                "4_missing_amount",
+                {"paymentDetails": [{"currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                None,
+                False,
+            ),
+            (
+                "5_zero_amount",
+                {"paymentDetails": [{"amount": 0, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                0,
+                False,
+            ),
+            (
+                "6_missing_currency",
+                {"paymentDetails": [{"amount": 118000, "state": "COMPLETED"}]},
+                118000,
+                False,
+            ),
+            (
+                "7_non_inr_currency",
+                {"paymentDetails": [{"amount": 118000, "currency": "USD", "state": "COMPLETED"}], "currency": "USD"},
+                118000,
+                False,
+            ),
+            (
+                "8_incomplete_payment_details",
+                {"amount": 118000, "currency": "INR"},  # missing paymentDetails list
+                118000,
+                False,
+            ),
+        ]
+
+        for case_name, raw_resp, amount_paise, should_activate in test_cases:
+            with self.subTest(case=case_name):
+                # Reset subscription state
+                self.v2_sub.status = SaaSSubscriptionStatus.PENDING
+                self.v2_sub.provider_order_id = f"ORDER_TEST_{case_name}"
+                db.session.commit()
+
+                mock_v2_provider = MagicMock()
+                mock_v2_provider.name = "phonepe_v2"
+                mock_v2_provider.verify_payment.return_value = VerificationResult(
+                    success=True,
+                    status="SUCCESS",
+                    merchant_subscription_id=self.v2_mandate.merchant_subscription_id,
+                    provider_subscription_id="PP_SUB_V2_999",
+                    mandate_reference="MN_V2_ABC123",
+                )
+                mock_v2_provider.check_transaction_status.return_value = VerificationResult(
+                    success=True,
+                    status="COMPLETED",
+                    merchant_subscription_id=f"ORDER_TEST_{case_name}",
+                    provider_transaction_id="TX_GATEWAY_123",
+                    provider_payment_id="PAY_GATEWAY_123",
+                    amount_paise=amount_paise,
+                    raw_response=raw_resp,
+                )
+
+                with patch("services.billing.billing_service.BillingService.get_provider") as mock_gp, \
+                     patch("services.billing.subscription_service.SubscriptionService.activate_subscription", wraps=SubscriptionService.activate_subscription) as mock_act:
+                    mock_gp.return_value = mock_v2_provider
+
+                    response = self.client.get(
+                        f"/saas/phonepe-callback?merchantSubscriptionId={self.v2_mandate.merchant_subscription_id}&merchantOrderId=ORDER_TEST_{case_name}"
+                    )
+
+                    db.session.refresh(self.v2_sub)
+                    if should_activate:
+                        self.assertEqual(response.status_code, 302)
+                        self.assertIn("/", response.location)  # redirects to home_page
+                        self.assertEqual(self.v2_sub.status, SaaSSubscriptionStatus.ACTIVE)
+                        mock_act.assert_called_once()
+                    else:
+                        self.assertEqual(response.status_code, 302)
+                        self.assertIn("/saas/checkout", response.location)  # redirects to checkout
+                        self.assertEqual(self.v2_sub.status, SaaSSubscriptionStatus.PENDING)
+                        mock_act.assert_not_called()
+
+    def test_webhook_setup_amount_and_currency_scenarios(self):
+        """
+        Phase 5.4.2.1 Requirement 1: Authoritative S2S setup payment amount & currency validation in _handle_v2_webhook.
+        Tests all 8 scenarios:
+          1. Exact amount and INR: activation allowed (HTTP 200).
+          2-8. Invalid amount / currency / paymentDetails: activation blocked (HTTP 422 UNRESOLVED).
+        """
+        correct_sha = hashlib.sha256(b"webhook_test_user:webhook_test_pass").hexdigest()
+        headers = {
+            "Authorization": f"Basic {correct_sha}",
+            "Content-Type": "application/json",
+        }
+
+        test_cases = [
+            (
+                "1_exact_amount_and_inr",
+                {"paymentDetails": [{"amount": 118000, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                118000,
+                True,
+            ),
+            (
+                "2_underpayment",
+                {"paymentDetails": [{"amount": 100000, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                100000,
+                False,
+            ),
+            (
+                "3_overpayment",
+                {"paymentDetails": [{"amount": 150000, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                150000,
+                False,
+            ),
+            (
+                "4_missing_amount",
+                {"paymentDetails": [{"currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                None,
+                False,
+            ),
+            (
+                "5_zero_amount",
+                {"paymentDetails": [{"amount": 0, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                0,
+                False,
+            ),
+            (
+                "6_missing_currency",
+                {"paymentDetails": [{"amount": 118000, "state": "COMPLETED"}]},
+                118000,
+                False,
+            ),
+            (
+                "7_non_inr_currency",
+                {"paymentDetails": [{"amount": 118000, "currency": "EUR", "state": "COMPLETED"}], "currency": "EUR"},
+                118000,
+                False,
+            ),
+            (
+                "8_incomplete_payment_details",
+                {"amount": 118000, "currency": "INR"},  # missing paymentDetails
+                118000,
+                False,
+            ),
+        ]
+
+        for case_name, raw_resp, amount_paise, should_activate in test_cases:
+            with self.subTest(case=case_name):
+                # Reset subscription state
+                self.v2_sub.status = SaaSSubscriptionStatus.PENDING
+                self.v2_sub.provider_order_id = f"ORDER_WH_{case_name}"
+                self.v2_mandate.mandate_status = "ACTIVE"
+                db.session.commit()
+
+                event_id = f"EVT_WH_SETUP_{case_name}"
+                payload = json.dumps({
+                    "merchantSubscriptionId": self.v2_mandate.merchant_subscription_id,
+                    "eventId": event_id,
+                    "event": "SUBSCRIPTION_ACTIVE",
+                })
+
+                mock_v2_provider = MagicMock()
+                mock_v2_provider.name = "phonepe_v2"
+                mock_v2_provider.verify_webhook.return_value = WebhookResult(
+                    is_valid=True,
+                    event_id=event_id,
+                    event_type="SUBSCRIPTION_ACTIVE",
+                    merchant_subscription_id=self.v2_mandate.merchant_subscription_id,
+                    provider_payment_id=f"ORDER_WH_{case_name}",
+                    state="ACTIVE",
+                )
+                mock_v2_provider.check_transaction_status.return_value = VerificationResult(
+                    success=True,
+                    status="COMPLETED",
+                    merchant_subscription_id=f"ORDER_WH_{case_name}",
+                    provider_transaction_id="TX_WH_123",
+                    provider_payment_id="PAY_WH_123",
+                    amount_paise=amount_paise,
+                    raw_response=raw_resp,
+                )
+
+                with patch("services.billing.billing_service.BillingService.get_provider") as mock_gp, \
+                     patch("services.billing.subscription_service.SubscriptionService.activate_subscription", wraps=SubscriptionService.activate_subscription) as mock_act:
+                    mock_gp.return_value = mock_v2_provider
+
+                    response = self.client.post("/saas/phonepe-webhook", data=payload, headers=headers)
+
+                    db.session.refresh(self.v2_sub)
+                    if should_activate:
+                        self.assertEqual(response.status_code, 200)
+                        self.assertEqual(response.get_json().get("status"), "success")
+                        self.assertEqual(self.v2_sub.status, SaaSSubscriptionStatus.ACTIVE)
+                        mock_act.assert_called_once()
+                    else:
+                        self.assertEqual(response.status_code, 422)
+                        self.assertEqual(response.get_json().get("status"), "UNRESOLVED")
+                        self.assertTrue(response.get_json().get("retryable"))
+                        self.assertEqual(self.v2_sub.status, SaaSSubscriptionStatus.PENDING)
+                        mock_act.assert_not_called()
+
+    def test_webhook_durable_event_persistence_failure_returns_500_and_does_not_acknowledge(self):
+        """
+        Phase 5.4.2.1 Requirement 2: Durable Webhook Event Persistence.
+        Simulates database commit failure during webhook event logging.
+        Asserts that:
+          1. Endpoint returns HTTP 500.
+          2. Event is NEVER acknowledged as successfully processed (status != 200).
+          3. Idempotency record is not marked PROCESSED.
+        """
+        correct_sha = hashlib.sha256(b"webhook_test_user:webhook_test_pass").hexdigest()
+        headers = {
+            "Authorization": f"Basic {correct_sha}",
+            "Content-Type": "application/json",
+        }
+        event_id = "EVT_PERSISTENCE_FAILURE_TEST_001"
+        payload = json.dumps({
+            "merchantOrderId": self.v2_pdn.merchant_order_id,
+            "event": "REDEMPTION_COMPLETED",
+            "eventId": event_id,
+        })
+
+        # Mock database commit to fail specifically during _record_v2_webhook_event
+        original_commit = db.session.commit
+
+        def failing_commit():
+            raise Exception("Simulated DB connection drop / disk failure during commit")
+
+        with patch("routes.saas.db.session.commit", side_effect=failing_commit):
+            response = self.client.post("/saas/phonepe-webhook", data=payload, headers=headers)
+
+            # Endpoint MUST return HTTP 500 when event persistence fails
+            self.assertEqual(response.status_code, 500)
+            data = response.get_json()
+            self.assertEqual(data.get("status"), "ERROR")
+            self.assertIn("Failed to durably persist", data.get("error"))
+
+        # Verify in fresh query that no PROCESSED event was committed
+        evt = SaaSWebhookEvent.query.filter_by(event_id=event_id).first()
+        self.assertIsNone(evt)
 
 
 if __name__ == "__main__":

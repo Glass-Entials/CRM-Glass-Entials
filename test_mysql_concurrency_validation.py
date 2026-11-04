@@ -429,6 +429,198 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         self.assertEqual(res2.merchant_order_id, order_id)
         self.assertEqual(res2.owner_token, "worker_2_recovered")
 
+    # ── Scenario 5B: Simultaneous Expired-Lease Acquisition by Two Threads ────
+
+    def test_scenario_5b_simultaneous_expired_lease_atomic_acquisition_two_threads(self):
+        """
+        Phase 5.4.2.1 Requirement 3: Two synchronized threads on independent MySQL InnoDB sessions
+        simultaneously attempt to acquire an expired execution lease for the SAME order ID.
+        Atomic conditional UPDATE guarantees that:
+          1. Exactly ONE worker acquires the expired lease.
+          2. The losing worker is blocked from acquiring ownership.
+          3. Two workers never both believe they acquired the expired reservation.
+        """
+        bpk = f"{self.sub_id}_2026-11"
+        order_id = "ORD_SIMULTANEOUS_EXPIRED_LEASE"
+
+        # Pre-seed reservation with an EXPIRED lease (pre-dispatch crash)
+        expired_res = SaaSBillingPeriodReservation(
+            organization_id=self.org_id,
+            subscription_id=self.sub_id,
+            billing_period_key=bpk,
+            merchant_order_id=order_id,
+            status=BillingPeriodReservationStatus.RESERVED.value,
+            owner_token="crashed_worker_initial",
+            owner_expires_at=datetime.utcnow() - timedelta(seconds=30),
+            redemption_initiated_at=None,
+        )
+        db.session.add(expired_res)
+        db.session.commit()
+
+        barrier = threading.Barrier(2)
+        results = {}
+
+        def worker(worker_id: str, owner_token: str):
+            session = self.SessionFactory()
+            try:
+                barrier.wait(timeout=5)
+                ok, err, res = self.provider._reserve_billing_period(
+                    subscription_id=self.sub_id,
+                    organization_id=self.org_id,
+                    billing_period_key=bpk,
+                    merchant_order_id=order_id,
+                    session=session,
+                    owner_token=owner_token,
+                )
+                results[worker_id] = (ok, err, res)
+            finally:
+                session.close()
+
+        t1 = threading.Thread(target=worker, args=("worker_1", "worker_1_lease_token"))
+        t2 = threading.Thread(target=worker, args=("worker_2", "worker_2_lease_token"))
+
+        t1.start()
+        t2.start()
+        t1.join(timeout=10)
+        t2.join(timeout=10)
+
+        w1_ok, w1_err, _ = results["worker_1"]
+        w2_ok, w2_err, _ = results["worker_2"]
+
+        # Exactly ONE worker acquired the expired lease; the other worker was rejected
+        self.assertTrue(
+            (w1_ok and not w2_ok) or (w2_ok and not w1_ok),
+            f"Both workers cannot succeed or fail simultaneously: w1={w1_ok}, w2={w2_ok}",
+        )
+
+        losing_err = w2_err if w1_ok else w1_err
+        self.assertIn("Concurrent execution blocked", losing_err)
+
+        # Directly verify database state in MySQL InnoDB
+        verify_session = self.SessionFactory()
+        try:
+            persisted = verify_session.query(SaaSBillingPeriodReservation).filter_by(
+                organization_id=self.org_id,
+                subscription_id=self.sub_id,
+                billing_period_key=bpk,
+            ).first()
+            self.assertIsNotNone(persisted)
+            winning_token = "worker_1_lease_token" if w1_ok else "worker_2_lease_token"
+            self.assertEqual(persisted.owner_token, winning_token)
+            self.assertGreater(persisted.owner_expires_at, datetime.utcnow())
+        finally:
+            verify_session.close()
+
+    def test_scenario_5c_simultaneous_expired_lease_redemption_exactly_one_redeem_call(self):
+        """
+        Phase 5.4.2.1 Requirement 3: Two synchronized worker threads simultaneously attempt
+        execute_redemption() on an expired lease.
+        Asserts:
+          1. Exactly ONE execution owner is established.
+          2. The losing worker cannot proceed to PhonePe redeem.
+          3. PhonePe redeem() is invoked EXACTLY ONCE.
+        """
+        bpk = f"{self.sub_id}_2026-11"
+        order_id = "ORD_SIMULTANEOUS_EXPIRED_REDEEM"
+
+        # Set up active mandate and NOTIFIED notification
+        mandate = SaaSMandate(
+            id=556,
+            organization_id=self.org_id,
+            subscription_id=self.sub_id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id=f"MSUB_MYSQL_EXP_{self.sub_id}",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        db.session.add(mandate)
+
+        sub = db.session.get(SaaSSubscription, self.sub_id)
+        sub.active_mandate_id = mandate.id
+
+        notification = SaaSPreDebitNotification(
+            id=778,
+            organization_id=self.org_id,
+            subscription_id=self.sub_id,
+            mandate_id=mandate.id,
+            merchant_order_id=order_id,
+            amount_paise=118000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
+            valid_upto_at=datetime.utcnow() + timedelta(days=1),
+            billing_period_key=bpk,
+        )
+        db.session.add(notification)
+
+        # Pre-seed reservation with an EXPIRED lease
+        expired_res = SaaSBillingPeriodReservation(
+            organization_id=self.org_id,
+            subscription_id=self.sub_id,
+            billing_period_key=bpk,
+            merchant_order_id=order_id,
+            status=BillingPeriodReservationStatus.RESERVED.value,
+            owner_token="old_crashed_worker",
+            owner_expires_at=datetime.utcnow() - timedelta(seconds=45),
+            redemption_initiated_at=None,
+        )
+        db.session.add(expired_res)
+        db.session.commit()
+
+        mock_client = MagicMock()
+        mock_client.redeem.return_value = {
+            "state": "COMPLETED",
+            "paymentDetails": [{"state": "COMPLETED", "transactionId": "TXN_EXP_REDEEM_WINNER"}],
+        }
+
+        barrier = threading.Barrier(2)
+        results = {}
+
+        def run_worker(worker_id: str):
+            with self.app.app_context():
+                try:
+                    barrier.wait(timeout=5)
+                    worker_sub = db.session.get(SaaSSubscription, self.sub_id)
+                    res = self.provider.execute_redemption(
+                        subscription=worker_sub,
+                        amount_paise=118000,
+                        merchant_transaction_id=order_id,
+                    )
+                    results[worker_id] = res
+                except Exception as exc:
+                    results[worker_id] = exc
+
+        with patch.object(self.provider, "_get_client", return_value=mock_client):
+            t1 = threading.Thread(target=run_worker, args=("worker_1",))
+            t2 = threading.Thread(target=run_worker, args=("worker_2",))
+
+            t1.start()
+            t2.start()
+            t1.join(timeout=10)
+            t2.join(timeout=10)
+
+        # Assert PhonePe redeem was called EXACTLY ONCE across both threads
+        self.assertEqual(mock_client.redeem.call_count, 1)
+
+        r1 = results.get("worker_1")
+        r2 = results.get("worker_2")
+
+        # One worker succeeded and one was prevented
+        r1_success = getattr(r1, "success", False) or getattr(r1, "status", None) == "SUCCESS"
+        r2_success = getattr(r2, "success", False) or getattr(r2, "status", None) == "SUCCESS"
+        self.assertTrue(
+            (r1_success and not r2_success) or (r2_success and not r1_success),
+            f"Expected exactly one success: r1={r1}, r2={r2}",
+        )
+
+        losing_res = r2 if r1_success else r1
+        self.assertFalse(losing_res.success)
+        self.assertTrue(
+            "Redemption execution for order" in losing_res.error_message
+            or "Subscription is currently claimed" in losing_res.error_message
+        )
+
     # ── Scenario 6: Lease Expiry While Gateway Request Remains Ambiguous ───────
 
     def test_scenario_6_lease_expiry_while_gateway_request_remains_ambiguous(self):

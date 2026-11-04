@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any, Dict, Optional, Tuple
 import hmac
 import json
 import logging
@@ -319,33 +320,18 @@ def phonepe_callback():
         # Authoritatively verify payment state with PhonePe S2S status check before activation
         # Do not use gateway transaction ID as merchant order ID!
         tx_res = provider.check_transaction_status(setup_order_id, organization_id=resolved_org_id)
-        if not tx_res.success or tx_res.status != "COMPLETED":
-            logger.error(
-                "phonepe_callback: Authoritative S2S check failed for setup order %s (status=%s, err=%s)",
-                setup_order_id, tx_res.status, tx_res.error_message,
-            )
-            flash(f"Payment verification pending or failed at gateway: {tx_res.error_message or tx_res.status}", "error")
-            return redirect(url_for("saas.checkout"))
 
-        # Validate amount and INR currency
+        # Validate amount and INR currency strictly using authoritative S2S evidence
         expected_base = sub.plan.yearly_price_paise if (sub.billing_cycle and sub.billing_cycle.value == "yearly") else (sub.plan.monthly_price_paise if sub.plan else sub.amount_paise)
         expected_total = expected_base + int(round(expected_base * 0.18))
 
-        if tx_res.amount_paise and tx_res.amount_paise != expected_total:
+        is_valid_evidence, evidence_err, validated_amount = _validate_setup_payment_evidence(tx_res, expected_total)
+        if not is_valid_evidence:
             logger.error(
-                "phonepe_callback: Amount mismatch for sub=%s: received %s paise, expected %s paise",
-                sub.id, tx_res.amount_paise, expected_total,
+                "phonepe_callback: Authoritative payment evidence validation failed for sub=%s, order=%s: %s",
+                sub.id, setup_order_id, evidence_err,
             )
-            flash("Payment amount does not match plan price. Subscription activation blocked.", "error")
-            return redirect(url_for("saas.checkout"))
-
-        raw_resp = tx_res.raw_response or {}
-        pay_details = raw_resp.get("paymentDetails") or []
-        first_pay = pay_details[0] if (isinstance(pay_details, list) and len(pay_details) > 0 and isinstance(pay_details[0], dict)) else {}
-        currency = (first_pay.get("currency") or raw_resp.get("currency") or "INR").upper()
-        if currency != "INR":
-            logger.error("phonepe_callback: Currency mismatch for sub=%s: received %s, expected INR", sub.id, currency)
-            flash("Invalid payment currency. Only INR is supported.", "error")
+            flash(f"Payment verification failed: {evidence_err}. Subscription activation blocked; logged for manual reconciliation.", "error")
             return redirect(url_for("saas.checkout"))
 
         # All checks passed authoritatively
@@ -354,7 +340,7 @@ def phonepe_callback():
             provider_subscription_id=v2_mandate.provider_subscription_id or verify_res.provider_subscription_id,
             provider_transaction_id=tx_res.provider_transaction_id or verify_res.provider_transaction_id,
             provider_payment_id=tx_res.provider_payment_id or verify_res.provider_payment_id,
-            amount_paise=tx_res.amount_paise or expected_total,
+            amount_paise=validated_amount,
             mandate_reference=v2_mandate.mandate_reference or verify_res.mandate_reference,
         )
         flash("UPI AutoPay subscription activated successfully! Welcome to GlassEntials CRM.", "success")
@@ -418,6 +404,89 @@ def verify_payment():
         return jsonify({"error": verify_res.error_message or "Payment verification failed"}), 400
 
 
+class WebhookPersistenceError(Exception):
+    """Raised when durable webhook event logging fails to persist to database."""
+    pass
+
+
+def _validate_setup_payment_evidence(
+    tx_res: Any,
+    expected_total_paise: int,
+) -> Tuple[bool, Optional[str], Optional[int]]:
+    """
+    Strict authoritative S2S validation for setup payment responses.
+    Requires:
+      1. S2S completed payment state (tx_res.success is True and tx_res.status == 'COMPLETED').
+      2. Incomplete paymentDetails check: paymentDetails must be a non-empty list of dicts.
+      3. Explicit INR currency: must be present in paymentDetails or root, and strictly equal 'INR'.
+         Never assumes or defaults to INR when missing.
+      4. Exact expected amount in paise (including applicable GST):
+         Never skips validation if amount is None or 0.
+         Never substitutes expected amount when gateway amount is missing.
+         Blocks underpayment and overpayment.
+    Returns:
+      (is_valid: bool, error_message: Optional[str], validated_amount_paise: Optional[int])
+    """
+    if not tx_res or not getattr(tx_res, "success", False) or getattr(tx_res, "status", None) != "COMPLETED":
+        status_desc = getattr(tx_res, "status", "NO_RESPONSE")
+        err = getattr(tx_res, "error_message", None) or "Payment state is not COMPLETED"
+        return False, f"Payment state is not COMPLETED (status={status_desc}, err={err})", None
+
+    raw_resp = getattr(tx_res, "raw_response", None) or {}
+
+    # 1. Incomplete paymentDetails check
+    pay_details = raw_resp.get("paymentDetails")
+    if not isinstance(pay_details, list) or len(pay_details) == 0:
+        return False, "Incomplete or missing paymentDetails in gateway response", None
+
+    first_pay = pay_details[0]
+    if not isinstance(first_pay, dict):
+        return False, "Incomplete paymentDetails: item is not a valid object", None
+
+    # Check state inside paymentDetails if present
+    pay_state = (first_pay.get("state") or "").upper()
+    if pay_state and pay_state != "COMPLETED":
+        return False, f"paymentDetails state is not COMPLETED ({pay_state})", None
+
+    # 2. Explicit INR currency check - never assume or default to INR
+    raw_currency = first_pay.get("currency") or raw_resp.get("currency")
+    if not raw_currency or not isinstance(raw_currency, str) or not raw_currency.strip():
+        return False, "Missing currency in gateway payment evidence", None
+
+    currency = raw_currency.strip().upper()
+    if currency != "INR":
+        return False, f"Non-INR currency in gateway payment evidence: {currency}", None
+
+    # 3. Exact expected amount in paise check
+    gateway_amount = first_pay.get("amount")
+    if gateway_amount is None:
+        gateway_amount = raw_resp.get("amount")
+    if gateway_amount is None and getattr(tx_res, "amount_paise", None) is not None:
+        gateway_amount = tx_res.amount_paise
+
+    if gateway_amount is None:
+        return False, "Missing amount in gateway payment evidence", None
+
+    try:
+        gateway_amount_int = int(gateway_amount)
+    except (ValueError, TypeError):
+        return False, f"Invalid amount value in gateway payment evidence: {gateway_amount}", None
+
+    if gateway_amount_int == 0:
+        return False, "Zero amount in gateway payment evidence", None
+
+    if gateway_amount_int < 0:
+        return False, f"Negative amount in gateway payment evidence: {gateway_amount_int}", None
+
+    if gateway_amount_int < expected_total_paise:
+        return False, f"Underpayment: received {gateway_amount_int} paise, expected {expected_total_paise} paise", None
+
+    if gateway_amount_int > expected_total_paise:
+        return False, f"Overpayment: received {gateway_amount_int} paise, expected {expected_total_paise} paise", None
+
+    return True, None, gateway_amount_int
+
+
 def _record_v2_webhook_event(event_id: str, event_type: str, processing_state: str, details: dict):
     """
     Durably records or updates a PhonePe V2 webhook event idempotency log with explicit processing_state.
@@ -425,6 +494,7 @@ def _record_v2_webhook_event(event_id: str, event_type: str, processing_state: s
       - PROCESSED: S2S reconciliation completed successfully.
       - UNRESOLVED: Relational mismatch or uncertain gateway outcome requiring retry/reconciliation.
       - FAILED: Authoritatively failed.
+    Raises WebhookPersistenceError on failure so caller never returns HTTP 200 with unpersisted events.
     """
     summary = dict(details)
     summary["processing_state"] = processing_state
@@ -445,9 +515,11 @@ def _record_v2_webhook_event(event_id: str, event_type: str, processing_state: s
             )
             db.session.add(existing)
         db.session.commit()
+        return True
     except Exception as exc:
         db.session.rollback()
-        logger.error("Failed to persist SaaSWebhookEvent %s: %s", event_id, exc)
+        logger.error("Failed to durably persist SaaSWebhookEvent %s: %s", event_id, exc)
+        raise WebhookPersistenceError(f"Failed to durably persist SaaSWebhookEvent {event_id}: {exc}") from exc
 
 
 def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, body_json: dict):
@@ -495,20 +567,26 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
     org_id = v2_mandate.organization_id if v2_mandate else (v2_pdn.organization_id if v2_pdn else None)
     if not org_id:
         logger.error("V2 webhook rejected: cannot resolve trusted tenant for event %s", event_id)
-        _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
-            "error": "Unresolved tenant context",
-            "event_id": event_id,
-        })
+        try:
+            _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
+                "error": "Unresolved tenant context",
+                "event_id": event_id,
+            })
+        except WebhookPersistenceError:
+            return jsonify({"error": "Failed to durably persist webhook event", "status": "ERROR", "retryable": True}), 500
         return jsonify({"error": "Unresolved tenant context", "status": "UNRESOLVED", "retryable": True}), 422
 
     # Check for relational tenant mismatch between mandate and pdn if both present
     if v2_mandate and v2_pdn and v2_mandate.organization_id != v2_pdn.organization_id:
         logger.error("V2 webhook rejected: tenant conflict between mandate (%s) and pdn (%s)",
                      v2_mandate.organization_id, v2_pdn.organization_id)
-        _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
-            "error": "Tenant conflict between mandate and notification",
-            "event_id": event_id,
-        })
+        try:
+            _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
+                "error": "Tenant conflict between mandate and notification",
+                "event_id": event_id,
+            })
+        except WebhookPersistenceError:
+            return jsonify({"error": "Failed to durably persist webhook event", "status": "ERROR", "retryable": True}), 500
         return jsonify({"error": "Conflicting tenant references across records", "status": "UNRESOLVED", "retryable": False}), 422
 
     # 4. Webhooks are UNTRUSTED TRANSPORT HINTS: Perform Authoritative PhonePe S2S Verification
@@ -546,11 +624,14 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
                             attempt.organization_id, attempt.subscription_id, v2_pdn.organization_id, v2_pdn.subscription_id,
                             v2_mandate.id if v2_mandate else None,
                         )
-                        _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
-                            "error": "Relational mismatch between attempt, notification, and mandate",
-                            "org_id": org_id,
-                            "merchant_order_id": v2_pdn.merchant_order_id,
-                        })
+                        try:
+                            _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
+                                "error": "Relational mismatch between attempt, notification, and mandate",
+                                "org_id": org_id,
+                                "merchant_order_id": v2_pdn.merchant_order_id,
+                            })
+                        except WebhookPersistenceError:
+                            return jsonify({"error": "Failed to durably persist webhook event", "status": "ERROR", "retryable": True}), 500
                         return jsonify({
                             "error": "Relational mismatch detected across financial records",
                             "status": "UNRESOLVED",
@@ -601,10 +682,13 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
                         or (v2_mandate and v2_pdn.mandate_id != v2_mandate.id)
                     ):
                         logger.error("V2 explicit debit webhook: relational mismatch")
-                        _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
-                            "error": "Relational mismatch",
-                            "org_id": org_id,
-                        })
+                        try:
+                            _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
+                                "error": "Relational mismatch",
+                                "org_id": org_id,
+                            })
+                        except WebhookPersistenceError:
+                            return jsonify({"error": "Failed to durably persist webhook event", "status": "ERROR", "retryable": True}), 500
                         return jsonify({
                             "error": "Relational mismatch detected across financial records",
                             "status": "UNRESOLVED",
@@ -654,42 +738,25 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
                 expected_base = sub.plan.yearly_price_paise if (sub.billing_cycle and sub.billing_cycle.value == "yearly") else (sub.plan.monthly_price_paise if sub.plan else sub.amount_paise)
                 expected_total = expected_base + int(round(expected_base * 0.18))
 
-                if tx_res.success and tx_res.status == "COMPLETED":
-                    raw_r = tx_res.raw_response or {}
-                    pay_d = raw_r.get("paymentDetails") or []
-                    f_pay = pay_d[0] if (isinstance(pay_d, list) and len(pay_d) > 0 and isinstance(pay_d[0], dict)) else {}
-                    cur = (f_pay.get("currency") or raw_r.get("currency") or "INR").upper()
-
-                    if cur != "INR":
-                        reconciliation_state = "UNRESOLVED"
-                        unresolved_reason = f"Currency mismatch: {cur}"
-                    elif tx_res.amount_paise and tx_res.amount_paise != expected_total:
-                        logger.error(
-                            "Setup order reconciliation underpayment: received %s paise, expected %s paise for sub=%s",
-                            tx_res.amount_paise, expected_total, sub.id,
-                        )
-                        reconciliation_state = "UNRESOLVED"
-                        unresolved_reason = f"Amount mismatch: received {tx_res.amount_paise}, expected {expected_total}"
-                    else:
-                        SubscriptionService.activate_subscription(
-                            subscription=sub,
-                            provider_subscription_id=v2_mandate.provider_subscription_id,
-                            provider_transaction_id=tx_res.provider_transaction_id,
-                            provider_payment_id=tx_res.provider_payment_id,
-                            amount_paise=tx_res.amount_paise or sub.amount_paise,
-                            mandate_reference=v2_mandate.mandate_reference,
-                        )
-                        sub.last_webhook_event_id = event_id
-                        try:
-                            db.session.commit()
-                        except Exception:
-                            db.session.rollback()
-                elif tx_res.status == "FAILED":
-                    reconciliation_state = "FAILED"
-                    unresolved_reason = tx_res.error_message
-                else:
+                is_valid_evidence, evidence_err, validated_amount = _validate_setup_payment_evidence(tx_res, expected_total)
+                if not is_valid_evidence:
+                    logger.error(
+                        "Setup order reconciliation payment evidence invalid for sub=%s, order=%s: %s",
+                        sub.id, setup_order_id, evidence_err,
+                    )
                     reconciliation_state = "UNRESOLVED"
-                    unresolved_reason = f"Setup transaction in {tx_res.status} state"
+                    unresolved_reason = f"Setup payment evidence invalid: {evidence_err}"
+                else:
+                    SubscriptionService.activate_subscription(
+                        subscription=sub,
+                        provider_subscription_id=v2_mandate.provider_subscription_id,
+                        provider_transaction_id=tx_res.provider_transaction_id,
+                        provider_payment_id=tx_res.provider_payment_id,
+                        amount_paise=validated_amount,
+                        mandate_reference=v2_mandate.mandate_reference,
+                    )
+                    sub.last_webhook_event_id = event_id
+                    reconciliation_state = "PROCESSED"
             else:
                 logger.warning(
                     "Setup order reconciliation skipped: no authentic merchant_order_id found in internal records for sub=%s",
@@ -699,18 +766,27 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
                 unresolved_reason = "No authentic internal setup merchant order ID found"
 
         # 5. Persist Webhook Event record for durable idempotency
-        _record_v2_webhook_event(
-            event_id=event_id,
-            event_type=event_type,
-            processing_state=reconciliation_state,
-            details={
-                "merchant_subscription_id": v2_mandate.merchant_subscription_id if v2_mandate else None,
-                "merchant_order_id": v2_pdn.merchant_order_id if v2_pdn else None,
-                "org_id": org_id,
-                "state": webhook_res.state,
-                "reason": unresolved_reason,
-            }
-        )
+        try:
+            _record_v2_webhook_event(
+                event_id=event_id,
+                event_type=event_type,
+                processing_state=reconciliation_state,
+                details={
+                    "merchant_subscription_id": v2_mandate.merchant_subscription_id if v2_mandate else None,
+                    "merchant_order_id": v2_pdn.merchant_order_id if v2_pdn else None,
+                    "org_id": org_id,
+                    "state": webhook_res.state,
+                    "reason": unresolved_reason,
+                }
+            )
+        except WebhookPersistenceError as pers_err:
+            logger.error("V2 webhook %s durable event persistence failed: %s", event_id, pers_err)
+            return jsonify({
+                "error": "Failed to durably persist webhook event",
+                "status": "ERROR",
+                "retryable": True,
+                "event_id": event_id,
+            }), 500
 
         if reconciliation_state == "UNRESOLVED":
             logger.warning("V2 webhook event %s reconciliation unresolved: %s", event_id, unresolved_reason)
@@ -732,15 +808,22 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
         logger.info("Successfully processed and recorded V2 webhook event %s (%s)", event_id, event_type)
         return jsonify({"status": "success", "event_id": event_id, "reconciled": True}), 200
 
+    except WebhookPersistenceError as pers_err:
+        db.session.rollback()
+        logger.error("Durable webhook event persistence failure for V2 webhook %s: %s", event_id, str(pers_err))
+        return jsonify({"error": "Failed to durably persist webhook event", "status": "ERROR", "retryable": True}), 500
     except Exception as e:
         db.session.rollback()
         logger.error("Error during authoritative S2S reconciliation for V2 webhook %s: %s", event_id, str(e), exc_info=True)
-        _record_v2_webhook_event(
-            event_id=event_id,
-            event_type=event_type,
-            processing_state="UNRESOLVED",
-            details={"error": str(e), "org_id": org_id}
-        )
+        try:
+            _record_v2_webhook_event(
+                event_id=event_id,
+                event_type=event_type,
+                processing_state="UNRESOLVED",
+                details={"error": str(e), "org_id": org_id}
+            )
+        except Exception:
+            pass
         return jsonify({"error": f"Reconciliation failed: {str(e)}", "status": "UNRESOLVED", "retryable": True}), 500
 
 
