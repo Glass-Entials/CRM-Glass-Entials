@@ -460,17 +460,21 @@ def _validate_setup_payment_evidence(
     expected_total_paise: int,
 ) -> Tuple[bool, Optional[str], Optional[int]]:
     """
-    Strict authoritative S2S validation for setup payment responses.
-    Requirements:
+    Strict authoritative S2S validation for setup payment responses aligned with
+    PhonePe's published AutoPay and Standard Checkout response contracts:
       1. S2S completed payment state (tx_res.success is True and tx_res.status == 'COMPLETED').
-      2. Validates EVERY paymentDetails entry:
-         - Reject any malformed/non-dictionary entry.
-         - Reject incomplete payment details (missing state, currency, or amount in any entry).
-         - Require authoritative completed payment evidence for all entries (state == 'COMPLETED').
-         - Validate currency consistently across all payment entries (strictly 'INR').
-         - Reject fractional, non-finite, negative, zero, missing, or invalid amounts without silent truncation.
-      3. Aggregates the amounts across all valid entries and strictly validates the total against expected_total_paise.
-      4. Validates root currency and root amount if present, ensuring consistency.
+      2. Validates root order amount and currency against expected setup amount and explicit INR:
+         - Missing, zero, fractional, or non-INR root currency/amount prevents activation.
+         - Underpayment and overpayment are strictly rejected.
+      3. Validates transaction-level evidence (paymentDetails):
+         - Must be a non-empty list of dictionary attempt entries with non-empty 'state'.
+         - Does NOT assume multiple top-level paymentDetails entries are additive slices.
+         - Does NOT require historical payment attempts (e.g. FAILED retries) to be COMPLETED.
+         - Exactly ONE completed payment detail must represent the successful collection.
+         - The completed attempt amount and currency must match root order amount and INR.
+         - Multiple completed top-level payment details cannot be interpreted unambiguously
+           without documented merchant-specific confirmation; returns UNRESOLVED / manual reconciliation
+           and NEVER activates the subscription.
     Returns:
       (is_valid: bool, error_message: Optional[str], validated_amount_paise: Optional[int])
     """
@@ -481,67 +485,95 @@ def _validate_setup_payment_evidence(
 
     raw_resp = getattr(tx_res, "raw_response", None) or {}
 
-    # Incomplete paymentDetails check
+    # 1. Validate root order amount
+    raw_root_amt = raw_resp.get("amount")
+    if raw_root_amt is None:
+        raw_root_amt = getattr(tx_res, "amount_paise", None)
+
+    if raw_root_amt is None:
+        return False, "Missing root order amount in gateway response", None
+
+    is_root_amt_valid, root_amt_err, root_amt_int = _parse_and_validate_amount(raw_root_amt)
+    if not is_root_amt_valid:
+        return False, f"Invalid root order amount in gateway response: {root_amt_err}", None
+
+    # If both raw_resp['amount'] and tx_res.amount_paise are present, verify consistency
+    if getattr(tx_res, "amount_paise", None) is not None and raw_resp.get("amount") is not None:
+        is_tx_amt_valid, _, tx_amt_int = _parse_and_validate_amount(getattr(tx_res, "amount_paise", None))
+        if is_tx_amt_valid and tx_amt_int != root_amt_int:
+            return False, f"Root response amount ({root_amt_int}) does not match verification result amount ({tx_amt_int})", None
+
+    # Validate root amount against expected setup total (including GST)
+    if root_amt_int < expected_total_paise:
+        return False, f"Underpayment: received {root_amt_int} paise, expected {expected_total_paise} paise", None
+
+    if root_amt_int > expected_total_paise:
+        return False, f"Overpayment: received {root_amt_int} paise, expected {expected_total_paise} paise", None
+
+    # 2. Validate currency (root and transaction level)
+    root_cur = raw_resp.get("currency")
+    if root_cur is not None:
+        if not isinstance(root_cur, str) or root_cur.strip().upper() != "INR":
+            return False, f"Non-INR root currency in gateway response: {root_cur}", None
+        has_explicit_inr = True
+    else:
+        has_explicit_inr = False
+
+    # 3. Validate transaction-level paymentDetails
     pay_details = raw_resp.get("paymentDetails")
     if not isinstance(pay_details, list) or len(pay_details) == 0:
         return False, "Incomplete or missing paymentDetails in gateway response", None
 
-    total_amount_from_entries = 0
+    completed_details = []
 
     for idx, pay_entry in enumerate(pay_details):
-        # 1. Reject any malformed/non-dictionary entry
         if not isinstance(pay_entry, dict):
             return False, f"Malformed paymentDetails entry at index {idx}: not a dictionary", None
 
-        # 2. Require authoritative completed payment evidence for all payment entries
         raw_state = pay_entry.get("state")
         if not raw_state or not isinstance(raw_state, str) or not raw_state.strip():
             return False, f"Missing state in paymentDetails entry at index {idx}", None
 
         entry_state = raw_state.strip().upper()
-        if entry_state != "COMPLETED":
-            return False, f"PaymentDetails entry at index {idx} state is not COMPLETED ({entry_state})", None
 
-        # 3. Validate currency consistently across all payment entries: explicit INR
         raw_cur = pay_entry.get("currency")
-        if not raw_cur or not isinstance(raw_cur, str) or not raw_cur.strip():
-            return False, f"Missing currency in paymentDetails entry at index {idx}", None
+        if raw_cur is not None:
+            if not isinstance(raw_cur, str) or raw_cur.strip().upper() != "INR":
+                return False, f"Non-INR currency in paymentDetails entry at index {idx}: {raw_cur}", None
+            has_explicit_inr = True
 
-        entry_cur = raw_cur.strip().upper()
-        if entry_cur != "INR":
-            return False, f"Non-INR currency in paymentDetails entry at index {idx}: {entry_cur}", None
+        if entry_state == "COMPLETED":
+            completed_details.append((idx, pay_entry))
 
-        # 4. Strict amount validation without silent truncation of fractions
-        raw_amt = pay_entry.get("amount")
-        is_amt_valid, amt_err, entry_amt = _parse_and_validate_amount(raw_amt)
+    if not has_explicit_inr:
+        return False, "Missing explicit INR currency in payment evidence", None
+
+    # 4. Enforce unambiguous completion evidence
+    if len(completed_details) == 0:
+        return False, "No completed payment detail found in gateway response", None
+
+    if len(completed_details) > 1:
+        return False, (
+            f"Ambiguous payment evidence: multiple completed paymentDetails entries ({len(completed_details)}) "
+            "found without documented top-level aggregation semantics; manual reconciliation required"
+        ), None
+
+    # 5. Validate the single completed payment attempt
+    completed_idx, completed_entry = completed_details[0]
+
+    raw_entry_amt = completed_entry.get("amount")
+    if raw_entry_amt is not None:
+        is_amt_valid, amt_err, entry_amt_int = _parse_and_validate_amount(raw_entry_amt)
         if not is_amt_valid:
-            return False, f"Invalid amount in paymentDetails entry at index {idx}: {amt_err}", None
+            return False, f"Invalid amount in completed paymentDetails entry at index {completed_idx}: {amt_err}", None
+        if entry_amt_int != root_amt_int:
+            return False, (
+                f"Completed payment detail amount ({entry_amt_int}) does not match root order amount ({root_amt_int})"
+            ), None
+    else:
+        return False, f"Missing amount in completed paymentDetails entry at index {completed_idx}", None
 
-        total_amount_from_entries += entry_amt
-
-    # If root currency exists, validate it is explicit INR
-    root_cur = raw_resp.get("currency")
-    if root_cur is not None:
-        if not isinstance(root_cur, str) or root_cur.strip().upper() != "INR":
-            return False, f"Non-INR root currency in gateway response: {root_cur}", None
-
-    # If root amount exists, validate it and ensure it matches the aggregate total
-    root_amt = raw_resp.get("amount")
-    if root_amt is not None:
-        is_root_valid, root_err, root_amt_int = _parse_and_validate_amount(root_amt)
-        if not is_root_valid:
-            return False, f"Invalid root amount in gateway response: {root_err}", None
-        if root_amt_int != total_amount_from_entries:
-            return False, f"Root amount ({root_amt_int}) does not match paymentDetails aggregate ({total_amount_from_entries})", None
-
-    # Validate aggregate amount against expected_total_paise
-    if total_amount_from_entries < expected_total_paise:
-        return False, f"Underpayment: received {total_amount_from_entries} paise, expected {expected_total_paise} paise", None
-
-    if total_amount_from_entries > expected_total_paise:
-        return False, f"Overpayment: received {total_amount_from_entries} paise, expected {expected_total_paise} paise", None
-
-    return True, None, total_amount_from_entries
+    return True, None, root_amt_int
 
 
 def _record_v2_webhook_event(event_id: str, event_type: str, processing_state: str, details: dict):
