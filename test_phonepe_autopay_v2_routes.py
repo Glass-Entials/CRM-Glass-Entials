@@ -722,7 +722,7 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
             amount_paise=118000,
             provider_transaction_id="TXN_UNAUTH_RESOLVE",
             provider_payment_id="PAY_UNAUTH_RESOLVE",
-            raw_response={"currency": "INR", "paymentDetails": [{"currency": "INR", "state": "COMPLETED"}]},
+            raw_response={"currency": "INR", "paymentDetails": [{"currency": "INR", "state": "COMPLETED", "amount": 118000}]},
         )
 
         with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider, \
@@ -891,7 +891,7 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
             merchant_subscription_id="MSUB_V2_20_MANDATE",
             amount_paise=100000,
             provider_transaction_id="TXN_UNDERPAY",
-            raw_response={"currency": "INR", "paymentDetails": [{"currency": "INR", "state": "COMPLETED"}]},
+            raw_response={"currency": "INR", "paymentDetails": [{"currency": "INR", "state": "COMPLETED", "amount": 100000}]},
         )
 
         with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_provider, \
@@ -1144,6 +1144,43 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
                 118000,
                 False,
             ),
+            # Phase 5.4.2.2 Scenarios:
+            (
+                "9_first_entry_valid_second_malformed",
+                {"paymentDetails": [{"amount": 118000, "currency": "INR", "state": "COMPLETED"}, "malformed_non_dict_entry"], "currency": "INR"},
+                118000,
+                False,
+            ),
+            (
+                "10_first_entry_valid_second_different_currency",
+                {"paymentDetails": [{"amount": 59000, "currency": "INR", "state": "COMPLETED"}, {"amount": 59000, "currency": "USD", "state": "COMPLETED"}], "currency": "INR"},
+                118000,
+                False,
+            ),
+            (
+                "11_multiple_entries_incorrect_aggregate_amount",
+                {"paymentDetails": [{"amount": 50000, "currency": "INR", "state": "COMPLETED"}, {"amount": 50000, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                100000,
+                False,
+            ),
+            (
+                "12_fractional_floating_point_amount",
+                {"paymentDetails": [{"amount": 118000.5, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                118000.5,
+                False,
+            ),
+            (
+                "13_missing_state_in_payment_entry",
+                {"paymentDetails": [{"amount": 118000, "currency": "INR"}], "currency": "INR"},
+                118000,
+                False,
+            ),
+            (
+                "14_all_valid_multiple_entries_exact_total",
+                {"paymentDetails": [{"amount": 59000, "currency": "INR", "state": "COMPLETED"}, {"amount": 59000, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                118000,
+                True,
+            ),
         ]
 
         for case_name, raw_resp, amount_paise, should_activate in test_cases:
@@ -1253,6 +1290,43 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
                 {"amount": 118000, "currency": "INR"},  # missing paymentDetails
                 118000,
                 False,
+            ),
+            # Phase 5.4.2.2 Scenarios:
+            (
+                "9_first_entry_valid_second_malformed",
+                {"paymentDetails": [{"amount": 118000, "currency": "INR", "state": "COMPLETED"}, "malformed_string_entry"], "currency": "INR"},
+                118000,
+                False,
+            ),
+            (
+                "10_first_entry_valid_second_different_currency",
+                {"paymentDetails": [{"amount": 59000, "currency": "INR", "state": "COMPLETED"}, {"amount": 59000, "currency": "USD", "state": "COMPLETED"}], "currency": "INR"},
+                118000,
+                False,
+            ),
+            (
+                "11_multiple_entries_incorrect_aggregate_amount",
+                {"paymentDetails": [{"amount": 50000, "currency": "INR", "state": "COMPLETED"}, {"amount": 50000, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                100000,
+                False,
+            ),
+            (
+                "12_fractional_floating_point_amount",
+                {"paymentDetails": [{"amount": 118000.5, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                118000.5,
+                False,
+            ),
+            (
+                "13_missing_state_in_payment_entry",
+                {"paymentDetails": [{"amount": 118000, "currency": "INR"}], "currency": "INR"},
+                118000,
+                False,
+            ),
+            (
+                "14_all_valid_multiple_entries_exact_total",
+                {"paymentDetails": [{"amount": 59000, "currency": "INR", "state": "COMPLETED"}, {"amount": 59000, "currency": "INR", "state": "COMPLETED"}], "currency": "INR"},
+                118000,
+                True,
             ),
         ]
 

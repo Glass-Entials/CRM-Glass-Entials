@@ -621,6 +621,179 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             or "Subscription is currently claimed" in losing_res.error_message
         )
 
+    # ── Scenario 5D: Paused Worker Lease Transfer Race Condition ──────────────
+
+    def test_scenario_5d_paused_worker_lease_transfer_race_condition(self):
+        """
+        Phase 5.4.2.2 Requirement 1:
+        Genuine MySQL InnoDB race test deliberately pausing Worker 1 between initial ownership
+        acquisition and dispatch authorization, expiring/transferring the lease to Worker 2
+        (new owner), and proving that former owner (Worker 1) cannot dispatch while new owner
+        (Worker 2) can, yielding exactly ONE PhonePe redeem call.
+        """
+        bpk = f"{self.sub_id}_2026-11"
+        order_id = "ORD_RACE_PAUSED_WORKER"
+
+        # Set up active mandate and NOTIFIED notification
+        mandate = SaaSMandate(
+            id=558,
+            organization_id=self.org_id,
+            subscription_id=self.sub_id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id=f"MSUB_MYSQL_PAUSE_{self.sub_id}",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        db.session.add(mandate)
+
+        sub = db.session.get(SaaSSubscription, self.sub_id)
+        sub.active_mandate_id = mandate.id
+
+        notification = SaaSPreDebitNotification(
+            id=779,
+            organization_id=self.org_id,
+            subscription_id=self.sub_id,
+            mandate_id=mandate.id,
+            merchant_order_id=order_id,
+            amount_paise=118000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
+            valid_upto_at=datetime.utcnow() + timedelta(days=1),
+            billing_period_key=bpk,
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        mock_client = MagicMock()
+        mock_client.redeem.return_value = {
+            "state": "COMPLETED",
+            "paymentDetails": [{"state": "COMPLETED", "transactionId": "TXN_PAUSED_RACE_SUCCESS"}],
+        }
+
+        worker_1_paused_event = threading.Event()
+        worker_1_resume_event = threading.Event()
+        orig_reserve = self.provider._reserve_billing_period
+
+        # Hook _reserve_billing_period to pause Worker 1 right after initial ownership acquisition
+        def hooked_reserve(subscription_id, organization_id, billing_period_key, merchant_order_id, session=None, owner_token=None):
+            ok, err, res = orig_reserve(subscription_id, organization_id, billing_period_key, merchant_order_id, session=session, owner_token=owner_token)
+            if ok and owner_token and "worker_1" in owner_token:
+                # Signal that Worker 1 has completed initial ownership acquisition
+                worker_1_paused_event.set()
+                # Pause Worker 1 until the test expires and transfers lease to Worker 2
+                worker_1_resume_event.wait(timeout=5)
+            return ok, err, res
+
+        results = {}
+
+        def run_worker_1():
+            with self.app.app_context():
+                try:
+                    w1_sub = db.session.get(SaaSSubscription, self.sub_id)
+                    with patch("uuid.uuid4") as mock_uuid:
+                        mock_uuid.return_value.hex = "worker_1_initial_owner"
+                        res = self.provider.execute_redemption(
+                            subscription=w1_sub,
+                            amount_paise=118000,
+                            merchant_transaction_id=order_id,
+                        )
+                        results["worker_1"] = res
+                except Exception as exc:
+                    results["worker_1"] = exc
+
+        def run_worker_2():
+            with self.app.app_context():
+                try:
+                    w2_sub = db.session.get(SaaSSubscription, self.sub_id)
+                    with patch("uuid.uuid4") as mock_uuid:
+                        mock_uuid.return_value.hex = "worker_2_new_owner"
+                        res = self.provider.execute_redemption(
+                            subscription=w2_sub,
+                            amount_paise=118000,
+                            merchant_transaction_id=order_id,
+                        )
+                        results["worker_2"] = res
+                except Exception as exc:
+                    results["worker_2"] = exc
+
+        with patch.object(self.provider, "_reserve_billing_period", side_effect=hooked_reserve), \
+             patch.object(self.provider, "_get_client", return_value=mock_client):
+
+            # 1. Start Worker 1
+            t1 = threading.Thread(target=run_worker_1)
+            t1.start()
+
+            # 2. Wait until Worker 1 has acquired initial ownership on MySQL InnoDB
+            self.assertTrue(worker_1_paused_event.wait(timeout=5), "Worker 1 failed to acquire initial ownership")
+
+            # Verify Worker 1 acquired initial reservation in MySQL InnoDB
+            verify_session = self.SessionFactory()
+            try:
+                res_row = verify_session.query(SaaSBillingPeriodReservation).filter_by(
+                    organization_id=self.org_id,
+                    subscription_id=self.sub_id,
+                    billing_period_key=bpk,
+                ).first()
+                self.assertIsNotNone(res_row)
+                self.assertIn("worker_1", res_row.owner_token)
+                self.assertIsNone(res_row.redemption_initiated_at)
+
+                # 3. Deliberately expire Worker 1's leases in MySQL InnoDB
+                res_row.owner_expires_at = datetime.utcnow() - timedelta(seconds=10)
+                sub_row = verify_session.query(SaaSSubscription).get(self.sub_id)
+                if sub_row:
+                    sub_row.claim_expires_at = datetime.utcnow() - timedelta(seconds=10)
+                verify_session.commit()
+            finally:
+                verify_session.close()
+
+            # 4. Run Worker 2 while Worker 1 is still paused before dispatch authorization.
+            # Worker 2 should acquire the expired lease, run atomic dispatch authorization,
+            # and dispatch PhonePe redeem.
+            t2 = threading.Thread(target=run_worker_2)
+            t2.start()
+            t2.join(timeout=10)
+
+            # Assert Worker 2 succeeded
+            w2_res = results.get("worker_2")
+            self.assertIsNotNone(w2_res, "Worker 2 did not produce a result")
+            w2_success = getattr(w2_res, "success", False) or getattr(w2_res, "status", None) == "SUCCESS"
+            self.assertTrue(w2_success, f"Worker 2 was expected to succeed: {w2_res}")
+
+            # 5. Now resume Worker 1: Worker 1 resumes and attempts atomic conditional UPDATE
+            # for dispatch authorization with its former owner_token.
+            worker_1_resume_event.set()
+            t1.join(timeout=10)
+
+            # Assert Worker 1 failed / aborted because updated_count == 0
+            w1_res = results.get("worker_1")
+            self.assertIsNotNone(w1_res, "Worker 1 did not produce a result")
+            self.assertFalse(w1_res.success, f"Worker 1 was expected to fail: {w1_res}")
+            self.assertTrue(
+                "Execution lease expired or lost ownership" in getattr(w1_res, "error_message", "")
+                or "Redemption was already initiated" in getattr(w1_res, "error_message", "")
+            )
+
+            # 6. Assert PhonePe redeem() was called EXACTLY ONCE (by Worker 2 only!)
+            self.assertEqual(mock_client.redeem.call_count, 1)
+
+            # 7. Directly verify MySQL InnoDB state: redemption succeeded and marked COMPLETED
+            final_session = self.SessionFactory()
+            try:
+                final_res = final_session.query(SaaSBillingPeriodReservation).filter_by(
+                    organization_id=self.org_id,
+                    subscription_id=self.sub_id,
+                    billing_period_key=bpk,
+                ).first()
+                self.assertIsNotNone(final_res)
+                self.assertIsNotNone(final_res.redemption_initiated_at)
+                self.assertEqual(final_res.status, BillingPeriodReservationStatus.COMPLETED.value)
+                self.assertEqual(final_res.gateway_state, "COMPLETED")
+            finally:
+                final_session.close()
+
     # ── Scenario 6: Lease Expiry While Gateway Request Remains Ambiguous ───────
 
     def test_scenario_6_lease_expiry_while_gateway_request_remains_ambiguous(self):

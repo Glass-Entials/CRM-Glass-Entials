@@ -414,11 +414,16 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 "Billing period reservation collision or error org=%s sub=%s key=%s for order=%s: %s",
                 organization_id, subscription_id, billing_period_key, merchant_order_id, str(exc),
             )
-            existing = s.query(SaaSBillingPeriodReservation).filter_by(
-                organization_id=organization_id,
-                subscription_id=subscription_id,
-                billing_period_key=billing_period_key,
-            ).first()
+            existing = None
+            for _ in range(5):
+                existing = s.query(SaaSBillingPeriodReservation).filter_by(
+                    organization_id=organization_id,
+                    subscription_id=subscription_id,
+                    billing_period_key=billing_period_key,
+                ).first()
+                if existing:
+                    break
+                time.sleep(0.02)
             if existing and existing.merchant_order_id == merchant_order_id:
                 if existing.status == BillingPeriodReservationStatus.COMPLETED.value:
                     return False, f"A successful debit already exists for billing period {billing_period_key}.", existing
@@ -1396,6 +1401,72 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             bpk = None
             reservation = None
 
+        # Find mandate reference
+        mandate = SaaSMandate.query.filter_by(
+            id=subscription.active_mandate_id,
+            organization_id=subscription.organization_id,
+        ).first()
+        if not mandate:
+            mandate = notification.mandate
+
+        merchant_sub_id = (
+            mandate.merchant_subscription_id
+            if mandate
+            else (subscription.provider_subscription_id or f"MSUB_{subscription.organization_id}")
+        )
+        payload = {
+            "merchantSubscriptionId": merchant_sub_id,
+            "merchantOrderId": merchant_transaction_id,
+            "amount": amount_paise,
+        }
+
+        # Single atomic conditional database UPDATE for gateway dispatch authorization:
+        # Enforces atomic ownership, unexpired lease, and non-initiated state at the SQL engine level.
+        # Eliminates any possibility of lease-expiry race conditions between check and dispatch.
+        if reservation:
+            now = datetime.utcnow()
+            dispatch_expires_at = now + timedelta(seconds=120)
+            s = db.session
+
+            updated_count = s.query(SaaSBillingPeriodReservation).filter(
+                SaaSBillingPeriodReservation.id == reservation.id,
+                SaaSBillingPeriodReservation.owner_token == worker_owner_token,
+                SaaSBillingPeriodReservation.owner_expires_at >= now,
+                SaaSBillingPeriodReservation.redemption_initiated_at.is_(None),
+                SaaSBillingPeriodReservation.status.notin_([
+                    BillingPeriodReservationStatus.COMPLETED.value,
+                    BillingPeriodReservationStatus.PENDING_RECONCILIATION.value,
+                ]),
+            ).update({
+                SaaSBillingPeriodReservation.redemption_initiated_at: now,
+                SaaSBillingPeriodReservation.owner_token: worker_owner_token,
+                SaaSBillingPeriodReservation.owner_expires_at: dispatch_expires_at,
+            }, synchronize_session=False)
+
+            if updated_count != 1:
+                s.rollback()
+                logger.error(
+                    "execute_redemption aborted: atomic dispatch authorization failed for order %s (worker=%s, updated_count=%s)",
+                    merchant_transaction_id, worker_owner_token, updated_count,
+                )
+                fresh_res = s.query(SaaSBillingPeriodReservation).get(reservation.id)
+                if fresh_res and fresh_res.redemption_initiated_at is not None:
+                    return RedemptionResult(
+                        success=False,
+                        status="PENDING",
+                        merchant_transaction_id=merchant_transaction_id,
+                        amount_paise=amount_paise,
+                        error_message="Redemption was already initiated with gateway; duplicate dispatch blocked pending reconciliation",
+                    )
+                return RedemptionResult(
+                    success=False,
+                    status="FAILED",
+                    merchant_transaction_id=merchant_transaction_id,
+                    amount_paise=amount_paise,
+                    error_message=f"Execution lease expired or lost ownership before gateway dispatch (updated_count={updated_count})",
+                )
+            s.commit()
+
         attempt = SaaSRedemptionAttempt(
             organization_id=subscription.organization_id,
             subscription_id=subscription.id,
@@ -1418,74 +1489,6 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 merchant_transaction_id=merchant_transaction_id,
                 error_message=str(exc),
             )
-
-        # Find mandate reference
-        mandate = SaaSMandate.query.filter_by(
-            id=subscription.active_mandate_id,
-            organization_id=subscription.organization_id,
-        ).first()
-        if not mandate:
-            mandate = notification.mandate
-
-        merchant_sub_id = (
-            mandate.merchant_subscription_id
-            if mandate
-            else (subscription.provider_subscription_id or f"MSUB_{subscription.organization_id}")
-        )
-        payload = {
-            "merchantSubscriptionId": merchant_sub_id,
-            "merchantOrderId": merchant_transaction_id,
-            "amount": amount_paise,
-        }
-
-        # Mark gateway request initiated in database before sending request to PhonePe
-        # Verify owner identity in database before gateway dispatch
-        if reservation:
-            db.session.refresh(reservation)
-            if reservation.owner_token != worker_owner_token:
-                logger.error(
-                    "execute_redemption aborted: worker %s lost lease ownership to %s for order %s before gateway dispatch",
-                    worker_owner_token, reservation.owner_token, merchant_transaction_id,
-                )
-                return RedemptionResult(
-                    success=False,
-                    status="FAILED",
-                    merchant_transaction_id=merchant_transaction_id,
-                    amount_paise=amount_paise,
-                    error_message=f"Execution lease was lost before gateway dispatch (current owner: {reservation.owner_token})",
-                )
-
-            if reservation.redemption_initiated_at is not None:
-                logger.error(
-                    "execute_redemption aborted: gateway request already initiated at %s for order %s",
-                    reservation.redemption_initiated_at, merchant_transaction_id,
-                )
-                reservation.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
-                try:
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
-                return RedemptionResult(
-                    success=False,
-                    status="PENDING",
-                    merchant_transaction_id=merchant_transaction_id,
-                    amount_paise=amount_paise,
-                    error_message="Redemption was already initiated with gateway; duplicate dispatch blocked pending reconciliation",
-                )
-
-            reservation.redemption_initiated_at = datetime.utcnow()
-            try:
-                db.session.commit()
-            except Exception as exc:
-                db.session.rollback()
-                logger.error("Failed to commit redemption_initiated_at for order %s: %s", merchant_transaction_id, exc)
-                return RedemptionResult(
-                    success=False,
-                    status="FAILED",
-                    merchant_transaction_id=merchant_transaction_id,
-                    amount_paise=amount_paise,
-                    error_message=f"Failed to record gateway dispatch: {exc}",
-                )
 
         try:
             client = self._get_client()

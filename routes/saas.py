@@ -1,5 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
+from decimal import Decimal, InvalidOperation
+import math
 import hmac
 import json
 import logging
@@ -409,21 +411,66 @@ class WebhookPersistenceError(Exception):
     pass
 
 
+def _parse_and_validate_amount(raw_val: Any) -> Tuple[bool, Optional[str], Optional[int]]:
+    """
+    Strict validation of payment amount in paise:
+      - Reject boolean values.
+      - Reject missing/None values.
+      - Reject non-finite or fractional floating-point values without silent truncation.
+      - Reject negative or zero amounts.
+      - Returns (is_valid: bool, error_message: Optional[str], amount_paise: Optional[int]).
+    """
+    if raw_val is None:
+        return False, "Missing amount in payment evidence", None
+
+    if isinstance(raw_val, bool):
+        return False, "Invalid boolean amount value in payment evidence", None
+
+    if isinstance(raw_val, float):
+        if not math.isfinite(raw_val):
+            return False, f"Non-finite floating-point amount in payment evidence: {raw_val}", None
+        if not raw_val.is_integer():
+            return False, f"Fractional floating-point amount in payment evidence: {raw_val}", None
+        d = Decimal(str(int(raw_val)))
+    elif isinstance(raw_val, (int, str)):
+        try:
+            d = Decimal(str(raw_val).strip())
+        except (InvalidOperation, TypeError, ValueError):
+            return False, f"Invalid amount format in payment evidence: {raw_val}", None
+    else:
+        return False, f"Unsupported amount type in payment evidence: {type(raw_val)}", None
+
+    if not d.is_finite():
+        return False, f"Non-finite amount in payment evidence: {raw_val}", None
+
+    if d % 1 != 0:
+        return False, f"Fractional amount in payment evidence: {raw_val}", None
+
+    val_int = int(d)
+    if val_int == 0:
+        return False, "Zero amount in payment evidence", None
+    if val_int < 0:
+        return False, f"Negative amount in payment evidence: {val_int}", None
+
+    return True, None, val_int
+
+
 def _validate_setup_payment_evidence(
     tx_res: Any,
     expected_total_paise: int,
 ) -> Tuple[bool, Optional[str], Optional[int]]:
     """
     Strict authoritative S2S validation for setup payment responses.
-    Requires:
+    Requirements:
       1. S2S completed payment state (tx_res.success is True and tx_res.status == 'COMPLETED').
-      2. Incomplete paymentDetails check: paymentDetails must be a non-empty list of dicts.
-      3. Explicit INR currency: must be present in paymentDetails or root, and strictly equal 'INR'.
-         Never assumes or defaults to INR when missing.
-      4. Exact expected amount in paise (including applicable GST):
-         Never skips validation if amount is None or 0.
-         Never substitutes expected amount when gateway amount is missing.
-         Blocks underpayment and overpayment.
+      2. Validates EVERY paymentDetails entry:
+         - Reject any malformed/non-dictionary entry.
+         - Reject incomplete payment details (missing state, currency, or amount in any entry).
+         - Require authoritative completed payment evidence for all entries (state == 'COMPLETED').
+         - Validate currency consistently across all payment entries (strictly 'INR').
+         - Reject fractional, non-finite, negative, zero, missing, or invalid amounts without silent truncation.
+      3. Aggregates the amounts across all valid entries and strictly validates the total against expected_total_paise.
+      4. Validates root currency and root amount if present, ensuring consistency.
     Returns:
       (is_valid: bool, error_message: Optional[str], validated_amount_paise: Optional[int])
     """
@@ -434,57 +481,67 @@ def _validate_setup_payment_evidence(
 
     raw_resp = getattr(tx_res, "raw_response", None) or {}
 
-    # 1. Incomplete paymentDetails check
+    # Incomplete paymentDetails check
     pay_details = raw_resp.get("paymentDetails")
     if not isinstance(pay_details, list) or len(pay_details) == 0:
         return False, "Incomplete or missing paymentDetails in gateway response", None
 
-    first_pay = pay_details[0]
-    if not isinstance(first_pay, dict):
-        return False, "Incomplete paymentDetails: item is not a valid object", None
+    total_amount_from_entries = 0
 
-    # Check state inside paymentDetails if present
-    pay_state = (first_pay.get("state") or "").upper()
-    if pay_state and pay_state != "COMPLETED":
-        return False, f"paymentDetails state is not COMPLETED ({pay_state})", None
+    for idx, pay_entry in enumerate(pay_details):
+        # 1. Reject any malformed/non-dictionary entry
+        if not isinstance(pay_entry, dict):
+            return False, f"Malformed paymentDetails entry at index {idx}: not a dictionary", None
 
-    # 2. Explicit INR currency check - never assume or default to INR
-    raw_currency = first_pay.get("currency") or raw_resp.get("currency")
-    if not raw_currency or not isinstance(raw_currency, str) or not raw_currency.strip():
-        return False, "Missing currency in gateway payment evidence", None
+        # 2. Require authoritative completed payment evidence for all payment entries
+        raw_state = pay_entry.get("state")
+        if not raw_state or not isinstance(raw_state, str) or not raw_state.strip():
+            return False, f"Missing state in paymentDetails entry at index {idx}", None
 
-    currency = raw_currency.strip().upper()
-    if currency != "INR":
-        return False, f"Non-INR currency in gateway payment evidence: {currency}", None
+        entry_state = raw_state.strip().upper()
+        if entry_state != "COMPLETED":
+            return False, f"PaymentDetails entry at index {idx} state is not COMPLETED ({entry_state})", None
 
-    # 3. Exact expected amount in paise check
-    gateway_amount = first_pay.get("amount")
-    if gateway_amount is None:
-        gateway_amount = raw_resp.get("amount")
-    if gateway_amount is None and getattr(tx_res, "amount_paise", None) is not None:
-        gateway_amount = tx_res.amount_paise
+        # 3. Validate currency consistently across all payment entries: explicit INR
+        raw_cur = pay_entry.get("currency")
+        if not raw_cur or not isinstance(raw_cur, str) or not raw_cur.strip():
+            return False, f"Missing currency in paymentDetails entry at index {idx}", None
 
-    if gateway_amount is None:
-        return False, "Missing amount in gateway payment evidence", None
+        entry_cur = raw_cur.strip().upper()
+        if entry_cur != "INR":
+            return False, f"Non-INR currency in paymentDetails entry at index {idx}: {entry_cur}", None
 
-    try:
-        gateway_amount_int = int(gateway_amount)
-    except (ValueError, TypeError):
-        return False, f"Invalid amount value in gateway payment evidence: {gateway_amount}", None
+        # 4. Strict amount validation without silent truncation of fractions
+        raw_amt = pay_entry.get("amount")
+        is_amt_valid, amt_err, entry_amt = _parse_and_validate_amount(raw_amt)
+        if not is_amt_valid:
+            return False, f"Invalid amount in paymentDetails entry at index {idx}: {amt_err}", None
 
-    if gateway_amount_int == 0:
-        return False, "Zero amount in gateway payment evidence", None
+        total_amount_from_entries += entry_amt
 
-    if gateway_amount_int < 0:
-        return False, f"Negative amount in gateway payment evidence: {gateway_amount_int}", None
+    # If root currency exists, validate it is explicit INR
+    root_cur = raw_resp.get("currency")
+    if root_cur is not None:
+        if not isinstance(root_cur, str) or root_cur.strip().upper() != "INR":
+            return False, f"Non-INR root currency in gateway response: {root_cur}", None
 
-    if gateway_amount_int < expected_total_paise:
-        return False, f"Underpayment: received {gateway_amount_int} paise, expected {expected_total_paise} paise", None
+    # If root amount exists, validate it and ensure it matches the aggregate total
+    root_amt = raw_resp.get("amount")
+    if root_amt is not None:
+        is_root_valid, root_err, root_amt_int = _parse_and_validate_amount(root_amt)
+        if not is_root_valid:
+            return False, f"Invalid root amount in gateway response: {root_err}", None
+        if root_amt_int != total_amount_from_entries:
+            return False, f"Root amount ({root_amt_int}) does not match paymentDetails aggregate ({total_amount_from_entries})", None
 
-    if gateway_amount_int > expected_total_paise:
-        return False, f"Overpayment: received {gateway_amount_int} paise, expected {expected_total_paise} paise", None
+    # Validate aggregate amount against expected_total_paise
+    if total_amount_from_entries < expected_total_paise:
+        return False, f"Underpayment: received {total_amount_from_entries} paise, expected {expected_total_paise} paise", None
 
-    return True, None, gateway_amount_int
+    if total_amount_from_entries > expected_total_paise:
+        return False, f"Overpayment: received {total_amount_from_entries} paise, expected {expected_total_paise} paise", None
+
+    return True, None, total_amount_from_entries
 
 
 def _record_v2_webhook_event(event_id: str, event_type: str, processing_state: str, details: dict):
