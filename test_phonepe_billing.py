@@ -367,6 +367,61 @@ class TestPhonePeBilling(unittest.TestCase):
         data = resp_good_auth.get_json()
         self.assertEqual(data.get("status"), "completed")
 
+    @patch("services.billing.renewal_service.RenewalService.process_due_renewals")
+    @patch("services.billing.renewal_service.RenewalService.process_upcoming_notifications")
+    def test_process_renewals_endpoint_multi_provider_default(self, mock_notify, mock_renew):
+        """Phase 6: Default /saas/api/process-renewals triggers both phonepe_v2 and phonepe."""
+        mock_notify.return_value = []
+        mock_renew.return_value = []
+
+        client = self.app.test_client()
+        valid_secret = self.app.config.get("SECRET_KEY")
+
+        resp = client.post(
+            "/saas/api/process-renewals",
+            headers={"X-Renewal-Secret": valid_secret}
+        )
+        self.assertEqual(resp.status_code, 200)
+        # Should be called twice (once for phonepe_v2, once for phonepe)
+        self.assertEqual(mock_notify.call_count, 2)
+        self.assertEqual(mock_renew.call_count, 2)
+
+        providers_run = [call[0][0].name for call in mock_notify.call_args_list]
+        self.assertIn("phonepe_v2", providers_run)
+        self.assertIn("phonepe", providers_run)
+
+    @patch("services.billing.renewal_service.RenewalService.process_due_renewals")
+    @patch("services.billing.renewal_service.RenewalService.process_upcoming_notifications")
+    def test_process_renewals_endpoint_specific_provider_param(self, mock_notify, mock_renew):
+        """Phase 6: /saas/api/process-renewals?provider=phonepe_v2 runs only requested provider."""
+        mock_notify.return_value = []
+        mock_renew.return_value = []
+
+        client = self.app.test_client()
+        valid_secret = self.app.config.get("SECRET_KEY")
+
+        resp = client.post(
+            "/saas/api/process-renewals?provider=phonepe_v2",
+            headers={"X-Renewal-Secret": valid_secret}
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(mock_notify.call_count, 1)
+        self.assertEqual(mock_renew.call_count, 1)
+        self.assertEqual(mock_notify.call_args[0][0].name, "phonepe_v2")
+
+    def test_process_renewals_endpoint_rejects_razorpay(self):
+        """Phase 6: /saas/api/process-renewals?provider=razorpay is strictly rejected with HTTP 400."""
+        client = self.app.test_client()
+        valid_secret = self.app.config.get("SECRET_KEY")
+
+        resp = client.post(
+            "/saas/api/process-renewals?provider=razorpay",
+            headers={"X-Renewal-Secret": valid_secret}
+        )
+        self.assertEqual(resp.status_code, 400)
+        data = resp.get_json()
+        self.assertIn("Unsupported renewal provider", data.get("error"))
+
 
 if __name__ == "__main__":
     unittest.main()

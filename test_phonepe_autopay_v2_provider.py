@@ -41,6 +41,8 @@ from model import (
     User,
 )
 from services.billing.billing_service import BillingService
+from services.billing.subscription_service import SubscriptionService
+from services.billing.renewal_service import RenewalService
 from services.billing.providers.phonepe_autopay_v2_provider import (
     PhonePeAutoPayV2Provider,
     _parse_datetime,
@@ -1867,6 +1869,308 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         self.assertFalse(success2)
         self.assertIn("was already initiated with gateway", err2)
         self.assertEqual(res2.status, BillingPeriodReservationStatus.PENDING_RECONCILIATION.value)
+
+    # ── Phase 6 Workstream C Tests: Reconciliation Hardening ─────────────────────
+
+    def test_reconcile_redemption_status_failed_first_attempt_followed_by_completed(self):
+        """Phase 6: reconcile_redemption_status interprets paymentDetails array-independently; historical failed attempt does not override completed."""
+        order_id = "ORD_RECON_ARRAY_IND_01"
+        mandate = SaaSMandate(
+            id=201,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id="MSUB_TEST_201",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        db.session.add(mandate)
+        db.session.commit()
+
+        pdn = SaaSPreDebitNotification(
+            id=120,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=mandate.id,
+            merchant_order_id=order_id,
+            amount_paise=100000,
+            auto_debit_snapshot=False,  # explicit merchant debit
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
+            valid_upto_at=datetime.utcnow() + timedelta(days=1),
+        )
+        attempt = SaaSRedemptionAttempt(
+            id=120,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            notification_id=pdn.id,
+            merchant_order_id=order_id,
+            amount_paise=100000,
+            status=RedemptionAttemptStatus.INITIATED.value,
+        )
+        db.session.add_all([pdn, attempt])
+        db.session.commit()
+
+        mock_resp = {
+            "state": "COMPLETED",
+            "amount": 100000,
+            "paymentDetails": [
+                {"state": "FAILED", "responseCodeDescription": "Insufficient funds", "transactionId": "TX_FAIL_01"},
+                {"state": "COMPLETED", "transactionId": "TX_WIN_02"},
+            ],
+        }
+
+        with patch.object(self.provider, "_get_client") as mock_client:
+            mock_client.return_value.get_order_status.return_value = mock_resp
+            result_attempt = self.provider.reconcile_redemption_status(attempt)
+
+        self.assertEqual(result_attempt.status, RedemptionAttemptStatus.COMPLETED.value)
+        self.assertEqual(result_attempt.phonepe_transaction_id, "TX_WIN_02")
+        self.assertEqual(pdn.status, PreDebitNotificationStatus.CONSUMED.value)
+
+    def test_reconcile_redemption_status_multiple_completed_entries_requires_manual_reconciliation(self):
+        """Phase 6: Multiple completed paymentDetails entries are ambiguous and require manual reconciliation."""
+        order_id = "ORD_RECON_AMBIGUOUS_MULTI_01"
+        mandate = SaaSMandate(
+            id=202,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id="MSUB_TEST_202",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        db.session.add(mandate)
+        db.session.commit()
+
+        pdn = SaaSPreDebitNotification(
+            id=121,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=mandate.id,
+            merchant_order_id=order_id,
+            amount_paise=100000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
+            valid_upto_at=datetime.utcnow() + timedelta(days=1),
+        )
+        attempt = SaaSRedemptionAttempt(
+            id=121,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            notification_id=pdn.id,
+            merchant_order_id=order_id,
+            amount_paise=100000,
+            status=RedemptionAttemptStatus.INITIATED.value,
+        )
+        db.session.add_all([pdn, attempt])
+        db.session.commit()
+
+        mock_resp = {
+            "state": "COMPLETED",
+            "amount": 100000,
+            "paymentDetails": [
+                {"state": "COMPLETED", "transactionId": "TX_MULTI_01"},
+                {"state": "COMPLETED", "transactionId": "TX_MULTI_02"},
+            ],
+        }
+
+        with patch.object(self.provider, "_get_client") as mock_client:
+            mock_client.return_value.get_order_status.return_value = mock_resp
+            result_attempt = self.provider.reconcile_redemption_status(attempt)
+
+        self.assertEqual(result_attempt.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+        self.assertIn("found 2 COMPLETED paymentDetails entries", result_attempt.failure_reason)
+
+    def test_reconcile_redemption_status_cross_entity_tenant_mismatch_blocks_advancement(self):
+        """Phase 6: Cross-entity tenant mismatch between attempt and subscription forces MANUAL_RECONCILIATION_REQUIRED."""
+        order_id = "ORD_RECON_TENANT_MISMATCH_01"
+        org99 = Organization(id=99, name="Org 99", unique_code="ORG99")
+        db.session.add(org99)
+
+        pdn = SaaSPreDebitNotification(
+            id=122,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=10,
+            merchant_order_id=order_id,
+            amount_paise=100000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
+            valid_upto_at=datetime.utcnow() + timedelta(days=1),
+        )
+        db.session.add(pdn)
+        db.session.commit()
+
+        # Dummy sub belongs to org 7. Attempt belongs to org 99.
+        attempt = SaaSRedemptionAttempt(
+            id=122,
+            organization_id=99,  # Tenant mismatch!
+            subscription_id=self.dummy_sub.id,
+            notification_id=pdn.id,
+            merchant_order_id=order_id,
+            amount_paise=100000,
+            status=RedemptionAttemptStatus.INITIATED.value,
+        )
+        db.session.add(attempt)
+        db.session.commit()
+
+        result_attempt = self.provider.reconcile_redemption_status(attempt)
+        self.assertEqual(result_attempt.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+        self.assertIn("relationship missing or unverified", result_attempt.failure_reason)
+
+    def test_caller_provided_claim_token_shared_ownership_in_execute_redemption(self):
+        """Phase 6: When scheduler provides an active claim_token, execute_redemption reuses it without releasing it."""
+        # 1. Scheduler claims subscription
+        claim_token = SubscriptionService.acquire_subscription_claim(
+            subscription_id=self.dummy_sub.id,
+            organization_id=7,
+            lease_duration_seconds=300,
+        )
+        self.assertIsNotNone(claim_token)
+
+        mandate = SaaSMandate(
+            id=203,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id="MSUB_TEST_203",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        db.session.add(mandate)
+        self.dummy_sub.active_mandate_id = mandate.id
+        db.session.commit()
+
+        order_id = "ORD_SHARED_CLAIM_01"
+        pdn = SaaSPreDebitNotification(
+            id=123,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=mandate.id,
+            merchant_order_id=order_id,
+            amount_paise=100000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
+            valid_upto_at=datetime.utcnow() + timedelta(days=1),
+        )
+        db.session.add(pdn)
+        db.session.commit()
+
+        mock_resp = {
+            "state": "COMPLETED",
+            "paymentDetails": [{"state": "COMPLETED", "transactionId": "TX_SHARED_CLAIM_01"}],
+        }
+
+        with patch.object(self.provider, "_get_client") as mock_client:
+            mock_client.return_value.redeem.return_value = mock_resp
+            # Execute with shared claim token
+            res = self.provider.execute_redemption(
+                subscription=self.dummy_sub,
+                amount_paise=100000,
+                merchant_transaction_id=order_id,
+                claim_token=claim_token,
+            )
+
+        self.assertTrue(res.success)
+        self.assertEqual(res.status, "SUCCESS")
+
+        # Verify claim token is STILL HELD because caller provided it!
+        sub_refreshed = SaaSSubscription.query.get(self.dummy_sub.id)
+        self.assertEqual(sub_refreshed.claim_token, claim_token)
+
+        # Release claim as caller
+        released = SubscriptionService.release_subscription_claim(
+            subscription_id=self.dummy_sub.id,
+            organization_id=7,
+            claim_token=claim_token,
+        )
+        self.assertTrue(released)
+
+    def test_renewal_service_v2_reconciles_inflight_before_debit(self):
+        """Phase 6: RenewalService checks in-flight V2 reservations and reconciles before attempting any debit."""
+        now = datetime.utcnow()
+        period_start = now - timedelta(days=30)
+        self.dummy_sub.current_period_start = period_start
+        self.dummy_sub.next_billing_at = now - timedelta(hours=1)
+        self.dummy_sub.claim_token = None
+        self.dummy_sub.claim_expires_at = None
+
+        mandate = SaaSMandate(
+            id=204,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id="MSUB_TEST_204",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        db.session.add(mandate)
+        self.dummy_sub.active_mandate_id = mandate.id
+
+        from services.billing.providers.phonepe_autopay_v2_provider import _compute_billing_period_key
+        bpk = _compute_billing_period_key(self.dummy_sub.id, period_start)
+        order_id = "ORD_INFLIGHT_RENEWAL_01"
+
+        pdn = SaaSPreDebitNotification(
+            id=124,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=mandate.id,
+            merchant_order_id=order_id,
+            amount_paise=100000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=now - timedelta(hours=2),
+            valid_upto_at=now + timedelta(days=1),
+        )
+
+        bpr = SaaSBillingPeriodReservation(
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            billing_period_key=bpk,
+            merchant_order_id=order_id,
+            status=BillingPeriodReservationStatus.PENDING_RECONCILIATION.value,
+            redemption_initiated_at=now - timedelta(minutes=10),
+        )
+        attempt = SaaSRedemptionAttempt(
+            id=124,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            notification_id=pdn.id,
+            merchant_order_id=order_id,
+            amount_paise=100000,
+            status=RedemptionAttemptStatus.INITIATED.value,
+        )
+        db.session.add_all([pdn, bpr, attempt])
+        db.session.commit()
+
+        mock_resp = {
+            "state": "COMPLETED",
+            "paymentDetails": [{"state": "COMPLETED", "transactionId": "TX_INFLIGHT_RECON_01"}],
+        }
+
+        with patch.object(self.provider, "_get_client") as mock_client:
+            mock_client.return_value.get_order_status.return_value = mock_resp
+            mock_client.return_value.get_subscription_status.return_value = {"state": "ACTIVE"}
+
+            results = RenewalService.process_due_renewals(self.provider)
+
+            # Reconcile order status MUST have been called
+            mock_client.return_value.get_order_status.assert_called_once_with(order_id, details=True)
+            # redeem() MUST NEVER have been called!
+            mock_client.return_value.redeem.assert_not_called()
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["status"], "RECONCILED_SUCCESS")
+        self.assertTrue(results[0]["success"])
 
 
 if __name__ == "__main__":

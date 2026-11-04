@@ -36,6 +36,7 @@ from model import (
     PreDebitNotificationStatus,
     RedemptionAttemptStatus,
     BillingPeriodReservationStatus,
+    WebhookEventStatus,
     User,
     UserRole,
 )
@@ -1682,6 +1683,90 @@ class TestPhonePeAutoPayV2Routes(unittest.TestCase):
                         self.assertEqual(wh_response.get_json().get("status"), "UNRESOLVED")
                         self.assertEqual(self.v2_sub.status, SaaSSubscriptionStatus.PENDING)
                         mock_activate_wh.assert_not_called()
+
+    # ── Group H: Workstream A Webhook Hardening & Fencing Tests ────────────────
+
+    def test_webhook_provider_scoped_uniqueness_allows_same_event_id_across_providers(self):
+        """Phase 6 Mandatory 1: Provider-scoped composite uniqueness (payment_provider, event_id)."""
+        shared_event_id = "EVT_DUAL_PROVIDER_001"
+
+        # Record under phonepe (legacy V3)
+        ev_v3 = SaaSWebhookEvent(
+            payment_provider="phonepe",
+            event_id=shared_event_id,
+            event_type="PAYMENT_SUCCESS",
+            status=WebhookEventStatus.PROCESSED.value,
+        )
+        db.session.add(ev_v3)
+        db.session.commit()
+
+        # Record under phonepe_v2 (V2 AutoPay) with same event_id
+        ev_v2 = SaaSWebhookEvent(
+            payment_provider="phonepe_v2",
+            event_id=shared_event_id,
+            event_type="SUBSCRIPTION_ACTIVE",
+            status=WebhookEventStatus.PROCESSED.value,
+        )
+        db.session.add(ev_v2)
+        db.session.commit()
+
+        # Verify both records exist independently in DB
+        v3_rec = SaaSWebhookEvent.query.filter_by(payment_provider="phonepe", event_id=shared_event_id).first()
+        v2_rec = SaaSWebhookEvent.query.filter_by(payment_provider="phonepe_v2", event_id=shared_event_id).first()
+        self.assertIsNotNone(v3_rec)
+        self.assertIsNotNone(v2_rec)
+        self.assertNotEqual(v3_rec.id, v2_rec.id)
+
+    def test_webhook_concurrent_delivery_returns_retryable_processing(self):
+        """Phase 6 Workstream A: Concurrent delivery while another worker actively holds lease returns 422 PROCESSING."""
+        active_event_id = "EVT_CONCURRENT_LOCKED_001"
+        in_flight_event = SaaSWebhookEvent(
+            payment_provider="phonepe_v2",
+            event_id=active_event_id,
+            event_type="SUBSCRIPTION_ACTIVE",
+            status=WebhookEventStatus.PROCESSING.value,
+            owner_token="wh_worker_active_token",
+            owner_expires_at=datetime.utcnow() + timedelta(seconds=60),
+        )
+        db.session.add(in_flight_event)
+        db.session.commit()
+
+        correct_sha = hashlib.sha256(b"webhook_test_user:webhook_test_pass").hexdigest()
+        headers = {
+            "Authorization": f"Basic {correct_sha}",
+            "Content-Type": "application/json",
+        }
+        payload = json.dumps({
+            "merchantSubscriptionId": self.v2_mandate.merchant_subscription_id,
+            "eventId": active_event_id,
+            "event": "SUBSCRIPTION_ACTIVE",
+        })
+
+        # Second worker delivers same event
+        response = self.client.post("/saas/phonepe-webhook", data=payload, headers=headers)
+
+        self.assertEqual(response.status_code, 422)
+        data = response.get_json()
+        self.assertEqual(data.get("status"), "PROCESSING")
+        self.assertTrue(data.get("retryable"))
+
+    def test_webhook_unauthenticated_request_rejected_without_tenant_lookup(self):
+        """Phase 6 Mandatory 2: Unauthenticated payload rejected without looking up tenant or mandate."""
+        payload = json.dumps({
+            "merchantSubscriptionId": "FORGED_SUBSCRIPTION_ID",
+            "event": "SUBSCRIPTION_ACTIVE",
+        })
+        # 1. V2 unauthenticated Basic credentials -> strictly 401
+        response_v2 = self.client.post(
+            "/saas/phonepe-webhook",
+            data=payload,
+            headers={"Authorization": "Basic forged_or_bad_token"}
+        )
+        self.assertEqual(response_v2.status_code, 401)
+
+        # 2. V3 unauthenticated (missing X-VERIFY checksum) -> strictly 400
+        response_v3 = self.client.post("/saas/phonepe-webhook", data=payload, headers={})
+        self.assertEqual(response_v3.status_code, 400)
 
 
 if __name__ == "__main__":

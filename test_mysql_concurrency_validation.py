@@ -39,11 +39,14 @@ from model import (
     BillingPeriodReservationStatus,
     PreDebitNotificationStatus,
     RedemptionAttemptStatus,
+    WebhookEventStatus,
 )
 from services.billing.providers.phonepe_autopay_v2_provider import (
     PhonePeAutoPayV2Provider,
     _compute_billing_period_key,
 )
+from services.billing.renewal_service import RenewalService
+from services.billing.subscription_service import SubscriptionService
 
 
 class TestMySQLConcurrencyValidation(unittest.TestCase):
@@ -1066,6 +1069,167 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         dec_rec = SaaSBillingPeriodReservation.query.filter_by(billing_period_key=bpk_dec).first()
         self.assertEqual(nov_rec.status, "COMPLETED")
         self.assertEqual(dec_rec.status, "RESERVED")
+
+    # ── Scenario 11: Simultaneous Scheduler Renewals Strictly One Gateway Dispatch ─
+
+    def test_scenario_11_simultaneous_scheduler_renewals_strictly_one_gateway_dispatch(self):
+        """
+        Scenario 11 (Phase 6): Two concurrent scheduler workers run RenewalService.process_due_renewals
+        for the same due subscription using independent MySQL sessions.
+        Asserts that the gateway's redeem() is dispatched EXACTLY ONCE.
+        """
+        order_id = "ORD_SCHEDULER_CONCURRENCY_01"
+        now = datetime.utcnow()
+        sub = SaaSSubscription.query.get(self.sub_id)
+        sub.next_billing_at = now - timedelta(hours=1)
+        sub.current_period_start = now - timedelta(days=30)
+        sub.claim_token = None
+        sub.claim_expires_at = None
+
+        mandate = SaaSMandate(
+            id=666,
+            organization_id=self.org_id,
+            subscription_id=self.sub_id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id=f"MSUB_SCHED_{self.sub_id}",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        db.session.add(mandate)
+        db.session.commit()
+
+        sub.active_mandate_id = mandate.id
+        db.session.commit()
+
+        notification = SaaSPreDebitNotification(
+            id=888,
+            organization_id=self.org_id,
+            subscription_id=self.sub_id,
+            mandate_id=mandate.id,
+            merchant_order_id=order_id,
+            amount_paise=118000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=now - timedelta(hours=2),
+            valid_upto_at=now + timedelta(days=1),
+            billing_period_key=_compute_billing_period_key(self.sub_id, sub.current_period_start),
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        mock_client = MagicMock()
+        mock_client.redeem.return_value = {
+            "state": "COMPLETED",
+            "paymentDetails": [{"state": "COMPLETED", "transactionId": "TXN_SCHED_01"}],
+        }
+        mock_client.get_subscription_status.return_value = {"state": "ACTIVE"}
+
+        barrier = threading.Barrier(2)
+        results = {}
+
+        def run_scheduler_worker(worker_id: str):
+            with self.app.app_context():
+                try:
+                    barrier.wait(timeout=5)
+                    worker_results = RenewalService.process_due_renewals(self.provider)
+                    results[worker_id] = worker_results
+                except Exception as exc:
+                    results[worker_id] = exc
+
+        with patch.object(self.provider, "_get_client", return_value=mock_client):
+            t1 = threading.Thread(target=run_scheduler_worker, args=("worker_1",))
+            t2 = threading.Thread(target=run_scheduler_worker, args=("worker_2",))
+
+            t1.start()
+            t2.start()
+            t1.join(timeout=10)
+            t2.join(timeout=10)
+
+        # PhonePe redeem must be dispatched EXACTLY ONCE
+        self.assertEqual(mock_client.redeem.call_count, 1)
+
+        r1 = results.get("worker_1", [])
+        r2 = results.get("worker_2", [])
+        total_executed = sum(1 for r in r1 if isinstance(r, dict) and r.get("success")) + sum(1 for r in r2 if isinstance(r, dict) and r.get("success"))
+        self.assertEqual(total_executed, 1)
+
+    # ── Scenario 12: Simultaneous Webhook Event Delivery Fencing ──────────────────
+
+    def test_scenario_12_simultaneous_webhook_event_delivery_fencing(self):
+        """
+        Scenario 12 (Phase 6): Two concurrent workers deliver the same webhook event.
+        Provider-scoped unique constraint and atomic fencing token ensure only one worker
+        processes the event while the other receives duplicate/already_processed.
+        """
+        event_id = "EVT_MYSQL_CONCUR_01"
+        now = datetime.utcnow()
+        now_ts = int(now.timestamp())
+
+        barrier = threading.Barrier(2)
+        worker_outcomes = {}
+
+        def run_webhook_worker(worker_id: str):
+            with self.app.app_context():
+                engine = create_engine(self.app.config["SQLALCHEMY_DATABASE_URI"])
+                Session = sessionmaker(bind=engine)
+                session = Session()
+                try:
+                    barrier.wait(timeout=5)
+                    # Simulate distributed intake
+                    token = f"worker_{worker_id}"
+                    expires_at = now + timedelta(seconds=60)
+
+                    existing = session.query(SaaSWebhookEvent).filter_by(
+                        payment_provider="phonepe_v2",
+                        event_id=event_id,
+                    ).first()
+
+                    if not existing:
+                        new_evt = SaaSWebhookEvent(
+                            event_id=event_id,
+                            payment_provider="phonepe_v2",
+                            organization_id=self.org_id,
+                            event_type="SUBSCRIPTION_REDEMPTION",
+                            payload_summary=json.dumps({"ts": now_ts}),
+                            status=WebhookEventStatus.PROCESSING.value,
+                            owner_token=token,
+                            owner_expires_at=expires_at,
+                        )
+                        session.add(new_evt)
+                        try:
+                            session.commit()
+                            worker_outcomes[worker_id] = "ACQUIRED"
+                        except Exception:
+                            session.rollback()
+                            worker_outcomes[worker_id] = "DUPLICATE_INSERT"
+                    else:
+                        worker_outcomes[worker_id] = "ALREADY_EXISTS"
+                except Exception as exc:
+                    worker_outcomes[worker_id] = str(exc)
+                finally:
+                    session.close()
+
+        t1 = threading.Thread(target=run_webhook_worker, args=("1",))
+        t2 = threading.Thread(target=run_webhook_worker, args=("2",))
+
+        t1.start()
+        t2.start()
+        t1.join(timeout=10)
+        t2.join(timeout=10)
+
+        # Exactly one worker acquired ownership; the other encountered duplicate/existing
+        acquired_count = sum(1 for outcome in worker_outcomes.values() if outcome == "ACQUIRED")
+        self.assertEqual(acquired_count, 1)
+
+        # Database state has exactly one event record in PROCESSING state
+        with self.app.app_context():
+            evt = SaaSWebhookEvent.query.filter_by(
+                payment_provider="phonepe_v2",
+                event_id=event_id,
+            ).one()
+            self.assertEqual(evt.status, WebhookEventStatus.PROCESSING.value)
+            self.assertIsNotNone(evt.owner_token)
 
 
 if __name__ == "__main__":

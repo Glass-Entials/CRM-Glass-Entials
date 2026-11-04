@@ -359,6 +359,14 @@ class BillingPeriodReservationStatus(Enum):
     FAILED = "FAILED"
 
 
+class WebhookEventStatus(Enum):
+    RECEIVED = "RECEIVED"
+    PROCESSING = "PROCESSING"
+    PROCESSED = "PROCESSED"
+    UNRESOLVED = "UNRESOLVED"
+    FAILED = "FAILED"
+
+
 class Plan(db.Model):
     """SaaS Plan definition — defines default limits for organizations."""
     __tablename__ = "plan"
@@ -2828,18 +2836,44 @@ class SaaSTransaction(db.Model):
 
 
 class SaaSWebhookEvent(db.Model):
-    """Idempotency log for processed webhook events (PhonePe / Razorpay)."""
+    """
+    Idempotency and distributed execution log for processed webhook events (PhonePe / Razorpay).
+    Enforces provider-scoped event uniqueness: (payment_provider, event_id).
+    Maintains explicit processing state machine: RECEIVED, PROCESSING, PROCESSED, UNRESOLVED, FAILED.
+    Supports atomic worker claiming via owner_token and owner_expires_at fencing.
+    """
     __tablename__ = "saas_webhook_event"
+    __table_args__ = (
+        db.UniqueConstraint("payment_provider", "event_id", name="uq_saas_webhook_provider_event"),
+    )
 
     id           = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
     payment_provider = db.Column(db.String(50), nullable=False, default="phonepe", server_default=db.text("'phonepe'"))
-    event_id     = db.Column(db.String(100), nullable=False, unique=True, index=True)
+    event_id     = db.Column(db.String(100), nullable=False, index=True)
     event_type   = db.Column(db.String(100), nullable=False)
+    status       = db.Column(
+        db.String(30), nullable=False, default=WebhookEventStatus.RECEIVED.value,
+        server_default=db.text("'RECEIVED'"), index=True
+    )
+    owner_token  = db.Column(db.String(64), nullable=True, index=True)
+    owner_expires_at = db.Column(db.DateTime, nullable=True, index=True)
+    error_message = db.Column(db.Text, nullable=True)
     processed_at = db.Column(db.DateTime, default=datetime.utcnow)
     payload_summary = db.Column(db.Text, nullable=True)
 
+    organization = db.relationship("Organization", backref="saas_webhook_events")
+
+    @validates("status")
+    def validate_status(self, key, value):
+        if hasattr(value, "value"):
+            return value.value
+        return str(value)
+
     def __repr__(self):
-        return f"<SaaSWebhookEvent {self.event_id} type={self.event_type}>"
+        return f"<SaaSWebhookEvent {self.payment_provider}:{self.event_id} type={self.event_type} status={self.status}>"
 
 
 # ===========================================================================

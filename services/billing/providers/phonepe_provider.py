@@ -360,7 +360,8 @@ class PhonePeProvider(PaymentProvider):
         self,
         subscription,
         amount_paise: int,
-        merchant_transaction_id: str
+        merchant_transaction_id: str,
+        claim_token: Optional[str] = None,
     ) -> RedemptionResult:
         """
         Pre-debit notification for recurring debit.
@@ -422,7 +423,8 @@ class PhonePeProvider(PaymentProvider):
         self,
         subscription,
         amount_paise: int,
-        merchant_transaction_id: str
+        merchant_transaction_id: str,
+        claim_token: Optional[str] = None,
     ) -> RedemptionResult:
         """
         Executes recurring debit against active mandate.

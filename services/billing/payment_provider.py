@@ -121,7 +121,8 @@ class PaymentProvider(ABC):
         self,
         subscription,
         amount_paise: int,
-        merchant_transaction_id: str
+        merchant_transaction_id: str,
+        claim_token: Optional[str] = None,
     ) -> RedemptionResult:
         """
         Sends a Pre-Debit Notification (PDN) to the customer via PhonePe AutoPay.
@@ -134,7 +135,8 @@ class PaymentProvider(ABC):
         self,
         subscription,
         amount_paise: int,
-        merchant_transaction_id: str
+        merchant_transaction_id: str,
+        claim_token: Optional[str] = None,
     ) -> RedemptionResult:
         """Executes a recurring debit against an established active AutoPay mandate."""
         pass

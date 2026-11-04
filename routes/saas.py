@@ -1,10 +1,13 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+import uuid
 from typing import Any, Dict, Optional, Tuple
 from decimal import Decimal, InvalidOperation
 import math
 import hmac
 import json
 import logging
+from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from flask import (
     Blueprint,
     render_template,
@@ -32,6 +35,7 @@ from model import (
     MandateStatus,
     PreDebitNotificationStatus,
     RedemptionAttemptStatus,
+    WebhookEventStatus,
     UserRole,
 )
 from services.billing import (
@@ -595,13 +599,21 @@ def _record_v2_webhook_event(event_id: str, event_type: str, processing_state: s
         existing = SaaSWebhookEvent.query.filter_by(payment_provider="phonepe_v2", event_id=event_id).first()
         if existing:
             existing.event_type = event_type
+            existing.status = processing_state
             existing.processed_at = datetime.utcnow()
             existing.payload_summary = json.dumps(summary)
+            if details.get("reason"):
+                existing.error_message = details.get("reason")
+            if details.get("org_id"):
+                existing.organization_id = details.get("org_id")
         else:
             existing = SaaSWebhookEvent(
                 payment_provider="phonepe_v2",
                 event_id=event_id,
                 event_type=event_type,
+                status=processing_state,
+                organization_id=details.get("org_id"),
+                error_message=details.get("reason"),
                 processed_at=datetime.utcnow(),
                 payload_summary=json.dumps(summary),
             )
@@ -614,20 +626,79 @@ def _record_v2_webhook_event(event_id: str, event_type: str, processing_state: s
         raise WebhookPersistenceError(f"Failed to durably persist SaaSWebhookEvent {event_id}: {exc}") from exc
 
 
-def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, body_json: dict):
+def _transition_v2_webhook_event(
+    event_id: str,
+    fencing_token: str,
+    target_state: str,
+    event_type: str,
+    details: dict,
+    error_message: Optional[str] = None,
+    organization_id: Optional[int] = None,
+) -> bool:
+    """
+    Conditionally transitions a PhonePe V2 webhook event to a new state.
+    CRITICAL FENCING GUARANTEE:
+    Update succeeds ONLY IF the event's current owner_token matches the caller's fencing_token
+    and owner_expires_at has not expired. If lease was lost or expired, update fails with 0 rows,
+    db.session.rollback() is invoked, and WebhookPersistenceError is raised.
+    """
+    now = datetime.utcnow()
+    summary = dict(details)
+    summary["processing_state"] = target_state
+    summary["updated_at"] = now.isoformat()
+
+    try:
+        updated = SaaSWebhookEvent.query.filter(
+            SaaSWebhookEvent.payment_provider == "phonepe_v2",
+            SaaSWebhookEvent.event_id == event_id,
+            SaaSWebhookEvent.owner_token == fencing_token,
+            SaaSWebhookEvent.owner_expires_at >= now,
+        ).update({
+            SaaSWebhookEvent.status: target_state,
+            SaaSWebhookEvent.event_type: event_type,
+            SaaSWebhookEvent.organization_id: organization_id,
+            SaaSWebhookEvent.error_message: error_message,
+            SaaSWebhookEvent.processed_at: now,
+            SaaSWebhookEvent.payload_summary: json.dumps(summary),
+            SaaSWebhookEvent.owner_token: None,
+            SaaSWebhookEvent.owner_expires_at: None,
+        }, synchronize_session=False)
+
+        if updated != 1:
+            db.session.rollback()
+            logger.error(
+                "Fencing violation: worker %s lost ownership lease on event %s before committing state %s (updated=%s)",
+                fencing_token, event_id, target_state, updated
+            )
+            raise WebhookPersistenceError(
+                f"Worker ownership lease expired or lost for event {event_id} before state {target_state} could be committed"
+            )
+
+        db.session.commit()
+        return True
+    except WebhookPersistenceError:
+        raise
+    except Exception as exc:
+        db.session.rollback()
+        logger.error("Failed to persist SaaSWebhookEvent %s state %s: %s", event_id, target_state, exc, exc_info=True)
+        raise WebhookPersistenceError(f"Failed to durably persist SaaSWebhookEvent {event_id}: {exc}") from exc
+
+
+def _handle_v2_webhook(payload_bytes: bytes, headers: dict):
     """
     Dedicated, secure PhonePe AutoPay V2 S2S Webhook Processing.
-    - Webhook verification is executed using PhonePe merchant authentication.
+    - Webhook verification is executed using PhonePe merchant authentication (Basic Auth).
     - Invalid authentication is rejected immediately with HTTP 401.
     - Webhook events are UNTRUSTED HINTS: triggers authoritative S2S reconciliation.
-    - Idempotent processing with SaaSWebhookEvent deduplication.
+    - Idempotent processing with provider-scoped (payment_provider, event_id) deduplication.
+    - Uses distributed fencing tokens (owner_token, owner_expires_at) to prevent concurrent execution.
     - Returns HTTP 200 only after successful reconciliation and durable logging.
-    - Distinguishes PROCESSED, UNRESOLVED, and FAILED states.
+    - Distinguishes RECEIVED, PROCESSING, PROCESSED, UNRESOLVED, and FAILED states.
     - Returns retryable HTTP 422 for UNRESOLVED events so PhonePe can retry.
     """
     provider = BillingService.get_provider("phonepe_v2")
 
-    # 1. Authoritative Webhook Authentication Verification
+    # 1. Authoritative Webhook Authentication Verification (Transport Contract)
     webhook_res = provider.verify_webhook(payload_bytes, headers)
     if not webhook_res.is_valid:
         logger.warning("Rejected unauthenticated PhonePe V2 webhook: %s", webhook_res.error_message)
@@ -636,34 +707,199 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
     event_id = webhook_res.event_id
     event_type = webhook_res.event_type
 
-    # 2. Idempotent Event Deduplication
-    existing_event = SaaSWebhookEvent.query.filter_by(payment_provider="phonepe_v2", event_id=event_id).first()
+    # 2. Webhook Fencing Token & Atomic Distributed Event Intake
+    now = datetime.utcnow()
+    worker_fencing_token = f"wh_{uuid.uuid4().hex}"
+    lease_duration = 60
+    lease_expires_at = now + timedelta(seconds=lease_duration)
+
+    existing_event = SaaSWebhookEvent.query.filter_by(
+        payment_provider="phonepe_v2",
+        event_id=event_id,
+    ).first()
+
     if existing_event:
-        prev_summary = {}
+        prev_state = getattr(existing_event, "status", None)
         if existing_event.payload_summary:
             try:
-                prev_summary = json.loads(existing_event.payload_summary)
+                ps = json.loads(existing_event.payload_summary).get("processing_state")
+                if ps:
+                    prev_state = ps
             except Exception:
                 pass
-        prev_state = prev_summary.get("processing_state", "PROCESSED")
-        if prev_state == "PROCESSED":
-            logger.info("PhonePe V2 Webhook event %s already processed; skipping.", event_id)
-            return jsonify({"status": "already_processed", "event_id": event_id}), 200
-        else:
-            logger.info(
-                "PhonePe V2 Webhook event %s was previously %s; allowing retry reconciliation.",
-                event_id, prev_state
-            )
 
-    # 3. Resolve tenant context from verified internal record
+        # If explicitly PROCESSED, or legacy record with no owner_token
+        if (
+            prev_state == WebhookEventStatus.PROCESSED.value
+            or prev_state == "PROCESSED"
+            or (prev_state == WebhookEventStatus.RECEIVED.value and not existing_event.owner_token)
+        ):
+            logger.info("PhonePe V2 Webhook event %s already processed; skipping duplicate delivery.", event_id)
+            return jsonify({"status": "already_processed", "event_id": event_id}), 200
+
+        if prev_state == WebhookEventStatus.PROCESSING.value:
+            if existing_event.owner_expires_at and existing_event.owner_expires_at > now:
+                logger.warning(
+                    "Concurrent PhonePe V2 webhook delivery for event %s is actively owned by %s; returning retryable.",
+                    event_id, existing_event.owner_token
+                )
+                return jsonify({
+                    "status": "PROCESSING",
+                    "event_id": event_id,
+                    "retryable": True,
+                    "message": "Event is actively being processed by another worker",
+                }), 422
+
+        # Expired lease or retry of UNRESOLVED / FAILED event: acquire atomic ownership
+        try:
+            claimed_rows = SaaSWebhookEvent.query.filter(
+                SaaSWebhookEvent.id == existing_event.id,
+                or_(
+                    SaaSWebhookEvent.owner_expires_at.is_(None),
+                    SaaSWebhookEvent.owner_expires_at <= now,
+                    SaaSWebhookEvent.status.in_([
+                        WebhookEventStatus.UNRESOLVED.value,
+                        WebhookEventStatus.FAILED.value,
+                    ]),
+                )
+            ).update({
+                SaaSWebhookEvent.status: WebhookEventStatus.PROCESSING.value,
+                SaaSWebhookEvent.owner_token: worker_fencing_token,
+                SaaSWebhookEvent.owner_expires_at: lease_expires_at,
+            }, synchronize_session=False)
+
+            if claimed_rows != 1:
+                db.session.rollback()
+                logger.warning("Worker %s lost atomic acquisition race for event %s", worker_fencing_token, event_id)
+                return jsonify({"status": "PROCESSING", "retryable": True, "event_id": event_id}), 422
+
+            db.session.commit()
+            logger.info("Worker %s acquired ownership lease on existing webhook event %s (expires=%s)",
+                        worker_fencing_token, event_id, lease_expires_at)
+        except Exception as exc:
+            db.session.rollback()
+            logger.error("Database error claiming existing webhook event %s: %s", event_id, exc)
+            return jsonify({"error": "Failed to claim webhook event", "status": "ERROR", "retryable": True}), 500
+
+    else:
+        # New event intake: insert in PROCESSING status with worker fencing token
+        new_event = SaaSWebhookEvent(
+            payment_provider="phonepe_v2",
+            event_id=event_id,
+            event_type=event_type,
+            status=WebhookEventStatus.PROCESSING.value,
+            owner_token=worker_fencing_token,
+            owner_expires_at=lease_expires_at,
+            processed_at=now,
+        )
+        db.session.add(new_event)
+        try:
+            db.session.commit()
+            logger.info("Worker %s inserted and claimed new webhook event %s (expires=%s)",
+                        worker_fencing_token, event_id, lease_expires_at)
+        except IntegrityError:
+            db.session.rollback()
+            # Concurrent intake race: another worker inserted this event concurrently
+            concurrent_event = SaaSWebhookEvent.query.filter_by(
+                payment_provider="phonepe_v2",
+                event_id=event_id,
+            ).first()
+            if concurrent_event and concurrent_event.status == WebhookEventStatus.PROCESSED.value:
+                return jsonify({"status": "already_processed", "event_id": event_id}), 200
+            return jsonify({"status": "PROCESSING", "retryable": True, "event_id": event_id}), 422
+        except Exception as exc:
+            db.session.rollback()
+            logger.error("Failed to persist initial SaaSWebhookEvent %s: %s", event_id, exc)
+            return jsonify({"error": "Failed to durably persist webhook event", "status": "ERROR", "retryable": True}), 500
+
+    # 3. Resolve Internal References from Authenticated Payload
+    body_json = {}
+    if isinstance(webhook_res.raw_payload, dict) and webhook_res.raw_payload:
+        body_json = webhook_res.raw_payload
+    elif payload_bytes:
+        try:
+            body_json = json.loads(payload_bytes)
+        except Exception:
+            body_json = {}
+
+    payload_body = body_json.get("payload") or body_json.get("data") or {}
+
+    merchant_sub_id = (
+        webhook_res.merchant_subscription_id
+        or body_json.get("merchantSubscriptionId")
+        or payload_body.get("merchantSubscriptionId")
+    )
+    merchant_order_id = (
+        getattr(webhook_res, "merchant_order_id", None)
+        or payload_body.get("merchantOrderId")
+        or body_json.get("merchantOrderId")
+    )
+
+    v2_mandate = None
+    v2_pdn = None
+
+    if merchant_sub_id:
+        v2_mandates = SaaSMandate.query.filter_by(
+            merchant_subscription_id=merchant_sub_id,
+            payment_provider="phonepe_v2",
+        ).all()
+        if len(v2_mandates) > 1:
+            logger.error("V2 webhook rejected: ambiguous mandate for %s across tenants", merchant_sub_id)
+            try:
+                _transition_v2_webhook_event(
+                    event_id=event_id,
+                    fencing_token=worker_fencing_token,
+                    target_state="UNRESOLVED",
+                    event_type=event_type,
+                    details={"error": "Ambiguous mandate reference across organizations", "sub_id": merchant_sub_id},
+                    error_message="Ambiguous mandate reference across organizations",
+                )
+            except WebhookPersistenceError:
+                return jsonify({"error": "Failed to durably persist webhook event", "status": "ERROR", "retryable": True}), 500
+            return jsonify({"error": "Ambiguous mandate reference across organizations", "status": "UNRESOLVED", "retryable": False}), 422
+        if v2_mandates:
+            v2_mandate = v2_mandates[0]
+
+    if merchant_order_id:
+        v2_pdns = SaaSPreDebitNotification.query.filter_by(
+            merchant_order_id=merchant_order_id,
+        ).all()
+        if len(v2_pdns) > 1:
+            logger.error("V2 webhook rejected: ambiguous PDN for %s across tenants", merchant_order_id)
+            try:
+                _transition_v2_webhook_event(
+                    event_id=event_id,
+                    fencing_token=worker_fencing_token,
+                    target_state="UNRESOLVED",
+                    event_type=event_type,
+                    details={"error": "Ambiguous notification reference across organizations", "order_id": merchant_order_id},
+                    error_message="Ambiguous notification reference across organizations",
+                )
+            except WebhookPersistenceError:
+                return jsonify({"error": "Failed to durably persist webhook event", "status": "ERROR", "retryable": True}), 500
+            return jsonify({"error": "Ambiguous notification reference across organizations", "status": "UNRESOLVED", "retryable": False}), 422
+        if v2_pdns:
+            v2_pdn = v2_pdns[0]
+            if not v2_mandate and v2_pdn.mandate_id:
+                v2_mandate = SaaSMandate.query.filter_by(
+                    id=v2_pdn.mandate_id,
+                    organization_id=v2_pdn.organization_id,
+                    payment_provider="phonepe_v2",
+                ).first()
+
+    # 4. Resolve tenant context strictly from verified internal records
     org_id = v2_mandate.organization_id if v2_mandate else (v2_pdn.organization_id if v2_pdn else None)
     if not org_id:
         logger.error("V2 webhook rejected: cannot resolve trusted tenant for event %s", event_id)
         try:
-            _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
-                "error": "Unresolved tenant context",
-                "event_id": event_id,
-            })
+            _transition_v2_webhook_event(
+                event_id=event_id,
+                fencing_token=worker_fencing_token,
+                target_state="UNRESOLVED",
+                event_type=event_type,
+                details={"error": "Unresolved tenant context", "event_id": event_id},
+                error_message="Unresolved tenant context",
+            )
         except WebhookPersistenceError:
             return jsonify({"error": "Failed to durably persist webhook event", "status": "ERROR", "retryable": True}), 500
         return jsonify({"error": "Unresolved tenant context", "status": "UNRESOLVED", "retryable": True}), 422
@@ -673,15 +909,20 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
         logger.error("V2 webhook rejected: tenant conflict between mandate (%s) and pdn (%s)",
                      v2_mandate.organization_id, v2_pdn.organization_id)
         try:
-            _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
-                "error": "Tenant conflict between mandate and notification",
-                "event_id": event_id,
-            })
+            _transition_v2_webhook_event(
+                event_id=event_id,
+                fencing_token=worker_fencing_token,
+                target_state="UNRESOLVED",
+                event_type=event_type,
+                details={"error": "Tenant conflict between mandate and notification", "event_id": event_id},
+                error_message="Tenant conflict between mandate and notification",
+                organization_id=org_id,
+            )
         except WebhookPersistenceError:
             return jsonify({"error": "Failed to durably persist webhook event", "status": "ERROR", "retryable": True}), 500
         return jsonify({"error": "Conflicting tenant references across records", "status": "UNRESOLVED", "retryable": False}), 422
 
-    # 4. Webhooks are UNTRUSTED TRANSPORT HINTS: Perform Authoritative PhonePe S2S Verification
+    # 5. Webhooks are UNTRUSTED TRANSPORT HINTS: Perform Authoritative PhonePe S2S Verification
     logger.info("Triggering authoritative S2S reconciliation for V2 webhook event %s (%s)", event_id, event_type)
 
     reconciliation_state = "PROCESSED"
@@ -717,11 +958,19 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
                             v2_mandate.id if v2_mandate else None,
                         )
                         try:
-                            _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
-                                "error": "Relational mismatch between attempt, notification, and mandate",
-                                "org_id": org_id,
-                                "merchant_order_id": v2_pdn.merchant_order_id,
-                            })
+                            _transition_v2_webhook_event(
+                                event_id=event_id,
+                                fencing_token=worker_fencing_token,
+                                target_state="UNRESOLVED",
+                                event_type=event_type,
+                                details={
+                                    "error": "Relational mismatch between attempt, notification, and mandate",
+                                    "org_id": org_id,
+                                    "merchant_order_id": v2_pdn.merchant_order_id,
+                                },
+                                error_message="Relational mismatch between attempt, notification, and mandate",
+                                organization_id=org_id,
+                            )
                         except WebhookPersistenceError:
                             return jsonify({"error": "Failed to durably persist webhook event", "status": "ERROR", "retryable": True}), 500
                         return jsonify({
@@ -775,10 +1024,18 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
                     ):
                         logger.error("V2 explicit debit webhook: relational mismatch")
                         try:
-                            _record_v2_webhook_event(event_id, event_type, "UNRESOLVED", {
-                                "error": "Relational mismatch",
-                                "org_id": org_id,
-                            })
+                            _transition_v2_webhook_event(
+                                event_id=event_id,
+                                fencing_token=worker_fencing_token,
+                                target_state="UNRESOLVED",
+                                event_type=event_type,
+                                details={
+                                    "error": "Relational mismatch",
+                                    "org_id": org_id,
+                                },
+                                error_message="Relational mismatch",
+                                organization_id=org_id,
+                            )
                         except WebhookPersistenceError:
                             return jsonify({"error": "Failed to durably persist webhook event", "status": "ERROR", "retryable": True}), 500
                         return jsonify({
@@ -839,6 +1096,21 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
                     reconciliation_state = "UNRESOLVED"
                     unresolved_reason = f"Setup payment evidence invalid: {evidence_err}"
                 else:
+                    # FENCING CHECK: Verify this worker STILL holds active event lease before mutating entitlement!
+                    owner_check = SaaSWebhookEvent.query.filter(
+                        SaaSWebhookEvent.payment_provider == "phonepe_v2",
+                        SaaSWebhookEvent.event_id == event_id,
+                        SaaSWebhookEvent.owner_token == worker_fencing_token,
+                        SaaSWebhookEvent.owner_expires_at >= datetime.utcnow(),
+                    ).first()
+                    if not owner_check:
+                        db.session.rollback()
+                        logger.error(
+                            "Fencing check failed: worker %s lost lease on event %s before activation",
+                            worker_fencing_token, event_id
+                        )
+                        return jsonify({"error": "Worker lease expired during reconciliation", "status": "UNRESOLVED", "retryable": True}), 422
+
                     SubscriptionService.activate_subscription(
                         subscription=sub,
                         provider_subscription_id=v2_mandate.provider_subscription_id,
@@ -857,19 +1129,22 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
                 reconciliation_state = "UNRESOLVED"
                 unresolved_reason = "No authentic internal setup merchant order ID found"
 
-        # 5. Persist Webhook Event record for durable idempotency
+        # 6. Commit final state using conditional fencing transition
         try:
-            _record_v2_webhook_event(
+            _transition_v2_webhook_event(
                 event_id=event_id,
+                fencing_token=worker_fencing_token,
+                target_state=reconciliation_state,
                 event_type=event_type,
-                processing_state=reconciliation_state,
                 details={
                     "merchant_subscription_id": v2_mandate.merchant_subscription_id if v2_mandate else None,
                     "merchant_order_id": v2_pdn.merchant_order_id if v2_pdn else None,
                     "org_id": org_id,
                     "state": webhook_res.state,
                     "reason": unresolved_reason,
-                }
+                },
+                error_message=unresolved_reason,
+                organization_id=org_id,
             )
         except WebhookPersistenceError as pers_err:
             logger.error("V2 webhook %s durable event persistence failed: %s", event_id, pers_err)
@@ -908,84 +1183,27 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict, v2_mandate, v2_pdn, 
         db.session.rollback()
         logger.error("Error during authoritative S2S reconciliation for V2 webhook %s: %s", event_id, str(e), exc_info=True)
         try:
-            _record_v2_webhook_event(
+            _transition_v2_webhook_event(
                 event_id=event_id,
+                fencing_token=worker_fencing_token,
+                target_state="UNRESOLVED",
                 event_type=event_type,
-                processing_state="UNRESOLVED",
-                details={"error": str(e), "org_id": org_id}
+                details={"error": str(e), "org_id": org_id},
+                error_message=str(e),
+                organization_id=org_id,
             )
         except Exception:
             pass
         return jsonify({"error": f"Reconciliation failed: {str(e)}", "status": "UNRESOLVED", "retryable": True}), 500
 
 
-@saas_bp.route("/phonepe-webhook", methods=["POST"])
-@saas_bp.route("/webhook", methods=["POST"])
-def phonepe_webhook():
+def _handle_v3_webhook(payload_bytes: bytes, headers: dict):
     """
-    Handles server-to-server (S2S) webhooks for PhonePe AutoPay.
-    Routes V2 events to _handle_v2_webhook with authoritative S2S reconciliation.
+    PhonePe Legacy V3 S2S Webhook Processing.
     Preserves all existing V3 webhook event handling code completely unchanged.
+    Uses provider-scoped unique constraint for idempotency deduplication.
     """
-    payload_bytes = request.get_data()
-    headers = dict(request.headers)
-
-    # Detect if this is a V2 event by parsing the JSON body and matching internal financial records
-    is_v2 = False
-    v2_mandate = None
-    v2_pdn = None
-    try:
-        body_json = json.loads(payload_bytes) if payload_bytes else {}
-        merchant_sub_id_in_body = (
-            body_json.get("merchantSubscriptionId")
-            or body_json.get("data", {}).get("merchantSubscriptionId")
-            or body_json.get("payload", {}).get("merchantSubscriptionId")
-            if isinstance(body_json, dict) else None
-        )
-        merchant_order_id_in_body = (
-            body_json.get("merchantOrderId")
-            or body_json.get("data", {}).get("merchantOrderId")
-            or body_json.get("payload", {}).get("merchantOrderId")
-            if isinstance(body_json, dict) else None
-        )
-        if merchant_sub_id_in_body:
-            v2_mandates = SaaSMandate.query.filter_by(
-                merchant_subscription_id=merchant_sub_id_in_body,
-                payment_provider="phonepe_v2",
-            ).all()
-            if len(v2_mandates) > 1:
-                logger.error("V2 webhook rejected: ambiguous mandate for %s across tenants", merchant_sub_id_in_body)
-                return jsonify({"error": "Ambiguous mandate reference across organizations", "retryable": False}), 422
-            if v2_mandates:
-                v2_mandate = v2_mandates[0]
-                is_v2 = True
-        if not is_v2 and merchant_order_id_in_body:
-            v2_pdns = SaaSPreDebitNotification.query.filter_by(
-                merchant_order_id=merchant_order_id_in_body,
-            ).all()
-            if len(v2_pdns) > 1:
-                logger.error("V2 webhook rejected: ambiguous PDN for %s across tenants", merchant_order_id_in_body)
-                return jsonify({"error": "Ambiguous notification reference across organizations", "retryable": False}), 422
-            if v2_pdns:
-                v2_pdn = v2_pdns[0]
-                is_v2 = True
-                if v2_pdn.mandate_id:
-                    v2_mandate = SaaSMandate.query.filter_by(
-                        id=v2_pdn.mandate_id,
-                        organization_id=v2_pdn.organization_id,
-                        payment_provider="phonepe_v2",
-                    ).first()
-    except Exception:
-        body_json = {}
-
-    if is_v2:
-        return _handle_v2_webhook(payload_bytes, headers, v2_mandate, v2_pdn, body_json)
-
-    # ── V3 Legacy PhonePe Webhook Processing (preserved completely) ───────────
     provider = BillingService.get_provider("phonepe")
-    payload_bytes = request.get_data()
-    headers = dict(request.headers)
-
     webhook_res = provider.verify_webhook(payload_bytes, headers)
 
     if not webhook_res.is_valid:
@@ -995,8 +1213,8 @@ def phonepe_webhook():
     event_id = webhook_res.event_id
     event_type = webhook_res.event_type
 
-    # Idempotency check
-    if SaaSWebhookEvent.query.filter_by(event_id=event_id).first():
+    # Idempotency check with provider-scoped lookup
+    if SaaSWebhookEvent.query.filter_by(payment_provider="phonepe", event_id=event_id).first():
         logger.info("Webhook event %s already processed; skipping.", event_id)
         return jsonify({"status": "already_processed"}), 200
 
@@ -1106,6 +1324,7 @@ def phonepe_webhook():
             payment_provider="phonepe",
             event_id=event_id,
             event_type=event_type,
+            status=WebhookEventStatus.PROCESSED.value,
             payload_summary=json.dumps({
                 "sub_ref": sub_ref,
                 "amount": webhook_res.amount_paise,
@@ -1115,9 +1334,32 @@ def phonepe_webhook():
         db.session.add(ev)
         db.session.commit()
         logger.info("Successfully processed PhonePe webhook event %s (%s)", event_id, event_type)
+        return jsonify({"status": "success", "event_id": event_id}), 200
 
     except Exception as e:
         db.session.rollback()
+        logger.error("Error processing PhonePe webhook: %s", str(e), exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@saas_bp.route("/phonepe-webhook", methods=["POST"])
+@saas_bp.route("/webhook", methods=["POST"])
+def phonepe_webhook():
+    """
+    Handles server-to-server (S2S) webhooks for PhonePe AutoPay.
+    Routes requests strictly based on the documented transport contract:
+      - 'Authorization: Basic <token>' -> PhonePe AutoPay V2
+      - Legacy headers (X-VERIFY or non-Basic auth) -> PhonePe Legacy V3
+    Authenticates before resolving internal provider or tenant records.
+    """
+    payload_bytes = request.get_data()
+    headers = dict(request.headers)
+
+    auth_header = (headers.get("Authorization") or headers.get("authorization") or "").strip()
+    if auth_header.startswith("Basic"):
+        return _handle_v2_webhook(payload_bytes, headers)
+    else:
+        return _handle_v3_webhook(payload_bytes, headers)
         logger.error("Error processing PhonePe webhook %s: %s", event_id, str(e), exc_info=True)
         return jsonify({"error": str(e)}), 500
 
@@ -1128,7 +1370,7 @@ def phonepe_webhook():
 def process_renewals():
     """
     Automated job / cron endpoint to process Pre-Debit Notifications (24h prior)
-    and execute due AutoPay renewals.
+    and execute due AutoPay renewals across supported providers (phonepe, phonepe_v2).
     Protected by dedicated RENEWAL_CRON_SECRET or Super Admin authentication.
     Uses timing-attack resistant hmac.compare_digest.
     """
@@ -1146,20 +1388,37 @@ def process_renewals():
     if not is_authorized:
         return jsonify({"error": "Unauthorized renewal trigger"}), 403
 
-    provider = BillingService.get_provider("phonepe")
-    # NOTE: This endpoint uses the legacy V3 PhonePeProvider for renewal processing.
-    # V2 (PhonePeAutoPayV2) renewal flows use PhonePeAutoPayV2Provider directly
-    # inside RenewalService via BillingService.get_provider("phonepe_v2").
+    # Multi-provider support: phonepe, phonepe_v2
+    # Specific provider requested via query parameter or JSON body
+    req_data = request.get_json(silent=True) or {}
+    requested_provider = (request.args.get("provider") or req_data.get("provider") or "").strip().lower()
 
-    notifications = RenewalService.process_upcoming_notifications(provider, hours_ahead=48)
-    renewals = RenewalService.process_due_renewals(provider)
+    if requested_provider:
+        if requested_provider not in ("phonepe", "phonepe_v2"):
+            return jsonify({"error": f"Unsupported renewal provider: {requested_provider}"}), 400
+        providers_to_run = [BillingService.get_provider(requested_provider)]
+    else:
+        # Default: process both V2 and V3 (never Razorpay)
+        providers_to_run = [
+            BillingService.get_provider("phonepe_v2"),
+            BillingService.get_provider("phonepe"),
+        ]
+
+    all_notifications = []
+    all_renewals = []
+
+    for provider in providers_to_run:
+        notifs = RenewalService.process_upcoming_notifications(provider, hours_ahead=48)
+        rens = RenewalService.process_due_renewals(provider)
+        all_notifications.extend(notifs)
+        all_renewals.extend(rens)
 
     return jsonify({
         "status": "completed",
-        "notifications_sent": len(notifications),
-        "renewals_executed": len(renewals),
+        "notifications_sent": len(all_notifications),
+        "renewals_executed": len(all_renewals),
         "details": {
-            "notifications": notifications,
-            "renewals": renewals,
+            "notifications": all_notifications,
+            "renewals": all_renewals,
         }
     }), 200
