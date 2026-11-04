@@ -2938,6 +2938,7 @@ class SaaSPreDebitNotification(db.Model):
         db.String(50), nullable=False, default=PreDebitNotificationStatus.INITIATED.value,
         server_default=db.text("'INITIATED'"), index=True
     )
+    billing_period_key = db.Column(db.String(64), nullable=True)
     error_code = db.Column(db.String(100), nullable=True)
     error_message = db.Column(db.Text, nullable=True)
     raw_response_json = db.Column(db.JSON, nullable=True)
@@ -2994,6 +2995,7 @@ class SaaSRedemptionAttempt(db.Model):
     )
     attempt_number = db.Column(db.Integer, nullable=False, default=1, server_default=db.text("1"))
     failure_reason = db.Column(db.Text, nullable=True)
+    billing_period_key = db.Column(db.String(64), nullable=True)
     raw_response_json = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

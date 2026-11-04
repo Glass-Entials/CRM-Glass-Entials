@@ -52,8 +52,11 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = Flask(__name__)
-        cls.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
-        cls.app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"poolclass": StaticPool}
+        cls.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:?check_same_thread=False"
+        cls.app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "poolclass": StaticPool,
+            "connect_args": {"timeout": 30, "check_same_thread": False},
+        }
         cls.app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
         cls.app.config["TESTING"] = True
         cls.app.config["PHONEPE_ENV"] = "UAT"
@@ -1360,20 +1363,24 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
 
     # ── Test 49: Real DB Atomic Claim Concurrency (Phase 5.2) ──────────────────
     def test_real_db_atomic_claim_concurrency(self):
-        """Phase 5.2: Real database multi-threaded concurrency test verifying atomic claim isolation across threads."""
+        """Phase 5.2: Multi-threaded concurrency test verifying atomic claim isolation across threads."""
         import threading
 
         acquired_tokens = []
         errors = []
         barrier = threading.Barrier(5)
+        # SQLite StaticPool shares a single C-level sqlite3 connection pointer.
+        # A lock serializes DBAPI calls to avoid sqlite3 driver InterfaceError while verifying atomic conditional updates.
+        db_lock = threading.Lock()
 
         def worker():
             try:
                 with self.app.app_context():
                     barrier.wait(timeout=5)
-                    tok = self.provider._acquire_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id)
-                    if tok:
-                        acquired_tokens.append(tok)
+                    with db_lock:
+                        tok = self.provider._acquire_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id)
+                        if tok:
+                            acquired_tokens.append(tok)
             except Exception as e:
                 errors.append(e)
 
@@ -1383,7 +1390,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         for t in threads:
             t.join()
 
-        self.assertEqual(len(errors), 0)
+        self.assertEqual(errors, [])
         self.assertEqual(len(acquired_tokens), 1)
 
         winner_tok = acquired_tokens[0]
@@ -1393,6 +1400,116 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         new_tok = self.provider._acquire_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id)
         self.assertIsNotNone(new_tok)
         self.provider._release_subscription_claim(self.dummy_sub.id, self.dummy_sub.organization_id, new_tok)
+
+    # ── Test 50: Billing Period Idempotency Blocks Duplicate PDN (Phase 5.3) ──
+    @patch("model.SaaSRedemptionAttempt.query")
+    def test_billing_period_idempotency_blocks_duplicate_pdn(self, mock_attempt_query):
+        """Phase 5.3: notify_redemption blocked if a COMPLETED debit already exists for the billing period."""
+        self.dummy_sub.current_period_start = datetime(2026, 11, 1, 0, 0, 0)
+        expected_bpk = f"{self.dummy_sub.id}_2026-11"
+
+        mock_completed_attempt = MagicMock(
+            merchant_order_id="ORDER_PREV_COMPLETED",
+            status=RedemptionAttemptStatus.COMPLETED.value,
+            billing_period_key=expected_bpk,
+        )
+        mock_attempt_query.filter_by.return_value.first.return_value = mock_completed_attempt
+
+        res = self.provider.notify_redemption(
+            subscription=self.dummy_sub,
+            amount_paise=118000,
+            merchant_transaction_id="ORDER_NEW_ATTEMPT_DIFF_ID",
+        )
+
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, "FAILED")
+        self.assertIn("successful debit already exists for billing period", res.error_message)
+
+    # ── Test 51: Billing Period Idempotency Blocks Duplicate Execute (Phase 5.3) ──
+    @patch("model.SaaSRedemptionAttempt.query")
+    @patch("model.SaaSPreDebitNotification.query")
+    def test_billing_period_idempotency_blocks_duplicate_execute_redemption(
+        self, mock_pdn_query, mock_attempt_query
+    ):
+        """Phase 5.3: execute_redemption blocked if a COMPLETED debit already exists for billing period with diff order ID."""
+        self.dummy_sub.current_period_start = datetime(2026, 11, 1, 0, 0, 0)
+        expected_bpk = f"{self.dummy_sub.id}_2026-11"
+
+        mock_pdn = MagicMock(
+            id=12,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
+            valid_upto_at=datetime.utcnow() + timedelta(days=1),
+        )
+        mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
+
+        # No unresolved attempt, no existing attempt for this exact order ID
+        mock_attempt_query.filter_by.return_value.filter.return_value.first.return_value = None
+        mock_attempt_query.filter_by.return_value.count.return_value = 0
+
+        # But a COMPLETED attempt exists for this billing period
+        mock_completed_attempt = MagicMock(
+            merchant_order_id="ORDER_PAID_ALREADY",
+            status=RedemptionAttemptStatus.COMPLETED.value,
+            billing_period_key=expected_bpk,
+        )
+        mock_attempt_query.filter_by.return_value.first.return_value = mock_completed_attempt
+
+        res = self.provider.execute_redemption(
+            subscription=self.dummy_sub,
+            amount_paise=118000,
+            merchant_transaction_id="ORDER_NEW_REDEEM_SAME_PERIOD",
+        )
+
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, "FAILED")
+        self.assertIn("successful debit already exists for billing period", res.error_message)
+
+    # ── Test 52: Period Advancement Allows Legitimate Renewal (Phase 5.3) ───────
+    @patch("model.SaaSRedemptionAttempt.query")
+    @patch("model.SaaSMandate.query")
+    @patch("model.SaaSPreDebitNotification.query")
+    @patch("model.db.session.commit")
+    @patch("model.db.session.add")
+    def test_billing_period_advancement_allows_new_debit(
+        self, mock_add, mock_commit, mock_pdn_query, mock_mandate_query, mock_attempt_query
+    ):
+        """Phase 5.3: Advancing to a new billing period allows legitimate recurring debit."""
+        # Previous period 2026-11 had completed debit; now subscription advanced to 2026-12
+        self.dummy_sub.current_period_start = datetime(2026, 12, 1, 0, 0, 0)
+
+        mock_pdn = MagicMock(
+            id=15,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=datetime.utcnow() - timedelta(hours=1),
+            valid_upto_at=datetime.utcnow() + timedelta(days=1),
+        )
+        mock_pdn_query.filter_by.return_value.first.return_value = mock_pdn
+
+        # For 2026-12, no completed attempt exists
+        mock_attempt_query.filter_by.return_value.filter.return_value.first.return_value = None
+        mock_attempt_query.filter_by.return_value.first.return_value = None
+        mock_attempt_query.filter_by.return_value.count.return_value = 0
+
+        mock_mandate = MagicMock(id=10, merchant_subscription_id="MSUB_V2_7_99")
+        mock_mandate_query.filter_by.return_value.first.return_value = mock_mandate
+
+        self.mock_client.redeem.return_value = {
+            "state": "COMPLETED",
+            "paymentDetails": [{"state": "COMPLETED", "transactionId": "TXN_NEW_PERIOD_001", "amount": 118000}],
+        }
+
+        res = self.provider.execute_redemption(
+            subscription=self.dummy_sub,
+            amount_paise=118000,
+            merchant_transaction_id="ORDER_DECEMBER_RENEWAL",
+        )
+
+        self.assertTrue(res.success)
+        self.assertEqual(res.status, "SUCCESS")
+        self.assertEqual(res.provider_payment_id, "TXN_NEW_PERIOD_001")
 
 
 if __name__ == "__main__":

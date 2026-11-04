@@ -17,6 +17,8 @@ from model import (
     Plan,
     Organization,
     OrganizationStatus,
+    SaaSMandate,
+    SaaSPreDebitNotification,
     SaaSSubscription,
     SaaSSubscriptionStatus,
     SaaSTransaction,
@@ -133,10 +135,10 @@ def create_subscription():
 def phonepe_callback():
     """
     User return URL redirected from PhonePe after authorizing mandate.
+    Routes to V2 provider if the callback corresponds to a V2 mandate; otherwise
+    falls back to the legacy V3 PhonePeProvider.
     Verifies transaction status and activates the organization.
     """
-    provider = BillingService.get_provider("phonepe")
-
     # PhonePe POST redirect sends form fields (e.g. response base64 or merchantTransactionId)
     # or GET redirect params
     payload = {}
@@ -146,6 +148,35 @@ def phonepe_callback():
 
     logger.info("Received PhonePe redirect callback with keys: %s", list(payload.keys()))
 
+    # Extract merchant identifiers from request to determine routing
+    merchant_transaction_id = (
+        payload.get("merchant_transaction_id")
+        or payload.get("merchantTransactionId")
+        or payload.get("merchantOrderId")
+    )
+    merchant_subscription_id = (
+        payload.get("merchant_subscription_id")
+        or payload.get("merchantSubscriptionId")
+    )
+
+    # Determine whether this callback belongs to a V2 mandate
+    is_v2 = False
+    if merchant_subscription_id:
+        v2_mandate = SaaSMandate.query.filter_by(
+            merchant_subscription_id=merchant_subscription_id,
+        ).first()
+        if v2_mandate and v2_mandate.payment_provider == "phonepe_v2":
+            is_v2 = True
+    if not is_v2 and merchant_transaction_id:
+        v2_pdn = SaaSPreDebitNotification.query.filter_by(
+            merchant_order_id=merchant_transaction_id,
+        ).first()
+        if v2_pdn:
+            is_v2 = True
+
+    provider = BillingService.get_provider("phonepe_v2" if is_v2 else "phonepe")
+
+    # org_id is sourced from server-side authenticated session, never from request params
     org_id = current_user.organization_id if (current_user.is_authenticated and getattr(current_user, "organization", None)) else None
     verify_res = provider.verify_payment(payload, headers=dict(request.headers), organization_id=org_id)
 
@@ -189,6 +220,7 @@ def verify_payment():
     Direct payment verification API endpoint (for client-side or legacy callers).
     """
     org = current_user.organization
+    # org.id is sourced from server-side authenticated session via current_user.organization, never from request body
     data = request.get_json(silent=True) or {}
     provider = BillingService.get_provider()
 
@@ -218,7 +250,54 @@ def phonepe_webhook():
     """
     Handles server-to-server (S2S) webhooks for PhonePe AutoPay.
     Manages mandate activation, pause, cancellation, and recurring redemptions.
+
+    V2 mandate events (redirects and S2S notifications) arrive at /saas/phonepe-callback,
+    NOT at this S2S webhook endpoint. If a V2 event is detected here, it is acknowledged
+    immediately without processing, since the callback endpoint handles V2 lifecycle.
+    All existing V3 webhook event handling code is preserved completely unchanged.
     """
+    payload_bytes = request.get_data()
+    headers = dict(request.headers)
+
+    # Detect if this is a V2 event by parsing the JSON body
+    is_v2 = False
+    try:
+        body_json = json.loads(payload_bytes) if payload_bytes else {}
+        merchant_sub_id_in_body = (
+            body_json.get("merchantSubscriptionId")
+            or body_json.get("data", {}).get("merchantSubscriptionId")
+            if isinstance(body_json, dict) else None
+        )
+        merchant_order_id_in_body = (
+            body_json.get("merchantOrderId")
+            or body_json.get("data", {}).get("merchantOrderId")
+            if isinstance(body_json, dict) else None
+        )
+        if merchant_sub_id_in_body:
+            v2_mandate = SaaSMandate.query.filter_by(
+                merchant_subscription_id=merchant_sub_id_in_body,
+            ).first()
+            if v2_mandate and v2_mandate.payment_provider == "phonepe_v2":
+                is_v2 = True
+        if not is_v2 and merchant_order_id_in_body:
+            v2_pdn = SaaSPreDebitNotification.query.filter_by(
+                merchant_order_id=merchant_order_id_in_body,
+            ).first()
+            if v2_pdn:
+                is_v2 = True
+    except Exception:
+        pass  # Parsing failure — treat as V3
+
+    if is_v2:
+        # V2 events are handled via the /saas/phonepe-callback endpoint (HMAC-verified redirect/S2S).
+        # Acknowledge without processing to avoid double-processing.
+        logger.info(
+            "phonepe_webhook: Received payload for a V2 mandate/order; acknowledging without V3 processing. "
+            "V2 events are handled at the /saas/phonepe-callback endpoint."
+        )
+        return jsonify({"status": "v2_event_acknowledged"}), 200
+
+    # ── V3 Legacy PhonePe Webhook Processing (preserved completely) ───────────
     provider = BillingService.get_provider("phonepe")
     payload_bytes = request.get_data()
     headers = dict(request.headers)
@@ -384,6 +463,9 @@ def process_renewals():
         return jsonify({"error": "Unauthorized renewal trigger"}), 403
 
     provider = BillingService.get_provider("phonepe")
+    # NOTE: This endpoint uses the legacy V3 PhonePeProvider for renewal processing.
+    # V2 (PhonePeAutoPayV2) renewal flows use PhonePeAutoPayV2Provider directly
+    # inside RenewalService via BillingService.get_provider("phonepe_v2").
 
     notifications = RenewalService.process_upcoming_notifications(provider, hours_ahead=48)
     renewals = RenewalService.process_due_renewals(provider)

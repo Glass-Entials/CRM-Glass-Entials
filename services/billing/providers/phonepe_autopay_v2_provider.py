@@ -66,6 +66,15 @@ from services.billing.transaction_service import TransactionService
 logger = logging.getLogger(__name__)
 
 
+def _compute_billing_period_key(subscription_id: int, period_start: datetime) -> str:
+    """
+    Derives a canonical per-billing-period idempotency key.
+    Key format: '{subscription_id}_{YYYY-MM}' — one key per calendar month per subscription.
+    For yearly billing, the key uses the first month of the annual period.
+    """
+    return f"{subscription_id}_{period_start.strftime('%Y-%m')}"
+
+
 def _parse_datetime(val: Any) -> Optional[datetime]:
     """Safely parse epoch timestamps (seconds/millis) or ISO strings into datetime."""
     if val is None:
@@ -686,6 +695,10 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         Verifies mandate setup / payment return after browser redirect.
         Never trusts the browser payload alone; verifies via authoritative S2S call.
         Enforces trusted organization_id context.
+
+        # SECURITY: organization_id MUST be passed from server-side authenticated context only.
+        # It must NEVER be sourced from client-supplied request body or query parameters.
+        # If organization_id is None, this method resolves tenant from internal DB records.
         """
         merchant_order_id = payload.get("merchantOrderId") or payload.get("merchantTransactionId")
         merchant_sub_id = payload.get("merchantSubscriptionId")
@@ -819,6 +832,32 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 )
 
             auto_debit_snap = mandate.auto_debit if mandate else False
+
+            # Billing-period idempotency: block if a COMPLETED redemption already exists for this billing period
+            if subscription.current_period_start:
+                bpk = _compute_billing_period_key(subscription.id, subscription.current_period_start)
+                # Check for any COMPLETED redemption attempt for this billing period
+                completed_for_period = SaaSRedemptionAttempt.query.filter_by(
+                    organization_id=subscription.organization_id,
+                    subscription_id=subscription.id,
+                    billing_period_key=bpk,
+                    status=RedemptionAttemptStatus.COMPLETED.value,
+                ).first()
+                if completed_for_period:
+                    logger.error(
+                        "notify_redemption blocked: Subscription org=%s sub=%s already has a COMPLETED debit for billing period %s (order=%s)",
+                        subscription.organization_id, subscription.id, bpk, completed_for_period.merchant_order_id,
+                    )
+                    return RedemptionResult(
+                        success=False,
+                        status="FAILED",
+                        merchant_transaction_id=merchant_transaction_id,
+                        amount_paise=amount_paise,
+                        error_message=f"A successful debit already exists for billing period {bpk}. Use a new billing period for the next renewal.",
+                    )
+            else:
+                bpk = None
+
             notification = SaaSPreDebitNotification(
                 organization_id=subscription.organization_id,
                 subscription_id=subscription.id,
@@ -826,6 +865,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 merchant_order_id=merchant_transaction_id,
                 amount_paise=amount_paise,
                 auto_debit_snapshot=auto_debit_snap,
+                billing_period_key=bpk,
                 status=PreDebitNotificationStatus.INITIATED.value,
             )
             db.session.add(notification)
@@ -1108,6 +1148,30 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             organization_id=subscription.organization_id,
         ).count()
 
+        # Safety Check 7: Billing-period idempotency — block if a COMPLETED redemption exists for this period
+        if subscription.current_period_start:
+            bpk = _compute_billing_period_key(subscription.id, subscription.current_period_start)
+            completed_for_period = SaaSRedemptionAttempt.query.filter_by(
+                organization_id=subscription.organization_id,
+                subscription_id=subscription.id,
+                billing_period_key=bpk,
+                status=RedemptionAttemptStatus.COMPLETED.value,
+            ).first()
+            if completed_for_period:
+                logger.error(
+                    "execute_redemption blocked: COMPLETED debit already exists for billing period %s (prior order=%s)",
+                    bpk, completed_for_period.merchant_order_id,
+                )
+                return RedemptionResult(
+                    success=False,
+                    status="FAILED",
+                    merchant_transaction_id=merchant_transaction_id,
+                    amount_paise=amount_paise,
+                    error_message=f"A successful debit already exists for billing period {bpk}. Only one debit is permitted per billing period.",
+                )
+        else:
+            bpk = None
+
         attempt = SaaSRedemptionAttempt(
             organization_id=subscription.organization_id,
             subscription_id=subscription.id,
@@ -1116,6 +1180,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             amount_paise=amount_paise,
             status=RedemptionAttemptStatus.INITIATED.value,
             attempt_number=attempt_count + 1,
+            billing_period_key=bpk,
         )
         db.session.add(attempt)
         try:
