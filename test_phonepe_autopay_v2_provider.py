@@ -2464,6 +2464,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             amount_paise=100000,
             auto_debit_snapshot=False,
             status=PreDebitNotificationStatus.NOTIFIED.value,
+            billing_period_key="bpk_res_mismatch",
         )
         attempt_d = SaaSRedemptionAttempt(
             id=133,
@@ -2725,6 +2726,52 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             res7 = self.provider.reconcile_redemption_status(attempt_7)
             self.assertEqual(res7.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
             self.assertIn("Mandate record not found for tenant", res7.failure_reason)
+            mock_get_client.assert_not_called()
+
+            # 8. Existing attempt key + missing notification key + existing reservation
+            mandate_valid_8 = SaaSMandate(
+                id=308,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                merchant_subscription_id="MSUB_REG_308",
+                mandate_status="ACTIVE",
+                max_amount_paise=200000,
+                frequency="MONTHLY",
+            )
+            bpr_8 = SaaSBillingPeriodReservation(
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                billing_period_key="bpk_missing_notif_key_8",
+                merchant_order_id="ORD_REG_308",
+                status=BillingPeriodReservationStatus.RESERVED.value,
+            )
+            pdn_8 = SaaSPreDebitNotification(
+                id=308,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                mandate_id=308,
+                merchant_order_id="ORD_REG_308",
+                amount_paise=100000,
+                auto_debit_snapshot=False,
+                status=PreDebitNotificationStatus.NOTIFIED.value,
+                billing_period_key=None,  # Missing notification key
+            )
+            attempt_8 = SaaSRedemptionAttempt(
+                id=308,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                notification_id=308,
+                merchant_order_id="ORD_REG_308",
+                amount_paise=100000,
+                status=RedemptionAttemptStatus.INITIATED.value,
+                billing_period_key="bpk_missing_notif_key_8",  # Existing attempt key
+            )
+            db.session.add_all([mandate_valid_8, bpr_8, pdn_8, attempt_8])
+            db.session.commit()
+
+            res8 = self.provider.reconcile_redemption_status(attempt_8)
+            self.assertEqual(res8.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+            self.assertIn("Billing period key missing on notification for reserved billing period", res8.failure_reason)
             mock_get_client.assert_not_called()
 
 

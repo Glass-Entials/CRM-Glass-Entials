@@ -2162,7 +2162,20 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 return attempt
 
             notif_bpk = getattr(notification, "billing_period_key", None)
-            if notif_bpk and notif_bpk != attempt.billing_period_key:
+            if not notif_bpk:
+                logger.error(
+                    "reconcile_redemption_status: Missing notification.billing_period_key for reserved billing period (order=%s)",
+                    attempt.merchant_order_id,
+                )
+                attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+                attempt.failure_reason = "Billing period key missing on notification for reserved billing period"
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                return attempt
+
+            if notif_bpk != attempt.billing_period_key:
                 rel_error = f"Billing period key mismatch: attempt bpk {attempt.billing_period_key} != notification bpk {notif_bpk}"
                 logger.error("reconcile_redemption_status: %s", rel_error)
                 attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value

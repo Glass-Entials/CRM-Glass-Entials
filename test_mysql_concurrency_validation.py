@@ -49,6 +49,7 @@ from services.billing.providers.phonepe_autopay_v2_provider import (
 )
 from services.billing.renewal_service import RenewalService
 from services.billing.subscription_service import SubscriptionService
+from routes.saas import _transition_v2_webhook_event, WebhookPersistenceError
 
 
 class TestMySQLConcurrencyValidation(unittest.TestCase):
@@ -1252,11 +1253,29 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             # Assert exactly one S2S order reconciliation call across both concurrent workers
             self.assertEqual(mock_get_order.call_count, 1)
 
-            # 1. Assert exactly one worker succeeded with 200, the other received 422 (PROCESSING retryable) or already_processed
-            statuses = [worker_results["w1"][0], worker_results["w2"][0]]
-            self.assertIn(200, statuses)
-            losing_status = worker_results["w2"][0] if worker_results["w1"][0] == 200 else worker_results["w1"][0]
-            self.assertIn(losing_status, (422, 200))
+            # 1. Assert exactly one worker performed processing, the other received 422 (PROCESSING retryable) or 200 (already_processed)
+            w1_status, w1_json = worker_results["w1"]
+            w2_status, w2_json = worker_results["w2"]
+
+            # Exactly one worker must have performed processing and succeeded with status: "success"
+            w1_processed = (w1_status == 200 and isinstance(w1_json, dict) and w1_json.get("status") == "success")
+            w2_processed = (w2_status == 200 and isinstance(w2_json, dict) and w2_json.get("status") == "success")
+            self.assertTrue(
+                w1_processed ^ w2_processed,
+                f"Expected exactly one worker to perform processing with status 'success'. Results: w1={worker_results['w1']}, w2={worker_results['w2']}"
+            )
+
+            loser_status, loser_json = (w2_status, w2_json) if w1_processed else (w1_status, w1_json)
+            if loser_status == 422:
+                self.assertEqual(loser_json.get("status"), "PROCESSING")
+                self.assertIs(loser_json.get("retryable"), True)
+            elif loser_status == 200:
+                self.assertEqual(loser_json.get("status"), "already_processed")
+            else:
+                self.fail(
+                    f"Losing worker returned invalid HTTP status {loser_status} (body: {loser_json}). "
+                    "Must return either HTTP 422 with status 'PROCESSING' (retryable=True) or HTTP 200 with status 'already_processed'."
+                )
 
             # 2. Assert direct database state on MySQL 8.0 InnoDB
             verify_session = self.SessionFactory()
@@ -1306,56 +1325,152 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             finally:
                 verify_session.close()
 
-        # 4. Test ownership expiry and stale-worker fencing
+        # 4. Test actual production stale-worker fencing against real MySQL records
         stale_event_id = f"EVT_STALE_FENCE_{int(datetime.utcnow().timestamp())}"
         stale_token = "wh_stale_expired_token_01"
+        valid_worker_token = "wh_recovered_worker_token_02"
         now_fencing = datetime.utcnow()
-        with self.app.app_context():
-            expired_evt = SaaSWebhookEvent(
-                payment_provider="phonepe_v2",
-                event_id=stale_event_id,
-                event_type="SUBSCRIPTION_ACTIVE",
-                status=WebhookEventStatus.PROCESSING.value,
-                owner_token=stale_token,
-                owner_expires_at=now_fencing - timedelta(seconds=10),
-            )
-            db.session.add(expired_evt)
-            db.session.commit()
+        fence_org_id = 98766
+        fencing_sub_id = 9992
 
-            # Stale worker attempts atomic conditional update with expired token:
-            # Query mirrors the exact atomic fencing update in routes/saas.py
-            updated_stale = SaaSWebhookEvent.query.filter(
-                SaaSWebhookEvent.payment_provider == "phonepe_v2",
-                SaaSWebhookEvent.event_id == stale_event_id,
-                SaaSWebhookEvent.owner_token == stale_token,
-                SaaSWebhookEvent.owner_expires_at >= datetime.utcnow(),
-                SaaSWebhookEvent.status == WebhookEventStatus.PROCESSING.value,
-            ).update({
-                SaaSWebhookEvent.status: WebhookEventStatus.PROCESSED.value,
-            }, synchronize_session=False)
+        try:
+            with self.app.app_context():
+                # Clean up any leftovers from previous test executions
+                db.session.query(SaaSTransaction).filter_by(organization_id=fence_org_id).delete()
+                db.session.query(SaaSWebhookEvent).filter_by(event_id=stale_event_id).delete()
+                db.session.query(SaaSMandate).filter_by(organization_id=fence_org_id).delete()
+                db.session.query(SaaSSubscription).filter_by(organization_id=fence_org_id).delete()
+                db.session.query(Organization).filter_by(id=fence_org_id).delete()
+                db.session.commit()
 
-            self.assertEqual(updated_stale, 0)
-            db.session.rollback()
+                # Create dedicated organization and subscription in PENDING status to verify stale worker cannot activate it
+                fence_org = Organization(id=fence_org_id, name="Fence Org", unique_code="FENCEORG")
+                db.session.add(fence_org)
+                db.session.commit()
 
-            # Verify that another worker CAN claim the expired lease
-            new_fencing_token = "wh_recovered_worker_token"
-            claimed_rows = SaaSWebhookEvent.query.filter(
-                SaaSWebhookEvent.event_id == stale_event_id,
-                or_(
-                    SaaSWebhookEvent.owner_expires_at.is_(None),
-                    SaaSWebhookEvent.owner_expires_at <= datetime.utcnow(),
-                    SaaSWebhookEvent.status.in_([
-                        WebhookEventStatus.UNRESOLVED.value,
-                        WebhookEventStatus.FAILED.value,
-                    ]),
+                fence_sub = SaaSSubscription(
+                    id=fencing_sub_id,
+                    organization_id=fence_org_id,
+                    plan_id=1,
+                    status=SaaSSubscriptionStatus.PENDING,
+                    billing_cycle=SaaSBillingCycle.MONTHLY,
+                    amount_paise=100000,
+                    provider_order_id=f"ORD_FENCE_STALE_{fencing_sub_id}",
                 )
-            ).update({
-                SaaSWebhookEvent.status: WebhookEventStatus.PROCESSING.value,
-                SaaSWebhookEvent.owner_token: new_fencing_token,
-                SaaSWebhookEvent.owner_expires_at: datetime.utcnow() + timedelta(seconds=120),
-            }, synchronize_session=False)
-            self.assertEqual(claimed_rows, 1)
-            db.session.commit()
+                fence_mandate = SaaSMandate(
+                    id=fencing_sub_id,
+                    organization_id=fence_org_id,
+                    subscription_id=fencing_sub_id,
+                    payment_provider="phonepe_v2",
+                    merchant_subscription_id=f"MSUB_FENCE_{fencing_sub_id}",
+                    mandate_status="ACTIVE",
+                    max_amount_paise=200000,
+                    frequency="MONTHLY",
+                )
+                expired_evt = SaaSWebhookEvent(
+                    payment_provider="phonepe_v2",
+                    event_id=stale_event_id,
+                    event_type="SUBSCRIPTION_ACTIVE",
+                    status=WebhookEventStatus.PROCESSING.value,
+                    organization_id=fence_org_id,
+                    owner_token=stale_token,
+                    owner_expires_at=now_fencing - timedelta(seconds=10),
+                )
+                db.session.add_all([fence_sub, fence_mandate, expired_evt])
+                db.session.commit()
+
+                # Legitimate worker claims the expired lease using production atomic acquisition logic
+                claimed_rows = SaaSWebhookEvent.query.filter(
+                    SaaSWebhookEvent.payment_provider == "phonepe_v2",
+                    SaaSWebhookEvent.event_id == stale_event_id,
+                    or_(
+                        SaaSWebhookEvent.owner_expires_at.is_(None),
+                        SaaSWebhookEvent.owner_expires_at <= datetime.utcnow(),
+                        SaaSWebhookEvent.status.in_([
+                            WebhookEventStatus.UNRESOLVED.value,
+                            WebhookEventStatus.FAILED.value,
+                        ]),
+                    )
+                ).update({
+                    SaaSWebhookEvent.status: WebhookEventStatus.PROCESSING.value,
+                    SaaSWebhookEvent.owner_token: valid_worker_token,
+                    SaaSWebhookEvent.owner_expires_at: datetime.utcnow() + timedelta(seconds=120),
+                }, synchronize_session=False)
+                self.assertEqual(claimed_rows, 1)
+                db.session.commit()
+
+                # Production Code Path Execution:
+                # 1. Assert expired worker token CANNOT transition the event using actual production helper
+                with self.assertRaises(WebhookPersistenceError):
+                    _transition_v2_webhook_event(
+                        event_id=stale_event_id,
+                        fencing_token=stale_token,
+                        target_state="PROCESSED",
+                        event_type="SUBSCRIPTION_ACTIVE",
+                        details={"worker": "stale_attempt"},
+                        organization_id=fence_org_id,
+                    )
+
+                # 2. Assert stale worker CANNOT execute atomic activation or commit subscription changes
+                # Attempting atomic activation under stale token: conditional update matches 0 rows
+                stale_activation_updated = SaaSWebhookEvent.query.filter(
+                    SaaSWebhookEvent.payment_provider == "phonepe_v2",
+                    SaaSWebhookEvent.event_id == stale_event_id,
+                    SaaSWebhookEvent.owner_token == stale_token,
+                    SaaSWebhookEvent.owner_expires_at >= datetime.utcnow(),
+                    SaaSWebhookEvent.status == WebhookEventStatus.PROCESSING.value,
+                ).update({
+                    SaaSWebhookEvent.status: WebhookEventStatus.PROCESSED.value,
+                }, synchronize_session=False)
+                self.assertEqual(stale_activation_updated, 0)
+                db.session.rollback()
+
+                # 3. Assert valid current owner transitions event successfully using actual production helper
+                transition_ok = _transition_v2_webhook_event(
+                    event_id=stale_event_id,
+                    fencing_token=valid_worker_token,
+                    target_state="PROCESSED",
+                    event_type="SUBSCRIPTION_ACTIVE",
+                    details={"worker": "valid_owner"},
+                    organization_id=fence_org_id,
+                )
+                self.assertTrue(transition_ok)
+
+            # 4. Verify state mutations directly via MySQL queries on a fresh session
+            verify_session = self.SessionFactory()
+            try:
+                # Event transitioned to PROCESSED and ownership lease released in MySQL
+                evt_check = verify_session.query(SaaSWebhookEvent).filter_by(
+                    payment_provider="phonepe_v2",
+                    event_id=stale_event_id,
+                ).one()
+                self.assertEqual(evt_check.status, WebhookEventStatus.PROCESSED.value)
+                self.assertIsNone(evt_check.owner_token)
+                self.assertIsNone(evt_check.owner_expires_at)
+                self.assertIsNotNone(evt_check.processed_at)
+
+                # Subscription remains PENDING (stale worker could not activate it)
+                sub_check = verify_session.get(SaaSSubscription, fencing_sub_id)
+                self.assertEqual(sub_check.status, SaaSSubscriptionStatus.PENDING)
+                self.assertIsNone(sub_check.current_period_start)
+                self.assertIsNone(sub_check.current_period_end)
+
+                # Zero transactions recorded for the subscription
+                txs = verify_session.query(SaaSTransaction).filter_by(
+                    subscription_id=fencing_sub_id,
+                ).all()
+                self.assertEqual(len(txs), 0)
+            finally:
+                verify_session.close()
+
+        finally:
+            with self.app.app_context():
+                db.session.query(SaaSTransaction).filter_by(organization_id=fence_org_id).delete()
+                db.session.query(SaaSWebhookEvent).filter_by(event_id=stale_event_id).delete()
+                db.session.query(SaaSMandate).filter_by(organization_id=fence_org_id).delete()
+                db.session.query(SaaSSubscription).filter_by(organization_id=fence_org_id).delete()
+                db.session.query(Organization).filter_by(id=fence_org_id).delete()
+                db.session.commit()
 
 
 if __name__ == "__main__":
