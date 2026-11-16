@@ -240,6 +240,7 @@ def _track_suite_created_records(session, flush_context):
     if not getattr(TestMySQLConcurrencyValidation, "_tracking_active", False):
         return
     suite_org_id = getattr(TestMySQLConcurrencyValidation, "_created_org_id", None)
+    suite_sub_id = getattr(TestMySQLConcurrencyValidation, "_created_sub_id", None)
     if not suite_org_id:
         return
 
@@ -251,17 +252,24 @@ def _track_suite_created_records(session, flush_context):
         SaaSPreDebitNotification,
         SaaSMandate,
     )
-    for obj in session.new:
+    for obj in list(session.new) + list(session.dirty):
         if isinstance(obj, tracked_classes):
             obj_org_id = getattr(obj, "organization_id", None)
-            if obj_org_id == suite_org_id:
+            obj_sub_id = getattr(obj, "subscription_id", None)
+            if (
+                obj_org_id == suite_org_id
+                or (suite_sub_id is not None and obj_sub_id == suite_sub_id)
+                or (isinstance(obj, SaaSWebhookEvent) and obj_org_id is None)
+            ):
                 obj_id = getattr(obj, "id", None)
                 if obj_id is not None:
-                    TestMySQLConcurrencyValidation._created_record_ids[type(obj)].add(obj_id)
+                    with TestMySQLConcurrencyValidation._tracking_lock:
+                        TestMySQLConcurrencyValidation._created_record_ids[type(obj)].add(obj_id)
 
 
 class TestMySQLConcurrencyValidation(unittest.TestCase):
     _tracking_active = False
+    _tracking_lock = threading.Lock()
     _created_org_id = None
     _created_plan_id = None
     _created_sub_id = None
@@ -378,24 +386,6 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         if not getattr(cls, "_created_org_id", None) or cls.org_id != cls._created_org_id:
             return
 
-        # Query all records created specifically under our ephemeral suite-created organization
-        # to ensure 100% complete ID tracking even across independent sessions or background threads
-        for model_class in [
-            SaaSTransaction,
-            SaaSWebhookEvent,
-            SaaSRedemptionAttempt,
-            SaaSPreDebitNotification,
-            SaaSBillingPeriodReservation,
-            SaaSMandate,
-        ]:
-            db_ids = [
-                row[0]
-                for row in db.session.query(model_class.id)
-                .filter_by(organization_id=cls._created_org_id)
-                .all()
-            ]
-            cls._created_record_ids[model_class].update(db_ids)
-
         # Reset base subscription if created and owned by this suite
         if getattr(cls, "_created_sub_id", None) and cls.sub_id == cls._created_sub_id:
             sub = db.session.get(SaaSSubscription, cls.sub_id)
@@ -408,21 +398,22 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                 db.session.commit()
 
         # Delete ONLY the exact tracked records created by this suite execution
-        for model_class in [
-            SaaSTransaction,
-            SaaSWebhookEvent,
-            SaaSRedemptionAttempt,
-            SaaSPreDebitNotification,
-            SaaSBillingPeriodReservation,
-            SaaSMandate,
-        ]:
-            ids_to_delete = cls._created_record_ids[model_class]
-            if ids_to_delete:
-                db.session.query(model_class).filter(
-                    model_class.id.in_(list(ids_to_delete))
-                ).delete(synchronize_session=False)
-                ids_to_delete.clear()
-        db.session.commit()
+        with cls._tracking_lock:
+            for model_class in [
+                SaaSTransaction,
+                SaaSWebhookEvent,
+                SaaSRedemptionAttempt,
+                SaaSPreDebitNotification,
+                SaaSBillingPeriodReservation,
+                SaaSMandate,
+            ]:
+                ids_to_delete = cls._created_record_ids.get(model_class)
+                if ids_to_delete:
+                    db.session.query(model_class).filter(
+                        model_class.id.in_(list(ids_to_delete))
+                    ).delete(synchronize_session=False)
+                    ids_to_delete.clear()
+            db.session.commit()
 
     def setUp(self):
         self._cleanup()
@@ -1570,6 +1561,8 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                 self.assertEqual(evt.status, WebhookEventStatus.PROCESSED.value)
                 self.assertIsNotNone(evt.processed_at)
                 self.assertIsNone(evt.owner_token)  # Lease released upon final PROCESSED commit
+                with self._tracking_lock:
+                    self._created_record_ids[SaaSWebhookEvent].add(evt.id)
             finally:
                 verify_session.close()
 
@@ -1603,6 +1596,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         created_s12_sub_id = None
         created_s12_mandate_id = None
         created_s12_event_id = None
+        created_s12_tx_ids: set[int] = set()
 
         try:
             with self.app.app_context():
@@ -1733,8 +1727,10 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
 
         finally:
             with self.app.app_context():
-                if created_s12_org_id:
-                    db.session.query(SaaSTransaction).filter_by(organization_id=created_s12_org_id).delete()
+                if created_s12_tx_ids:
+                    db.session.query(SaaSTransaction).filter(
+                        SaaSTransaction.id.in_(list(created_s12_tx_ids))
+                    ).delete(synchronize_session=False)
                 if created_s12_event_id:
                     db.session.query(SaaSWebhookEvent).filter_by(id=created_s12_event_id).delete()
                 elif stale_event_id:
@@ -1978,8 +1974,8 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
 
         finally:
             with self.app.app_context():
-                if created_org_id:
-                    db.session.query(SaaSTransaction).filter_by(organization_id=created_org_id).delete()
+                if created_tx_id is not None:
+                    db.session.query(SaaSTransaction).filter_by(id=created_tx_id).delete()
                 if created_event_id:
                     db.session.query(SaaSWebhookEvent).filter_by(id=created_event_id).delete()
                 elif event_id:
