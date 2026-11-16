@@ -22,9 +22,9 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 from flask import Flask
-from sqlalchemy import create_engine, or_
+from sqlalchemy import create_engine, or_, event
 from sqlalchemy.engine import make_url
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
 from model import (
     db,
@@ -235,7 +235,38 @@ class TestDatabaseSafetyGuard(unittest.TestCase):
                     _validate_safe_test_database("mysql+pymysql://root:pass@localhost/crm_db")
 
 
+@event.listens_for(Session, "after_flush")
+def _track_suite_created_records(session, flush_context):
+    if not getattr(TestMySQLConcurrencyValidation, "_tracking_active", False):
+        return
+    suite_org_id = getattr(TestMySQLConcurrencyValidation, "_created_org_id", None)
+    if not suite_org_id:
+        return
+
+    tracked_classes = (
+        SaaSTransaction,
+        SaaSWebhookEvent,
+        SaaSBillingPeriodReservation,
+        SaaSRedemptionAttempt,
+        SaaSPreDebitNotification,
+        SaaSMandate,
+    )
+    for obj in session.new:
+        if isinstance(obj, tracked_classes):
+            obj_org_id = getattr(obj, "organization_id", None)
+            if obj_org_id == suite_org_id:
+                obj_id = getattr(obj, "id", None)
+                if obj_id is not None:
+                    TestMySQLConcurrencyValidation._created_record_ids[type(obj)].add(obj_id)
+
+
 class TestMySQLConcurrencyValidation(unittest.TestCase):
+    _tracking_active = False
+    _created_org_id = None
+    _created_plan_id = None
+    _created_sub_id = None
+    _created_record_ids: dict = {}
+
     @classmethod
     def setUpClass(cls):
         mysql_url = os.environ.get("DATABASE_URL")
@@ -274,66 +305,67 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
 
         cls.provider = PhonePeAutoPayV2Provider()
 
-        # Seed isolated test tenant and plan
-        cls.org_id = 98765
-        cls.sub_id = 87654
+        # Initialize tracking registry
+        cls._created_record_ids = {
+            SaaSTransaction: set(),
+            SaaSWebhookEvent: set(),
+            SaaSBillingPeriodReservation: set(),
+            SaaSRedemptionAttempt: set(),
+            SaaSPreDebitNotification: set(),
+            SaaSMandate: set(),
+        }
 
-        cls._cleanup()
+        # Dynamically allocate isolated test fixtures using MySQL auto-increment IDs
+        # (Never use fixed IDs that can collide with pre-existing records)
+        fixture_token = uuid.uuid4().hex[:8]
+        unique_org_code = f"C{fixture_token[:7].upper()}"
+        org = Organization(name=f"MySQL Concurrency Tenant {fixture_token}", unique_code=unique_org_code)
+        db.session.add(org)
+        db.session.commit()
+        cls.org_id = org.id
+        cls._created_org_id = org.id
 
-        org = Organization.query.get(cls.org_id)
-        if not org:
-            org = Organization(id=cls.org_id, name="MySQL Concurrency Tenant", unique_code="MYSQLCONC")
-            db.session.add(org)
-            db.session.commit()
-            cls._created_org = True
-        else:
-            cls._created_org = False
+        plan = Plan(
+            name=f"Test Plan {fixture_token}",
+            display_name="Test",
+            monthly_price_paise=100000,
+            yearly_price_paise=1000000,
+        )
+        db.session.add(plan)
+        db.session.commit()
+        cls.plan_id = plan.id
+        cls._created_plan_id = plan.id
 
-        plan = Plan.query.get(999)
-        if not plan:
-            plan = Plan(id=999, name="Test Plan", display_name="Test", monthly_price_paise=100000, yearly_price_paise=1000000)
-            db.session.add(plan)
-            db.session.commit()
-            cls._created_plan_999 = True
-        else:
-            cls._created_plan_999 = False
+        sub = SaaSSubscription(
+            organization_id=cls.org_id,
+            plan_id=cls.plan_id,
+            payment_provider="phonepe_v2",
+            provider_subscription_id=f"MSUB_MYSQL_{cls.org_id}",
+            status=SaaSSubscriptionStatus.ACTIVE,
+            billing_cycle=SaaSBillingCycle.MONTHLY,
+            amount_paise=118000,
+            current_period_start=datetime(2026, 11, 1, 0, 0, 0),
+            current_period_end=datetime(2026, 12, 1, 0, 0, 0),
+        )
+        db.session.add(sub)
+        db.session.commit()
+        cls.sub_id = sub.id
+        cls._created_sub_id = sub.id
 
-        # Create base test subscription
-        sub = SaaSSubscription.query.get(cls.sub_id)
-        if not sub:
-            sub = SaaSSubscription(
-                id=cls.sub_id,
-                organization_id=cls.org_id,
-                plan_id=999,
-                payment_provider="phonepe_v2",
-                provider_subscription_id=f"MSUB_MYSQL_{cls.sub_id}",
-                status=SaaSSubscriptionStatus.ACTIVE,
-                billing_cycle=SaaSBillingCycle.MONTHLY,
-                amount_paise=118000,
-                current_period_start=datetime(2026, 11, 1, 0, 0, 0),
-                current_period_end=datetime(2026, 12, 1, 0, 0, 0),
-            )
-            db.session.add(sub)
-            db.session.commit()
-            cls._created_sub = True
-        else:
-            cls._created_sub = False
+        cls._tracking_active = True
 
     @classmethod
     def tearDownClass(cls):
         cls._cleanup()
-        if getattr(cls, "_created_sub", False):
-            sub = SaaSSubscription.query.get(cls.sub_id)
-            if sub:
-                db.session.delete(sub)
-        if getattr(cls, "_created_org", False):
-            org = Organization.query.get(cls.org_id)
-            if org:
-                db.session.delete(org)
-        if getattr(cls, "_created_plan_999", False):
-            plan = Plan.query.get(999)
-            if plan:
-                db.session.delete(plan)
+        cls._tracking_active = False
+
+        # Ownership-safe teardown: delete ONLY entities created by this suite execution
+        if getattr(cls, "_created_sub_id", None):
+            db.session.query(SaaSSubscription).filter_by(id=cls._created_sub_id).delete()
+        if getattr(cls, "_created_plan_id", None):
+            db.session.query(Plan).filter_by(id=cls._created_plan_id).delete()
+        if getattr(cls, "_created_org_id", None):
+            db.session.query(Organization).filter_by(id=cls._created_org_id).delete()
         db.session.commit()
         cls.ctx.pop()
         cls.engine.dispose()
@@ -341,32 +373,65 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
     @classmethod
     def _cleanup(cls):
         db.session.rollback()
-        sub = db.session.get(SaaSSubscription, cls.sub_id)
-        if sub:
-            sub.active_mandate_id = None
-            sub.claim_token = None
-            sub.claim_expires_at = None
-            db.session.commit()
-        db.session.query(SaaSTransaction).filter_by(organization_id=cls.org_id).delete()
-        db.session.query(SaaSWebhookEvent).filter_by(payment_provider="phonepe_v2", organization_id=cls.org_id).delete()
-        db.session.query(SaaSBillingPeriodReservation).filter_by(organization_id=cls.org_id).delete()
-        db.session.query(SaaSRedemptionAttempt).filter_by(organization_id=cls.org_id).delete()
-        db.session.query(SaaSPreDebitNotification).filter_by(organization_id=cls.org_id).delete()
-        db.session.query(SaaSMandate).filter_by(organization_id=cls.org_id).delete()
+
+        # Safety Guard: Never run destructive cleanup against a pre-existing or untracked organization
+        if not getattr(cls, "_created_org_id", None) or cls.org_id != cls._created_org_id:
+            return
+
+        # Query all records created specifically under our ephemeral suite-created organization
+        # to ensure 100% complete ID tracking even across independent sessions or background threads
+        for model_class in [
+            SaaSTransaction,
+            SaaSWebhookEvent,
+            SaaSRedemptionAttempt,
+            SaaSPreDebitNotification,
+            SaaSBillingPeriodReservation,
+            SaaSMandate,
+        ]:
+            db_ids = [
+                row[0]
+                for row in db.session.query(model_class.id)
+                .filter_by(organization_id=cls._created_org_id)
+                .all()
+            ]
+            cls._created_record_ids[model_class].update(db_ids)
+
+        # Reset base subscription if created and owned by this suite
+        if getattr(cls, "_created_sub_id", None) and cls.sub_id == cls._created_sub_id:
+            sub = db.session.get(SaaSSubscription, cls.sub_id)
+            if sub:
+                sub.active_mandate_id = None
+                sub.claim_token = None
+                sub.claim_expires_at = None
+                sub.current_period_start = datetime(2026, 11, 1, 0, 0, 0)
+                sub.current_period_end = datetime(2026, 12, 1, 0, 0, 0)
+                db.session.commit()
+
+        # Delete ONLY the exact tracked records created by this suite execution
+        for model_class in [
+            SaaSTransaction,
+            SaaSWebhookEvent,
+            SaaSRedemptionAttempt,
+            SaaSPreDebitNotification,
+            SaaSBillingPeriodReservation,
+            SaaSMandate,
+        ]:
+            ids_to_delete = cls._created_record_ids[model_class]
+            if ids_to_delete:
+                db.session.query(model_class).filter(
+                    model_class.id.in_(list(ids_to_delete))
+                ).delete(synchronize_session=False)
+                ids_to_delete.clear()
         db.session.commit()
 
     def setUp(self):
         self._cleanup()
-        sub = db.session.get(SaaSSubscription, self.sub_id)
-        if sub:
-            sub.active_mandate_id = None
-            sub.claim_token = None
-            sub.claim_expires_at = None
-            sub.current_period_start = datetime(2026, 11, 1, 0, 0, 0)
-            sub.current_period_end = datetime(2026, 12, 1, 0, 0, 0)
-            db.session.commit()
 
-    # ── Scenario 1: Different Order IDs Competing for One Billing Period ───────
+    def tearDown(self):
+        self._cleanup()
+
+
+# ── Scenario 1: Different Order IDs Competing for One Billing Period ───────
 
     def test_scenario_1_different_order_ids_competing_for_one_billing_period(self):
         """
@@ -500,7 +565,6 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         """
         order_id = "ORD_SINGLE_REDEEM_INVOCATION"
         mandate = SaaSMandate(
-            id=555,
             organization_id=self.org_id,
             subscription_id=self.sub_id,
             payment_provider="phonepe_v2",
@@ -510,12 +574,12 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             frequency="MONTHLY",
         )
         db.session.add(mandate)
+        db.session.commit()
 
-        sub = SaaSSubscription.query.get(self.sub_id)
+        sub = db.session.get(SaaSSubscription, self.sub_id)
         sub.active_mandate_id = mandate.id
 
         notification = SaaSPreDebitNotification(
-            id=777,
             organization_id=self.org_id,
             subscription_id=self.sub_id,
             mandate_id=mandate.id,
@@ -737,7 +801,6 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
 
         # Set up active mandate and NOTIFIED notification
         mandate = SaaSMandate(
-            id=556,
             organization_id=self.org_id,
             subscription_id=self.sub_id,
             payment_provider="phonepe_v2",
@@ -747,12 +810,12 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             frequency="MONTHLY",
         )
         db.session.add(mandate)
+        db.session.commit()
 
         sub = db.session.get(SaaSSubscription, self.sub_id)
         sub.active_mandate_id = mandate.id
 
         notification = SaaSPreDebitNotification(
-            id=778,
             organization_id=self.org_id,
             subscription_id=self.sub_id,
             mandate_id=mandate.id,
@@ -848,7 +911,6 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
 
         # Set up active mandate and NOTIFIED notification
         mandate = SaaSMandate(
-            id=558,
             organization_id=self.org_id,
             subscription_id=self.sub_id,
             payment_provider="phonepe_v2",
@@ -858,12 +920,12 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             frequency="MONTHLY",
         )
         db.session.add(mandate)
+        db.session.commit()
 
         sub = db.session.get(SaaSSubscription, self.sub_id)
         sub.active_mandate_id = mandate.id
 
         notification = SaaSPreDebitNotification(
-            id=779,
             organization_id=self.org_id,
             subscription_id=self.sub_id,
             mandate_id=mandate.id,
@@ -1053,7 +1115,6 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         order_id = "ORD_RECOVER_SUCCESS"
 
         mandate = SaaSMandate(
-            id=556,
             organization_id=self.org_id,
             subscription_id=self.sub_id,
             payment_provider="phonepe_v2",
@@ -1063,9 +1124,9 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             frequency="MONTHLY",
         )
         db.session.add(mandate)
+        db.session.commit()
 
         notification = SaaSPreDebitNotification(
-            id=778,
             organization_id=self.org_id,
             subscription_id=self.sub_id,
             mandate_id=mandate.id,
@@ -1076,6 +1137,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             billing_period_key=bpk,
         )
         db.session.add(notification)
+        db.session.commit()
 
         reservation = SaaSBillingPeriodReservation(
             organization_id=self.org_id,
@@ -1139,7 +1201,6 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         order_id = "ORD_RECOVER_FAILED"
 
         mandate = SaaSMandate(
-            id=557,
             organization_id=self.org_id,
             subscription_id=self.sub_id,
             payment_provider="phonepe_v2",
@@ -1149,9 +1210,9 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             frequency="MONTHLY",
         )
         db.session.add(mandate)
+        db.session.commit()
 
         notification = SaaSPreDebitNotification(
-            id=779,
             organization_id=self.org_id,
             subscription_id=self.sub_id,
             mandate_id=mandate.id,
@@ -1162,6 +1223,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             billing_period_key=bpk,
         )
         db.session.add(notification)
+        db.session.commit()
 
         reservation = SaaSBillingPeriodReservation(
             organization_id=self.org_id,
@@ -1265,7 +1327,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         db.session.commit()
 
         # Subscription advances to December 2026
-        sub = SaaSSubscription.query.get(self.sub_id)
+        sub = db.session.get(SaaSSubscription, self.sub_id)
         sub.current_period_start = datetime(2026, 12, 1, 0, 0, 0)
         sub.current_period_end = datetime(2027, 1, 1, 0, 0, 0)
         db.session.commit()
@@ -1299,14 +1361,13 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         """
         order_id = "ORD_SCHEDULER_CONCURRENCY_01"
         now = datetime.utcnow()
-        sub = SaaSSubscription.query.get(self.sub_id)
+        sub = db.session.get(SaaSSubscription, self.sub_id)
         sub.next_billing_at = now - timedelta(hours=1)
         sub.current_period_start = now - timedelta(days=30)
         sub.claim_token = None
         sub.claim_expires_at = None
 
         mandate = SaaSMandate(
-            id=666,
             organization_id=self.org_id,
             subscription_id=self.sub_id,
             payment_provider="phonepe_v2",
@@ -1322,7 +1383,6 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         db.session.commit()
 
         notification = SaaSPreDebitNotification(
-            id=888,
             organization_id=self.org_id,
             subscription_id=self.sub_id,
             mandate_id=mandate.id,
@@ -1397,7 +1457,6 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             sub.activated_at = None
 
             mandate = SaaSMandate(
-                id=8888,
                 organization_id=self.org_id,
                 subscription_id=self.sub_id,
                 payment_provider="phonepe_v2",
@@ -1555,7 +1614,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
 
                 fence_sub = SaaSSubscription(
                     organization_id=created_s12_org_id,
-                    plan_id=1,
+                    plan_id=self.plan_id,
                     status=SaaSSubscriptionStatus.PENDING,
                     billing_cycle=SaaSBillingCycle.MONTHLY,
                     amount_paise=100000,
@@ -1732,7 +1791,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
 
                 fence_sub = SaaSSubscription(
                     organization_id=created_org_id,
-                    plan_id=999,  # monthly 100000, expected total 118000
+                    plan_id=self.plan_id,
                     payment_provider="phonepe_v2",
                     status=SaaSSubscriptionStatus.PENDING,
                     billing_cycle=SaaSBillingCycle.MONTHLY,
