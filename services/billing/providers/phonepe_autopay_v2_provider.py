@@ -1995,15 +1995,41 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             return attempt
 
         # Cross-validation: attempt vs notification
-        rel_error = None
         notif_order = getattr(notification, "merchant_order_id", None)
-        if notif_order is not None and type(notif_order).__name__ not in ("MagicMock", "Mock") and notif_order != attempt.merchant_order_id:
-            rel_error = f"Order mismatch: attempt order {attempt.merchant_order_id} != notification order {notif_order}"
-        notif_amt = getattr(notification, "amount_paise", None)
-        if notif_amt is not None and type(notif_amt).__name__ not in ("MagicMock", "Mock") and notif_amt != attempt.amount_paise:
-            rel_error = f"Amount mismatch: attempt amount {attempt.amount_paise} != notification amount {notif_amt}"
+        if not notif_order:
+            logger.error("reconcile_redemption_status: Pre-debit notification merchant_order_id missing")
+            attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+            attempt.failure_reason = "Pre-debit notification merchant_order_id missing"
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            return attempt
 
-        if rel_error:
+        if notif_order != attempt.merchant_order_id:
+            rel_error = f"Order mismatch: attempt order {attempt.merchant_order_id} != notification order {notif_order}"
+            logger.error("reconcile_redemption_status: %s. Setting to MANUAL_RECONCILIATION_REQUIRED.", rel_error)
+            attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+            attempt.failure_reason = rel_error
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            return attempt
+
+        notif_amt = getattr(notification, "amount_paise", None)
+        if notif_amt is None:
+            logger.error("reconcile_redemption_status: Pre-debit notification amount_paise missing")
+            attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+            attempt.failure_reason = "Pre-debit notification amount_paise missing"
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            return attempt
+
+        if notif_amt != attempt.amount_paise:
+            rel_error = f"Amount mismatch: attempt amount {attempt.amount_paise} != notification amount {notif_amt}"
             logger.error("reconcile_redemption_status: %s. Setting to MANUAL_RECONCILIATION_REQUIRED.", rel_error)
             attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
             attempt.failure_reason = rel_error
@@ -2015,47 +2041,56 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
 
         # 2. Authoritative resolution and verification of mandate relationship
         mandate_id = getattr(notification, "mandate_id", None)
-        if mandate_id is not None and type(mandate_id).__name__ not in ("MagicMock", "Mock"):
-            matching_mandates = SaaSMandate.query.filter_by(
-                id=mandate_id,
-                organization_id=attempt.organization_id,
-            ).all()
-            if len(matching_mandates) == 0:
-                logger.error(
-                    "reconcile_redemption_status: mandate %s not found for org %s",
-                    mandate_id, attempt.organization_id
-                )
-                attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
-                attempt.failure_reason = "Mandate record not found for tenant"
-                try:
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
-                return attempt
-            elif len(matching_mandates) > 1:
-                logger.error(
-                    "reconcile_redemption_status: Ambiguous mandate records: found %d for id %s, org %s",
-                    len(matching_mandates), mandate_id, attempt.organization_id
-                )
-                attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
-                attempt.failure_reason = f"Ambiguous mandate records: found {len(matching_mandates)}"
-                try:
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
-                return attempt
+        if not mandate_id:
+            logger.error("reconcile_redemption_status: Pre-debit notification mandate_id missing")
+            attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+            attempt.failure_reason = "Pre-debit notification mandate_id missing"
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            return attempt
 
-            mandate = matching_mandates[0]
-            if mandate.subscription_id != notification.subscription_id:
-                rel_error = f"Mandate subscription mismatch: mandate sub {mandate.subscription_id} != notification sub {notification.subscription_id}"
-                logger.error("reconcile_redemption_status: %s", rel_error)
-                attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
-                attempt.failure_reason = rel_error
-                try:
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
-                return attempt
+        matching_mandates = SaaSMandate.query.filter_by(
+            id=mandate_id,
+            organization_id=attempt.organization_id,
+        ).all()
+        if len(matching_mandates) == 0:
+            logger.error(
+                "reconcile_redemption_status: mandate %s not found for org %s",
+                mandate_id, attempt.organization_id
+            )
+            attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+            attempt.failure_reason = "Mandate record not found for tenant"
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            return attempt
+        elif len(matching_mandates) > 1:
+            logger.error(
+                "reconcile_redemption_status: Ambiguous mandate records: found %d for id %s, org %s",
+                len(matching_mandates), mandate_id, attempt.organization_id
+            )
+            attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+            attempt.failure_reason = f"Ambiguous mandate records: found {len(matching_mandates)}"
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            return attempt
+
+        mandate = matching_mandates[0]
+        if mandate.subscription_id != notification.subscription_id:
+            rel_error = f"Mandate subscription mismatch: mandate sub {mandate.subscription_id} != notification sub {notification.subscription_id}"
+            logger.error("reconcile_redemption_status: %s", rel_error)
+            attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+            attempt.failure_reason = rel_error
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            return attempt
 
         # 3. Strict cross-entity tenant isolation: verify subscription exists and matches tenant
         sub = getattr(attempt, "subscription", None)
@@ -2098,15 +2133,64 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 db.session.rollback()
             return attempt
 
-        # 4. Authoritative resolution and verification of associated billing reservation (if period key present)
+        # 4. Authoritative resolution and verification of associated billing reservation wherever for a reserved billing period
+        is_reserved_period = bool(
+            attempt.billing_period_key
+            or getattr(notification, "billing_period_key", None)
+        )
+        if not is_reserved_period:
+            existing_res = SaaSBillingPeriodReservation.query.filter_by(
+                organization_id=attempt.organization_id,
+                merchant_order_id=attempt.merchant_order_id,
+            ).first()
+            if existing_res is not None:
+                is_reserved_period = True
+
         bpr = None
-        if attempt.billing_period_key:
+        if is_reserved_period:
+            if not attempt.billing_period_key:
+                logger.error(
+                    "reconcile_redemption_status: Missing attempt.billing_period_key for reserved billing period (order=%s)",
+                    attempt.merchant_order_id,
+                )
+                attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+                attempt.failure_reason = "Billing period key missing on attempt for reserved billing period"
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                return attempt
+
+            notif_bpk = getattr(notification, "billing_period_key", None)
+            if notif_bpk and notif_bpk != attempt.billing_period_key:
+                rel_error = f"Billing period key mismatch: attempt bpk {attempt.billing_period_key} != notification bpk {notif_bpk}"
+                logger.error("reconcile_redemption_status: %s", rel_error)
+                attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+                attempt.failure_reason = rel_error
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                return attempt
+
             matching_bprs = SaaSBillingPeriodReservation.query.filter_by(
                 organization_id=attempt.organization_id,
                 subscription_id=attempt.subscription_id,
                 billing_period_key=attempt.billing_period_key,
             ).all()
-            if len(matching_bprs) > 1:
+            if len(matching_bprs) == 0:
+                logger.error(
+                    "reconcile_redemption_status: Billing period reservation not found for key %s, org %s",
+                    attempt.billing_period_key, attempt.organization_id
+                )
+                attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+                attempt.failure_reason = f"Billing period reservation not found for key {attempt.billing_period_key}"
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                return attempt
+            elif len(matching_bprs) > 1:
                 logger.error(
                     "reconcile_redemption_status: Ambiguous billing reservations: found %d for bpk %s",
                     len(matching_bprs), attempt.billing_period_key

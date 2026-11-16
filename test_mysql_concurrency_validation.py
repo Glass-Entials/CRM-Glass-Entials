@@ -10,6 +10,7 @@ Requires DATABASE_URL in environment. No credentials hardcoded.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -20,7 +21,7 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 from flask import Flask
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, or_
 from sqlalchemy.orm import sessionmaker
 
 from model import (
@@ -36,6 +37,7 @@ from model import (
     SaaSBillingPeriodReservation,
     SaaSWebhookEvent,
     SaaSTransaction,
+    SaaSTransactionStatus,
     BillingPeriodReservationStatus,
     PreDebitNotificationStatus,
     RedemptionAttemptStatus,
@@ -69,6 +71,11 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         cls.app.config["PHONEPE_CLIENT_VERSION"] = 1
         cls.app.config["PHONEPE_WEBHOOK_USERNAME"] = "webhook_test_user"
         cls.app.config["PHONEPE_WEBHOOK_PASSWORD"] = "webhook_test_pass"
+        cls.app.config["SECRET_KEY"] = "test-secret-key-mysql"
+        cls.app.config["WTF_CSRF_ENABLED"] = False
+
+        from routes.saas import saas_bp
+        cls.app.register_blueprint(saas_bp)
 
         db.init_app(cls.app)
         cls.ctx = cls.app.app_context()
@@ -264,8 +271,10 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         self.assertTrue((w1_ok and not w2_ok) or (w2_ok and not w1_ok))
 
         losing_err = w2_err if w1_ok else w1_err
-        self.assertIn("currently owned by active worker", losing_err)
-        self.assertIn("Concurrent execution blocked", losing_err)
+        self.assertTrue(
+            ("currently owned by active worker" in losing_err and "Concurrent execution blocked" in losing_err)
+            or ("already reserved by another worker" in losing_err and "Duplicate debit prevented" in losing_err)
+        )
 
         # Exactly 1 reservation row exists in MySQL InnoDB
         verify_session = self.SessionFactory()
@@ -1154,82 +1163,199 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         total_executed = sum(1 for r in r1 if isinstance(r, dict) and r.get("success")) + sum(1 for r in r2 if isinstance(r, dict) and r.get("success"))
         self.assertEqual(total_executed, 1)
 
-    # ── Scenario 12: Simultaneous Webhook Event Delivery Fencing ──────────────────
+    # ── Scenario 12: Route-Level Webhook Concurrency, Atomic Fencing & Idempotency ──
 
-    def test_scenario_12_simultaneous_webhook_event_delivery_fencing(self):
+    def test_scenario_12_route_level_webhook_concurrency_atomic_fencing_and_idempotency(self):
         """
-        Scenario 12 (Phase 6): Two concurrent workers deliver the same webhook event.
-        Provider-scoped unique constraint and atomic fencing token ensure only one worker
-        processes the event while the other receives duplicate/already_processed.
+        Scenario 12 (Phase 6.2): Route-level multi-threaded webhook concurrency on real MySQL 8.0 InnoDB.
+        - Two synchronized threads deliver the same authenticated PhonePe V2 webhook via the actual route path (/saas/phonepe-webhook).
+        - Mocks ONLY PhonePe HTTP transport/S2S responses.
+        - Verifies that InnoDB provider-scoped unique constraint and distributed fencing token guarantee:
+          * Exactly one worker succeeds with HTTP 200; concurrent worker receives 422 (retryable) or already_processed.
+          * S2S reconciliation is invoked exactly ONCE across all workers.
+          * Zero duplicate subscription activations or transaction creations.
+          * Event is durably recorded in PROCESSED status with valid owner_token.
+          * Subsequent duplicate delivery returns 200 already_processed with zero extra S2S calls or mutations.
+          * Expired worker lease fencing prevents stale workers from committing state changes.
         """
-        event_id = "EVT_MYSQL_CONCUR_01"
-        now = datetime.utcnow()
-        now_ts = int(now.timestamp())
+        setup_order_id = f"ORD_MYSQL_SETUP_{self.sub_id}"
+        # Set subscription to PENDING with setup provider_order_id
+        with self.app.app_context():
+            sub = db.session.get(SaaSSubscription, self.sub_id)
+            sub.status = SaaSSubscriptionStatus.PENDING
+            sub.provider_order_id = setup_order_id
+            sub.activated_at = None
+
+            mandate = SaaSMandate(
+                id=8888,
+                organization_id=self.org_id,
+                subscription_id=self.sub_id,
+                payment_provider="phonepe_v2",
+                merchant_subscription_id=f"MSUB_MYSQL_SETUP_{self.sub_id}",
+                mandate_status="ACTIVE",
+                max_amount_paise=200000,
+                frequency="MONTHLY",
+            )
+            db.session.add(mandate)
+            db.session.commit()
+
+        correct_sha = hashlib.sha256(b"webhook_test_user:webhook_test_pass").hexdigest()
+        headers = {
+            "Authorization": f"Basic {correct_sha}",
+            "Content-Type": "application/json",
+        }
+        event_id = f"EVT_ROUTE_MYSQL_{int(datetime.utcnow().timestamp())}"
+        payload = json.dumps({
+            "merchantSubscriptionId": f"MSUB_MYSQL_SETUP_{self.sub_id}",
+            "eventId": event_id,
+            "event": "SUBSCRIPTION_ACTIVE",
+        })
+
+        mock_s2s_resp = {
+            "state": "COMPLETED",
+            "amount": 118000,
+            "currency": "INR",
+            "merchantOrderId": setup_order_id,
+            "merchantSubscriptionId": f"MSUB_MYSQL_SETUP_{self.sub_id}",
+            "paymentDetails": [
+                {
+                    "state": "COMPLETED",
+                    "amount": 118000,
+                    "transactionId": "TXN_MYSQL_CONCUR_S2S",
+                    "paymentMode": "UPI",
+                }
+            ],
+        }
 
         barrier = threading.Barrier(2)
-        worker_outcomes = {}
+        worker_results = {}
 
-        def run_webhook_worker(worker_id: str):
-            with self.app.app_context():
-                engine = create_engine(self.app.config["SQLALCHEMY_DATABASE_URI"])
-                Session = sessionmaker(bind=engine)
-                session = Session()
-                try:
-                    barrier.wait(timeout=5)
-                    # Simulate distributed intake
-                    token = f"worker_{worker_id}"
-                    expires_at = now + timedelta(seconds=60)
+        def run_route_worker(worker_id: str):
+            with self.app.test_client() as client:
+                barrier.wait(timeout=5)
+                resp = client.post("/saas/phonepe-webhook", data=payload, headers=headers)
+                worker_results[worker_id] = (resp.status_code, resp.get_json())
 
-                    existing = session.query(SaaSWebhookEvent).filter_by(
-                        payment_provider="phonepe_v2",
-                        event_id=event_id,
-                    ).first()
+        with patch("services.billing.providers.phonepe_autopay_client.PhonePeAutoPayClient.get_order_status") as mock_get_order, \
+             patch("services.billing.providers.phonepe_autopay_client.PhonePeAutoPayClient.get_subscription_status") as mock_get_sub:
+            mock_get_order.return_value = mock_s2s_resp
+            mock_get_sub.return_value = {"state": "ACTIVE"}
 
-                    if not existing:
-                        new_evt = SaaSWebhookEvent(
-                            event_id=event_id,
-                            payment_provider="phonepe_v2",
-                            organization_id=self.org_id,
-                            event_type="SUBSCRIPTION_REDEMPTION",
-                            payload_summary=json.dumps({"ts": now_ts}),
-                            status=WebhookEventStatus.PROCESSING.value,
-                            owner_token=token,
-                            owner_expires_at=expires_at,
-                        )
-                        session.add(new_evt)
-                        try:
-                            session.commit()
-                            worker_outcomes[worker_id] = "ACQUIRED"
-                        except Exception:
-                            session.rollback()
-                            worker_outcomes[worker_id] = "DUPLICATE_INSERT"
-                    else:
-                        worker_outcomes[worker_id] = "ALREADY_EXISTS"
-                except Exception as exc:
-                    worker_outcomes[worker_id] = str(exc)
-                finally:
-                    session.close()
+            t1 = threading.Thread(target=run_route_worker, args=("w1",))
+            t2 = threading.Thread(target=run_route_worker, args=("w2",))
 
-        t1 = threading.Thread(target=run_webhook_worker, args=("1",))
-        t2 = threading.Thread(target=run_webhook_worker, args=("2",))
+            t1.start()
+            t2.start()
+            t1.join(timeout=10)
+            t2.join(timeout=10)
 
-        t1.start()
-        t2.start()
-        t1.join(timeout=10)
-        t2.join(timeout=10)
+            # Assert exactly one S2S order reconciliation call across both concurrent workers
+            self.assertEqual(mock_get_order.call_count, 1)
 
-        # Exactly one worker acquired ownership; the other encountered duplicate/existing
-        acquired_count = sum(1 for outcome in worker_outcomes.values() if outcome == "ACQUIRED")
-        self.assertEqual(acquired_count, 1)
+            # 1. Assert exactly one worker succeeded with 200, the other received 422 (PROCESSING retryable) or already_processed
+            statuses = [worker_results["w1"][0], worker_results["w2"][0]]
+            self.assertIn(200, statuses)
+            losing_status = worker_results["w2"][0] if worker_results["w1"][0] == 200 else worker_results["w1"][0]
+            self.assertIn(losing_status, (422, 200))
 
-        # Database state has exactly one event record in PROCESSING state
+            # 2. Assert direct database state on MySQL 8.0 InnoDB
+            verify_session = self.SessionFactory()
+            try:
+                # Subscription activated exactly once
+                sub_check = verify_session.get(SaaSSubscription, self.sub_id)
+                self.assertEqual(sub_check.status, SaaSSubscriptionStatus.ACTIVE)
+                self.assertIsNotNone(sub_check.current_period_start)
+                self.assertIsNotNone(sub_check.current_period_end)
+
+                # Exactly one transaction record created
+                txs = verify_session.query(SaaSTransaction).filter_by(
+                    organization_id=self.org_id,
+                    subscription_id=self.sub_id,
+                ).all()
+                self.assertEqual(len(txs), 1)
+                self.assertEqual(txs[0].status, SaaSTransactionStatus.SUCCESS)
+
+                # Verify final event status and released lease
+                evt = verify_session.query(SaaSWebhookEvent).filter_by(
+                    payment_provider="phonepe_v2",
+                    event_id=event_id,
+                ).one()
+                self.assertEqual(evt.status, WebhookEventStatus.PROCESSED.value)
+                self.assertIsNotNone(evt.processed_at)
+                self.assertIsNone(evt.owner_token)  # Lease released upon final PROCESSED commit
+            finally:
+                verify_session.close()
+
+            # 3. Test duplicate delivery after successful processing
+            with self.app.test_client() as client:
+                dup_resp = client.post("/saas/phonepe-webhook", data=payload, headers=headers)
+                self.assertEqual(dup_resp.status_code, 200)
+                self.assertEqual(dup_resp.get_json().get("status"), "already_processed")
+
+            # Assert S2S transport was NOT called again
+            self.assertEqual(mock_get_order.call_count, 1)
+
+            # Assert transaction count remains strictly 1
+            verify_session = self.SessionFactory()
+            try:
+                tx_count = verify_session.query(SaaSTransaction).filter_by(
+                    organization_id=self.org_id,
+                    subscription_id=self.sub_id,
+                ).count()
+                self.assertEqual(tx_count, 1)
+            finally:
+                verify_session.close()
+
+        # 4. Test ownership expiry and stale-worker fencing
+        stale_event_id = f"EVT_STALE_FENCE_{int(datetime.utcnow().timestamp())}"
+        stale_token = "wh_stale_expired_token_01"
+        now_fencing = datetime.utcnow()
         with self.app.app_context():
-            evt = SaaSWebhookEvent.query.filter_by(
+            expired_evt = SaaSWebhookEvent(
                 payment_provider="phonepe_v2",
-                event_id=event_id,
-            ).one()
-            self.assertEqual(evt.status, WebhookEventStatus.PROCESSING.value)
-            self.assertIsNotNone(evt.owner_token)
+                event_id=stale_event_id,
+                event_type="SUBSCRIPTION_ACTIVE",
+                status=WebhookEventStatus.PROCESSING.value,
+                owner_token=stale_token,
+                owner_expires_at=now_fencing - timedelta(seconds=10),
+            )
+            db.session.add(expired_evt)
+            db.session.commit()
+
+            # Stale worker attempts atomic conditional update with expired token:
+            # Query mirrors the exact atomic fencing update in routes/saas.py
+            updated_stale = SaaSWebhookEvent.query.filter(
+                SaaSWebhookEvent.payment_provider == "phonepe_v2",
+                SaaSWebhookEvent.event_id == stale_event_id,
+                SaaSWebhookEvent.owner_token == stale_token,
+                SaaSWebhookEvent.owner_expires_at >= datetime.utcnow(),
+                SaaSWebhookEvent.status == WebhookEventStatus.PROCESSING.value,
+            ).update({
+                SaaSWebhookEvent.status: WebhookEventStatus.PROCESSED.value,
+            }, synchronize_session=False)
+
+            self.assertEqual(updated_stale, 0)
+            db.session.rollback()
+
+            # Verify that another worker CAN claim the expired lease
+            new_fencing_token = "wh_recovered_worker_token"
+            claimed_rows = SaaSWebhookEvent.query.filter(
+                SaaSWebhookEvent.event_id == stale_event_id,
+                or_(
+                    SaaSWebhookEvent.owner_expires_at.is_(None),
+                    SaaSWebhookEvent.owner_expires_at <= datetime.utcnow(),
+                    SaaSWebhookEvent.status.in_([
+                        WebhookEventStatus.UNRESOLVED.value,
+                        WebhookEventStatus.FAILED.value,
+                    ]),
+                )
+            ).update({
+                SaaSWebhookEvent.status: WebhookEventStatus.PROCESSING.value,
+                SaaSWebhookEvent.owner_token: new_fencing_token,
+                SaaSWebhookEvent.owner_expires_at: datetime.utcnow() + timedelta(seconds=120),
+            }, synchronize_session=False)
+            self.assertEqual(claimed_rows, 1)
+            db.session.commit()
 
 
 if __name__ == "__main__":

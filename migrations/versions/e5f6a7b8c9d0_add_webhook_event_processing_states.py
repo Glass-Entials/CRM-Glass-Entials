@@ -42,27 +42,54 @@ def downgrade():
     bind = op.get_bind()
     # Check for duplicate event_ids across providers before recreating the global unique index.
     # To prevent silent event history loss and preserve V3 compatibility,
-    # disambiguate duplicate event records by appending payment_provider and id rather than deleting.
-    try:
-        dup_rows = bind.execute(sa.text(
-            "SELECT id, event_id, payment_provider FROM saas_webhook_event "
-            "WHERE event_id IN ("
-            "    SELECT event_id FROM saas_webhook_event GROUP BY event_id HAVING COUNT(*) > 1"
-            ") ORDER BY id ASC"
-        )).fetchall()
-        seen_events = set()
-        for row in dup_rows:
-            row_id, evt_id, provider = row[0], row[1], row[2]
-            if evt_id in seen_events:
-                new_evt_id = f"{evt_id}_{provider}_{row_id}"
-                bind.execute(
-                    sa.text("UPDATE saas_webhook_event SET event_id = :new_id WHERE id = :row_id"),
-                    {"new_id": new_evt_id, "row_id": row_id}
+    # disambiguate duplicate event records deterministically by appending
+    # payment_provider and row id (with collision-avoidance suffixes) rather than deleting.
+    # Data transformation failures are strictly raised (never silently swallowed).
+    dup_events_res = bind.execute(sa.text(
+        "SELECT event_id FROM saas_webhook_event GROUP BY event_id HAVING COUNT(*) > 1"
+    )).fetchall()
+    dup_event_ids = [r[0] for r in dup_events_res if r[0]]
+
+    for dup_event_id in dup_event_ids:
+        rows = bind.execute(
+            sa.text("SELECT id, payment_provider FROM saas_webhook_event WHERE event_id = :eid ORDER BY id ASC"),
+            {"eid": dup_event_id}
+        ).fetchall()
+        # Keep the earliest row (index 0) with original event_id intact.
+        # Disambiguate subsequent duplicates (index 1+) with deterministic transformation.
+        for row in rows[1:]:
+            row_id = row[0]
+            provider = row[1] or "provider"
+            candidate_id = f"{dup_event_id}_{provider}_{row_id}"
+            suffix_counter = 0
+            while True:
+                test_id = candidate_id if suffix_counter == 0 else f"{candidate_id}_{suffix_counter}"
+                collision = bind.execute(
+                    sa.text("SELECT COUNT(*) FROM saas_webhook_event WHERE event_id = :tid"),
+                    {"tid": test_id}
+                ).scalar()
+                if collision == 0:
+                    break
+                suffix_counter += 1
+
+            update_res = bind.execute(
+                sa.text("UPDATE saas_webhook_event SET event_id = :new_id WHERE id = :row_id"),
+                {"new_id": test_id, "row_id": row_id}
+            )
+            if update_res.rowcount != 1:
+                raise RuntimeError(
+                    f"Failed to update duplicate event_id for row {row_id}: expected 1 updated row, got {update_res.rowcount}"
                 )
-            else:
-                seen_events.add(evt_id)
-    except Exception:
-        pass
+
+    # Verification: Ensure zero duplicate event_ids remain before recreating the global unique constraint
+    remaining_dups = bind.execute(sa.text(
+        "SELECT COUNT(*) FROM (SELECT event_id FROM saas_webhook_event GROUP BY event_id HAVING COUNT(*) > 1) AS dups"
+    )).scalar()
+    if remaining_dups and remaining_dups > 0:
+        raise RuntimeError(
+            f"Downgrade collision check failed: {remaining_dups} duplicate event_id groups remain. "
+            "Cannot safely recreate global unique constraint."
+        )
 
     with op.batch_alter_table('saas_webhook_event', schema=None) as batch_op:
         batch_op.drop_constraint('fk_saas_webhook_event_org', type_='foreignkey')

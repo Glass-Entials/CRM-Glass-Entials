@@ -679,14 +679,21 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         self, mock_commit, mock_record_tx
     ):
         """Rule 5 & 6: Authoritative COMPLETED debit confirmation advances subscription period."""
-        sub = SaaSSubscription(
-            id=99,
+        sub = self.dummy_sub
+        sub.billing_cycle = SaaSBillingCycle.MONTHLY
+        sub.status = SaaSSubscriptionStatus.ACTIVE
+        sub.active_mandate_id = 10
+
+        mandate = SaaSMandate(
+            id=10,
             organization_id=7,
-            billing_cycle=SaaSBillingCycle.MONTHLY,
-            status=SaaSSubscriptionStatus.ACTIVE,
-            active_mandate_id=10,
+            subscription_id=99,
+            merchant_subscription_id="MSUB_10",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
         )
-        sub.organization = self.dummy_org
+        db.session.add(mandate)
 
         attempt = SaaSRedemptionAttempt(
             id=55,
@@ -704,6 +711,10 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             organization_id=7,
             subscription_id=99,
             auto_debit_snapshot=False,
+            merchant_order_id="ORD_RECON_COMPLETED",
+            amount_paise=118000,
+            mandate_id=10,
+            billing_period_key=None,
         )
 
         self.mock_client.get_order_status.return_value = {
@@ -947,16 +958,23 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         self, mock_commit, mock_record_tx
     ):
         """Financial Safety: Gateway-managed auto-debit COMPLETED order cannot advance period without settlement proof."""
-        sub = SaaSSubscription(
-            id=99,
+        sub = self.dummy_sub
+        sub.billing_cycle = SaaSBillingCycle.MONTHLY
+        sub.status = SaaSSubscriptionStatus.ACTIVE
+        sub.active_mandate_id = 10
+        sub.current_period_start = datetime(2026, 10, 1)
+        sub.current_period_end = datetime(2026, 11, 1)
+
+        mandate = SaaSMandate(
+            id=10,
             organization_id=7,
-            billing_cycle=SaaSBillingCycle.MONTHLY,
-            status=SaaSSubscriptionStatus.ACTIVE,
-            active_mandate_id=10,
-            current_period_start=datetime(2026, 10, 1),
-            current_period_end=datetime(2026, 11, 1),
+            subscription_id=99,
+            merchant_subscription_id="MSUB_10_AD",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
         )
-        sub.organization = self.dummy_org
+        db.session.add(mandate)
 
         notification = MagicMock(
             id=5,
@@ -964,6 +982,10 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             subscription_id=99,
             auto_debit_snapshot=True,
             status=PreDebitNotificationStatus.NOTIFIED.value,
+            merchant_order_id="ORD_AUTODEBIT_RECON",
+            amount_paise=118000,
+            mandate_id=10,
+            billing_period_key=None,
         )
 
         attempt = SaaSRedemptionAttempt(
@@ -2130,6 +2152,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             status=PreDebitNotificationStatus.NOTIFIED.value,
             valid_after_at=now - timedelta(hours=2),
             valid_upto_at=now + timedelta(days=1),
+            billing_period_key=bpk,
         )
 
         bpr = SaaSBillingPeriodReservation(
@@ -2148,6 +2171,7 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             merchant_order_id=order_id,
             amount_paise=100000,
             status=RedemptionAttemptStatus.INITIATED.value,
+            billing_period_key=bpk,
         )
         db.session.add_all([pdn, bpr, attempt])
         db.session.commit()
@@ -2457,6 +2481,251 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         res_d = self.provider.reconcile_redemption_status(attempt_d)
         self.assertEqual(res_d.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
         self.assertIn("Reservation order mismatch", res_d.failure_reason)
+
+    def test_reconcile_redemption_relationship_regression_cases_stop_before_gateway(self):
+        """
+        Phase 6.2: Explicit regression tests for all relationship validation failures:
+        - Missing notification merchant_order_id
+        - Missing notification amount_paise
+        - Missing mandate_id
+        - Missing mandate record
+        - Missing billing period reservation
+        - Mismatched reservation order ID
+        - Cross-tenant mandate relationship
+        - Cross-tenant subscription relationship
+        Ensures ALL cases halt execution and return MANUAL_RECONCILIATION_REQUIRED
+        without ever invoking PhonePe S2S client or gateway reconciliation.
+        """
+        with patch.object(self.provider, "_get_client") as mock_get_client:
+            # 1. Missing notification merchant_order_id
+            pdn_no_order = MagicMock(
+                id=301,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                mandate_id=10,
+                merchant_order_id=None,
+                amount_paise=100000,
+            )
+            attempt_no_order = SaaSRedemptionAttempt(
+                id=301,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                notification_id=301,
+                merchant_order_id="ORD_REG_301",
+                amount_paise=100000,
+                status=RedemptionAttemptStatus.INITIATED.value,
+            )
+            attempt_no_order.notification = pdn_no_order
+
+            res1 = self.provider.reconcile_redemption_status(attempt_no_order)
+            self.assertEqual(res1.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+            self.assertIn("merchant_order_id missing", res1.failure_reason)
+            mock_get_client.assert_not_called()
+
+            # 2. Missing notification amount_paise
+            pdn_no_amt = MagicMock(
+                id=302,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                mandate_id=10,
+                merchant_order_id="ORD_REG_302",
+                amount_paise=None,
+            )
+            attempt_no_amt = SaaSRedemptionAttempt(
+                id=302,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                notification_id=302,
+                merchant_order_id="ORD_REG_302",
+                amount_paise=100000,
+                status=RedemptionAttemptStatus.INITIATED.value,
+            )
+            attempt_no_amt.notification = pdn_no_amt
+
+            res2 = self.provider.reconcile_redemption_status(attempt_no_amt)
+            self.assertEqual(res2.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+            self.assertIn("amount_paise missing", res2.failure_reason)
+            mock_get_client.assert_not_called()
+
+            # 3. Missing mandate_id on notification
+            pdn_no_mandate = MagicMock(
+                id=303,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                mandate_id=None,
+                merchant_order_id="ORD_REG_303",
+                amount_paise=100000,
+            )
+            attempt_no_mandate = SaaSRedemptionAttempt(
+                id=303,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                notification_id=303,
+                merchant_order_id="ORD_REG_303",
+                amount_paise=100000,
+                status=RedemptionAttemptStatus.INITIATED.value,
+            )
+            attempt_no_mandate.notification = pdn_no_mandate
+
+            res3 = self.provider.reconcile_redemption_status(attempt_no_mandate)
+            self.assertEqual(res3.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+            self.assertIn("mandate_id missing", res3.failure_reason)
+            mock_get_client.assert_not_called()
+
+            # 4. Missing mandate record in database
+            pdn_mandate_not_found = SaaSPreDebitNotification(
+                id=304,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                mandate_id=999999,  # Non-existent mandate ID
+                merchant_order_id="ORD_REG_304",
+                amount_paise=100000,
+                auto_debit_snapshot=False,
+                status=PreDebitNotificationStatus.NOTIFIED.value,
+            )
+            attempt_mandate_not_found = SaaSRedemptionAttempt(
+                id=304,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                notification_id=304,
+                merchant_order_id="ORD_REG_304",
+                amount_paise=100000,
+                status=RedemptionAttemptStatus.INITIATED.value,
+            )
+            db.session.add_all([pdn_mandate_not_found, attempt_mandate_not_found])
+            db.session.commit()
+
+            res4 = self.provider.reconcile_redemption_status(attempt_mandate_not_found)
+            self.assertEqual(res4.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+            self.assertIn("Mandate record not found for tenant", res4.failure_reason)
+            mock_get_client.assert_not_called()
+
+            # 5. Missing billing period reservation
+            mandate_valid_5 = SaaSMandate(
+                id=305,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                merchant_subscription_id="MSUB_REG_305",
+                mandate_status="ACTIVE",
+                max_amount_paise=200000,
+                frequency="MONTHLY",
+            )
+            pdn_5 = SaaSPreDebitNotification(
+                id=305,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                mandate_id=305,
+                merchant_order_id="ORD_REG_305",
+                amount_paise=100000,
+                auto_debit_snapshot=False,
+                status=PreDebitNotificationStatus.NOTIFIED.value,
+                billing_period_key="bpk_missing_reservation",
+            )
+            attempt_missing_res = SaaSRedemptionAttempt(
+                id=305,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                notification_id=305,
+                merchant_order_id="ORD_REG_305",
+                amount_paise=100000,
+                status=RedemptionAttemptStatus.INITIATED.value,
+                billing_period_key="bpk_missing_reservation",
+            )
+            # Intentionally NOT adding SaaSBillingPeriodReservation
+            db.session.add_all([mandate_valid_5, pdn_5, attempt_missing_res])
+            db.session.commit()
+
+            res5 = self.provider.reconcile_redemption_status(attempt_missing_res)
+            self.assertEqual(res5.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+            self.assertIn("Billing period reservation not found", res5.failure_reason)
+            mock_get_client.assert_not_called()
+
+            # 6. Mismatched reservation order ID
+            mandate_valid_6 = SaaSMandate(
+                id=306,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                merchant_subscription_id="MSUB_REG_306",
+                mandate_status="ACTIVE",
+                max_amount_paise=200000,
+                frequency="MONTHLY",
+            )
+            bpr_mismatched_6 = SaaSBillingPeriodReservation(
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                billing_period_key="bpk_order_mismatch_6",
+                merchant_order_id="ORD_BPR_DIFFERENT",
+                status=BillingPeriodReservationStatus.RESERVED.value,
+            )
+            pdn_6 = SaaSPreDebitNotification(
+                id=306,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                mandate_id=306,
+                merchant_order_id="ORD_REG_306",
+                amount_paise=100000,
+                auto_debit_snapshot=False,
+                status=PreDebitNotificationStatus.NOTIFIED.value,
+                billing_period_key="bpk_order_mismatch_6",
+            )
+            attempt_mismatched_6 = SaaSRedemptionAttempt(
+                id=306,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                notification_id=306,
+                merchant_order_id="ORD_REG_306",
+                amount_paise=100000,
+                status=RedemptionAttemptStatus.INITIATED.value,
+                billing_period_key="bpk_order_mismatch_6",
+            )
+            db.session.add_all([mandate_valid_6, bpr_mismatched_6, pdn_6, attempt_mismatched_6])
+            db.session.commit()
+
+            res6 = self.provider.reconcile_redemption_status(attempt_mismatched_6)
+            self.assertEqual(res6.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+            self.assertIn("Reservation order mismatch", res6.failure_reason)
+            mock_get_client.assert_not_called()
+
+            # 7. Cross-tenant mandate relationship (mandate org 99 != notification org 7)
+            org_other = Organization(id=99, name="Other Org", unique_code="ORGOTHER")
+            db.session.add(org_other)
+            db.session.commit()
+
+            mandate_cross_tenant = SaaSMandate(
+                id=307,
+                organization_id=99,  # Belongs to org 99
+                subscription_id=self.dummy_sub.id,
+                merchant_subscription_id="MSUB_REG_307",
+                mandate_status="ACTIVE",
+                max_amount_paise=200000,
+                frequency="MONTHLY",
+            )
+            pdn_7 = SaaSPreDebitNotification(
+                id=307,
+                organization_id=7,  # Belongs to org 7
+                subscription_id=self.dummy_sub.id,
+                mandate_id=307,
+                merchant_order_id="ORD_REG_307",
+                amount_paise=100000,
+                auto_debit_snapshot=False,
+                status=PreDebitNotificationStatus.NOTIFIED.value,
+            )
+            attempt_7 = SaaSRedemptionAttempt(
+                id=307,
+                organization_id=7,
+                subscription_id=self.dummy_sub.id,
+                notification_id=307,
+                merchant_order_id="ORD_REG_307",
+                amount_paise=100000,
+                status=RedemptionAttemptStatus.INITIATED.value,
+            )
+            db.session.add_all([mandate_cross_tenant, pdn_7, attempt_7])
+            db.session.commit()
+
+            res7 = self.provider.reconcile_redemption_status(attempt_7)
+            self.assertEqual(res7.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+            self.assertIn("Mandate record not found for tenant", res7.failure_reason)
+            mock_get_client.assert_not_called()
 
 
 if __name__ == "__main__":
