@@ -710,7 +710,8 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict):
     # 2. Webhook Fencing Token & Atomic Distributed Event Intake
     now = datetime.utcnow()
     worker_fencing_token = f"wh_{uuid.uuid4().hex}"
-    lease_duration = 60
+    # Configured lease duration: 120 seconds for webhook event intake/processing, 300 seconds for subscription claim ownership.
+    lease_duration = 120
     lease_expires_at = now + timedelta(seconds=lease_duration)
 
     existing_event = SaaSWebhookEvent.query.filter_by(
@@ -719,25 +720,15 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict):
     ).first()
 
     if existing_event:
-        prev_state = getattr(existing_event, "status", None)
-        if existing_event.payload_summary:
-            try:
-                ps = json.loads(existing_event.payload_summary).get("processing_state")
-                if ps:
-                    prev_state = ps
-            except Exception:
-                pass
-
-        # If explicitly PROCESSED, or legacy record with no owner_token
+        # SaaSWebhookEvent.status is the sole authoritative source of truth
         if (
-            prev_state == WebhookEventStatus.PROCESSED.value
-            or prev_state == "PROCESSED"
-            or (prev_state == WebhookEventStatus.RECEIVED.value and not existing_event.owner_token)
+            existing_event.status == WebhookEventStatus.PROCESSED.value
+            or (existing_event.status == WebhookEventStatus.RECEIVED.value and not existing_event.owner_token)
         ):
             logger.info("PhonePe V2 Webhook event %s already processed; skipping duplicate delivery.", event_id)
             return jsonify({"status": "already_processed", "event_id": event_id}), 200
 
-        if prev_state == WebhookEventStatus.PROCESSING.value:
+        if existing_event.status == WebhookEventStatus.PROCESSING.value:
             if existing_event.owner_expires_at and existing_event.owner_expires_at > now:
                 logger.warning(
                     "Concurrent PhonePe V2 webhook delivery for event %s is actively owned by %s; returning retryable.",
@@ -927,6 +918,7 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict):
 
     reconciliation_state = "PROCESSED"
     unresolved_reason = None
+    already_committed = False
 
     try:
         # A. If associated with a mandate: sync mandate status S2S
@@ -1096,31 +1088,89 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict):
                     reconciliation_state = "UNRESOLVED"
                     unresolved_reason = f"Setup payment evidence invalid: {evidence_err}"
                 else:
-                    # FENCING CHECK: Verify this worker STILL holds active event lease before mutating entitlement!
-                    owner_check = SaaSWebhookEvent.query.filter(
+                    # ATOMIC FENCING ACTIVATION:
+                    # Conditionally update SaaSWebhookEvent to PROCESSED requiring:
+                    # - payment_provider == 'phonepe_v2'
+                    # - event_id == event_id
+                    # - owner_token == worker_fencing_token
+                    # - owner_expires_at >= current_time
+                    # - status == PROCESSING
+                    # In the EXACT same transaction, activate subscription without auto-commit and commit together.
+                    now_activation = datetime.utcnow()
+                    activation_summary = {
+                        "merchant_subscription_id": v2_mandate.merchant_subscription_id if v2_mandate else None,
+                        "merchant_order_id": setup_order_id,
+                        "org_id": org_id,
+                        "state": webhook_res.state,
+                        "processing_state": WebhookEventStatus.PROCESSED.value,
+                        "updated_at": now_activation.isoformat(),
+                    }
+
+                    updated = SaaSWebhookEvent.query.filter(
                         SaaSWebhookEvent.payment_provider == "phonepe_v2",
                         SaaSWebhookEvent.event_id == event_id,
                         SaaSWebhookEvent.owner_token == worker_fencing_token,
-                        SaaSWebhookEvent.owner_expires_at >= datetime.utcnow(),
-                    ).first()
-                    if not owner_check:
+                        SaaSWebhookEvent.owner_expires_at >= now_activation,
+                        SaaSWebhookEvent.status == WebhookEventStatus.PROCESSING.value,
+                    ).update({
+                        SaaSWebhookEvent.status: WebhookEventStatus.PROCESSED.value,
+                        SaaSWebhookEvent.event_type: event_type,
+                        SaaSWebhookEvent.organization_id: org_id,
+                        SaaSWebhookEvent.error_message: None,
+                        SaaSWebhookEvent.processed_at: now_activation,
+                        SaaSWebhookEvent.payload_summary: json.dumps(activation_summary),
+                        SaaSWebhookEvent.owner_token: None,
+                        SaaSWebhookEvent.owner_expires_at: None,
+                    }, synchronize_session=False)
+
+                    if updated != 1:
                         db.session.rollback()
                         logger.error(
-                            "Fencing check failed: worker %s lost lease on event %s before activation",
-                            worker_fencing_token, event_id
+                            "Atomic activation fencing check failed: worker %s lost lease on event %s before activation (updated=%s)",
+                            worker_fencing_token, event_id, updated
                         )
-                        return jsonify({"error": "Worker lease expired during reconciliation", "status": "UNRESOLVED", "retryable": True}), 422
+                        return jsonify({
+                            "error": "Worker lease expired during reconciliation",
+                            "status": "UNRESOLVED",
+                            "retryable": True,
+                        }), 422
 
-                    SubscriptionService.activate_subscription(
+                    # Activate subscription and stage transaction without internal auto-commit
+                    activated = SubscriptionService.activate_subscription(
                         subscription=sub,
                         provider_subscription_id=v2_mandate.provider_subscription_id,
                         provider_transaction_id=tx_res.provider_transaction_id,
                         provider_payment_id=tx_res.provider_payment_id,
                         amount_paise=validated_amount,
                         mandate_reference=v2_mandate.mandate_reference,
+                        auto_commit=False,
                     )
+                    if not activated:
+                        db.session.rollback()
+                        logger.error("Failed to activate subscription for sub %s during atomic webhook processing", sub.id)
+                        return jsonify({
+                            "error": "Subscription activation failed",
+                            "status": "UNRESOLVED",
+                            "retryable": True,
+                        }), 422
+
                     sub.last_webhook_event_id = event_id
-                    reconciliation_state = "PROCESSED"
+                    try:
+                        db.session.commit()
+                        reconciliation_state = "PROCESSED"
+                        already_committed = True
+                        logger.info("Atomically activated subscription %s and committed PROCESSED state for event %s",
+                                    sub.id, event_id)
+                    except Exception as commit_err:
+                        db.session.rollback()
+                        logger.error("Failed to commit atomic activation and webhook transition for event %s: %s",
+                                     event_id, commit_err, exc_info=True)
+                        return jsonify({
+                            "error": "Failed to durably commit subscription activation",
+                            "status": "ERROR",
+                            "retryable": True,
+                            "event_id": event_id,
+                        }), 500
             else:
                 logger.warning(
                     "Setup order reconciliation skipped: no authentic merchant_order_id found in internal records for sub=%s",
@@ -1129,31 +1179,32 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict):
                 reconciliation_state = "UNRESOLVED"
                 unresolved_reason = "No authentic internal setup merchant order ID found"
 
-        # 6. Commit final state using conditional fencing transition
-        try:
-            _transition_v2_webhook_event(
-                event_id=event_id,
-                fencing_token=worker_fencing_token,
-                target_state=reconciliation_state,
-                event_type=event_type,
-                details={
-                    "merchant_subscription_id": v2_mandate.merchant_subscription_id if v2_mandate else None,
-                    "merchant_order_id": v2_pdn.merchant_order_id if v2_pdn else None,
-                    "org_id": org_id,
-                    "state": webhook_res.state,
-                    "reason": unresolved_reason,
-                },
-                error_message=unresolved_reason,
-                organization_id=org_id,
-            )
-        except WebhookPersistenceError as pers_err:
-            logger.error("V2 webhook %s durable event persistence failed: %s", event_id, pers_err)
-            return jsonify({
-                "error": "Failed to durably persist webhook event",
-                "status": "ERROR",
-                "retryable": True,
-                "event_id": event_id,
-            }), 500
+        # 6. Commit final state using conditional fencing transition if not already committed
+        if not already_committed:
+            try:
+                _transition_v2_webhook_event(
+                    event_id=event_id,
+                    fencing_token=worker_fencing_token,
+                    target_state=reconciliation_state,
+                    event_type=event_type,
+                    details={
+                        "merchant_subscription_id": v2_mandate.merchant_subscription_id if v2_mandate else None,
+                        "merchant_order_id": v2_pdn.merchant_order_id if v2_pdn else None,
+                        "org_id": org_id,
+                        "state": webhook_res.state,
+                        "reason": unresolved_reason,
+                    },
+                    error_message=unresolved_reason,
+                    organization_id=org_id,
+                )
+            except WebhookPersistenceError as pers_err:
+                logger.error("V2 webhook %s durable event persistence failed: %s", event_id, pers_err)
+                return jsonify({
+                    "error": "Failed to durably persist webhook event",
+                    "status": "ERROR",
+                    "retryable": True,
+                    "event_id": event_id,
+                }), 500
 
         if reconciliation_state == "UNRESOLVED":
             logger.warning("V2 webhook event %s reconciliation unresolved: %s", event_id, unresolved_reason)

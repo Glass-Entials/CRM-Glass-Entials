@@ -24,6 +24,7 @@ class TransactionService:
         failure_reason: Optional[str] = None,
         billing_period_start: Optional[datetime] = None,
         billing_period_end: Optional[datetime] = None,
+        auto_commit: bool = True,
     ) -> SaaSTransaction:
         """Creates and stores a transaction record."""
         # Check for existing transaction by provider_payment_id to ensure idempotency
@@ -33,7 +34,8 @@ class TransactionService:
                 existing.status = status
                 if failure_reason:
                     existing.failure_reason = failure_reason
-                db.session.commit()
+                if auto_commit:
+                    db.session.commit()
                 return existing
 
         tx = SaaSTransaction(
@@ -58,14 +60,17 @@ class TransactionService:
         )
 
         db.session.add(tx)
-        try:
-            db.session.commit()
-            logger.info("Recorded SaaS transaction id=%s for org=%s amount=%s paise status=%s",
-                        tx.id, organization_id, amount_paise, status.value)
-        except Exception as e:
-            db.session.rollback()
-            logger.error("Error committing SaaS transaction: %s", str(e), exc_info=True)
-            raise
+        if auto_commit:
+            try:
+                db.session.commit()
+                logger.info("Recorded SaaS transaction id=%s for org=%s amount=%s paise status=%s",
+                            tx.id, organization_id, amount_paise, status.value)
+            except Exception as e:
+                db.session.rollback()
+                logger.error("Error committing SaaS transaction: %s", str(e), exc_info=True)
+                raise
+        else:
+            db.session.flush()
 
         return tx
 

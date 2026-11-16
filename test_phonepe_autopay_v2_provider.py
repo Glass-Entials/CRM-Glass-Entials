@@ -2172,6 +2172,292 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         self.assertEqual(results[0]["status"], "RECONCILED_SUCCESS")
         self.assertTrue(results[0]["success"])
 
+    def test_v2_scheduler_missing_attempt_never_redispatches(self):
+        """Phase 6.1: In-flight reservation with missing attempt must preserve PENDING_RECONCILIATION and never redispatch debit."""
+        from services.billing.providers.phonepe_autopay_v2_provider import _compute_billing_period_key
+        order_id = "ORD_SCHED_MISSING_ATTEMPT_01"
+        now = datetime.utcnow()
+        period_start = now - timedelta(days=30)
+        self.dummy_sub.current_period_start = period_start
+        self.dummy_sub.next_billing_at = now - timedelta(hours=1)
+        self.dummy_sub.claim_token = None
+        self.dummy_sub.claim_expires_at = None
+        mandate_m = SaaSMandate(
+            id=205,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id="MSUB_TEST_205",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        db.session.add(mandate_m)
+        db.session.commit()
+        bpk = _compute_billing_period_key(self.dummy_sub.id, period_start)
+
+        pdn = SaaSPreDebitNotification(
+            id=125,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=205,
+            merchant_order_id=order_id,
+            amount_paise=100000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=now - timedelta(hours=2),
+            valid_upto_at=now + timedelta(days=1),
+        )
+        bpr = SaaSBillingPeriodReservation(
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            billing_period_key=bpk,
+            merchant_order_id=order_id,
+            status=BillingPeriodReservationStatus.PENDING_RECONCILIATION.value,
+            redemption_initiated_at=now - timedelta(minutes=10),
+        )
+        # Note: SaaSRedemptionAttempt is intentionally NOT created
+        db.session.add_all([pdn, bpr])
+        db.session.commit()
+
+        with patch.object(self.provider, "_get_client") as mock_client:
+            mock_client.return_value.get_subscription_status.return_value = {"state": "ACTIVE"}
+
+            results = RenewalService.process_due_renewals(self.provider)
+
+            # redeem() and execute_redemption MUST NEVER be called
+            mock_client.return_value.redeem.assert_not_called()
+
+        self.assertEqual(len(results), 1)
+        self.assertFalse(results[0]["success"])
+        self.assertEqual(results[0]["status"], "PENDING_RECONCILIATION")
+        self.assertIn("Missing SaaSRedemptionAttempt", results[0]["error"])
+
+        # Reservation remains in PENDING_RECONCILIATION, not failed
+        bpr_db = SaaSBillingPeriodReservation.query.filter_by(billing_period_key=bpk).first()
+        self.assertEqual(bpr_db.status, BillingPeriodReservationStatus.PENDING_RECONCILIATION.value)
+
+    def test_v2_scheduler_ambiguous_attempts_never_redispatches(self):
+        """Phase 6.1: In-flight reservation with ambiguous matching attempts must preserve PENDING_RECONCILIATION and never redispatch debit."""
+        from services.billing.providers.phonepe_autopay_v2_provider import _compute_billing_period_key
+        order_id = "ORD_SCHED_AMBIGUOUS_ATTEMPTS_01"
+        now = datetime.utcnow()
+        period_start = now - timedelta(days=30)
+        self.dummy_sub.current_period_start = period_start
+        self.dummy_sub.next_billing_at = now - timedelta(hours=1)
+        self.dummy_sub.claim_token = None
+        self.dummy_sub.claim_expires_at = None
+        mandate_a = SaaSMandate(
+            id=206,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            payment_provider="phonepe_v2",
+            merchant_subscription_id="MSUB_TEST_206",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        db.session.add(mandate_a)
+        db.session.commit()
+        bpk = _compute_billing_period_key(self.dummy_sub.id, period_start)
+
+        pdn = SaaSPreDebitNotification(
+            id=126,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=206,
+            merchant_order_id=order_id,
+            amount_paise=100000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+            valid_after_at=now - timedelta(hours=2),
+            valid_upto_at=now + timedelta(days=1),
+        )
+        bpr = SaaSBillingPeriodReservation(
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            billing_period_key=bpk,
+            merchant_order_id=order_id,
+            status=BillingPeriodReservationStatus.PENDING_RECONCILIATION.value,
+            redemption_initiated_at=now - timedelta(minutes=10),
+        )
+        # Create two matching attempts for the exact same order (different attempt_number to satisfy unique constraint)
+        attempt1 = SaaSRedemptionAttempt(
+            id=1261,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            notification_id=pdn.id,
+            merchant_order_id=order_id,
+            amount_paise=100000,
+            status=RedemptionAttemptStatus.INITIATED.value,
+            attempt_number=1,
+        )
+        attempt2 = SaaSRedemptionAttempt(
+            id=1262,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            notification_id=pdn.id,
+            merchant_order_id=order_id,
+            amount_paise=100000,
+            status=RedemptionAttemptStatus.INITIATED.value,
+            attempt_number=2,
+        )
+        db.session.add_all([pdn, bpr, attempt1, attempt2])
+        db.session.commit()
+
+        with patch.object(self.provider, "_get_client") as mock_client:
+            mock_client.return_value.get_subscription_status.return_value = {"state": "ACTIVE"}
+
+            results = RenewalService.process_due_renewals(self.provider)
+
+            # redeem() MUST NEVER be called
+            mock_client.return_value.redeem.assert_not_called()
+
+        self.assertEqual(len(results), 1)
+        self.assertFalse(results[0]["success"])
+        self.assertEqual(results[0]["status"], "PENDING_RECONCILIATION")
+        self.assertIn("Ambiguous: found 2", results[0]["error"])
+
+    def test_reconcile_redemption_relationship_validation_failures(self):
+        """Phase 6.1: Strict relational validation blocks execution and sets MANUAL_RECONCILIATION_REQUIRED on mismatches."""
+        now = datetime.utcnow()
+        bpk = "sub_7_test_period"
+
+        # Case A: Mismatched merchant_order_id between attempt and notification
+        pdn_a = SaaSPreDebitNotification(
+            id=130,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=10,
+            merchant_order_id="ORD_NOTIF_A",
+            amount_paise=100000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+        )
+        attempt_a = SaaSRedemptionAttempt(
+            id=130,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            notification_id=130,
+            merchant_order_id="ORD_ATTEMPT_MISMATCH",
+            amount_paise=100000,
+            status=RedemptionAttemptStatus.INITIATED.value,
+        )
+        db.session.add_all([pdn_a, attempt_a])
+        db.session.commit()
+
+        res_a = self.provider.reconcile_redemption_status(attempt_a)
+        self.assertEqual(res_a.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+        self.assertIn("Order mismatch", res_a.failure_reason)
+
+        # Case B: Mismatched amount_paise between attempt and notification
+        pdn_b = SaaSPreDebitNotification(
+            id=131,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=10,
+            merchant_order_id="ORD_B",
+            amount_paise=100000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+        )
+        attempt_b = SaaSRedemptionAttempt(
+            id=131,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            notification_id=131,
+            merchant_order_id="ORD_B",
+            amount_paise=200000,  # Mismatch!
+            status=RedemptionAttemptStatus.INITIATED.value,
+        )
+        db.session.add_all([pdn_b, attempt_b])
+        db.session.commit()
+
+        res_b = self.provider.reconcile_redemption_status(attempt_b)
+        self.assertEqual(res_b.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+        self.assertIn("Amount mismatch", res_b.failure_reason)
+
+        # Case C: Mismatched mandate subscription_id vs notification subscription_id
+        mandate_foreign = SaaSMandate(
+            id=999,
+            organization_id=7,
+            subscription_id=99999,  # Mismatched sub!
+            merchant_subscription_id="MSUB_FOREIGN",
+            mandate_status="ACTIVE",
+            max_amount_paise=100000,
+            frequency="MONTHLY",
+        )
+        pdn_c = SaaSPreDebitNotification(
+            id=132,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=999,
+            merchant_order_id="ORD_C",
+            amount_paise=100000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+        )
+        attempt_c = SaaSRedemptionAttempt(
+            id=132,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            notification_id=132,
+            merchant_order_id="ORD_C",
+            amount_paise=100000,
+            status=RedemptionAttemptStatus.INITIATED.value,
+        )
+        db.session.add_all([mandate_foreign, pdn_c, attempt_c])
+        db.session.commit()
+
+        res_c = self.provider.reconcile_redemption_status(attempt_c)
+        self.assertEqual(res_c.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+        self.assertIn("Mandate subscription mismatch", res_c.failure_reason)
+
+        # Case D: Billing reservation order mismatch
+        # Create a valid mandate for case D (subscription_id matches dummy_sub so mandate check passes)
+        mandate_d = SaaSMandate(
+            id=998,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            merchant_subscription_id="MSUB_CASE_D",
+            mandate_status="ACTIVE",
+            max_amount_paise=200000,
+            frequency="MONTHLY",
+        )
+        bpr_d = SaaSBillingPeriodReservation(
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            billing_period_key="bpk_res_mismatch",
+            merchant_order_id="ORD_RESERVATION_OTHER",
+            status=BillingPeriodReservationStatus.RESERVED.value,
+        )
+        pdn_d = SaaSPreDebitNotification(
+            id=133,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            mandate_id=998,  # valid mandate with matching subscription_id
+            merchant_order_id="ORD_D",
+            amount_paise=100000,
+            auto_debit_snapshot=False,
+            status=PreDebitNotificationStatus.NOTIFIED.value,
+        )
+        attempt_d = SaaSRedemptionAttempt(
+            id=133,
+            organization_id=7,
+            subscription_id=self.dummy_sub.id,
+            notification_id=133,
+            merchant_order_id="ORD_D",
+            amount_paise=100000,
+            status=RedemptionAttemptStatus.INITIATED.value,
+            billing_period_key="bpk_res_mismatch",
+        )
+        db.session.add_all([mandate_d, bpr_d, pdn_d, attempt_d])
+        db.session.commit()
+
+        res_d = self.provider.reconcile_redemption_status(attempt_d)
+        self.assertEqual(res_d.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
+        self.assertIn("Reservation order mismatch", res_d.failure_reason)
+
 
 if __name__ == "__main__":
     unittest.main()

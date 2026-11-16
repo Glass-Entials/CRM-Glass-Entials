@@ -101,11 +101,13 @@ class SubscriptionService:
         provider_payment_id: Optional[str] = None,
         amount_paise: int = 0,
         mandate_reference: Optional[str] = None,
-        payment_method: str = "UPI_AUTOPAY"
+        payment_method: str = "UPI_AUTOPAY",
+        auto_commit: bool = True,
     ) -> bool:
         """
         Activates an organization's subscription upon verified mandate & initial payment.
         Calculates billing period dates and records transaction.
+        When auto_commit is False, changes are staged in db.session for atomic multi-entity commits.
         """
         try:
             start_date, end_date = cls.calculate_period_dates(subscription.billing_cycle.value)
@@ -132,7 +134,8 @@ class SubscriptionService:
             if org:
                 org.status = OrganizationStatus.ACTIVE
 
-            db.session.commit()
+            if auto_commit:
+                db.session.commit()
 
             # Record success transaction
             payment_id = provider_payment_id or provider_transaction_id or f"pay_{subscription.id}_{int(datetime.utcnow().timestamp())}"
@@ -148,13 +151,15 @@ class SubscriptionService:
                 payment_method=payment_method,
                 billing_period_start=start_date,
                 billing_period_end=end_date,
+                auto_commit=auto_commit,
             )
 
-            logger.info("Successfully activated SaaS subscription org=%s, next_billing=%s",
-                        subscription.organization_id, end_date)
+            logger.info("Successfully activated SaaS subscription org=%s, next_billing=%s (auto_commit=%s)",
+                        subscription.organization_id, end_date, auto_commit)
             return True
         except Exception as e:
-            db.session.rollback()
+            if auto_commit:
+                db.session.rollback()
             logger.error("Error activating SaaS subscription: %s", str(e), exc_info=True)
             return False
 

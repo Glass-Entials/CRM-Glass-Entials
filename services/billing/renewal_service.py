@@ -215,11 +215,13 @@ class RenewalService:
                             ):
                                 logger.info("In-flight V2 redemption detected for order %s (initiated_at=%s). Reconciling...",
                                             bpr.merchant_order_id, bpr.redemption_initiated_at)
-                                attempt = SaaSRedemptionAttempt.query.filter_by(
+                                matching_attempts = SaaSRedemptionAttempt.query.filter_by(
                                     merchant_order_id=bpr.merchant_order_id,
                                     organization_id=sub.organization_id,
-                                ).first()
-                                if attempt:
+                                    subscription_id=sub.id,
+                                ).all()
+                                if len(matching_attempts) == 1:
+                                    attempt = matching_attempts[0]
                                     reconciled_attempt = provider.reconcile_redemption_status(attempt)
                                     if reconciled_attempt.status == RedemptionAttemptStatus.COMPLETED.value:
                                         logger.info("In-flight V2 redemption %s reconciled to COMPLETED.", bpr.merchant_order_id)
@@ -256,6 +258,38 @@ class RenewalService:
                                             "error": reconciled_attempt.failure_reason,
                                         })
                                         continue
+                                elif len(matching_attempts) == 0:
+                                    logger.error(
+                                        "Missing SaaSRedemptionAttempt for in-flight reservation order %s on sub %s",
+                                        bpr.merchant_order_id, sub.id
+                                    )
+                                    bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                                    db.session.commit()
+                                    results.append({
+                                        "subscription_id": sub.id,
+                                        "org_id": sub.organization_id,
+                                        "success": False,
+                                        "merchant_transaction_id": bpr.merchant_order_id,
+                                        "status": "PENDING_RECONCILIATION",
+                                        "error": f"Missing SaaSRedemptionAttempt for in-flight reservation order {bpr.merchant_order_id}",
+                                    })
+                                    continue
+                                else:
+                                    logger.error(
+                                        "Ambiguous: found %d SaaSRedemptionAttempt records for in-flight order %s on sub %s",
+                                        len(matching_attempts), bpr.merchant_order_id, sub.id
+                                    )
+                                    bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                                    db.session.commit()
+                                    results.append({
+                                        "subscription_id": sub.id,
+                                        "org_id": sub.organization_id,
+                                        "success": False,
+                                        "merchant_transaction_id": bpr.merchant_order_id,
+                                        "status": "PENDING_RECONCILIATION",
+                                        "error": f"Ambiguous: found {len(matching_attempts)} SaaSRedemptionAttempt records for in-flight order {bpr.merchant_order_id}",
+                                    })
+                                    continue
                 else:
                     # Legacy PhonePe V3
                     existing_tx = SaaSTransaction.query.filter_by(

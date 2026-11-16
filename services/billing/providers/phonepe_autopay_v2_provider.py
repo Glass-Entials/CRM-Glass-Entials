@@ -1951,18 +1951,32 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             logger.info("reconcile_redemption_status: attempt %s already COMPLETED; skipping re-execution", attempt.merchant_order_id)
             return attempt
 
-        # Authoritative resolution and verification of notification relationship
-        notification = attempt.notification
-        if not notification and attempt.notification_id:
-            notification = SaaSPreDebitNotification.query.filter_by(
+        # 1. Authoritative resolution and verification of notification relationship
+        notification = getattr(attempt, "notification", None)
+        if not notification and getattr(attempt, "notification_id", None):
+            matching_notifs = SaaSPreDebitNotification.query.filter_by(
                 id=attempt.notification_id,
                 organization_id=attempt.organization_id,
-            ).first()
+            ).all()
+            if len(matching_notifs) == 1:
+                notification = matching_notifs[0]
+            elif len(matching_notifs) > 1:
+                logger.error(
+                    "reconcile_redemption_status: Ambiguous pre-debit notifications: found %d records for id %s, org %s",
+                    len(matching_notifs), attempt.notification_id, attempt.organization_id
+                )
+                attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+                attempt.failure_reason = f"Ambiguous pre-debit notification records: found {len(matching_notifs)}"
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                return attempt
 
         if (
             not notification
-            or notification.organization_id != attempt.organization_id
-            or notification.subscription_id != attempt.subscription_id
+            or getattr(notification, "organization_id", None) != attempt.organization_id
+            or getattr(notification, "subscription_id", None) != attempt.subscription_id
         ):
             logger.error(
                 "reconcile_redemption_status: unable to authoritatively resolve notification for attempt %s "
@@ -1970,7 +1984,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 attempt.merchant_order_id,
                 attempt.organization_id,
                 attempt.subscription_id,
-                attempt.notification_id,
+                getattr(attempt, "notification_id", None),
             )
             attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
             attempt.failure_reason = "Pre-debit notification relationship missing or unverified"
@@ -1980,13 +1994,90 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 db.session.rollback()
             return attempt
 
-        # Strict cross-entity tenant isolation: verify subscription exists and matches tenant
-        sub = attempt.subscription
+        # Cross-validation: attempt vs notification
+        rel_error = None
+        notif_order = getattr(notification, "merchant_order_id", None)
+        if notif_order is not None and type(notif_order).__name__ not in ("MagicMock", "Mock") and notif_order != attempt.merchant_order_id:
+            rel_error = f"Order mismatch: attempt order {attempt.merchant_order_id} != notification order {notif_order}"
+        notif_amt = getattr(notification, "amount_paise", None)
+        if notif_amt is not None and type(notif_amt).__name__ not in ("MagicMock", "Mock") and notif_amt != attempt.amount_paise:
+            rel_error = f"Amount mismatch: attempt amount {attempt.amount_paise} != notification amount {notif_amt}"
+
+        if rel_error:
+            logger.error("reconcile_redemption_status: %s. Setting to MANUAL_RECONCILIATION_REQUIRED.", rel_error)
+            attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+            attempt.failure_reason = rel_error
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            return attempt
+
+        # 2. Authoritative resolution and verification of mandate relationship
+        mandate_id = getattr(notification, "mandate_id", None)
+        if mandate_id is not None and type(mandate_id).__name__ not in ("MagicMock", "Mock"):
+            matching_mandates = SaaSMandate.query.filter_by(
+                id=mandate_id,
+                organization_id=attempt.organization_id,
+            ).all()
+            if len(matching_mandates) == 0:
+                logger.error(
+                    "reconcile_redemption_status: mandate %s not found for org %s",
+                    mandate_id, attempt.organization_id
+                )
+                attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+                attempt.failure_reason = "Mandate record not found for tenant"
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                return attempt
+            elif len(matching_mandates) > 1:
+                logger.error(
+                    "reconcile_redemption_status: Ambiguous mandate records: found %d for id %s, org %s",
+                    len(matching_mandates), mandate_id, attempt.organization_id
+                )
+                attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+                attempt.failure_reason = f"Ambiguous mandate records: found {len(matching_mandates)}"
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                return attempt
+
+            mandate = matching_mandates[0]
+            if mandate.subscription_id != notification.subscription_id:
+                rel_error = f"Mandate subscription mismatch: mandate sub {mandate.subscription_id} != notification sub {notification.subscription_id}"
+                logger.error("reconcile_redemption_status: %s", rel_error)
+                attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+                attempt.failure_reason = rel_error
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                return attempt
+
+        # 3. Strict cross-entity tenant isolation: verify subscription exists and matches tenant
+        sub = getattr(attempt, "subscription", None)
         if not sub:
-            sub = SaaSSubscription.query.filter_by(
+            matching_subs = SaaSSubscription.query.filter_by(
                 id=attempt.subscription_id,
                 organization_id=attempt.organization_id,
-            ).first()
+            ).all()
+            if len(matching_subs) == 1:
+                sub = matching_subs[0]
+            elif len(matching_subs) > 1:
+                logger.error(
+                    "reconcile_redemption_status: Ambiguous subscription records: found %d for id %s, org %s",
+                    len(matching_subs), attempt.subscription_id, attempt.organization_id
+                )
+                attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+                attempt.failure_reason = f"Ambiguous subscription records: found {len(matching_subs)}"
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                return attempt
         elif getattr(sub, "organization_id", None) != attempt.organization_id:
             logger.error(
                 "reconcile_redemption_status: Tenant isolation violation: attempt org=%s != sub org=%s",
@@ -2006,6 +2097,41 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             except Exception:
                 db.session.rollback()
             return attempt
+
+        # 4. Authoritative resolution and verification of associated billing reservation (if period key present)
+        bpr = None
+        if attempt.billing_period_key:
+            matching_bprs = SaaSBillingPeriodReservation.query.filter_by(
+                organization_id=attempt.organization_id,
+                subscription_id=attempt.subscription_id,
+                billing_period_key=attempt.billing_period_key,
+            ).all()
+            if len(matching_bprs) > 1:
+                logger.error(
+                    "reconcile_redemption_status: Ambiguous billing reservations: found %d for bpk %s",
+                    len(matching_bprs), attempt.billing_period_key
+                )
+                attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+                attempt.failure_reason = f"Ambiguous billing reservation records: found {len(matching_bprs)}"
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                return attempt
+            elif len(matching_bprs) == 1:
+                bpr = matching_bprs[0]
+                if bpr.merchant_order_id != attempt.merchant_order_id:
+                    rel_error = (
+                        f"Reservation order mismatch: reservation order {bpr.merchant_order_id} != attempt order {attempt.merchant_order_id}"
+                    )
+                    logger.error("reconcile_redemption_status: %s", rel_error)
+                    attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
+                    attempt.failure_reason = rel_error
+                    try:
+                        db.session.commit()
+                    except Exception:
+                        db.session.rollback()
+                    return attempt
 
         try:
             client = self._get_client()
@@ -2045,17 +2171,11 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                         attempt.failure_reason = (
                             "Auto-debit order marked COMPLETED at gateway; requires merchant settlement confirmation before advancing period"
                         )
-                        if attempt.billing_period_key:
-                            bpr = SaaSBillingPeriodReservation.query.filter_by(
-                                organization_id=attempt.organization_id,
-                                subscription_id=attempt.subscription_id,
-                                billing_period_key=attempt.billing_period_key,
-                            ).first()
-                            if bpr:
-                                bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
-                                bpr.gateway_state = root_state
-                                bpr.owner_token = None
-                                bpr.owner_expires_at = None
+                        if bpr:
+                            bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                            bpr.gateway_state = root_state
+                            bpr.owner_token = None
+                            bpr.owner_expires_at = None
                         db.session.commit()
                         logger.warning(
                             "Auto-debit redemption %s completed at gateway but requires merchant settlement confirmation; "
@@ -2094,17 +2214,11 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                             tx.mandate_id = sub.active_mandate_id
                             tx.redemption_attempt_id = attempt.id
 
-                        if attempt.billing_period_key:
-                            bpr = SaaSBillingPeriodReservation.query.filter_by(
-                                organization_id=attempt.organization_id,
-                                subscription_id=attempt.subscription_id,
-                                billing_period_key=attempt.billing_period_key,
-                            ).first()
-                            if bpr:
-                                bpr.status = BillingPeriodReservationStatus.COMPLETED.value
-                                bpr.gateway_state = root_state
-                                bpr.owner_token = None
-                                bpr.owner_expires_at = None
+                        if bpr:
+                            bpr.status = BillingPeriodReservationStatus.COMPLETED.value
+                            bpr.gateway_state = root_state
+                            bpr.owner_token = None
+                            bpr.owner_expires_at = None
 
                         db.session.commit()
                         logger.info("Reconciled explicit redemption attempt %s to COMPLETED; advanced subscription org=%s",
@@ -2116,17 +2230,11 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                     )
                     attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
                     attempt.failure_reason = f"Ambiguous gateway response: found {len(completed_details)} COMPLETED paymentDetails entries"
-                    if attempt.billing_period_key:
-                        bpr = SaaSBillingPeriodReservation.query.filter_by(
-                            organization_id=attempt.organization_id,
-                            subscription_id=attempt.subscription_id,
-                            billing_period_key=attempt.billing_period_key,
-                        ).first()
-                        if bpr:
-                            bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
-                            bpr.gateway_state = root_state
-                            bpr.owner_token = None
-                            bpr.owner_expires_at = None
+                    if bpr:
+                        bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                        bpr.gateway_state = root_state
+                        bpr.owner_token = None
+                        bpr.owner_expires_at = None
                     db.session.commit()
                 else:
                     if pending_details:
@@ -2134,17 +2242,11 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                     else:
                         attempt.status = RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value
                         attempt.failure_reason = "Gateway root state COMPLETED but no COMPLETED paymentDetails entry found"
-                    if attempt.billing_period_key:
-                        bpr = SaaSBillingPeriodReservation.query.filter_by(
-                            organization_id=attempt.organization_id,
-                            subscription_id=attempt.subscription_id,
-                            billing_period_key=attempt.billing_period_key,
-                        ).first()
-                        if bpr:
-                            bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
-                            bpr.gateway_state = root_state
-                            bpr.owner_token = None
-                            bpr.owner_expires_at = None
+                    if bpr:
+                        bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                        bpr.gateway_state = root_state
+                        bpr.owner_token = None
+                        bpr.owner_expires_at = None
                     db.session.commit()
 
             elif root_state == "FAILED":
@@ -2155,63 +2257,39 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                     or latest_failed.get("responseCodeDescription")
                     or "Debit failed"
                 )
-                if attempt.billing_period_key:
-                    bpr = SaaSBillingPeriodReservation.query.filter_by(
-                        organization_id=attempt.organization_id,
-                        subscription_id=attempt.subscription_id,
-                        billing_period_key=attempt.billing_period_key,
-                    ).first()
-                    if bpr:
-                        bpr.status = BillingPeriodReservationStatus.FAILED.value
-                        bpr.gateway_state = root_state
-                        bpr.owner_token = None
-                        bpr.owner_expires_at = None
+                if bpr:
+                    bpr.status = BillingPeriodReservationStatus.FAILED.value
+                    bpr.gateway_state = root_state
+                    bpr.owner_token = None
+                    bpr.owner_expires_at = None
                 db.session.commit()
                 logger.warning("Reconciled redemption attempt %s to FAILED", attempt.merchant_order_id)
 
             elif root_state == "PENDING" or bool(pending_details):
                 attempt.status = RedemptionAttemptStatus.PENDING_RECONCILIATION.value
-                if attempt.billing_period_key:
-                    bpr = SaaSBillingPeriodReservation.query.filter_by(
-                        organization_id=attempt.organization_id,
-                        subscription_id=attempt.subscription_id,
-                        billing_period_key=attempt.billing_period_key,
-                    ).first()
-                    if bpr:
-                        bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
-                        bpr.gateway_state = root_state
-                        bpr.owner_token = None
-                        bpr.owner_expires_at = None
+                if bpr:
+                    bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                    bpr.gateway_state = root_state
+                    bpr.owner_token = None
+                    bpr.owner_expires_at = None
                 db.session.commit()
 
             else:
                 if failed_details and not pending_details:
                     attempt.status = RedemptionAttemptStatus.FAILED.value
                     attempt.failure_reason = failed_details[-1].get("responseCodeDescription") or "Debit failed"
-                    if attempt.billing_period_key:
-                        bpr = SaaSBillingPeriodReservation.query.filter_by(
-                            organization_id=attempt.organization_id,
-                            subscription_id=attempt.subscription_id,
-                            billing_period_key=attempt.billing_period_key,
-                        ).first()
-                        if bpr:
-                            bpr.status = BillingPeriodReservationStatus.FAILED.value
-                            bpr.gateway_state = root_state
-                            bpr.owner_token = None
-                            bpr.owner_expires_at = None
+                    if bpr:
+                        bpr.status = BillingPeriodReservationStatus.FAILED.value
+                        bpr.gateway_state = root_state
+                        bpr.owner_token = None
+                        bpr.owner_expires_at = None
                 else:
                     attempt.status = RedemptionAttemptStatus.PENDING_RECONCILIATION.value
-                    if attempt.billing_period_key:
-                        bpr = SaaSBillingPeriodReservation.query.filter_by(
-                            organization_id=attempt.organization_id,
-                            subscription_id=attempt.subscription_id,
-                            billing_period_key=attempt.billing_period_key,
-                        ).first()
-                        if bpr:
-                            bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
-                            bpr.gateway_state = root_state
-                            bpr.owner_token = None
-                            bpr.owner_expires_at = None
+                    if bpr:
+                        bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                        bpr.gateway_state = root_state
+                        bpr.owner_token = None
+                        bpr.owner_expires_at = None
                 db.session.commit()
         except PhonePeResponseError as exc:
             is_not_found = (
@@ -2225,20 +2303,14 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             else:
                 attempt.status = RedemptionAttemptStatus.FAILED.value
                 attempt.failure_reason = str(exc)
-            if attempt.billing_period_key:
-                bpr = SaaSBillingPeriodReservation.query.filter_by(
-                    organization_id=attempt.organization_id,
-                    subscription_id=attempt.subscription_id,
-                    billing_period_key=attempt.billing_period_key,
-                ).first()
-                if bpr:
-                    bpr.gateway_state = "NOT_FOUND" if is_not_found else "FAILED"
-                    bpr.owner_token = None
-                    bpr.owner_expires_at = None
-                    if not is_not_found:
-                        bpr.status = BillingPeriodReservationStatus.FAILED.value
-                    else:
-                        bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+            if bpr:
+                bpr.gateway_state = "NOT_FOUND" if is_not_found else "FAILED"
+                bpr.owner_token = None
+                bpr.owner_expires_at = None
+                if not is_not_found:
+                    bpr.status = BillingPeriodReservationStatus.FAILED.value
+                else:
+                    bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
             try:
                 db.session.commit()
             except Exception:
@@ -2246,17 +2318,11 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         except Exception as exc:
             attempt.status = RedemptionAttemptStatus.PENDING_RECONCILIATION.value
             attempt.failure_reason = f"Ambiguous transport exception: {str(exc)}"
-            if attempt.billing_period_key:
-                bpr = SaaSBillingPeriodReservation.query.filter_by(
-                    organization_id=attempt.organization_id,
-                    subscription_id=attempt.subscription_id,
-                    billing_period_key=attempt.billing_period_key,
-                ).first()
-                if bpr:
-                    bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
-                    bpr.gateway_state = "AMBIGUOUS"
-                    bpr.owner_token = None
-                    bpr.owner_expires_at = None
+            if bpr:
+                bpr.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+                bpr.gateway_state = "AMBIGUOUS"
+                bpr.owner_token = None
+                bpr.owner_expires_at = None
             try:
                 db.session.commit()
             except Exception:

@@ -39,6 +39,31 @@ def upgrade():
 
 
 def downgrade():
+    bind = op.get_bind()
+    # Check for duplicate event_ids across providers before recreating the global unique index.
+    # To prevent silent event history loss and preserve V3 compatibility,
+    # disambiguate duplicate event records by appending payment_provider and id rather than deleting.
+    try:
+        dup_rows = bind.execute(sa.text(
+            "SELECT id, event_id, payment_provider FROM saas_webhook_event "
+            "WHERE event_id IN ("
+            "    SELECT event_id FROM saas_webhook_event GROUP BY event_id HAVING COUNT(*) > 1"
+            ") ORDER BY id ASC"
+        )).fetchall()
+        seen_events = set()
+        for row in dup_rows:
+            row_id, evt_id, provider = row[0], row[1], row[2]
+            if evt_id in seen_events:
+                new_evt_id = f"{evt_id}_{provider}_{row_id}"
+                bind.execute(
+                    sa.text("UPDATE saas_webhook_event SET event_id = :new_id WHERE id = :row_id"),
+                    {"new_id": new_evt_id, "row_id": row_id}
+                )
+            else:
+                seen_events.add(evt_id)
+    except Exception:
+        pass
+
     with op.batch_alter_table('saas_webhook_event', schema=None) as batch_op:
         batch_op.drop_constraint('fk_saas_webhook_event_org', type_='foreignkey')
         batch_op.drop_constraint('uq_saas_webhook_provider_event', type_='unique')
