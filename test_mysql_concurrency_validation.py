@@ -1472,6 +1472,238 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                 db.session.query(Organization).filter_by(id=fence_org_id).delete()
                 db.session.commit()
 
+    # ── Scenario 13: Production Stale Worker Activation Fencing ──────────────
+
+    def test_scenario_13_production_stale_worker_activation_fencing(self):
+        """
+        Scenario 13 (Final Phase 6 Test): Production stale worker activation fencing.
+        Executes the actual /saas/phonepe-webhook route path against real MySQL 8.0 InnoDB records.
+        - Mocks ONLY external PhonePe HTTP transport (get_order_status).
+        - At the activation boundary (inside the transport mock after authoritative S2S evidence is resolved),
+          a second independent MySQL session transfers the event's ownership lease to a new worker.
+        - The original route worker continues into the production atomic activation guard.
+        - Asserts:
+          1. Original worker receives HTTP 422 (UNRESOLVED, retryable) and cannot commit subscription activation.
+          2. Fresh MySQL session verifies:
+             - Subscription remains PENDING with zero period extension or entitlement changes.
+             - No successful transaction was created.
+             - SaaSWebhookEvent ownership belongs to the new worker.
+             - Event remains in PROCESSING state (stale worker could not overwrite to PROCESSED).
+          3. Stale worker cannot overwrite the new owner's event state using production helper.
+          4. Valid current owner subsequently completes the appropriate event transition to PROCESSED.
+        """
+        fence_org_id = 98767
+        fencing_sub_id = 9993
+        fencing_mandate_id = 9993
+        setup_order_id = f"ORD_FENCE_STALE_{fencing_sub_id}"
+        event_id = f"EVT_FENCE_STALE_{int(datetime.utcnow().timestamp())}"
+
+        try:
+            with self.app.app_context():
+                # Clean up any potential leftovers
+                db.session.query(SaaSTransaction).filter_by(organization_id=fence_org_id).delete()
+                db.session.query(SaaSWebhookEvent).filter_by(event_id=event_id).delete()
+                db.session.query(SaaSMandate).filter_by(organization_id=fence_org_id).delete()
+                db.session.query(SaaSSubscription).filter_by(organization_id=fence_org_id).delete()
+                db.session.query(Organization).filter_by(id=fence_org_id).delete()
+                db.session.commit()
+
+                # 1. Create valid MySQL records for pending PhonePe V2 subscription, mandate, webhook event, and setup payment
+                fence_org = Organization(id=fence_org_id, name="Stale Worker Fence Tenant", unique_code="STALEWFK")
+                db.session.add(fence_org)
+                db.session.commit()
+
+                fence_sub = SaaSSubscription(
+                    id=fencing_sub_id,
+                    organization_id=fence_org_id,
+                    plan_id=999,  # monthly 100000, expected total 118000
+                    payment_provider="phonepe_v2",
+                    status=SaaSSubscriptionStatus.PENDING,
+                    billing_cycle=SaaSBillingCycle.MONTHLY,
+                    amount_paise=118000,
+                    provider_order_id=setup_order_id,
+                    current_period_start=None,
+                    current_period_end=None,
+                )
+                fence_mandate = SaaSMandate(
+                    id=fencing_mandate_id,
+                    organization_id=fence_org_id,
+                    subscription_id=fencing_sub_id,
+                    payment_provider="phonepe_v2",
+                    merchant_subscription_id=f"MSUB_FENCE_{fencing_sub_id}",
+                    provider_subscription_id=f"PSUB_FENCE_{fencing_sub_id}",
+                    mandate_reference=f"MN_FENCE_{fencing_sub_id}",
+                    mandate_status="ACTIVE",
+                    max_amount_paise=200000,
+                    frequency="MONTHLY",
+                )
+                init_evt = SaaSWebhookEvent(
+                    payment_provider="phonepe_v2",
+                    event_id=event_id,
+                    event_type="SUBSCRIPTION_ACTIVE",
+                    status=WebhookEventStatus.UNRESOLVED.value,
+                    organization_id=fence_org_id,
+                    error_message="Initial unverified event state",
+                )
+                setup_tx = SaaSTransaction(
+                    organization_id=fence_org_id,
+                    subscription_id=fencing_sub_id,
+                    payment_provider="phonepe_v2",
+                    provider_order_id=setup_order_id,
+                    amount_paise=118000,
+                    status=SaaSTransactionStatus.PENDING,
+                )
+                db.session.add_all([fence_sub, fence_mandate, init_evt, setup_tx])
+                db.session.commit()
+
+            correct_sha = hashlib.sha256(b"webhook_test_user:webhook_test_pass").hexdigest()
+            headers = {
+                "Authorization": f"Basic {correct_sha}",
+                "Content-Type": "application/json",
+            }
+            payload = json.dumps({
+                "merchantSubscriptionId": f"MSUB_FENCE_{fencing_sub_id}",
+                "merchantOrderId": setup_order_id,
+                "eventId": event_id,
+                "event": "SUBSCRIPTION_ACTIVE",
+            })
+
+            mock_s2s_resp = {
+                "state": "COMPLETED",
+                "amount": 118000,
+                "currency": "INR",
+                "merchantOrderId": setup_order_id,
+                "merchantSubscriptionId": f"MSUB_FENCE_{fencing_sub_id}",
+                "paymentDetails": [
+                    {
+                        "state": "COMPLETED",
+                        "amount": 118000,
+                        "currency": "INR",
+                        "transactionId": "TXN_MOCK_SUCCESS",
+                        "paymentMode": "UPI",
+                    }
+                ],
+            }
+
+            new_worker_token = f"wh_transferred_owner_{int(datetime.utcnow().timestamp())}"
+            captured_stale_token = {}
+
+            # 3. Mock ONLY external PhonePe HTTP transport
+            def mock_get_order_side_effect(order_id, details=True):
+                # 4. At the activation boundary, transfer worker lease using a second independent MySQL session
+                second_session = self.SessionFactory()
+                try:
+                    evt_in_db = second_session.query(SaaSWebhookEvent).filter_by(
+                        payment_provider="phonepe_v2",
+                        event_id=event_id,
+                    ).one()
+                    captured_stale_token["token"] = evt_in_db.owner_token
+                    self.assertIsNotNone(evt_in_db.owner_token, "Original worker should have acquired lease")
+                    self.assertEqual(evt_in_db.status, WebhookEventStatus.PROCESSING.value)
+
+                    # Atomically transfer lease in MySQL to new worker
+                    updated_rows = second_session.query(SaaSWebhookEvent).filter_by(
+                        payment_provider="phonepe_v2",
+                        event_id=event_id,
+                    ).update({
+                        SaaSWebhookEvent.owner_token: new_worker_token,
+                        SaaSWebhookEvent.owner_expires_at: datetime.utcnow() + timedelta(seconds=120),
+                    })
+                    self.assertEqual(updated_rows, 1)
+                    second_session.commit()
+                finally:
+                    second_session.close()
+
+                return mock_s2s_resp
+
+            with patch("services.billing.providers.phonepe_autopay_client.PhonePeAutoPayClient.get_order_status", side_effect=mock_get_order_side_effect), \
+                 patch("services.billing.providers.phonepe_autopay_client.PhonePeAutoPayClient.get_subscription_status", return_value={"state": "ACTIVE"}):
+                # 2. Start webhook processing through actual Flask route & 5. Allow original worker into production atomic guard
+                with self.app.test_client() as client:
+                    resp = client.post("/saas/phonepe-webhook", data=payload, headers=headers)
+
+            # 6. Assert the stale worker cannot commit subscription activation or successful transaction
+            self.assertEqual(resp.status_code, 422)
+            resp_json = resp.get_json()
+            self.assertEqual(resp_json.get("status"), "UNRESOLVED")
+            self.assertIs(resp_json.get("retryable"), True)
+            self.assertIn("Worker lease expired during reconciliation", resp_json.get("error", ""))
+
+            # 7. Verify using a fresh MySQL session
+            verify_session = self.SessionFactory()
+            try:
+                # Subscription remains PENDING
+                sub_check = verify_session.get(SaaSSubscription, fencing_sub_id)
+                self.assertEqual(sub_check.status, SaaSSubscriptionStatus.PENDING)
+                # No current-period extension or entitlement update
+                self.assertIsNone(sub_check.current_period_start)
+                self.assertIsNone(sub_check.current_period_end)
+                self.assertNotEqual(sub_check.last_webhook_event_id, event_id)
+
+                # No successful transaction
+                success_txs = verify_session.query(SaaSTransaction).filter_by(
+                    subscription_id=fencing_sub_id,
+                    status=SaaSTransactionStatus.SUCCESS,
+                ).all()
+                self.assertEqual(len(success_txs), 0)
+
+                # Event ownership belongs to the new worker
+                evt_check = verify_session.query(SaaSWebhookEvent).filter_by(
+                    payment_provider="phonepe_v2",
+                    event_id=event_id,
+                ).one()
+                self.assertEqual(evt_check.owner_token, new_worker_token)
+                # Stale worker cannot overwrite the new owner's event state
+                self.assertEqual(evt_check.status, WebhookEventStatus.PROCESSING.value)
+            finally:
+                verify_session.close()
+
+            # Verify stale worker cannot overwrite new owner's event state using production helper
+            with self.app.app_context():
+                with self.assertRaises(WebhookPersistenceError):
+                    _transition_v2_webhook_event(
+                        event_id=event_id,
+                        fencing_token=captured_stale_token["token"],
+                        target_state="PROCESSED",
+                        event_type="SUBSCRIPTION_ACTIVE",
+                        details={"attempt": "stale_overwrite_attempt"},
+                        organization_id=fence_org_id,
+                    )
+
+            # 8. Verify the valid current owner can subsequently complete the appropriate event transition
+            with self.app.app_context():
+                transition_ok = _transition_v2_webhook_event(
+                    event_id=event_id,
+                    fencing_token=new_worker_token,
+                    target_state="PROCESSED",
+                    event_type="SUBSCRIPTION_ACTIVE",
+                    details={"completed_by": "valid_current_owner", "sub_id": fencing_sub_id},
+                    organization_id=fence_org_id,
+                )
+                self.assertTrue(transition_ok)
+
+            verify_session = self.SessionFactory()
+            try:
+                evt_final = verify_session.query(SaaSWebhookEvent).filter_by(
+                    payment_provider="phonepe_v2",
+                    event_id=event_id,
+                ).one()
+                self.assertEqual(evt_final.status, WebhookEventStatus.PROCESSED.value)
+                self.assertIsNone(evt_final.owner_token)
+                self.assertIsNone(evt_final.owner_expires_at)
+                self.assertIsNotNone(evt_final.processed_at)
+            finally:
+                verify_session.close()
+
+        finally:
+            with self.app.app_context():
+                db.session.query(SaaSTransaction).filter_by(organization_id=fence_org_id).delete()
+                db.session.query(SaaSWebhookEvent).filter_by(event_id=event_id).delete()
+                db.session.query(SaaSMandate).filter_by(organization_id=fence_org_id).delete()
+                db.session.query(SaaSSubscription).filter_by(organization_id=fence_org_id).delete()
+                db.session.query(Organization).filter_by(id=fence_org_id).delete()
+                db.session.commit()
+
 
 if __name__ == "__main__":
     unittest.main()
