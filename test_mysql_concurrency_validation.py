@@ -1215,27 +1215,37 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         and recorded with processing_state="PROCESSED"; the duplicate returns already_processed
         without executing redundant mutations.
         """
-        event_id = "EVT_MYSQL_DEDUP_001"
+        event_id = f"EVT_MYSQL_DEDUP_{uuid.uuid4().hex[:8]}"
+        created_event_id = None
 
-        # Webhook 1 processes and commits idempotency record to MySQL
-        ev = SaaSWebhookEvent(
-            payment_provider="phonepe_v2",
-            event_id=event_id,
-            event_type="PAYMENT_SUCCESS",
-            payload_summary=json.dumps({"processing_state": "PROCESSED", "org_id": self.org_id}),
-        )
-        db.session.add(ev)
-        db.session.commit()
+        try:
+            # Webhook 1 processes and commits idempotency record to MySQL
+            ev = SaaSWebhookEvent(
+                payment_provider="phonepe_v2",
+                event_id=event_id,
+                event_type="PAYMENT_SUCCESS",
+                organization_id=self.org_id,
+                payload_summary=json.dumps({"processing_state": "PROCESSED", "org_id": self.org_id}),
+            )
+            db.session.add(ev)
+            db.session.commit()
+            created_event_id = ev.id
 
-        # Webhook 2 arrives: check idempotency in MySQL
-        existing_event = SaaSWebhookEvent.query.filter_by(payment_provider="phonepe_v2", event_id=event_id).first()
-        self.assertIsNotNone(existing_event)
-        summary = json.loads(existing_event.payload_summary)
-        self.assertEqual(summary.get("processing_state"), "PROCESSED")
+            # Webhook 2 arrives: check idempotency in MySQL
+            existing_event = SaaSWebhookEvent.query.filter_by(payment_provider="phonepe_v2", event_id=event_id).first()
+            self.assertIsNotNone(existing_event)
+            summary = json.loads(existing_event.payload_summary)
+            self.assertEqual(summary.get("processing_state"), "PROCESSED")
 
-        # Duplicate delivery must recognize processed status
-        is_already_processed = (summary.get("processing_state") == "PROCESSED")
-        self.assertTrue(is_already_processed)
+            # Duplicate delivery must recognize processed status
+            is_already_processed = (summary.get("processing_state") == "PROCESSED")
+            self.assertTrue(is_already_processed)
+        finally:
+            if created_event_id:
+                db.session.query(SaaSWebhookEvent).filter_by(id=created_event_id).delete()
+            else:
+                db.session.query(SaaSWebhookEvent).filter_by(payment_provider="phonepe_v2", event_id=event_id).delete()
+            db.session.commit()
 
     # ── Scenario 10: Legitimate Subsequent Billing Period ─────────────────────
 
