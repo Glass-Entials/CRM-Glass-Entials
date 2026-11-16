@@ -252,7 +252,7 @@ def _track_suite_created_records(session, flush_context):
         SaaSPreDebitNotification,
         SaaSMandate,
     )
-    for obj in list(session.new) + list(session.dirty):
+    for obj in session.new:
         if isinstance(obj, tracked_classes):
             obj_org_id = getattr(obj, "organization_id", None)
             obj_sub_id = getattr(obj, "subscription_id", None)
@@ -1440,6 +1440,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
           * Expired worker lease fencing prevents stale workers from committing state changes.
         """
         setup_order_id = f"ORD_MYSQL_SETUP_{self.sub_id}"
+        created_s12_tx_ids: set[int] = set()
         # Set subscription to PENDING with setup provider_order_id
         with self.app.app_context():
             sub = db.session.get(SaaSSubscription, self.sub_id)
@@ -1552,6 +1553,8 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                 ).all()
                 self.assertEqual(len(txs), 1)
                 self.assertEqual(txs[0].status, SaaSTransactionStatus.SUCCESS)
+                for tx in txs:
+                    created_s12_tx_ids.add(tx.id)
 
                 # Verify final event status and released lease
                 evt = verify_session.query(SaaSWebhookEvent).filter_by(
@@ -1596,7 +1599,6 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         created_s12_sub_id = None
         created_s12_mandate_id = None
         created_s12_event_id = None
-        created_s12_tx_ids: set[int] = set()
 
         try:
             with self.app.app_context():
@@ -1722,6 +1724,8 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                     subscription_id=created_s12_sub_id,
                 ).all()
                 self.assertEqual(len(txs), 0)
+                for tx in txs:
+                    created_s12_tx_ids.add(tx.id)
             finally:
                 verify_session.close()
 
@@ -1731,6 +1735,8 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                     db.session.query(SaaSTransaction).filter(
                         SaaSTransaction.id.in_(list(created_s12_tx_ids))
                     ).delete(synchronize_session=False)
+                    with self._tracking_lock:
+                        self._created_record_ids[SaaSTransaction].difference_update(created_s12_tx_ids)
                 if created_s12_event_id:
                     db.session.query(SaaSWebhookEvent).filter_by(id=created_s12_event_id).delete()
                 elif stale_event_id:
