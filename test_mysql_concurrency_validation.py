@@ -17,11 +17,13 @@ import sys
 import threading
 import time
 import unittest
+import uuid
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 from flask import Flask
 from sqlalchemy import create_engine, or_
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from model import (
@@ -52,6 +54,187 @@ from services.billing.subscription_service import SubscriptionService
 from routes.saas import _transition_v2_webhook_event, WebhookPersistenceError
 
 
+def _validate_safe_test_database(url_str: str) -> None:
+    """
+    Explicit Database Safety Guard (Phase 6):
+    - Rejects production database names and production hosts.
+    - Requires an explicit test-database opt-in before destructive MySQL integration tests.
+    - Fails closed if the database environment cannot be verified.
+    """
+    if not url_str or not isinstance(url_str, str):
+        raise RuntimeError("Database safety guard: DATABASE_URL is missing or empty. Failing closed.")
+
+    try:
+        url = make_url(url_str)
+    except Exception as exc:
+        raise RuntimeError(f"Database safety guard: Unable to parse DATABASE_URL ({exc}). Failing closed.")
+
+    host = (url.host or "").lower().strip()
+    db_name = (url.database or "").lower().strip()
+
+    if not host or not db_name:
+        raise RuntimeError(
+            f"Database safety guard: Database environment cannot be verified (host='{host}', db='{db_name}'). Failing closed."
+        )
+
+    # 1. Reject production hosts
+    prod_host_indicators = [
+        "prod", "production", "live", "rds.amazonaws.com", "database.azure.com",
+        "cloudsql", "cluster-", "aurora", "production-db"
+    ]
+    for indicator in prod_host_indicators:
+        if indicator in host:
+            raise RuntimeError(
+                f"Database safety guard VIOLATION: Host '{host}' matches production indicator '{indicator}'. "
+                "Destructive integration tests cannot be executed against production infrastructure. Failing closed."
+            )
+
+    # Allowed integration test hosts: local interfaces, Docker containers, or designated test hosts
+    permitted_test_hosts = {"localhost", "127.0.0.1", "::1", "0.0.0.0", "mysql", "test-mysql", "db-test"}
+    is_permitted_host = (
+        host in permitted_test_hosts
+        or host.endswith(".local")
+        or host.startswith("127.")
+        or host.startswith("test-")
+    )
+    if not is_permitted_host:
+        raise RuntimeError(
+            f"Database safety guard: Host '{host}' is not a recognized local or test container host. Failing closed."
+        )
+
+    # 2. Reject production database names
+    prod_db_indicators = ["prod", "production", "live", "master", "primary", "crm_production", "glassentials_prod"]
+    tokens = set(db_name.replace("-", "_").split("_"))
+    for indicator in prod_db_indicators:
+        if (
+            indicator == db_name
+            or indicator in tokens
+            or (len(indicator) >= 4 and indicator in db_name)
+            or db_name.startswith("prod")
+            or db_name.endswith("prod")
+            or db_name.startswith("live")
+            or db_name.endswith("live")
+        ):
+            raise RuntimeError(
+                f"Database safety guard VIOLATION: Database name '{db_name}' matches production indicator '{indicator}'. "
+                "Destructive integration tests cannot be executed against production databases. Failing closed."
+            )
+
+    # 3. Require explicit test-database opt-in
+    is_test_named_db = "test" in db_name
+    opt_in_vars = ["ALLOW_TEST_DB", "ALLOW_CONCURRENCY_TEST_DB", "TEST_DATABASE_OPT_IN", "ALLOW_DESTRUCTIVE_TESTS"]
+    has_opt_in_env = any(
+        os.environ.get(var, "").strip().lower() in ("1", "true", "yes")
+        for var in opt_in_vars
+    )
+
+    if not (is_test_named_db or has_opt_in_env):
+        raise RuntimeError(
+            f"Database safety guard: Database '{db_name}' is not named with 'test' and no explicit test-database opt-in was provided. "
+            f"Set ALLOW_TEST_DB=1 or ALLOW_CONCURRENCY_TEST_DB=1 to confirm execution on this database. Failing closed."
+        )
+
+
+class TestDatabaseSafetyGuard(unittest.TestCase):
+    """
+    Unit test suite verifying the explicit database safety guard rejects
+    production database targets and fails closed before destructive MySQL execution.
+    """
+
+    def test_missing_or_empty_url(self):
+        with self.assertRaises(RuntimeError) as ctx:
+            _validate_safe_test_database("")
+        self.assertIn("missing or empty", str(ctx.exception).lower())
+
+        with self.assertRaises(RuntimeError) as ctx:
+            _validate_safe_test_database(None)
+        self.assertIn("missing or empty", str(ctx.exception).lower())
+
+    def test_missing_host_or_database(self):
+        with self.assertRaises(RuntimeError) as ctx:
+            _validate_safe_test_database("mysql+pymysql://root:pass@/crm_db")
+        self.assertIn("cannot be verified", str(ctx.exception).lower())
+
+        with self.assertRaises(RuntimeError) as ctx:
+            _validate_safe_test_database("mysql+pymysql://root:pass@localhost/")
+        self.assertIn("cannot be verified", str(ctx.exception).lower())
+
+    def test_production_host_rejection(self):
+        prod_urls = [
+            "mysql+pymysql://root:pass@prod-db.example.com/crm_test",
+            "mysql+pymysql://root:pass@database.rds.amazonaws.com/crm_test",
+            "mysql+pymysql://root:pass@mycluster.database.azure.com/crm_test",
+            "mysql+pymysql://root:pass@cloudsql.gcp.internal/crm_test",
+            "mysql+pymysql://root:pass@production-db/crm_test",
+            "mysql+pymysql://root:pass@aurora-cluster.internal/crm_test",
+        ]
+        for url in prod_urls:
+            with self.subTest(url=url):
+                with self.assertRaises(RuntimeError) as ctx:
+                    _validate_safe_test_database(url)
+                self.assertIn("production indicator", str(ctx.exception).lower())
+
+    def test_unpermitted_external_host_rejection(self):
+        unpermitted_urls = [
+            "mysql+pymysql://root:pass@192.168.1.50/crm_test",
+            "mysql+pymysql://root:pass@internal-db.corp/crm_test",
+            "mysql+pymysql://root:pass@staging.company.com/crm_test",
+        ]
+        for url in unpermitted_urls:
+            with self.subTest(url=url):
+                with self.assertRaises(RuntimeError) as ctx:
+                    _validate_safe_test_database(url)
+                self.assertIn("not a recognized local or test container host", str(ctx.exception).lower())
+
+    def test_production_database_name_rejection(self):
+        prod_db_urls = [
+            "mysql+pymysql://root:pass@localhost/crm_production",
+            "mysql+pymysql://root:pass@localhost/crm_prod",
+            "mysql+pymysql://root:pass@localhost/production",
+            "mysql+pymysql://root:pass@localhost/prod",
+            "mysql+pymysql://root:pass@localhost/crm_live",
+            "mysql+pymysql://root:pass@localhost/master",
+            "mysql+pymysql://root:pass@localhost/primary",
+        ]
+        for url in prod_db_urls:
+            with self.subTest(url=url):
+                with self.assertRaises(RuntimeError) as ctx:
+                    _validate_safe_test_database(url)
+                self.assertIn("matches production indicator", str(ctx.exception).lower())
+
+    def test_non_test_database_rejected_without_optin(self):
+        env_backup = {}
+        for k in ["ALLOW_TEST_DB", "ALLOW_CONCURRENCY_TEST_DB", "TEST_DATABASE_OPT_IN", "ALLOW_DESTRUCTIVE_TESTS"]:
+            env_backup[k] = os.environ.pop(k, None)
+        try:
+            with self.assertRaises(RuntimeError) as ctx:
+                _validate_safe_test_database("mysql+pymysql://root:pass@localhost/crm_db")
+            self.assertIn("no explicit test-database opt-in was provided", str(ctx.exception).lower())
+        finally:
+            for k, v in env_backup.items():
+                if v is not None:
+                    os.environ[k] = v
+
+    def test_test_named_database_accepted_without_optin(self):
+        env_backup = {}
+        for k in ["ALLOW_TEST_DB", "ALLOW_CONCURRENCY_TEST_DB", "TEST_DATABASE_OPT_IN", "ALLOW_DESTRUCTIVE_TESTS"]:
+            env_backup[k] = os.environ.pop(k, None)
+        try:
+            _validate_safe_test_database("mysql+pymysql://root:pass@localhost/crm_test")
+            _validate_safe_test_database("mysql+pymysql://root:pass@127.0.0.1/test_billing")
+        finally:
+            for k, v in env_backup.items():
+                if v is not None:
+                    os.environ[k] = v
+
+    def test_optin_accepted_for_local_non_test_database(self):
+        optin_vars = ["ALLOW_TEST_DB", "ALLOW_CONCURRENCY_TEST_DB", "TEST_DATABASE_OPT_IN", "ALLOW_DESTRUCTIVE_TESTS"]
+        for var in optin_vars:
+            with self.subTest(var=var):
+                with patch.dict(os.environ, {var: "1"}):
+                    _validate_safe_test_database("mysql+pymysql://root:pass@localhost/crm_db")
+
+
 class TestMySQLConcurrencyValidation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -60,6 +243,9 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             raise unittest.SkipTest(
                 "DATABASE_URL environment variable is required to execute live MySQL concurrency tests."
             )
+
+        # Enforce explicit database safety guard before any database operations
+        _validate_safe_test_database(mysql_url)
 
         cls.app = Flask(__name__)
         cls.app.config["SQLALCHEMY_DATABASE_URI"] = mysql_url
@@ -98,12 +284,19 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
         if not org:
             org = Organization(id=cls.org_id, name="MySQL Concurrency Tenant", unique_code="MYSQLCONC")
             db.session.add(org)
+            db.session.commit()
+            cls._created_org = True
+        else:
+            cls._created_org = False
 
         plan = Plan.query.get(999)
         if not plan:
             plan = Plan(id=999, name="Test Plan", display_name="Test", monthly_price_paise=100000, yearly_price_paise=1000000)
             db.session.add(plan)
-        db.session.commit()
+            db.session.commit()
+            cls._created_plan_999 = True
+        else:
+            cls._created_plan_999 = False
 
         # Create base test subscription
         sub = SaaSSubscription.query.get(cls.sub_id)
@@ -122,19 +315,25 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             )
             db.session.add(sub)
             db.session.commit()
+            cls._created_sub = True
+        else:
+            cls._created_sub = False
 
     @classmethod
     def tearDownClass(cls):
         cls._cleanup()
-        sub = SaaSSubscription.query.get(cls.sub_id)
-        if sub:
-            db.session.delete(sub)
-        org = Organization.query.get(cls.org_id)
-        if org:
-            db.session.delete(org)
-        plan = Plan.query.get(999)
-        if plan:
-            db.session.delete(plan)
+        if getattr(cls, "_created_sub", False):
+            sub = SaaSSubscription.query.get(cls.sub_id)
+            if sub:
+                db.session.delete(sub)
+        if getattr(cls, "_created_org", False):
+            org = Organization.query.get(cls.org_id)
+            if org:
+                db.session.delete(org)
+        if getattr(cls, "_created_plan_999", False):
+            plan = Plan.query.get(999)
+            if plan:
+                db.session.delete(plan)
         db.session.commit()
         cls.ctx.pop()
         cls.engine.dispose()
@@ -149,7 +348,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             sub.claim_expires_at = None
             db.session.commit()
         db.session.query(SaaSTransaction).filter_by(organization_id=cls.org_id).delete()
-        db.session.query(SaaSWebhookEvent).filter_by(payment_provider="phonepe_v2").delete()
+        db.session.query(SaaSWebhookEvent).filter_by(payment_provider="phonepe_v2", organization_id=cls.org_id).delete()
         db.session.query(SaaSBillingPeriodReservation).filter_by(organization_id=cls.org_id).delete()
         db.session.query(SaaSRedemptionAttempt).filter_by(organization_id=cls.org_id).delete()
         db.session.query(SaaSPreDebitNotification).filter_by(organization_id=cls.org_id).delete()
@@ -1326,43 +1525,41 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                 verify_session.close()
 
         # 4. Test actual production stale-worker fencing against real MySQL records
-        stale_event_id = f"EVT_STALE_FENCE_{int(datetime.utcnow().timestamp())}"
-        stale_token = "wh_stale_expired_token_01"
-        valid_worker_token = "wh_recovered_worker_token_02"
+        s12_token = uuid.uuid4().hex[:8]
+        stale_event_id = f"EVT_STALE_FENCE_{s12_token}"
+        stale_token = f"wh_stale_expired_token_{s12_token}"
+        valid_worker_token = f"wh_recovered_worker_token_{s12_token}"
         now_fencing = datetime.utcnow()
-        fence_org_id = 98766
-        fencing_sub_id = 9992
+        created_s12_org_id = None
+        created_s12_sub_id = None
+        created_s12_mandate_id = None
+        created_s12_event_id = None
 
         try:
             with self.app.app_context():
-                # Clean up any leftovers from previous test executions
-                db.session.query(SaaSTransaction).filter_by(organization_id=fence_org_id).delete()
-                db.session.query(SaaSWebhookEvent).filter_by(event_id=stale_event_id).delete()
-                db.session.query(SaaSMandate).filter_by(organization_id=fence_org_id).delete()
-                db.session.query(SaaSSubscription).filter_by(organization_id=fence_org_id).delete()
-                db.session.query(Organization).filter_by(id=fence_org_id).delete()
-                db.session.commit()
-
                 # Create dedicated organization and subscription in PENDING status to verify stale worker cannot activate it
-                fence_org = Organization(id=fence_org_id, name="Fence Org", unique_code="FENCEORG")
+                fence_org = Organization(name="Fence Org", unique_code=f"F{s12_token[:7].upper()}")
                 db.session.add(fence_org)
                 db.session.commit()
+                created_s12_org_id = fence_org.id
 
                 fence_sub = SaaSSubscription(
-                    id=fencing_sub_id,
-                    organization_id=fence_org_id,
+                    organization_id=created_s12_org_id,
                     plan_id=1,
                     status=SaaSSubscriptionStatus.PENDING,
                     billing_cycle=SaaSBillingCycle.MONTHLY,
                     amount_paise=100000,
-                    provider_order_id=f"ORD_FENCE_STALE_{fencing_sub_id}",
+                    provider_order_id=f"ORD_FENCE_STALE_{s12_token}",
                 )
+                db.session.add(fence_sub)
+                db.session.commit()
+                created_s12_sub_id = fence_sub.id
+
                 fence_mandate = SaaSMandate(
-                    id=fencing_sub_id,
-                    organization_id=fence_org_id,
-                    subscription_id=fencing_sub_id,
+                    organization_id=created_s12_org_id,
+                    subscription_id=created_s12_sub_id,
                     payment_provider="phonepe_v2",
-                    merchant_subscription_id=f"MSUB_FENCE_{fencing_sub_id}",
+                    merchant_subscription_id=f"MSUB_FENCE_{s12_token}",
                     mandate_status="ACTIVE",
                     max_amount_paise=200000,
                     frequency="MONTHLY",
@@ -1372,12 +1569,14 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                     event_id=stale_event_id,
                     event_type="SUBSCRIPTION_ACTIVE",
                     status=WebhookEventStatus.PROCESSING.value,
-                    organization_id=fence_org_id,
+                    organization_id=created_s12_org_id,
                     owner_token=stale_token,
                     owner_expires_at=now_fencing - timedelta(seconds=10),
                 )
-                db.session.add_all([fence_sub, fence_mandate, expired_evt])
+                db.session.add_all([fence_mandate, expired_evt])
                 db.session.commit()
+                created_s12_mandate_id = fence_mandate.id
+                created_s12_event_id = expired_evt.id
 
                 # Legitimate worker claims the expired lease using production atomic acquisition logic
                 claimed_rows = SaaSWebhookEvent.query.filter(
@@ -1408,7 +1607,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                         target_state="PROCESSED",
                         event_type="SUBSCRIPTION_ACTIVE",
                         details={"worker": "stale_attempt"},
-                        organization_id=fence_org_id,
+                        organization_id=created_s12_org_id,
                     )
 
                 # 2. Assert stale worker CANNOT execute atomic activation or commit subscription changes
@@ -1432,7 +1631,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                     target_state="PROCESSED",
                     event_type="SUBSCRIPTION_ACTIVE",
                     details={"worker": "valid_owner"},
-                    organization_id=fence_org_id,
+                    organization_id=created_s12_org_id,
                 )
                 self.assertTrue(transition_ok)
 
@@ -1450,14 +1649,14 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                 self.assertIsNotNone(evt_check.processed_at)
 
                 # Subscription remains PENDING (stale worker could not activate it)
-                sub_check = verify_session.get(SaaSSubscription, fencing_sub_id)
+                sub_check = verify_session.get(SaaSSubscription, created_s12_sub_id)
                 self.assertEqual(sub_check.status, SaaSSubscriptionStatus.PENDING)
                 self.assertIsNone(sub_check.current_period_start)
                 self.assertIsNone(sub_check.current_period_end)
 
                 # Zero transactions recorded for the subscription
                 txs = verify_session.query(SaaSTransaction).filter_by(
-                    subscription_id=fencing_sub_id,
+                    subscription_id=created_s12_sub_id,
                 ).all()
                 self.assertEqual(len(txs), 0)
             finally:
@@ -1465,11 +1664,18 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
 
         finally:
             with self.app.app_context():
-                db.session.query(SaaSTransaction).filter_by(organization_id=fence_org_id).delete()
-                db.session.query(SaaSWebhookEvent).filter_by(event_id=stale_event_id).delete()
-                db.session.query(SaaSMandate).filter_by(organization_id=fence_org_id).delete()
-                db.session.query(SaaSSubscription).filter_by(organization_id=fence_org_id).delete()
-                db.session.query(Organization).filter_by(id=fence_org_id).delete()
+                if created_s12_org_id:
+                    db.session.query(SaaSTransaction).filter_by(organization_id=created_s12_org_id).delete()
+                if created_s12_event_id:
+                    db.session.query(SaaSWebhookEvent).filter_by(id=created_s12_event_id).delete()
+                elif stale_event_id:
+                    db.session.query(SaaSWebhookEvent).filter_by(payment_provider="phonepe_v2", event_id=stale_event_id).delete()
+                if created_s12_mandate_id:
+                    db.session.query(SaaSMandate).filter_by(id=created_s12_mandate_id).delete()
+                if created_s12_sub_id:
+                    db.session.query(SaaSSubscription).filter_by(id=created_s12_sub_id).delete()
+                if created_s12_org_id:
+                    db.session.query(Organization).filter_by(id=created_s12_org_id).delete()
                 db.session.commit()
 
     # ── Scenario 13: Production Stale Worker Activation Fencing ──────────────
@@ -1492,30 +1698,30 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
           3. Stale worker cannot overwrite the new owner's event state using production helper.
           4. Valid current owner subsequently completes the appropriate event transition to PROCESSED.
         """
-        fence_org_id = 98767
-        fencing_sub_id = 9993
-        fencing_mandate_id = 9993
-        setup_order_id = f"ORD_FENCE_STALE_{fencing_sub_id}"
-        event_id = f"EVT_FENCE_STALE_{int(datetime.utcnow().timestamp())}"
+        unique_token = uuid.uuid4().hex[:8]
+        setup_order_id = f"ORD_FENCE_STALE_{unique_token}"
+        event_id = f"EVT_FENCE_STALE_{unique_token}"
+        merchant_sub_id = f"MSUB_FENCE_{unique_token}"
+        provider_sub_id = f"PSUB_FENCE_{unique_token}"
+        mandate_ref = f"MN_FENCE_{unique_token}"
+        unique_org_code = f"S{unique_token[:7].upper()}"
+
+        created_org_id = None
+        created_sub_id = None
+        created_mandate_id = None
+        created_event_id = None
+        created_tx_id = None
 
         try:
             with self.app.app_context():
-                # Clean up any potential leftovers
-                db.session.query(SaaSTransaction).filter_by(organization_id=fence_org_id).delete()
-                db.session.query(SaaSWebhookEvent).filter_by(event_id=event_id).delete()
-                db.session.query(SaaSMandate).filter_by(organization_id=fence_org_id).delete()
-                db.session.query(SaaSSubscription).filter_by(organization_id=fence_org_id).delete()
-                db.session.query(Organization).filter_by(id=fence_org_id).delete()
-                db.session.commit()
-
                 # 1. Create valid MySQL records for pending PhonePe V2 subscription, mandate, webhook event, and setup payment
-                fence_org = Organization(id=fence_org_id, name="Stale Worker Fence Tenant", unique_code="STALEWFK")
+                fence_org = Organization(name="Stale Worker Fence Tenant", unique_code=unique_org_code)
                 db.session.add(fence_org)
                 db.session.commit()
+                created_org_id = fence_org.id
 
                 fence_sub = SaaSSubscription(
-                    id=fencing_sub_id,
-                    organization_id=fence_org_id,
+                    organization_id=created_org_id,
                     plan_id=999,  # monthly 100000, expected total 118000
                     payment_provider="phonepe_v2",
                     status=SaaSSubscriptionStatus.PENDING,
@@ -1525,14 +1731,17 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                     current_period_start=None,
                     current_period_end=None,
                 )
+                db.session.add(fence_sub)
+                db.session.commit()
+                created_sub_id = fence_sub.id
+
                 fence_mandate = SaaSMandate(
-                    id=fencing_mandate_id,
-                    organization_id=fence_org_id,
-                    subscription_id=fencing_sub_id,
+                    organization_id=created_org_id,
+                    subscription_id=created_sub_id,
                     payment_provider="phonepe_v2",
-                    merchant_subscription_id=f"MSUB_FENCE_{fencing_sub_id}",
-                    provider_subscription_id=f"PSUB_FENCE_{fencing_sub_id}",
-                    mandate_reference=f"MN_FENCE_{fencing_sub_id}",
+                    merchant_subscription_id=merchant_sub_id,
+                    provider_subscription_id=provider_sub_id,
+                    mandate_reference=mandate_ref,
                     mandate_status="ACTIVE",
                     max_amount_paise=200000,
                     frequency="MONTHLY",
@@ -1542,19 +1751,22 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                     event_id=event_id,
                     event_type="SUBSCRIPTION_ACTIVE",
                     status=WebhookEventStatus.UNRESOLVED.value,
-                    organization_id=fence_org_id,
+                    organization_id=created_org_id,
                     error_message="Initial unverified event state",
                 )
                 setup_tx = SaaSTransaction(
-                    organization_id=fence_org_id,
-                    subscription_id=fencing_sub_id,
+                    organization_id=created_org_id,
+                    subscription_id=created_sub_id,
                     payment_provider="phonepe_v2",
                     provider_order_id=setup_order_id,
                     amount_paise=118000,
                     status=SaaSTransactionStatus.PENDING,
                 )
-                db.session.add_all([fence_sub, fence_mandate, init_evt, setup_tx])
+                db.session.add_all([fence_mandate, init_evt, setup_tx])
                 db.session.commit()
+                created_mandate_id = fence_mandate.id
+                created_event_id = init_evt.id
+                created_tx_id = setup_tx.id
 
             correct_sha = hashlib.sha256(b"webhook_test_user:webhook_test_pass").hexdigest()
             headers = {
@@ -1562,7 +1774,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                 "Content-Type": "application/json",
             }
             payload = json.dumps({
-                "merchantSubscriptionId": f"MSUB_FENCE_{fencing_sub_id}",
+                "merchantSubscriptionId": merchant_sub_id,
                 "merchantOrderId": setup_order_id,
                 "eventId": event_id,
                 "event": "SUBSCRIPTION_ACTIVE",
@@ -1573,19 +1785,19 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                 "amount": 118000,
                 "currency": "INR",
                 "merchantOrderId": setup_order_id,
-                "merchantSubscriptionId": f"MSUB_FENCE_{fencing_sub_id}",
+                "merchantSubscriptionId": merchant_sub_id,
                 "paymentDetails": [
                     {
                         "state": "COMPLETED",
                         "amount": 118000,
                         "currency": "INR",
-                        "transactionId": "TXN_MOCK_SUCCESS",
+                        "transactionId": f"TXN_{unique_token}",
                         "paymentMode": "UPI",
                     }
                 ],
             }
 
-            new_worker_token = f"wh_transferred_owner_{int(datetime.utcnow().timestamp())}"
+            new_worker_token = f"wh_transferred_owner_{unique_token}"
             captured_stale_token = {}
 
             # 3. Mock ONLY external PhonePe HTTP transport
@@ -1633,7 +1845,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
             verify_session = self.SessionFactory()
             try:
                 # Subscription remains PENDING
-                sub_check = verify_session.get(SaaSSubscription, fencing_sub_id)
+                sub_check = verify_session.get(SaaSSubscription, created_sub_id)
                 self.assertEqual(sub_check.status, SaaSSubscriptionStatus.PENDING)
                 # No current-period extension or entitlement update
                 self.assertIsNone(sub_check.current_period_start)
@@ -1642,7 +1854,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
 
                 # No successful transaction
                 success_txs = verify_session.query(SaaSTransaction).filter_by(
-                    subscription_id=fencing_sub_id,
+                    subscription_id=created_sub_id,
                     status=SaaSTransactionStatus.SUCCESS,
                 ).all()
                 self.assertEqual(len(success_txs), 0)
@@ -1667,7 +1879,7 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                         target_state="PROCESSED",
                         event_type="SUBSCRIPTION_ACTIVE",
                         details={"attempt": "stale_overwrite_attempt"},
-                        organization_id=fence_org_id,
+                        organization_id=created_org_id,
                     )
 
             # 8. Verify the valid current owner can subsequently complete the appropriate event transition
@@ -1677,8 +1889,8 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
                     fencing_token=new_worker_token,
                     target_state="PROCESSED",
                     event_type="SUBSCRIPTION_ACTIVE",
-                    details={"completed_by": "valid_current_owner", "sub_id": fencing_sub_id},
-                    organization_id=fence_org_id,
+                    details={"completed_by": "valid_current_owner", "sub_id": created_sub_id},
+                    organization_id=created_org_id,
                 )
                 self.assertTrue(transition_ok)
 
@@ -1697,11 +1909,18 @@ class TestMySQLConcurrencyValidation(unittest.TestCase):
 
         finally:
             with self.app.app_context():
-                db.session.query(SaaSTransaction).filter_by(organization_id=fence_org_id).delete()
-                db.session.query(SaaSWebhookEvent).filter_by(event_id=event_id).delete()
-                db.session.query(SaaSMandate).filter_by(organization_id=fence_org_id).delete()
-                db.session.query(SaaSSubscription).filter_by(organization_id=fence_org_id).delete()
-                db.session.query(Organization).filter_by(id=fence_org_id).delete()
+                if created_org_id:
+                    db.session.query(SaaSTransaction).filter_by(organization_id=created_org_id).delete()
+                if created_event_id:
+                    db.session.query(SaaSWebhookEvent).filter_by(id=created_event_id).delete()
+                elif event_id:
+                    db.session.query(SaaSWebhookEvent).filter_by(payment_provider="phonepe_v2", event_id=event_id).delete()
+                if created_mandate_id:
+                    db.session.query(SaaSMandate).filter_by(id=created_mandate_id).delete()
+                if created_sub_id:
+                    db.session.query(SaaSSubscription).filter_by(id=created_sub_id).delete()
+                if created_org_id:
+                    db.session.query(Organization).filter_by(id=created_org_id).delete()
                 db.session.commit()
 
 
