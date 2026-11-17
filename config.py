@@ -48,6 +48,10 @@ class Config:
             PHONEPE_CLIENT_ID      = secrets.get("PHONEPE_CLIENT_ID") or os.environ.get("PHONEPE_CLIENT_ID", "")
             PHONEPE_CLIENT_SECRET  = secrets.get("PHONEPE_CLIENT_SECRET") or os.environ.get("PHONEPE_CLIENT_SECRET", "")
             PHONEPE_CLIENT_VERSION = secrets.get("PHONEPE_CLIENT_VERSION") or os.environ.get("PHONEPE_CLIENT_VERSION", "1")
+            _is_prod_env = os.environ.get("FLASK_ENV", "").strip().lower() == "production"
+            _default_v3 = "false" if _is_prod_env else "true"
+            ENABLE_PHONEPE_V3_WEBHOOK = str(secrets.get("ENABLE_PHONEPE_V3_WEBHOOK") or os.environ.get("ENABLE_PHONEPE_V3_WEBHOOK", _default_v3)).strip().lower() == "true"
+            ALLOW_LEGACY_PHONEPE_V3 = str(secrets.get("ALLOW_LEGACY_PHONEPE_V3") or os.environ.get("ALLOW_LEGACY_PHONEPE_V3", "false")).strip().lower() == "true"
         except Exception as e:
             logging.error("Could not load AWS secrets, falling back to env")
             SECRET_KEY = os.environ.get("SECRET_KEY")
@@ -71,6 +75,10 @@ class Config:
             PHONEPE_CLIENT_ID      = os.environ.get("PHONEPE_CLIENT_ID", "")
             PHONEPE_CLIENT_SECRET  = os.environ.get("PHONEPE_CLIENT_SECRET", "")
             PHONEPE_CLIENT_VERSION = os.environ.get("PHONEPE_CLIENT_VERSION", "1")
+            _is_prod_env = os.environ.get("FLASK_ENV", "").strip().lower() == "production"
+            _default_v3 = "false" if _is_prod_env else "true"
+            ENABLE_PHONEPE_V3_WEBHOOK = os.environ.get("ENABLE_PHONEPE_V3_WEBHOOK", _default_v3).strip().lower() == "true"
+            ALLOW_LEGACY_PHONEPE_V3 = os.environ.get("ALLOW_LEGACY_PHONEPE_V3", "false").strip().lower() == "true"
     else:
         SECRET_KEY = os.environ.get("SECRET_KEY")
         SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
@@ -93,6 +101,12 @@ class Config:
         PHONEPE_CLIENT_ID      = os.environ.get("PHONEPE_CLIENT_ID", "")
         PHONEPE_CLIENT_SECRET  = os.environ.get("PHONEPE_CLIENT_SECRET", "")
         PHONEPE_CLIENT_VERSION = os.environ.get("PHONEPE_CLIENT_VERSION", "1")
+        _is_prod_env = os.environ.get("FLASK_ENV", "").strip().lower() == "production"
+        _default_v3 = "false" if _is_prod_env else "true"
+        ENABLE_PHONEPE_V3_WEBHOOK = os.environ.get("ENABLE_PHONEPE_V3_WEBHOOK", _default_v3).strip().lower() == "true"
+        ALLOW_LEGACY_PHONEPE_V3 = os.environ.get("ALLOW_LEGACY_PHONEPE_V3", "false").strip().lower() == "true"
+
+    FLASK_ENV = os.environ.get("FLASK_ENV", "development")
 
     if not SECRET_KEY or SECRET_KEY == "secret123":
         raise RuntimeError("Set a strong SECRET_KEY in the environment before startup.")
@@ -111,3 +125,202 @@ class Config:
 
     # CSRF token lifetime — set to match session (8 hours). Default is 3600s (1hr) which is too short.
     WTF_CSRF_TIME_LIMIT = int(os.environ.get("WTF_CSRF_TIME_LIMIT", 28800))
+
+
+def is_production_mode(cfg=None) -> bool:
+    """
+    Determines whether the application is running in production mode.
+    Strictly requires FLASK_ENV=production.
+    Raises RuntimeError if ENV=production is supplied without FLASK_ENV=production
+    to prevent configuration drift or bypassing HTTPS/Talisman enforcement.
+    """
+    def _get(key, default=""):
+        if cfg is None:
+            val = getattr(Config, key, None)
+            if val is None:
+                val = os.environ.get(key, default)
+            return val
+        if isinstance(cfg, dict):
+            return cfg.get(key, default)
+        val = getattr(cfg, key, None)
+        if val is None and hasattr(cfg, "get"):
+            val = cfg.get(key, default)
+        if val is None:
+            val = os.environ.get(key, default)
+        return val
+
+    flask_env = str(_get("FLASK_ENV", "")).strip().lower()
+    legacy_env = str(_get("ENV", "")).strip().lower()
+
+    if legacy_env == "production" and flask_env != "production":
+        raise RuntimeError(
+            "Production configuration error: FLASK_ENV must be explicitly set to 'production' "
+            "(found ENV='production' but FLASK_ENV is not 'production')."
+        )
+
+    return flask_env == "production"
+
+
+def validate_production_config(cfg=None, force: bool = False):
+    """
+    Validates production configuration invariants when production mode is active.
+    Strictly requires FLASK_ENV=production.
+    Raises RuntimeError if any required production setting is invalid or missing.
+    Never logs or discloses secret values in error messages.
+    """
+    def _get(key, default=""):
+        if cfg is None:
+            val = getattr(Config, key, None)
+            if val is None:
+                val = os.environ.get(key, default)
+            return val
+        if isinstance(cfg, dict):
+            return cfg.get(key, default)
+        val = getattr(cfg, key, None)
+        if val is None and hasattr(cfg, "get"):
+            val = cfg.get(key, default)
+        if val is None:
+            val = os.environ.get(key, default)
+        return val
+
+    flask_env = str(_get("FLASK_ENV", "")).strip().lower()
+    legacy_env = str(_get("ENV", "")).strip().lower()
+
+    # Reject ENV=production without FLASK_ENV=production
+    if legacy_env == "production" and flask_env != "production":
+        raise RuntimeError(
+            "Production configuration error: FLASK_ENV must be explicitly set to 'production' "
+            "(found ENV='production' but FLASK_ENV is not 'production')."
+        )
+
+    is_prod = (flask_env == "production") or force
+
+    if not is_prod:
+        return
+
+    # In production mode (or when forced), FLASK_ENV must be explicitly 'production'
+    if flask_env != "production":
+        raise RuntimeError(
+            f"Production configuration error: FLASK_ENV must be explicitly set to 'production' in production mode (got '{flask_env}')."
+        )
+
+    # 1. Billing Default Provider must be phonepe_v2
+    provider = str(_get("BILLING_DEFAULT_PROVIDER", "")).strip().lower()
+    if provider != "phonepe_v2":
+        raise RuntimeError(
+            f"Production configuration error: BILLING_DEFAULT_PROVIDER must be 'phonepe_v2' in production (got '{provider}')."
+        )
+
+    # 2. PhonePe Environment must be PRODUCTION
+    phonepe_env = str(_get("PHONEPE_ENV", "")).strip().upper()
+    if phonepe_env != "PRODUCTION":
+        raise RuntimeError(
+            f"Production configuration error: PHONEPE_ENV must be 'PRODUCTION' in production (got '{phonepe_env}')."
+        )
+
+    # 3. PhonePe Client ID and Secret must be non-empty
+    client_id = str(_get("PHONEPE_CLIENT_ID", "")).strip()
+    if not client_id:
+        raise RuntimeError(
+            "Production configuration error: PHONEPE_CLIENT_ID is required and cannot be empty in production."
+        )
+
+    client_secret = str(_get("PHONEPE_CLIENT_SECRET", "")).strip()
+    if not client_secret:
+        raise RuntimeError(
+            "Production configuration error: PHONEPE_CLIENT_SECRET is required and cannot be empty in production."
+        )
+
+    # 4. PhonePe Client Version must be a positive integer
+    client_version_raw = str(_get("PHONEPE_CLIENT_VERSION", "")).strip()
+    if not client_version_raw:
+        raise RuntimeError(
+            "Production configuration error: PHONEPE_CLIENT_VERSION is required and cannot be empty in production."
+        )
+    try:
+        client_version_int = int(client_version_raw)
+        if client_version_int < 1:
+            raise ValueError()
+    except (ValueError, TypeError):
+        raise RuntimeError(
+            f"Production configuration error: PHONEPE_CLIENT_VERSION must be a positive integer (got '{client_version_raw}')."
+        )
+
+    # 5. Merchant ID must be non-empty and cannot be the UAT test merchant
+    merchant_id = str(_get("PHONEPE_MERCHANT_ID", "")).strip()
+    if not merchant_id:
+        raise RuntimeError(
+            "Production configuration error: PHONEPE_MERCHANT_ID is required and cannot be empty in production."
+        )
+    if merchant_id.upper() in {"PGTESTPAYUAT", "UAT"}:
+        raise RuntimeError(
+            f"Production configuration error: PHONEPE_MERCHANT_ID cannot be test merchant '{merchant_id}' in production."
+        )
+
+    # 6. Webhook credentials must be non-empty
+    webhook_user = str(_get("PHONEPE_WEBHOOK_USERNAME", "")).strip()
+    if not webhook_user:
+        raise RuntimeError(
+            "Production configuration error: PHONEPE_WEBHOOK_USERNAME is required and cannot be empty in production."
+        )
+
+    webhook_pass = str(_get("PHONEPE_WEBHOOK_PASSWORD", "")).strip()
+    if not webhook_pass:
+        raise RuntimeError(
+            "Production configuration error: PHONEPE_WEBHOOK_PASSWORD is required and cannot be empty in production."
+        )
+
+    # 7. Dedicated RENEWAL_CRON_SECRET must be non-empty and distinct from SECRET_KEY
+    renewal_secret = str(_get("RENEWAL_CRON_SECRET", "")).strip()
+    if not renewal_secret:
+        raise RuntimeError(
+            "Production configuration error: Dedicated RENEWAL_CRON_SECRET is required and cannot be empty in production."
+        )
+
+    secret_key = str(_get("SECRET_KEY", "")).strip()
+    if secret_key and renewal_secret == secret_key:
+        raise RuntimeError(
+            "Production configuration error: RENEWAL_CRON_SECRET must not reuse SECRET_KEY."
+        )
+
+    # 8. Production V3 Webhook must fail closed unless explicitly authorized
+    enable_v3_raw = _get("ENABLE_PHONEPE_V3_WEBHOOK", False)
+    if isinstance(enable_v3_raw, str):
+        enable_v3 = enable_v3_raw.strip().lower() in ("true", "1", "yes")
+    else:
+        enable_v3 = bool(enable_v3_raw)
+
+    allow_legacy_v3_raw = _get("ALLOW_LEGACY_PHONEPE_V3", False)
+    if isinstance(allow_legacy_v3_raw, str):
+        allow_legacy_v3 = allow_legacy_v3_raw.strip().lower() in ("true", "1", "yes")
+    else:
+        allow_legacy_v3 = bool(allow_legacy_v3_raw)
+
+    if enable_v3 and not allow_legacy_v3:
+        raise RuntimeError(
+            "Production configuration error: ENABLE_PHONEPE_V3_WEBHOOK cannot be enabled in production "
+            "without explicit authorization (set ALLOW_LEGACY_PHONEPE_V3=true to authorize legacy V3 compatibility)."
+        )
+
+    # 9. AWS Secrets validation if USE_AWS_SECRETS is active
+    use_aws_raw = _get("USE_AWS_SECRETS", False)
+    if isinstance(use_aws_raw, str):
+        use_aws = use_aws_raw.strip().lower() in ("true", "1", "yes")
+    else:
+        use_aws = bool(use_aws_raw)
+
+    if use_aws:
+        aws_region = str(_get("AWS_REGION", "")).strip()
+        aws_secret_name = str(_get("AWS_SECRET_NAME", "")).strip()
+        if not aws_region:
+            raise RuntimeError(
+                "Production configuration error: AWS_REGION is required when USE_AWS_SECRETS=true."
+            )
+        if not aws_secret_name:
+            raise RuntimeError(
+                "Production configuration error: AWS_SECRET_NAME is required when USE_AWS_SECRETS=true."
+            )
+
+
+if is_production_mode(Config):
+    validate_production_config(Config)

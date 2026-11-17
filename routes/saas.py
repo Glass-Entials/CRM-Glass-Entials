@@ -79,7 +79,7 @@ def checkout():
         flash("Free / Enterprise plan activated.", "success")
         return redirect(url_for("home_page"))
 
-    provider = BillingService.get_provider()
+    provider = BillingService.get_provider(sub.payment_provider if sub and sub.payment_provider else None)
 
     return render_template(
         "saas/checkout.html",
@@ -111,7 +111,7 @@ def create_subscription():
         return jsonify({"error": "Subscription plan not found"}), 404
 
     plan = sub.plan
-    provider = BillingService.get_provider()
+    provider = BillingService.get_provider(sub.payment_provider if sub and sub.payment_provider else None)
 
     return_url = url_for("saas.phonepe_callback", _external=True)
     callback_url = url_for("saas.phonepe_webhook", _external=True)
@@ -388,11 +388,11 @@ def verify_payment():
     org = current_user.organization
     # org.id is sourced from server-side authenticated session via current_user.organization, never from request body
     data = request.get_json(silent=True) or {}
-    provider = BillingService.get_provider()
+    sub = SaaSSubscription.query.filter_by(organization_id=org.id).first()
+    provider = BillingService.get_provider(sub.payment_provider if sub and sub.payment_provider else None)
 
     verify_res = provider.verify_payment(data, headers=dict(request.headers), organization_id=org.id)
 
-    sub = SaaSSubscription.query.filter_by(organization_id=org.id).first()
     if not sub:
         return jsonify({"error": "Subscription not found"}), 404
 
@@ -1254,6 +1254,13 @@ def _handle_v3_webhook(payload_bytes: bytes, headers: dict):
     Preserves all existing V3 webhook event handling code completely unchanged.
     Uses provider-scoped unique constraint for idempotency deduplication.
     """
+    from config import is_production_mode
+    is_prod = is_production_mode(current_app.config) if hasattr(current_app, "config") else False
+    default_v3 = False if is_prod else True
+    if not current_app.config.get("ENABLE_PHONEPE_V3_WEBHOOK", default_v3):
+        logger.warning("V3 webhook endpoint is disabled via configuration.")
+        return jsonify({"error": "Legacy V3 webhook is disabled"}), 403
+
     provider = BillingService.get_provider("phonepe")
     webhook_res = provider.verify_webhook(payload_bytes, headers)
 
@@ -1277,6 +1284,14 @@ def _handle_v3_webhook(payload_bytes: bytes, headers: dict):
             (SaaSSubscription.provider_subscription_id == sub_ref) |
             (SaaSSubscription.razorpay_subscription_id == sub_ref)
         ).first()
+
+    # Enforce provider boundary: V3 webhooks can only mutate legacy PhonePe V3 subscriptions
+    if sub and sub.payment_provider != "phonepe":
+        logger.warning(
+            "Rejected V3 webhook: subscription %s belongs to provider '%s', not 'phonepe'",
+            sub.id, sub.payment_provider
+        )
+        return jsonify({"error": f"Subscription belongs to provider {sub.payment_provider}, not legacy V3"}), 400
 
     # Amount validation: ensure reported amount matches expected plan price
     if sub and sub.plan and webhook_res.amount_paise > 0:
@@ -1411,10 +1426,6 @@ def phonepe_webhook():
         return _handle_v2_webhook(payload_bytes, headers)
     else:
         return _handle_v3_webhook(payload_bytes, headers)
-        logger.error("Error processing PhonePe webhook %s: %s", event_id, str(e), exc_info=True)
-        return jsonify({"error": str(e)}), 500
-
-    return jsonify({"status": "success", "event_id": event_id}), 200
 
 
 @saas_bp.route("/api/process-renewals", methods=["POST"])
@@ -1428,13 +1439,16 @@ def process_renewals():
     raw_auth = (request.headers.get("X-Renewal-Secret") or request.headers.get("Authorization") or "").strip()
     token = raw_auth[7:].strip() if raw_auth.startswith("Bearer ") else raw_auth
 
-    expected_secret = current_app.config.get("RENEWAL_CRON_SECRET") or current_app.config.get("SECRET_KEY")
+    # Super Admin session authentication has direct access
+    if current_user.is_authenticated and current_user.role == UserRole.ADMIN:
+        is_authorized = True
+    else:
+        expected_secret = current_app.config.get("RENEWAL_CRON_SECRET")
+        if not expected_secret:
+            logger.error("Dedicated RENEWAL_CRON_SECRET is not configured on the server.")
+            return jsonify({"error": "Renewal service configuration error"}), 500
 
-    is_authorized = False
-    if token and expected_secret and hmac.compare_digest(token, expected_secret):
-        is_authorized = True
-    elif current_user.is_authenticated and current_user.role == UserRole.ADMIN:
-        is_authorized = True
+        is_authorized = bool(token and hmac.compare_digest(token, expected_secret))
 
     if not is_authorized:
         return jsonify({"error": "Unauthorized renewal trigger"}), 403

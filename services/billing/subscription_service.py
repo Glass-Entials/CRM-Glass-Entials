@@ -36,19 +36,53 @@ class SubscriptionService:
         return start, end
 
     @staticmethod
-    def get_or_create_subscription(org: Organization, plan: Plan) -> SaaSSubscription:
+    def get_or_create_subscription(
+        org: Organization,
+        plan: Plan,
+        provider: Optional[Any] = None,
+    ) -> SaaSSubscription:
         """Finds or creates a SaaSSubscription for an organization."""
+        from services.billing.billing_service import BillingService
+
+        def _resolve_name(prov: Any) -> str:
+            if prov is None:
+                return BillingService.get_provider().name
+            if isinstance(prov, str):
+                return prov.strip()
+            return getattr(prov, "name", str(prov))
+
         sub = SaaSSubscription.query.filter_by(organization_id=org.id).first()
         if not sub:
+            # Rule 3: New subscription preserves configured-default behavior
+            provider_name = _resolve_name(provider)
             sub = SaaSSubscription(
                 organization_id=org.id,
                 plan_id=plan.id,
                 status=SaaSSubscriptionStatus.PENDING,
                 billing_cycle=SaaSBillingCycle.MONTHLY,
-                payment_provider="phonepe",
+                payment_provider=provider_name,
             )
             db.session.add(sub)
             db.session.commit()
+        else:
+            # Existing subscription:
+            persisted_provider = (sub.payment_provider or "").strip()
+            if persisted_provider:
+                # Rule 1 & Rule 4: Persisted provider is authoritative; explicit conflict must be rejected
+                if provider is not None:
+                    req_provider_name = _resolve_name(provider)
+                    if persisted_provider != req_provider_name:
+                        raise ValueError(
+                            f"Provider mismatch: Subscription {sub.id} for organization {org.id} is bound to provider "
+                            f"'{persisted_provider}', but requested provider is '{req_provider_name}'."
+                        )
+            else:
+                # Rule 2: Existing subscription with empty payment_provider:
+                # If explicit provider supplied, use and persist its name.
+                # If omitted, resolve configured default and persist its name.
+                provider_name = _resolve_name(provider)
+                sub.payment_provider = provider_name
+                db.session.commit()
         return sub
 
     @classmethod
@@ -58,18 +92,49 @@ class SubscriptionService:
         plan: Plan,
         billing_cycle: str,
         user,
-        provider,
-        return_url: str,
-        callback_url: str
+        provider: Optional[Any] = None,
+        return_url: str = "",
+        callback_url: str = ""
     ) -> MandateSetupResult:
         """
         Coordinates mandate setup with the configured payment provider.
+        The subscription's persisted payment_provider is authoritative.
         """
-        sub = cls.get_or_create_subscription(org, plan)
+        try:
+            sub = cls.get_or_create_subscription(org, plan, provider=provider)
+        except ValueError as exc:
+            logger.error("Provider mismatch during initiate_subscription: %s", exc)
+            provider_name = getattr(provider, "name", str(provider)) if provider else "unknown"
+            return MandateSetupResult(
+                success=False,
+                provider=provider_name,
+                merchant_subscription_id="",
+                error_message=str(exc),
+            )
+
+        from services.billing.billing_service import BillingService
+
+        # Determine effective provider name:
+        # 1. Populated sub.payment_provider is authoritative.
+        # 2. If sub.payment_provider was empty, caller's explicit provider takes precedence;
+        # 3. Otherwise fall back to configured default.
+        if (sub.payment_provider or "").strip():
+            effective_provider_name = sub.payment_provider.strip()
+        elif provider is not None:
+            effective_provider_name = provider.strip() if isinstance(provider, str) else getattr(provider, "name", str(provider))
+        else:
+            effective_provider_name = BillingService.get_provider().name
+
+        # Ensure provider instance matches effective_provider_name
+        if provider is None or isinstance(provider, str) or getattr(provider, "name", "") != effective_provider_name:
+            provider = BillingService.get_provider(effective_provider_name)
+
         cycle_enum = SaaSBillingCycle.YEARLY if billing_cycle.lower() == "yearly" else SaaSBillingCycle.MONTHLY
         sub.billing_cycle = cycle_enum
         sub.plan_id = plan.id
-        sub.payment_provider = provider.name
+        # Rule 4: Safely persist binding without overwriting an existing populated binding
+        if not (sub.payment_provider or "").strip():
+            sub.payment_provider = getattr(provider, "name", effective_provider_name)
         db.session.commit()
 
         # Delegate mandate creation to provider

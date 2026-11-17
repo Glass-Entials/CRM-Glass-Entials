@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from flask import Flask, render_template, request, flash, redirect, url_for, send_file
 from model import db, User, Customer, Employee, Lead, Project, Expense
-from config import Config
+from config import Config, validate_production_config, is_production_mode
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_talisman import Talisman
@@ -53,8 +53,14 @@ app = Flask(__name__, template_folder="templates",static_folder="static")
 app.config.from_object(Config)
 app.config["TEMPLATES_AUTO_RELOAD"] = True  # Always reload templates on change
 
+# Production mode detection & validation:
+# Both HTTPS/Talisman enforcement and fail-closed config validation use the exact same decision.
+is_prod = is_production_mode(app.config)
+if is_prod:
+    validate_production_config(app.config)
 
-# Add ProxyFix for AWS ALB / Nginx
+
+# Add ProxyFix for Nginx
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Add CSRF Protection
@@ -62,7 +68,7 @@ csrf = CSRFProtect(app)
 
 # Add Talisman for Security Headers
 # Only enforce HTTPS in production
-force_https_enabled = os.environ.get("FLASK_ENV", "development") == "production"
+force_https_enabled = is_prod
 
 csp = {
     'default-src': ["'self'"],

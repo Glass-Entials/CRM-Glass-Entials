@@ -301,13 +301,11 @@ def register():
             if org_option == "create":
                 plan_id = request.form.get("plan_id")
                 if plan_id:
-                    from model import SaaSSubscription, SaaSSubscriptionStatus
-                    sub = SaaSSubscription(
-                        organization_id=org.id,
-                        plan_id=int(plan_id),
-                        status=SaaSSubscriptionStatus.PENDING
-                    )
-                    db.session.add(sub)
+                    from model import Plan
+                    from services.billing.subscription_service import SubscriptionService
+                    plan = Plan.query.get(int(plan_id))
+                    if plan:
+                        SubscriptionService.get_or_create_subscription(org, plan)
             
             db.session.commit()
 

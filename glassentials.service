@@ -1,19 +1,32 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# glassentials.service — EXAMPLE / TEMPLATE systemd service file only
+#
+# IMPORTANT DEPLOYMENT NOTICE:
+# - This tracked repository file is an illustrative template only.
+# - It is NOT the active production service file.
+# - The authoritative active production service on Hostinger VPS is `crm.service`,
+#   running from `/var/www/CRM-Glass-Entials`.
+# - Do NOT overwrite, replace, or rename `crm.service` with this file.
+# - The paths below (e.g. /home/ubuntu/glassentials) are example template placeholders.
+# ─────────────────────────────────────────────────────────────────────────────
+
 [Unit]
-Description=GlassEntials CRM — Gunicorn WSGI Server
+Description=GlassEntials CRM — Gunicorn WSGI Server (Example Template)
 Documentation=https://github.com/your-repo/glassentials
 After=network.target network-online.target
 Wants=network-online.target
 
 [Service]
-# Run as a non-privileged user (create with: sudo useradd -r -s /bin/false glassentials)
+# Example user/group (adjust to target host configuration)
 User=ubuntu
 Group=www-data
+# Example working directory placeholder (authoritative production is /var/www/CRM-Glass-Entials)
 WorkingDirectory=/home/ubuntu/glassentials
 
-# Environment (production secrets loaded from AWS Secrets Manager)
-EnvironmentFile=/home/ubuntu/glassentials/.env.production
+# Example environment file placeholder
+EnvironmentFile=/home/ubuntu/glassentials/.env
 
-# Activate virtualenv and run Gunicorn
+# Activate virtualenv and run Gunicorn (example template path)
 ExecStart=/home/ubuntu/glassentials/venv/bin/gunicorn \
     --config /home/ubuntu/glassentials/gunicorn.conf.py \
     wsgi:application
@@ -37,7 +50,7 @@ ReadWritePaths=/home/ubuntu/glassentials/static/uploads /home/ubuntu/glassential
 LimitNOFILE=65536
 LimitNPROC=4096
 
-# Logging (stdout/stderr → journald → CloudWatch agent)
+# Logging (stdout/stderr → journald)
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=glassentials

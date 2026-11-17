@@ -33,6 +33,8 @@ class TestPhonePeBilling(unittest.TestCase):
         self.app = app
         self.app_context = self.app.app_context()
         self.app_context.push()
+        self._orig_renewal_secret = self.app.config.get("RENEWAL_CRON_SECRET")
+        self.app.config["RENEWAL_CRON_SECRET"] = "test-renewal-cron-secret-12345"
 
         self.provider = PhonePeProvider(
             merchant_id="PGTESTPAYUAT",
@@ -42,6 +44,10 @@ class TestPhonePeBilling(unittest.TestCase):
         )
 
     def tearDown(self):
+        if self._orig_renewal_secret is not None:
+            self.app.config["RENEWAL_CRON_SECRET"] = self._orig_renewal_secret
+        else:
+            self.app.config.pop("RENEWAL_CRON_SECRET", None)
         self.app_context.pop()
 
     def test_checksum_generation(self):
@@ -358,7 +364,7 @@ class TestPhonePeBilling(unittest.TestCase):
         self.assertEqual(resp_bad_auth.status_code, 403)
 
         # 3. Valid secret -> 200 OK
-        valid_secret = self.app.config.get("SECRET_KEY")
+        valid_secret = self.app.config.get("RENEWAL_CRON_SECRET")
         resp_good_auth = client.post(
             "/saas/api/process-renewals",
             headers={"X-Renewal-Secret": valid_secret}
@@ -375,7 +381,7 @@ class TestPhonePeBilling(unittest.TestCase):
         mock_renew.return_value = []
 
         client = self.app.test_client()
-        valid_secret = self.app.config.get("SECRET_KEY")
+        valid_secret = self.app.config.get("RENEWAL_CRON_SECRET")
 
         resp = client.post(
             "/saas/api/process-renewals",
@@ -398,7 +404,7 @@ class TestPhonePeBilling(unittest.TestCase):
         mock_renew.return_value = []
 
         client = self.app.test_client()
-        valid_secret = self.app.config.get("SECRET_KEY")
+        valid_secret = self.app.config.get("RENEWAL_CRON_SECRET")
 
         resp = client.post(
             "/saas/api/process-renewals?provider=phonepe_v2",
@@ -412,7 +418,7 @@ class TestPhonePeBilling(unittest.TestCase):
     def test_process_renewals_endpoint_rejects_razorpay(self):
         """Phase 6: /saas/api/process-renewals?provider=razorpay is strictly rejected with HTTP 400."""
         client = self.app.test_client()
-        valid_secret = self.app.config.get("SECRET_KEY")
+        valid_secret = self.app.config.get("RENEWAL_CRON_SECRET")
 
         resp = client.post(
             "/saas/api/process-renewals?provider=razorpay",
