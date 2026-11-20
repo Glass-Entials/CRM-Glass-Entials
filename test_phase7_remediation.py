@@ -1524,15 +1524,22 @@ class TestPhase7Remediation(unittest.TestCase):
                 self.assertTrue(res6.is_valid)
 
     def test_v2_webhook_verification_rejects_malformed_json_payload(self):
-        """Webhook with invalid or corrupted JSON payload is rejected."""
+        """Webhook with invalid or corrupted JSON payload is rejected after successful auth."""
+        import hashlib
         from services.billing.providers.phonepe_autopay_v2_provider import PhonePeAutoPayV2Provider
         prov = PhonePeAutoPayV2Provider(merchant_id=None)
         corrupted_payload = b'{"event": "test", "payload": {'  # Incomplete JSON
-        headers = {"Authorization": "Basic dummy"}
-        with self.app.app_context():
-            res = prov.verify_webhook(corrupted_payload, headers)
-            self.assertFalse(res.is_valid)
-            self.assertIn("Invalid webhook JSON", res.error_message)
+        user, pwd = "wh_user", "wh_password"
+        auth_token = hashlib.sha256(f"{user}:{pwd}".encode("utf-8")).hexdigest()
+        headers = {"Authorization": f"Basic {auth_token}"}
+        with patch.dict(self.app.config, {
+            "PHONEPE_WEBHOOK_USERNAME": user,
+            "PHONEPE_WEBHOOK_PASSWORD": pwd,
+        }):
+            with self.app.app_context():
+                res = prov.verify_webhook(corrupted_payload, headers)
+                self.assertFalse(res.is_valid)
+                self.assertIn("Invalid webhook JSON", res.error_message)
 
     def test_v2_webhook_verification_rejects_mismatched_merchant_id_when_partner_mid_configured(self):
         """When partner merchant ID is configured, authenticated payload with differing merchantId is rejected."""
@@ -1745,6 +1752,142 @@ class TestPhase7Remediation(unittest.TestCase):
 
             refreshed = db.session.get(SaaSSubscription, v2_sub.id)
             self.assertEqual(refreshed.status, SaaSSubscriptionStatus.PENDING)
+
+    def test_v2_webhook_malformed_json_missing_auth_returns_auth_failure(self):
+        """Malformed JSON + missing Authorization returns an authentication failure (auth first)."""
+        from services.billing.providers.phonepe_autopay_v2_provider import PhonePeAutoPayV2Provider
+        prov = PhonePeAutoPayV2Provider(merchant_id=None)
+        malformed_json = b'{"incomplete": {'
+
+        # Direct provider call: rejected at auth before json parsing
+        with self.app.app_context():
+            res = prov.verify_webhook(malformed_json, {})
+            self.assertFalse(res.is_valid)
+            self.assertEqual(res.error_message, "Missing Authorization header")
+
+        # HTTP route: missing auth with basic empty token returns 401
+        resp = self.client.post(
+            "/saas/phonepe-webhook",
+            data=malformed_json,
+            headers={"Authorization": "Basic ", "Content-Type": "application/json"}
+        )
+        self.assertEqual(resp.status_code, 401)
+        self.assertIn("empty Basic authentication token", resp.get_json().get("error", ""))
+
+    def test_v2_webhook_malformed_json_incorrect_credentials_returns_auth_failure(self):
+        """Malformed JSON + incorrect Basic credentials returns an authentication failure."""
+        from services.billing.providers.phonepe_autopay_v2_provider import PhonePeAutoPayV2Provider
+        prov = PhonePeAutoPayV2Provider(merchant_id=None)
+        malformed_json = b'{"broken_json": [1, 2, '
+
+        with patch.dict(self.app.config, {
+            "PHONEPE_WEBHOOK_USERNAME": "wh_user",
+            "PHONEPE_WEBHOOK_PASSWORD": "wh_password",
+        }):
+            with self.app.app_context():
+                res = prov.verify_webhook(malformed_json, {"Authorization": "Basic wrong_digest"})
+                self.assertFalse(res.is_valid)
+                self.assertEqual(res.error_message, "Invalid webhook authorization credentials")
+
+            resp = self.client.post(
+                "/saas/phonepe-webhook",
+                data=malformed_json,
+                headers={"Authorization": "Basic wrong_digest", "Content-Type": "application/json"}
+            )
+            self.assertEqual(resp.status_code, 401)
+            self.assertIn("Invalid webhook authorization credentials", resp.get_json().get("error", ""))
+
+    def test_v2_webhook_invalid_utf8_incorrect_credentials_returns_auth_failure(self):
+        """Invalid UTF-8 bytes + incorrect credentials returns authentication failure."""
+        from services.billing.providers.phonepe_autopay_v2_provider import PhonePeAutoPayV2Provider
+        prov = PhonePeAutoPayV2Provider(merchant_id=None)
+        invalid_utf8 = b"\xff\xfe\x00\x00\xaa\xbb"
+
+        with patch.dict(self.app.config, {
+            "PHONEPE_WEBHOOK_USERNAME": "wh_user",
+            "PHONEPE_WEBHOOK_PASSWORD": "wh_password",
+        }):
+            with self.app.app_context():
+                res = prov.verify_webhook(invalid_utf8, {"Authorization": "Basic wrong_digest"})
+                self.assertFalse(res.is_valid)
+                self.assertEqual(res.error_message, "Invalid webhook authorization credentials")
+
+            resp = self.client.post(
+                "/saas/phonepe-webhook",
+                data=invalid_utf8,
+                headers={"Authorization": "Basic wrong_digest", "Content-Type": "application/json"}
+            )
+            self.assertEqual(resp.status_code, 401)
+            self.assertIn("Invalid webhook authorization credentials", resp.get_json().get("error", ""))
+
+    def test_v2_webhook_invalid_utf8_valid_credentials_returns_controlled_validation_failure(self):
+        """Invalid UTF-8 bytes + valid credentials returns a controlled validation failure."""
+        import hashlib
+        from services.billing.providers.phonepe_autopay_v2_provider import PhonePeAutoPayV2Provider
+        prov = PhonePeAutoPayV2Provider(merchant_id=None)
+        invalid_utf8 = b"\xff\xfe\x00\x00\xaa\xbb"
+        user, pwd = "wh_user", "wh_password"
+        auth_token = hashlib.sha256(f"{user}:{pwd}".encode("utf-8")).hexdigest()
+        headers = {"Authorization": f"Basic {auth_token}"}
+
+        with patch.dict(self.app.config, {
+            "PHONEPE_WEBHOOK_USERNAME": user,
+            "PHONEPE_WEBHOOK_PASSWORD": pwd,
+        }):
+            with self.app.app_context():
+                res = prov.verify_webhook(invalid_utf8, headers)
+                self.assertFalse(res.is_valid)
+                self.assertIn("decoding failed", res.error_message)
+
+            resp = self.client.post(
+                "/saas/phonepe-webhook",
+                data=invalid_utf8,
+                headers={"Authorization": f"Basic {auth_token}", "Content-Type": "application/json"}
+            )
+            self.assertEqual(resp.status_code, 400)
+            self.assertIn("decoding failed", resp.get_json().get("error", ""))
+
+    def test_v2_webhook_no_malformed_request_reaches_persistence_fencing_or_reconciliation(self):
+        """No malformed request reaches webhook persistence, fencing lease acquisition, or S2S reconciliation."""
+        import hashlib
+        user, pwd = "wh_user", "wh_password"
+        auth_token = hashlib.sha256(f"{user}:{pwd}".encode("utf-8")).hexdigest()
+
+        initial_event_count = SaaSWebhookEvent.query.filter_by(payment_provider="phonepe_v2").count()
+
+        with patch.dict(self.app.config, {
+            "PHONEPE_WEBHOOK_USERNAME": user,
+            "PHONEPE_WEBHOOK_PASSWORD": pwd,
+        }), patch("services.billing.subscription_service.SubscriptionService.activate_subscription") as mock_activate:
+
+            # 1. Unauthenticated malformed JSON
+            resp1 = self.client.post(
+                "/saas/phonepe-webhook",
+                data=b'{"corrupt": {',
+                headers={"Authorization": "Basic bad_token", "Content-Type": "application/json"}
+            )
+            self.assertEqual(resp1.status_code, 401)
+
+            # 2. Authenticated malformed JSON
+            resp2 = self.client.post(
+                "/saas/phonepe-webhook",
+                data=b'{"corrupt": {',
+                headers={"Authorization": f"Basic {auth_token}", "Content-Type": "application/json"}
+            )
+            self.assertEqual(resp2.status_code, 400)
+
+            # 3. Authenticated invalid UTF-8
+            resp3 = self.client.post(
+                "/saas/phonepe-webhook",
+                data=b"\xff\xfe\x00\x00",
+                headers={"Authorization": f"Basic {auth_token}", "Content-Type": "application/json"}
+            )
+            self.assertEqual(resp3.status_code, 400)
+
+            mock_activate.assert_not_called()
+
+            final_event_count = SaaSWebhookEvent.query.filter_by(payment_provider="phonepe_v2").count()
+            self.assertEqual(final_event_count, initial_event_count)
 
 
 if __name__ == "__main__":

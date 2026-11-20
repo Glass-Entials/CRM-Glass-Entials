@@ -1742,23 +1742,16 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         Parses incoming webhook event.
         V2 webhooks are treated as UNTRUSTED TRANSPORT HINTS per architecture.
         Authoritative state verification must be performed S2S afterwards.
-        """
-        raw_text = payload_bytes.decode("utf-8") if isinstance(payload_bytes, bytes) else str(payload_bytes)
-        try:
-            data = json.loads(raw_text)
-        except Exception as exc:
-            return WebhookResult(
-                is_valid=False,
-                event_id="",
-                event_type="",
-                error_message=f"Invalid webhook JSON: {str(exc)}",
-            )
 
+        Authentication-First Security Contract:
+        Authentication (Authorization header, Basic scheme, valid SHA-256 digest) MUST strictly
+        precede any decoding, JSON parsing, schema validation, or tenant lookup to prevent
+        unauthenticated attackers from probing internal parsing or identifiers.
+        """
         # 1. Authoritative Webhook Authentication Verification:
         # Documented PhonePe AutoPay V2 S2S contract: Basic Authentication (SHA) using SHA-256 of username:password.
         # Authorization header format: 'Basic <SHA256(username:password)>'.
-        # Per security architecture: Authentication MUST strictly precede any business validation or tenant lookup
-        # to prevent unauthorized attackers from probing internal identifiers.
+        # Per security architecture: Authentication MUST strictly precede any decoding, parsing, or business validation.
         try:
             env = current_app.config.get("PHONEPE_ENV", "UAT").upper() if current_app else "UAT"
             webhook_user = current_app.config.get("PHONEPE_WEBHOOK_USERNAME") if current_app else None
@@ -1816,7 +1809,33 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 error_message="Invalid webhook authorization credentials",
             )
 
-        # 2. Structural & Business Validation (ONLY after authentication passes):
+        # 2. Decoding & JSON Parsing (ONLY after authentication passes):
+        try:
+            if isinstance(payload_bytes, bytes):
+                raw_text = payload_bytes.decode("utf-8")
+            else:
+                raw_text = str(payload_bytes)
+        except Exception as exc:
+            logger.warning("PhonePe V2 Webhook rejected: invalid UTF-8 encoding: %s", exc)
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message=f"Invalid webhook payload: decoding failed: {str(exc)}",
+            )
+
+        try:
+            data = json.loads(raw_text)
+        except Exception as exc:
+            logger.warning("PhonePe V2 Webhook rejected: malformed JSON: %s", exc)
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message=f"Invalid webhook JSON: {str(exc)}",
+            )
+
+        # 3. Structural & Business Validation (ONLY after authentication passes):
         # Validate that the JSON root is a dictionary (JSON object)
         if not isinstance(data, dict):
             logger.warning("PhonePe V2 Webhook rejected: root JSON is not an object (got %s)", type(data).__name__)
