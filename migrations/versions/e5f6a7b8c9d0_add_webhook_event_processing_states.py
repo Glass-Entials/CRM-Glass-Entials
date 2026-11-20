@@ -16,6 +16,14 @@ depends_on = None
 
 
 def upgrade():
+    # Inspect the live schema before entering batch mode. Do not swallow DDL errors:
+    # a failed drop followed by a same-name create would abort the migration anyway,
+    # and hiding it makes partial-schema diagnosis much harder.
+    bind = op.get_bind()
+    existing_indexes = {
+        index.get('name') for index in sa.inspect(bind).get_indexes('saas_webhook_event')
+    }
+
     with op.batch_alter_table('saas_webhook_event', schema=None) as batch_op:
         batch_op.add_column(sa.Column('organization_id', sa.Integer(), nullable=True))
         batch_op.add_column(sa.Column('status', sa.String(length=30), nullable=False, server_default='RECEIVED'))
@@ -23,11 +31,10 @@ def upgrade():
         batch_op.add_column(sa.Column('owner_expires_at', sa.DateTime(), nullable=True))
         batch_op.add_column(sa.Column('error_message', sa.Text(), nullable=True))
 
-        # Drop old global unique index on event_id and replace with provider-scoped unique constraint
-        try:
+        # Replace the old global unique index with a non-unique lookup index.
+        # The provider-scoped unique constraint below becomes the idempotency key.
+        if 'ix_saas_webhook_event_event_id' in existing_indexes:
             batch_op.drop_index('ix_saas_webhook_event_event_id')
-        except Exception:
-            pass
 
         batch_op.create_index('ix_saas_webhook_event_event_id', ['event_id'], unique=False)
         batch_op.create_unique_constraint('uq_saas_webhook_provider_event', ['payment_provider', 'event_id'])

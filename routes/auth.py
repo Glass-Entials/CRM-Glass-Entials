@@ -38,6 +38,16 @@ from services.oauth_service import google_is_configured, microsoft_is_configured
 auth_bp = Blueprint("auth", __name__)
 
 
+def _free_plan_available_while_billing_disabled(plan) -> bool:
+    """Only allow self-service organization creation without billing for a genuinely free plan."""
+    return bool(
+        plan
+        and getattr(plan, "is_active", True)
+        and int(getattr(plan, "monthly_price_paise", -1) or 0) == 0
+        and int(getattr(plan, "yearly_price_paise", -1) or 0) == 0
+    )
+
+
 @auth_bp.route("/settings", methods=["GET"])
 @login_required
 def settings():
@@ -207,6 +217,23 @@ def register():
 
         if User.query.filter_by(email=email).first():
             flash("Email already registered.", "registererror")
+            return redirect(url_for("auth.register"))
+
+        # Keep paid self-service signup closed while billing is disabled, but do not
+        # unnecessarily block a genuinely free plan or existing staff invitations.
+        billing_enabled = current_app.config.get("BILLING_ENABLED", True)
+        if isinstance(billing_enabled, str):
+            billing_enabled = billing_enabled.strip().lower() in ("true", "1", "yes")
+        plan = None
+        plan_id = request.form.get("plan_id")
+        if org_option == "create" and plan_id:
+            from model import Plan
+            try:
+                plan = db.session.get(Plan, int(plan_id))
+            except (TypeError, ValueError):
+                plan = None
+        if org_option == "create" and not billing_enabled and not _free_plan_available_while_billing_disabled(plan):
+            flash("Paid organization registration is temporarily unavailable while billing is disabled. Please select an available free plan or contact GlassEntials support.", "registererror")
             return redirect(url_for("auth.register"))
 
         org = None
