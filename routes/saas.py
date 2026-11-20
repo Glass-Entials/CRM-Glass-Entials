@@ -1315,13 +1315,15 @@ def _handle_v3_webhook(payload_bytes: bytes, headers: dict):
 
     try:
         # Event 1: Initial Mandate or Payment Completed / Active
+        # Strictly restricted to explicitly recognized legacy V3 activation events.
+        # Generic state fallback (e.g. state in ("ACTIVE", "COMPLETED", "SUCCESS")) is prohibited.
         if event_type in (
             "subscription.setup.order.completed",  # Legacy V3 runtime compatibility alias (not an official PhonePe event)
             "SUBSCRIPTION_ACTIVE",
             "SUBSCRIPTION_SETUP_SUCCESS",
             "PAYMENT_SUCCESS",
             "subscription.charged",
-        ) or webhook_res.state in ("ACTIVE", "COMPLETED", "SUCCESS"):
+        ):
             if sub:
                 SubscriptionService.activate_subscription(
                     subscription=sub,

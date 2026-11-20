@@ -937,6 +937,90 @@ class TestPhase7Remediation(unittest.TestCase):
             self.assertEqual(data.get("status"), "success")
             mock_activate.assert_called_once()
 
+    def test_v3_webhook_unknown_event_with_completed_state_does_not_activate(self):
+        """Unknown event with COMPLETED state does NOT activate a legacy subscription."""
+        self.app.config["ENABLE_PHONEPE_V3_WEBHOOK"] = True
+
+        v3_sub = SaaSSubscription(
+            organization_id=self.org.id,
+            plan_id=self.plan.id,
+            payment_provider="phonepe",
+            provider_subscription_id="OMS_V3_UNKNOWN_COMPLETED_123",
+            status=SaaSSubscriptionStatus.PENDING,
+        )
+        db.session.add(v3_sub)
+        db.session.commit()
+
+        mock_webhook_res = WebhookResult(
+            is_valid=True,
+            event_id="EVT_UNKNOWN_COMPLETED_01",
+            event_type="some.unknown.event",
+            merchant_subscription_id=None,
+            provider_subscription_id="OMS_V3_UNKNOWN_COMPLETED_123",
+            amount_paise=118000,
+            state="COMPLETED",
+        )
+
+        mock_provider = MagicMock()
+        mock_provider.verify_webhook.return_value = mock_webhook_res
+
+        with patch("services.billing.billing_service.BillingService.get_provider", return_value=mock_provider), \
+             patch("services.billing.subscription_service.SubscriptionService.activate_subscription") as mock_activate:
+
+            resp = self.client.post(
+                "/saas/phonepe-webhook",
+                data=b'{"event": "some.unknown.event", "state": "COMPLETED"}',
+                headers={"Content-Type": "application/json"}
+            )
+
+            # Idempotently acknowledged without triggering activation
+            self.assertEqual(resp.status_code, 200)
+            mock_activate.assert_not_called()
+            refreshed = db.session.get(SaaSSubscription, v3_sub.id)
+            self.assertEqual(refreshed.status, SaaSSubscriptionStatus.PENDING)
+
+    def test_v3_webhook_unknown_event_with_active_state_does_not_activate(self):
+        """Unknown event with ACTIVE state does NOT activate a legacy subscription."""
+        self.app.config["ENABLE_PHONEPE_V3_WEBHOOK"] = True
+
+        v3_sub = SaaSSubscription(
+            organization_id=self.org.id,
+            plan_id=self.plan.id,
+            payment_provider="phonepe",
+            provider_subscription_id="OMS_V3_UNKNOWN_ACTIVE_123",
+            status=SaaSSubscriptionStatus.PENDING,
+        )
+        db.session.add(v3_sub)
+        db.session.commit()
+
+        mock_webhook_res = WebhookResult(
+            is_valid=True,
+            event_id="EVT_UNKNOWN_ACTIVE_01",
+            event_type="custom.unrecognized.notification",
+            merchant_subscription_id=None,
+            provider_subscription_id="OMS_V3_UNKNOWN_ACTIVE_123",
+            amount_paise=118000,
+            state="ACTIVE",
+        )
+
+        mock_provider = MagicMock()
+        mock_provider.verify_webhook.return_value = mock_webhook_res
+
+        with patch("services.billing.billing_service.BillingService.get_provider", return_value=mock_provider), \
+             patch("services.billing.subscription_service.SubscriptionService.activate_subscription") as mock_activate:
+
+            resp = self.client.post(
+                "/saas/phonepe-webhook",
+                data=b'{"event": "custom.unrecognized.notification", "state": "ACTIVE"}',
+                headers={"Content-Type": "application/json"}
+            )
+
+            # Idempotently acknowledged without triggering activation
+            self.assertEqual(resp.status_code, 200)
+            mock_activate.assert_not_called()
+            refreshed = db.session.get(SaaSSubscription, v3_sub.id)
+            self.assertEqual(refreshed.status, SaaSSubscriptionStatus.PENDING)
+
     def test_v3_webhook_rejects_v2_checkout_order_completed_even_if_state_completed(self):
         """V3 webhook rejects checkout.order.completed even if state is COMPLETED and subscription is V3."""
         self.app.config["ENABLE_PHONEPE_V3_WEBHOOK"] = True
