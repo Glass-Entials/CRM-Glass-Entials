@@ -144,7 +144,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             return self._merchant_id
         try:
             if current_app:
-                return current_app.config.get("PHONEPE_MERCHANT_ID")
+                return current_app.config.get("PHONEPE_MERCHANT_ID") or None
         except RuntimeError:
             pass
         return None
@@ -1754,23 +1754,11 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 error_message=f"Invalid webhook JSON: {str(exc)}",
             )
 
-        payload_body = data.get("payload") or data.get("data") or {}
-
-        # Cross-tenant check: validate merchant ID matches configured merchant
-        incoming_mid = data.get("merchantId") or payload_body.get("merchantId")
-        if incoming_mid and self.merchant_id and incoming_mid != self.merchant_id:
-            logger.warning("PhonePe V2 Webhook merchant ID mismatch: %s != %s", incoming_mid, self.merchant_id)
-            return WebhookResult(
-                is_valid=False,
-                event_id="",
-                event_type="",
-                error_message=f"Merchant ID mismatch: {incoming_mid}",
-            )
-
-        # Webhook Authentication Verification:
-        # Documented PhonePe production contract: HTTP Basic Authentication using SHA-256 of username:password
-        # (or standard base64 encoded username:password).
-        # API salt keys and arbitrary HMAC schemes are strictly rejected without documented merchant-specific confirmation.
+        # 1. Authoritative Webhook Authentication Verification:
+        # Documented PhonePe AutoPay V2 S2S contract: Basic Authentication (SHA) using SHA-256 of username:password.
+        # Authorization header format: 'Basic <SHA256(username:password)>'.
+        # Per security architecture: Authentication MUST strictly precede any business validation or tenant lookup
+        # to prevent unauthorized attackers from probing internal identifiers.
         try:
             env = current_app.config.get("PHONEPE_ENV", "UAT").upper() if current_app else "UAT"
             webhook_user = current_app.config.get("PHONEPE_WEBHOOK_USERNAME") if current_app else None
@@ -1791,7 +1779,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             )
 
         auth_header_str = auth_header.strip()
-        if not auth_header_str.startswith("Basic"):
+        if not auth_header_str.lower().startswith("basic"):
             logger.warning("PhonePe V2 Webhook rejected: malformed Authorization header (expected 'Basic <token>')")
             return WebhookResult(
                 is_valid=False,
@@ -1811,15 +1799,11 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             )
 
         # Validate against configured webhook credentials using constant-time comparison
+        # PhonePe specification strictly requires SHA256(username:password)
         is_authenticated = False
         if webhook_user and webhook_pass:
-            # 1. Documented PhonePe S2S hash format: SHA256(username:password)
             expected_sha256 = hashlib.sha256(f"{webhook_user}:{webhook_pass}".encode("utf-8")).hexdigest()
-            # 2. Standard RFC 7617 base64 format: Base64(username:password)
-            import base64
-            expected_base64 = base64.b64encode(f"{webhook_user}:{webhook_pass}".encode("utf-8")).decode("utf-8")
-
-            if hmac.compare_digest(token, expected_sha256) or hmac.compare_digest(token, expected_base64):
+            if hmac.compare_digest(token.lower(), expected_sha256.lower()):
                 is_authenticated = True
 
         if not is_authenticated:
@@ -1831,18 +1815,63 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 error_message="Invalid webhook authorization credentials",
             )
 
-        actual_event_id = data.get("eventId") or data.get("id")
+        # 2. Business & Tenant Isolation Validation (ONLY after authentication passes):
+        payload_body = data.get("payload") or data.get("data") or {}
+
+        # Cross-tenant check: validate merchant ID matches configured merchant (partner/aggregator mode)
+        incoming_mid = data.get("merchantId") or payload_body.get("merchantId")
+        if incoming_mid and self.merchant_id and incoming_mid != self.merchant_id:
+            logger.warning("PhonePe V2 Webhook merchant ID mismatch: %s != %s", incoming_mid, self.merchant_id)
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message=f"Merchant ID mismatch: {incoming_mid}",
+            )
+
+        # 3. Payload Attribute Extraction:
+        actual_event_id = data.get("eventId") or data.get("id") or payload_body.get("eventId")
+        # Use root-level 'event' as primary event identifier, with legacy event schema fallbacks ('eventType', 'type').
+        # Do not conflate payment/subscription lifecycle state ('payload.state') with event identifiers.
         event_type = (
             data.get("event")
-            or data.get("type")
             or data.get("eventType")
-            or payload_body.get("state")
+            or data.get("type")
             or "unknown"
         )
+        payment_flow = payload_body.get("paymentFlow") if isinstance(payload_body.get("paymentFlow"), dict) else {}
         merchant_order_id = payload_body.get("merchantOrderId") or data.get("merchantOrderId")
-        merchant_sub_id = payload_body.get("merchantSubscriptionId") or data.get("merchantSubscriptionId")
-        provider_sub_id = payload_body.get("subscriptionId") or data.get("subscriptionId")
-        provider_payment_id = payload_body.get("transactionId")
+        merchant_sub_id = (
+            payload_body.get("merchantSubscriptionId")
+            or payment_flow.get("merchantSubscriptionId")
+            or data.get("merchantSubscriptionId")
+        )
+        provider_sub_id = (
+            payload_body.get("subscriptionId")
+            or payment_flow.get("subscriptionId")
+            or data.get("subscriptionId")
+        )
+
+        # Safe payment transaction ID extraction:
+        # Check top-level transactionId, then safely search payload.paymentDetails[] array.
+        # Deterministically prefer COMPLETED transaction leg, falling back to first transaction leg if none completed.
+        # Preserve payload.orderId strictly as phonepe_order_id; never confuse orderId with a payment transaction ID.
+        provider_payment_id = payload_body.get("transactionId") or data.get("transactionId")
+        payment_details = payload_body.get("paymentDetails")
+        if not provider_payment_id and isinstance(payment_details, list):
+            # 1. Deterministically look for completed payment transaction leg
+            for pd in payment_details:
+                if isinstance(pd, dict) and pd.get("transactionId") and str(pd.get("state", "")).upper() == "COMPLETED":
+                    provider_payment_id = pd.get("transactionId")
+                    break
+            # 2. If none completed, select first transaction leg with transactionId
+            if not provider_payment_id:
+                for pd in payment_details:
+                    if isinstance(pd, dict) and pd.get("transactionId"):
+                        provider_payment_id = pd.get("transactionId")
+                        break
+
+        phonepe_order_id = payload_body.get("orderId") or data.get("orderId")
         amount = payload_body.get("amount") or 0
         state = (payload_body.get("state") or "").upper()
         mid = incoming_mid or self.merchant_id or "default"
@@ -1865,6 +1894,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             amount_paise=amount,
             state=state,
             raw_payload=data,
+            phonepe_order_id=phonepe_order_id,
         )
 
     # ── Additional V2 Domain Reconciliation Methods ─────────────────────────

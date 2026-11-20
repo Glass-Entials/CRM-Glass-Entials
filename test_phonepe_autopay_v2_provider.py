@@ -790,16 +790,43 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
 
     # ── Test 26: Webhook Merchant ID Mismatch Rejected ────────────────────────
     def test_webhook_merchant_id_mismatch_rejected(self):
-        """Test that webhook with mismatched merchantId returns is_valid=False."""
+        """Test that authenticated webhook with mismatched merchantId returns is_valid=False on MID mismatch."""
         payload = {
             "eventId": "EVT_ATTACK_01",
             "merchantId": "DIFFERENT_MERCHANT_ID",
             "payload": {"state": "ACTIVE"},
         }
-        res = self.provider.verify_webhook(json.dumps(payload).encode("utf-8"), headers={})
+        with patch.dict(self.app.config, {
+            "PHONEPE_WEBHOOK_USERNAME": "test_wh_user",
+            "PHONEPE_WEBHOOK_PASSWORD": "test_wh_password",
+        }):
+            auth_token = hashlib.sha256(b"test_wh_user:test_wh_password").hexdigest()
+            headers = {"Authorization": f"Basic {auth_token}"}
+            res = self.provider.verify_webhook(json.dumps(payload).encode("utf-8"), headers=headers)
 
-        self.assertFalse(res.is_valid)
-        self.assertIn("Merchant ID mismatch", res.error_message)
+            self.assertFalse(res.is_valid)
+            self.assertIn("Merchant ID mismatch", res.error_message)
+
+    def test_webhook_unauthenticated_request_with_mismatched_mid_fails_on_authentication(self):
+        """Authentication must strictly precede business validation: unauthenticated mismatched MID fails on auth."""
+        payload = {
+            "eventId": "EVT_ATTACK_01",
+            "merchantId": "DIFFERENT_MERCHANT_ID",
+            "payload": {"state": "ACTIVE"},
+        }
+        with patch.dict(self.app.config, {
+            "PHONEPE_WEBHOOK_USERNAME": "test_wh_user",
+            "PHONEPE_WEBHOOK_PASSWORD": "test_wh_password",
+        }):
+            # Missing auth header
+            res_missing = self.provider.verify_webhook(json.dumps(payload).encode("utf-8"), headers={})
+            self.assertFalse(res_missing.is_valid)
+            self.assertEqual(res_missing.error_message, "Missing Authorization header")
+
+            # Invalid auth credentials
+            res_invalid = self.provider.verify_webhook(json.dumps(payload).encode("utf-8"), headers={"Authorization": "Basic wrong_digest"})
+            self.assertFalse(res_invalid.is_valid)
+            self.assertEqual(res_invalid.error_message, "Invalid webhook authorization credentials")
 
     # ── Test 27: Sync Mandate Status ──────────────────────────────────────────
     @patch("model.db.session.commit")
@@ -1714,13 +1741,19 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
         }
         payload_bytes = json.dumps(payload_dict).encode("utf-8")
 
-        # 1. Merchant ID mismatch
-        mismatch_payload = json.dumps({"merchantId": "WRONG_MERCHANT", "eventId": "EVT_99"}).encode("utf-8")
-        res_mismatch = self.provider.verify_webhook(mismatch_payload, {"Authorization": "Basic test"})
-        self.assertFalse(res_mismatch.is_valid)
-        self.assertIn("Merchant ID mismatch", res_mismatch.error_message)
-
         with patch.dict(self.app.config, {"PHONEPE_WEBHOOK_USERNAME": "test_wh_user", "PHONEPE_WEBHOOK_PASSWORD": "test_wh_password"}):
+            # 1. Partner Merchant ID mismatch with valid SHA credentials rejected on MID mismatch
+            correct_sha256 = hashlib.sha256(b"test_wh_user:test_wh_password").hexdigest()
+            mismatch_payload = json.dumps({"merchantId": "WRONG_MERCHANT", "eventId": "EVT_99"}).encode("utf-8")
+            res_mismatch = self.provider.verify_webhook(mismatch_payload, {"Authorization": f"Basic {correct_sha256}"})
+            self.assertFalse(res_mismatch.is_valid)
+            self.assertIn("Merchant ID mismatch", res_mismatch.error_message)
+
+            # 1b. Unauthenticated request with mismatched MID fails on authentication, NOT on MID mismatch
+            res_unauth_mismatch = self.provider.verify_webhook(mismatch_payload, {"Authorization": "Basic wrong_credentials"})
+            self.assertFalse(res_unauth_mismatch.is_valid)
+            self.assertEqual(res_unauth_mismatch.error_message, "Invalid webhook authorization credentials")
+
             # 2. Missing Authorization header
             res_missing = self.provider.verify_webhook(payload_bytes, {})
             self.assertFalse(res_missing.is_valid)
@@ -1747,11 +1780,11 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             self.assertTrue(res_good_sha.is_valid)
             self.assertEqual(res_good_sha.event_id, "EVT_TEST_123")
 
-            # 7. Valid standard RFC 7617 Base64
+            # 7. Standard RFC 7617 Base64 is strictly rejected per PhonePe SHA-256 specification
             correct_base64 = base64.b64encode(b"test_wh_user:test_wh_password").decode("utf-8")
             res_good_b64 = self.provider.verify_webhook(payload_bytes, {"Authorization": f"Basic {correct_base64}"})
-            self.assertTrue(res_good_b64.is_valid)
-            self.assertEqual(res_good_b64.event_id, "EVT_TEST_123")
+            self.assertFalse(res_good_b64.is_valid)
+            self.assertEqual(res_good_b64.error_message, "Invalid webhook authorization credentials")
 
             # 8. Arbitrary HMAC schemes rejected
             res_hmac = self.provider.verify_webhook(payload_bytes, {"Authorization": "HMAC-SHA256 random_hash"})
@@ -2773,6 +2806,95 @@ class TestPhonePeAutoPayV2Provider(unittest.TestCase):
             self.assertEqual(res8.status, RedemptionAttemptStatus.MANUAL_RECONCILIATION_REQUIRED.value)
             self.assertIn("Billing period key missing on notification for reserved billing period", res8.failure_reason)
             mock_get_client.assert_not_called()
+
+    # ── Test: Event and State Separation & PaymentDetails Extraction ──────────
+    def test_webhook_event_and_state_separation(self):
+        """event_type must never silently take payload.state; state remains strictly in res.state."""
+        correct_sha256 = hashlib.sha256(b"test_wh_user:test_wh_password").hexdigest()
+        headers = {"Authorization": f"Basic {correct_sha256}"}
+        payload = {
+            "eventId": "EVT_SEPARATION_01",
+            "merchantId": "PGTESTPAYUAT",
+            # No 'event', 'eventType', or 'type' provided
+            "payload": {
+                "merchantOrderId": "MO_SEP_01",
+                "state": "COMPLETED",
+                "amount": 50000,
+            }
+        }
+        with patch.dict(self.app.config, {"PHONEPE_WEBHOOK_USERNAME": "test_wh_user", "PHONEPE_WEBHOOK_PASSWORD": "test_wh_password"}):
+            res = self.provider.verify_webhook(json.dumps(payload).encode("utf-8"), headers)
+            self.assertTrue(res.is_valid)
+            self.assertEqual(res.event_type, "unknown")
+            self.assertEqual(res.state, "COMPLETED")
+
+    def test_webhook_payment_details_selection_deterministic_prefers_completed(self):
+        """paymentDetails array deterministically selects COMPLETED transaction leg over previous attempts."""
+        correct_sha256 = hashlib.sha256(b"test_wh_user:test_wh_password").hexdigest()
+        headers = {"Authorization": f"Basic {correct_sha256}"}
+        payload = {
+            "event": "checkout.order.completed",
+            "eventId": "EVT_TXN_01",
+            "payload": {
+                "merchantOrderId": "MO_TXN_01",
+                "orderId": "OMO_GATEWAY_ORDER_999",
+                "state": "COMPLETED",
+                "amount": 200,
+                "paymentDetails": [
+                    {"transactionId": "TXN_LEG_FAIL_1", "state": "FAILED", "amount": 200},
+                    {"transactionId": "TXN_LEG_SUCCESS_2", "state": "COMPLETED", "amount": 200},
+                ]
+            }
+        }
+        with patch.dict(self.app.config, {"PHONEPE_WEBHOOK_USERNAME": "test_wh_user", "PHONEPE_WEBHOOK_PASSWORD": "test_wh_password"}):
+            res = self.provider.verify_webhook(json.dumps(payload).encode("utf-8"), headers)
+            self.assertTrue(res.is_valid)
+            self.assertEqual(res.provider_payment_id, "TXN_LEG_SUCCESS_2")
+            self.assertEqual(res.phonepe_order_id, "OMO_GATEWAY_ORDER_999")
+            self.assertNotEqual(res.provider_payment_id, res.phonepe_order_id)
+
+    def test_webhook_payment_details_selection_fallback_to_first_leg_when_none_completed(self):
+        """paymentDetails array selects first available transaction leg when none are completed."""
+        correct_sha256 = hashlib.sha256(b"test_wh_user:test_wh_password").hexdigest()
+        headers = {"Authorization": f"Basic {correct_sha256}"}
+        payload = {
+            "event": "checkout.order.completed",
+            "eventId": "EVT_TXN_02",
+            "payload": {
+                "merchantOrderId": "MO_TXN_02",
+                "orderId": "OMO_GATEWAY_ORDER_888",
+                "state": "PENDING",
+                "paymentDetails": [
+                    {"transactionId": "TXN_LEG_PENDING_1", "state": "PENDING"},
+                    {"transactionId": "TXN_LEG_PENDING_2", "state": "PENDING"},
+                ]
+            }
+        }
+        with patch.dict(self.app.config, {"PHONEPE_WEBHOOK_USERNAME": "test_wh_user", "PHONEPE_WEBHOOK_PASSWORD": "test_wh_password"}):
+            res = self.provider.verify_webhook(json.dumps(payload).encode("utf-8"), headers)
+            self.assertTrue(res.is_valid)
+            self.assertEqual(res.provider_payment_id, "TXN_LEG_PENDING_1")
+            self.assertEqual(res.phonepe_order_id, "OMO_GATEWAY_ORDER_888")
+
+    def test_webhook_order_id_never_substitutes_for_missing_payment_id(self):
+        """provider_payment_id must remain None if transactionId is absent; never fallback to orderId."""
+        correct_sha256 = hashlib.sha256(b"test_wh_user:test_wh_password").hexdigest()
+        headers = {"Authorization": f"Basic {correct_sha256}"}
+        payload = {
+            "event": "checkout.order.completed",
+            "eventId": "EVT_TXN_03",
+            "payload": {
+                "merchantOrderId": "MO_TXN_03",
+                "orderId": "OMO_ORDER_ONLY_777",
+                "state": "COMPLETED",
+                "paymentDetails": []
+            }
+        }
+        with patch.dict(self.app.config, {"PHONEPE_WEBHOOK_USERNAME": "test_wh_user", "PHONEPE_WEBHOOK_PASSWORD": "test_wh_password"}):
+            res = self.provider.verify_webhook(json.dumps(payload).encode("utf-8"), headers)
+            self.assertTrue(res.is_valid)
+            self.assertIsNone(res.provider_payment_id)
+            self.assertEqual(res.phonepe_order_id, "OMO_ORDER_ONLY_777")
 
 
 if __name__ == "__main__":

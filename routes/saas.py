@@ -1306,7 +1306,8 @@ def _handle_v3_webhook(payload_bytes: bytes, headers: dict):
     try:
         # Event 1: Initial Mandate or Payment Completed / Active
         if event_type in (
-            "subscription.setup.order.completed",
+            "checkout.order.completed",  # Official PhonePe AutoPay Standard Checkout event
+            "subscription.setup.order.completed",  # Legacy V3 runtime compatibility alias (not an official PhonePe event)
             "SUBSCRIPTION_ACTIVE",
             "SUBSCRIPTION_SETUP_SUCCESS",
             "PAYMENT_SUCCESS",
@@ -1335,14 +1336,15 @@ def _handle_v3_webhook(payload_bytes: bytes, headers: dict):
                     sub.organization.status = OrganizationStatus.ACTIVE
                 sub.last_webhook_event_id = event_id
 
-        # Event 4: Mandate Revoked / Cancelled
+        # Event 4: Mandate Revoked / Cancelled / Setup Failed
         elif event_type in (
+            "checkout.order.failed",  # Official PhonePe AutoPay Standard Checkout failure event
             "subscription.revoked",
             "SUBSCRIPTION_REVOKED",
             "subscription.cancelled",
             "SUBSCRIPTION_CANCELLED",
             "subscription.halted",
-        ) or webhook_res.state in ("REVOKED", "CANCELLED"):
+        ) or webhook_res.state in ("REVOKED", "CANCELLED", "FAILED"):
             if sub:
                 SubscriptionService.cancel_subscription(sub, reason="Mandate revoked or cancelled")
                 sub.last_webhook_event_id = event_id

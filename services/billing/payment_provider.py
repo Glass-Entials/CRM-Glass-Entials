@@ -58,6 +58,7 @@ class WebhookResult:
     state: Optional[str] = None
     raw_payload: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
+    phonepe_order_id: Optional[str] = None
 
 
 class PaymentProvider(ABC):
