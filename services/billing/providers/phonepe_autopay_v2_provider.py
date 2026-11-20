@@ -943,6 +943,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
         amount_paise: int,
         merchant_transaction_id: str,
         claim_token: Optional[str] = None,
+        allow_retry: bool = False,
     ) -> RedemptionResult:
         """
         Sends Pre-Debit Notification (PDN) via POST /subscriptions/v2/notify.
@@ -1006,67 +1007,96 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 organization_id=subscription.organization_id,
             ).first()
             if existing_pdn:
-                logger.info("Pre-debit notification already exists for order=%s, status=%s",
-                            merchant_transaction_id, existing_pdn.status)
-                is_success = existing_pdn.status in (
+                # Terminal or successful in-progress notification: strictly immutable, return immediately
+                if existing_pdn.status in (
                     PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value,
                     PreDebitNotificationStatus.NOTIFIED.value,
-                )
-                return RedemptionResult(
-                    success=is_success,
-                    status=existing_pdn.status,
-                    merchant_transaction_id=merchant_transaction_id,
-                    amount_paise=existing_pdn.amount_paise,
-                    raw_response=existing_pdn.raw_response_json,
-                )
-
-            auto_debit_snap = mandate.auto_debit if mandate else False
-
-            # Durable Database-level Billing-Period Reservation
-            if subscription.current_period_start:
-                bpk = _compute_billing_period_key(subscription.id, subscription.current_period_start)
-                res_ok, res_err, reservation = self._reserve_billing_period(
-                    subscription.id, subscription.organization_id, bpk, merchant_transaction_id
-                )
-                if not res_ok:
-                    logger.error(
-                        "notify_redemption blocked: %s (org=%s, sub=%s, order=%s)",
-                        res_err, subscription.organization_id, subscription.id, merchant_transaction_id,
+                    PreDebitNotificationStatus.CONSUMED.value,
+                    PreDebitNotificationStatus.EXPIRED.value,
+                ):
+                    logger.info("Pre-debit notification already exists for order=%s, status=%s",
+                                merchant_transaction_id, existing_pdn.status)
+                    is_success = existing_pdn.status in (
+                        PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value,
+                        PreDebitNotificationStatus.NOTIFIED.value,
                     )
+                    return RedemptionResult(
+                        success=is_success,
+                        status=existing_pdn.status,
+                        merchant_transaction_id=merchant_transaction_id,
+                        amount_paise=existing_pdn.amount_paise,
+                        raw_response=existing_pdn.raw_response_json,
+                    )
+
+                # For FAILED or INITIATED existing notification without explicit safe retry:
+                if not allow_retry:
+                    logger.info("Pre-debit notification order=%s exists in %s state; blind retry blocked.",
+                                merchant_transaction_id, existing_pdn.status)
+                    return RedemptionResult(
+                        success=False,
+                        status=existing_pdn.status,
+                        merchant_transaction_id=merchant_transaction_id,
+                        amount_paise=existing_pdn.amount_paise,
+                        error_message=existing_pdn.error_message or f"Notification exists in {existing_pdn.status} state",
+                        raw_response=existing_pdn.raw_response_json,
+                    )
+
+                # Explicit safe retry authorized: reuse existing row to preserve unique constraint and cycle identity
+                logger.info("Executing safe retry for existing pre-debit notification order=%s (previous status=%s)",
+                            merchant_transaction_id, existing_pdn.status)
+                notification = existing_pdn
+                notification.status = PreDebitNotificationStatus.INITIATED.value
+                notification.error_message = None
+                notification.error_code = None
+                db.session.commit()
+            else:
+                auto_debit_snap = mandate.auto_debit if mandate else False
+
+                # Durable Database-level Billing-Period Reservation
+                if subscription.current_period_start:
+                    bpk = _compute_billing_period_key(subscription.id, subscription.current_period_start)
+                    res_ok, res_err, reservation = self._reserve_billing_period(
+                        subscription.id, subscription.organization_id, bpk, merchant_transaction_id
+                    )
+                    if not res_ok:
+                        logger.error(
+                            "notify_redemption blocked: %s (org=%s, sub=%s, order=%s)",
+                            res_err, subscription.organization_id, subscription.id, merchant_transaction_id,
+                        )
+                        return RedemptionResult(
+                            success=False,
+                            status="FAILED",
+                            merchant_transaction_id=merchant_transaction_id,
+                            amount_paise=amount_paise,
+                            error_message=res_err,
+                        )
+                else:
+                    bpk = None
+
+                notification = SaaSPreDebitNotification(
+                    organization_id=subscription.organization_id,
+                    subscription_id=subscription.id,
+                    mandate_id=mandate.id if mandate else (subscription.active_mandate_id or 0),
+                    merchant_order_id=merchant_transaction_id,
+                    amount_paise=amount_paise,
+                    auto_debit_snapshot=auto_debit_snap,
+                    billing_period_key=bpk,
+                    status=PreDebitNotificationStatus.INITIATED.value,
+                )
+                db.session.add(notification)
+                try:
+                    db.session.commit()
+                except Exception as exc:
+                    db.session.rollback()
+                    logger.error("Failed to commit SaaSPreDebitNotification for org=%s: %s",
+                                 subscription.organization_id, str(exc), exc_info=True)
                     return RedemptionResult(
                         success=False,
                         status="FAILED",
                         merchant_transaction_id=merchant_transaction_id,
                         amount_paise=amount_paise,
-                        error_message=res_err,
+                        error_message=str(exc),
                     )
-            else:
-                bpk = None
-
-            notification = SaaSPreDebitNotification(
-                organization_id=subscription.organization_id,
-                subscription_id=subscription.id,
-                mandate_id=mandate.id if mandate else (subscription.active_mandate_id or 0),
-                merchant_order_id=merchant_transaction_id,
-                amount_paise=amount_paise,
-                auto_debit_snapshot=auto_debit_snap,
-                billing_period_key=bpk,
-                status=PreDebitNotificationStatus.INITIATED.value,
-            )
-            db.session.add(notification)
-            try:
-                db.session.commit()
-            except Exception as exc:
-                db.session.rollback()
-                logger.error("Failed to commit SaaSPreDebitNotification for org=%s: %s",
-                             subscription.organization_id, str(exc), exc_info=True)
-                return RedemptionResult(
-                    success=False,
-                    status="FAILED",
-                    merchant_transaction_id=merchant_transaction_id,
-                    amount_paise=amount_paise,
-                    error_message=str(exc),
-                )
 
             merchant_sub_id = (
                 mandate.merchant_subscription_id
@@ -2025,6 +2055,16 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             logger.warning("reconcile_notification_status: missing organization_id on notification")
             return notification
 
+        # Concurrency & Idempotency: Never downgrade or overwrite already NOTIFIED, CONSUMED, or EXPIRED notifications
+        if notification.status in (
+            PreDebitNotificationStatus.NOTIFIED.value,
+            PreDebitNotificationStatus.CONSUMED.value,
+            PreDebitNotificationStatus.EXPIRED.value,
+        ):
+            logger.info("reconcile_notification_status: notification %s already in terminal/notified state %s. Skipping.",
+                        notification.merchant_order_id, notification.status)
+            return notification
+
         try:
             client = self._get_client()
             resp = client.get_order_status(notification.merchant_order_id, details=False)
@@ -2035,6 +2075,8 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 notification.status = PreDebitNotificationStatus.NOTIFIED.value
                 if not notification.notified_at:
                     notification.notified_at = datetime.utcnow()
+                notification.error_message = None
+                notification.error_code = None
             elif state == "NOTIFICATION_IN_PROGRESS":
                 notification.status = PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value
             elif state in ("COMPLETED", "SUCCESS"):

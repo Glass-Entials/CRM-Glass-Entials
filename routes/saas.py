@@ -1080,7 +1080,10 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict):
                     elif attempt.status == RedemptionAttemptStatus.FAILED.value:
                         reconciliation_state = "FAILED"
                         unresolved_reason = attempt.failure_reason
-                elif v2_pdn.status == PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value:
+                elif v2_pdn.status in (
+                    PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value,
+                    PreDebitNotificationStatus.INITIATED.value,
+                ):
                     provider.reconcile_notification_status(v2_pdn)
                     if v2_pdn.status != PreDebitNotificationStatus.NOTIFIED.value:
                         reconciliation_state = "UNRESOLVED"
@@ -1527,6 +1530,7 @@ def process_renewals():
     # Specific provider requested via query parameter or JSON body
     req_data = request.get_json(silent=True) or {}
     requested_provider = (request.args.get("provider") or req_data.get("provider") or "").strip().lower()
+    action = (request.args.get("action") or req_data.get("action") or "all").strip().lower()
 
     providers_to_run = []
     if requested_provider:
@@ -1559,32 +1563,65 @@ def process_renewals():
                     is_prod, v3_authorized, exc
                 )
 
+    all_reconciliations = []
     all_notifications = []
     all_renewals = []
     renewal_errors = []
 
-    for provider in providers_to_run:
-        try:
-            notifs = RenewalService.process_upcoming_notifications(provider, hours_ahead=48)
-            all_notifications.extend(notifs)
-        except Exception as exc:
-            logger.error("Error processing renewal notifications for provider %s: %s", provider.name, exc, exc_info=True)
-            renewal_errors.append({"provider": provider.name, "step": "notifications", "error": str(exc)})
+    # 1. Background notification reconciliation (prior to upcoming notifications or due renewals)
+    if action in ("all", "reconcile_only", "reconcile_notifications"):
+        v2_prov = next((p for p in providers_to_run if getattr(p, "name", None) == "phonepe_v2"), None)
+        if v2_prov:
+            try:
+                recons = RenewalService.reconcile_unresolved_notifications(v2_prov)
+                all_reconciliations.extend(recons)
+            except Exception as exc:
+                logger.error("Error reconciling renewal notifications for provider %s: %s", v2_prov.name, exc, exc_info=True)
+                renewal_errors.append({"provider": v2_prov.name, "step": "reconciliation", "error": str(exc)})
 
-        try:
-            rens = RenewalService.process_due_renewals(provider)
-            all_renewals.extend(rens)
-        except Exception as exc:
-            logger.error("Error processing due renewals for provider %s: %s", provider.name, exc, exc_info=True)
-            renewal_errors.append({"provider": provider.name, "step": "renewals", "error": str(exc)})
+    # If caller specifically requested reconciliation only, return immediately
+    if action in ("reconcile_only", "reconcile_notifications"):
+        response_data = {
+            "status": "completed" if not renewal_errors else "error",
+            "action": action,
+            "reconciliations_executed": len(all_reconciliations),
+            "details": {
+                "reconciliations": all_reconciliations,
+            },
+        }
+        if renewal_errors:
+            response_data["errors"] = renewal_errors
+            return jsonify(response_data), 500
+        return jsonify(response_data), 200
+
+    # 2. Upcoming notifications and due renewals
+    for provider in providers_to_run:
+        if action in ("all", "notifications_only"):
+            try:
+                notifs = RenewalService.process_upcoming_notifications(provider, hours_ahead=48)
+                all_notifications.extend(notifs)
+            except Exception as exc:
+                logger.error("Error processing renewal notifications for provider %s: %s", provider.name, exc, exc_info=True)
+                renewal_errors.append({"provider": provider.name, "step": "notifications", "error": str(exc)})
+
+        if action in ("all", "renewals_only"):
+            try:
+                rens = RenewalService.process_due_renewals(provider)
+                all_renewals.extend(rens)
+            except Exception as exc:
+                logger.error("Error processing due renewals for provider %s: %s", provider.name, exc, exc_info=True)
+                renewal_errors.append({"provider": provider.name, "step": "renewals", "error": str(exc)})
 
     response_data = {
         "status": "completed" if not renewal_errors else "error",
+        "action": action,
         "notifications_sent": len(all_notifications),
         "renewals_executed": len(all_renewals),
+        "reconciliations_executed": len(all_reconciliations),
         "details": {
             "notifications": all_notifications,
             "renewals": all_renewals,
+            "reconciliations": all_reconciliations,
         },
     }
     if renewal_errors:
@@ -1592,3 +1629,60 @@ def process_renewals():
         return jsonify(response_data), 500
 
     return jsonify(response_data), 200
+
+
+@saas_bp.route("/api/reconcile-notifications", methods=["POST"])
+def reconcile_notifications():
+    """
+    Dedicated, idempotent automated job endpoint to reconcile unresolved PhonePe V2
+    Pre-Debit Notifications (INITIATED, NOTIFICATION_IN_PROGRESS, and safe FAILED recovery).
+    Protected by dedicated RENEWAL_CRON_SECRET or Super Admin authentication.
+    Uses timing-attack resistant hmac.compare_digest.
+    Never exposes secrets or credentials in logs or responses.
+    Strictly restricted to PhonePe V2 (never processes Razorpay or PhonePe V3).
+    """
+    if not _billing_is_enabled():
+        return _billing_unavailable_response()
+
+    raw_auth = (request.headers.get("X-Renewal-Secret") or request.headers.get("Authorization") or "").strip()
+    token = raw_auth[7:].strip() if raw_auth.startswith("Bearer ") else raw_auth
+
+    # Super Admin session authentication has direct access
+    if current_user.is_authenticated and current_user.role == UserRole.ADMIN:
+        is_authorized = True
+    else:
+        expected_secret = current_app.config.get("RENEWAL_CRON_SECRET")
+        if not expected_secret:
+            logger.error("Dedicated RENEWAL_CRON_SECRET is not configured on the server.")
+            return jsonify({"error": "Renewal service configuration error"}), 500
+
+        is_authorized = bool(token and hmac.compare_digest(token, expected_secret))
+
+    if not is_authorized:
+        return jsonify({"error": "Unauthorized renewal trigger"}), 403
+
+    try:
+        provider = BillingService.get_provider("phonepe_v2")
+    except Exception as exc:
+        logger.error("Failed to initialize PhonePe V2 provider for notification reconciliation: %s", exc, exc_info=True)
+        return jsonify({"error": f"Failed to initialize phonepe_v2 provider: {str(exc)}"}), 500
+
+    req_data = request.get_json(silent=True) or {}
+    batch_size = int(request.args.get("batch_size") or req_data.get("batch_size") or 50)
+    min_age_minutes = int(request.args.get("min_age_minutes") or req_data.get("min_age_minutes") or 2)
+
+    try:
+        reconciliations = RenewalService.reconcile_unresolved_notifications(
+            provider,
+            batch_size=batch_size,
+            min_age_minutes=min_age_minutes,
+        )
+    except Exception as exc:
+        logger.error("Error executing notification reconciliation: %s", exc, exc_info=True)
+        return jsonify({"error": "Notification reconciliation failed", "details": str(exc)}), 500
+
+    return jsonify({
+        "status": "completed",
+        "reconciled_count": len(reconciliations),
+        "details": reconciliations,
+    }), 200
