@@ -825,7 +825,7 @@ class TestPhase7Remediation(unittest.TestCase):
         mock_webhook_res = WebhookResult(
             is_valid=True,
             event_id="EVT_TEST_V3_ATTACK",
-            event_type="checkout.order.completed",
+            event_type="SUBSCRIPTION_ACTIVE",
             merchant_subscription_id=None,
             provider_subscription_id="OMS_V2_TARGET_123",
             amount_paise=1000,
@@ -871,7 +871,7 @@ class TestPhase7Remediation(unittest.TestCase):
         mock_webhook_res = WebhookResult(
             is_valid=True,
             event_id="EVT_TEST_V3_LEGIT",
-            event_type="checkout.order.completed",
+            event_type="SUBSCRIPTION_ACTIVE",
             merchant_subscription_id=None,
             provider_subscription_id="OMS_V3_LEGACY_123",
             amount_paise=118000,
@@ -936,6 +936,156 @@ class TestPhase7Remediation(unittest.TestCase):
             data = resp.get_json()
             self.assertEqual(data.get("status"), "success")
             mock_activate.assert_called_once()
+
+    def test_v3_webhook_rejects_v2_checkout_order_completed_even_if_state_completed(self):
+        """V3 webhook rejects checkout.order.completed even if state is COMPLETED and subscription is V3."""
+        self.app.config["ENABLE_PHONEPE_V3_WEBHOOK"] = True
+
+        v3_sub = SaaSSubscription(
+            organization_id=self.org.id,
+            plan_id=self.plan.id,
+            payment_provider="phonepe",
+            provider_subscription_id="OMS_V3_CHECKOUT_123",
+            status=SaaSSubscriptionStatus.PENDING,
+        )
+        db.session.add(v3_sub)
+        db.session.commit()
+
+        mock_webhook_res = WebhookResult(
+            is_valid=True,
+            event_id="EVT_V2_CHECKOUT_IN_V3",
+            event_type="checkout.order.completed",
+            merchant_subscription_id=None,
+            provider_subscription_id="OMS_V3_CHECKOUT_123",
+            amount_paise=118000,
+            state="COMPLETED",
+        )
+
+        mock_provider = MagicMock()
+        mock_provider.verify_webhook.return_value = mock_webhook_res
+
+        with patch("services.billing.billing_service.BillingService.get_provider", return_value=mock_provider), \
+             patch("services.billing.subscription_service.SubscriptionService.activate_subscription") as mock_activate:
+
+            resp = self.client.post(
+                "/saas/phonepe-webhook",
+                data=b'{"event": "checkout.order.completed"}',
+                headers={"Content-Type": "application/json"}
+            )
+
+            self.assertEqual(resp.status_code, 400)
+            data = resp.get_json()
+            self.assertIn("belongs to PhonePe AutoPay V2", data.get("error"))
+            mock_activate.assert_not_called()
+            # Subscription must not be activated
+            refreshed = db.session.get(SaaSSubscription, v3_sub.id)
+            self.assertEqual(refreshed.status, SaaSSubscriptionStatus.PENDING)
+
+    def test_v3_webhook_rejects_v2_checkout_order_failed_even_if_state_failed(self):
+        """V3 webhook rejects checkout.order.failed even if state is FAILED and subscription is V3."""
+        self.app.config["ENABLE_PHONEPE_V3_WEBHOOK"] = True
+
+        v3_sub = SaaSSubscription(
+            organization_id=self.org.id,
+            plan_id=self.plan.id,
+            payment_provider="phonepe",
+            provider_subscription_id="OMS_V3_FAILED_123",
+            status=SaaSSubscriptionStatus.ACTIVE,
+        )
+        db.session.add(v3_sub)
+        db.session.commit()
+
+        mock_webhook_res = WebhookResult(
+            is_valid=True,
+            event_id="EVT_V2_FAILED_IN_V3",
+            event_type="checkout.order.failed",
+            merchant_subscription_id=None,
+            provider_subscription_id="OMS_V3_FAILED_123",
+            amount_paise=118000,
+            state="FAILED",
+        )
+
+        mock_provider = MagicMock()
+        mock_provider.verify_webhook.return_value = mock_webhook_res
+
+        with patch("services.billing.billing_service.BillingService.get_provider", return_value=mock_provider), \
+             patch("services.billing.subscription_service.SubscriptionService.cancel_subscription") as mock_cancel:
+
+            resp = self.client.post(
+                "/saas/phonepe-webhook",
+                data=b'{"event": "checkout.order.failed"}',
+                headers={"Content-Type": "application/json"}
+            )
+
+            self.assertEqual(resp.status_code, 400)
+            data = resp.get_json()
+            self.assertIn("belongs to PhonePe AutoPay V2", data.get("error"))
+            mock_cancel.assert_not_called()
+            # Subscription must remain ACTIVE
+            refreshed = db.session.get(SaaSSubscription, v3_sub.id)
+            self.assertEqual(refreshed.status, SaaSSubscriptionStatus.ACTIVE)
+
+    def test_phonepe_webhook_router_case_insensitive_basic(self):
+        """Router routes uppercase 'Basic', lowercase 'basic', and mixed-case 'BaSiC' to V2."""
+        with patch("routes.saas._handle_v2_webhook") as mock_v2, \
+             patch("routes.saas._handle_v3_webhook") as mock_v3:
+            mock_v2.return_value = ("v2_response", 200)
+
+            for auth_val in ["Basic valid_token", "basic valid_token", "BaSiC valid_token", "BASIC   valid_token"]:
+                resp = self.client.post(
+                    "/saas/phonepe-webhook",
+                    data=b'{"event": "test"}',
+                    headers={"Authorization": auth_val, "Content-Type": "application/json"}
+                )
+                self.assertEqual(resp.status_code, 200)
+
+            self.assertEqual(mock_v2.call_count, 4)
+            mock_v3.assert_not_called()
+
+    def test_phonepe_webhook_router_malformed_basic_does_not_fall_through_to_v3(self):
+        """Malformed Basic auth headers route to V2 and return 401; never fall through to V3."""
+        with patch("routes.saas._handle_v3_webhook") as mock_v3:
+            for auth_val in ["Basic", "basic  ", "BASIC", "basicfoo"]:
+                resp = self.client.post(
+                    "/saas/phonepe-webhook",
+                    data=b'{"event": "test"}',
+                    headers={"Authorization": auth_val, "Content-Type": "application/json"}
+                )
+                self.assertEqual(resp.status_code, 401, f"Failed for header: {auth_val}")
+                data = resp.get_json()
+                self.assertTrue("error" in data)
+
+            mock_v3.assert_not_called()
+
+    def test_phonepe_webhook_router_non_basic_and_x_verify_route_to_v3(self):
+        """Non-Basic headers and X-VERIFY route to legacy V3 handler."""
+        with patch("routes.saas._handle_v2_webhook") as mock_v2, \
+             patch("routes.saas._handle_v3_webhook") as mock_v3:
+            mock_v3.return_value = ("v3_response", 200)
+
+            resp1 = self.client.post(
+                "/saas/phonepe-webhook",
+                data=b'{"event": "test"}',
+                headers={"X-VERIFY": "checksum###1", "Content-Type": "application/json"}
+            )
+            self.assertEqual(resp1.status_code, 200)
+
+            resp2 = self.client.post(
+                "/saas/phonepe-webhook",
+                data=b'{"event": "test"}',
+                headers={"Authorization": "Bearer some_jwt", "Content-Type": "application/json"}
+            )
+            self.assertEqual(resp2.status_code, 200)
+
+            resp3 = self.client.post(
+                "/saas/phonepe-webhook",
+                data=b'{"event": "test"}',
+                headers={"Content-Type": "application/json"}
+            )
+            self.assertEqual(resp3.status_code, 200)
+
+            self.assertEqual(mock_v3.call_count, 3)
+            mock_v2.assert_not_called()
 
     # ─────────────────────────────────────────────────────────────────────────
     # PhonePe AutoPay V2 Merchant ID Decoupling & UAT Readiness
@@ -1147,6 +1297,19 @@ class TestPhase7Remediation(unittest.TestCase):
                 res3 = prov.verify_webhook(raw_payload, {"Authorization": "Basic  "})
                 self.assertFalse(res3.is_valid)
                 self.assertIn("empty Basic authentication token", res3.error_message)
+
+                # 4. Malformed scheme boundary without whitespace separation (e.g. basicfoo)
+                res4 = prov.verify_webhook(raw_payload, {"Authorization": "basicfoo some_token"})
+                self.assertFalse(res4.is_valid)
+                self.assertIn("expected Basic authentication", res4.error_message)
+
+                # 5. Case-insensitive scheme: lowercase 'basic' and mixed-case 'BaSiC' are accepted
+                import hashlib
+                valid_sha = hashlib.sha256(b"wh_user:wh_password").hexdigest()
+                res5 = prov.verify_webhook(raw_payload, {"Authorization": f"basic {valid_sha}"})
+                self.assertTrue(res5.is_valid)
+                res6 = prov.verify_webhook(raw_payload, {"Authorization": f"BaSiC   {valid_sha}"})
+                self.assertTrue(res6.is_valid)
 
     def test_v2_webhook_verification_rejects_malformed_json_payload(self):
         """Webhook with invalid or corrupted JSON payload is rejected."""

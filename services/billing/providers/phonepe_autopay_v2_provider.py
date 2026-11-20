@@ -1779,7 +1779,8 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             )
 
         auth_header_str = auth_header.strip()
-        if not auth_header_str.lower().startswith("basic"):
+        parts = auth_header_str.split(None, 1)
+        if not parts or parts[0].lower() != "basic":
             logger.warning("PhonePe V2 Webhook rejected: malformed Authorization header (expected 'Basic <token>')")
             return WebhookResult(
                 is_valid=False,
@@ -1788,7 +1789,7 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 error_message="Malformed Authorization header; expected Basic authentication",
             )
 
-        token = auth_header_str[5:].strip()
+        token = parts[1].strip() if len(parts) > 1 else ""
         if not token:
             logger.warning("PhonePe V2 Webhook rejected: empty Basic auth token")
             return WebhookResult(

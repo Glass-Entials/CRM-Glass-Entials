@@ -1271,6 +1271,16 @@ def _handle_v3_webhook(payload_bytes: bytes, headers: dict):
     event_id = webhook_res.event_id
     event_type = webhook_res.event_type
 
+    # Strict separation: V2 checkout events must never mutate subscriptions through legacy V3 handler.
+    # PhonePe AutoPay Standard Checkout V2 events (e.g. checkout.order.completed, checkout.order.failed)
+    # must be processed exclusively via the dedicated V2 reconciliation flow (_handle_v2_webhook).
+    if event_type in ("checkout.order.completed", "checkout.order.failed") or str(event_type).startswith("checkout.order."):
+        logger.warning(
+            "Rejected V2 checkout event '%s' from legacy V3 handler; must be processed by V2 handler.",
+            event_type
+        )
+        return jsonify({"error": f"Event '{event_type}' belongs to PhonePe AutoPay V2, not legacy V3"}), 400
+
     # Idempotency check with provider-scoped lookup
     if SaaSWebhookEvent.query.filter_by(payment_provider="phonepe", event_id=event_id).first():
         logger.info("Webhook event %s already processed; skipping.", event_id)
@@ -1306,7 +1316,6 @@ def _handle_v3_webhook(payload_bytes: bytes, headers: dict):
     try:
         # Event 1: Initial Mandate or Payment Completed / Active
         if event_type in (
-            "checkout.order.completed",  # Official PhonePe AutoPay Standard Checkout event
             "subscription.setup.order.completed",  # Legacy V3 runtime compatibility alias (not an official PhonePe event)
             "SUBSCRIPTION_ACTIVE",
             "SUBSCRIPTION_SETUP_SUCCESS",
@@ -1336,15 +1345,14 @@ def _handle_v3_webhook(payload_bytes: bytes, headers: dict):
                     sub.organization.status = OrganizationStatus.ACTIVE
                 sub.last_webhook_event_id = event_id
 
-        # Event 4: Mandate Revoked / Cancelled / Setup Failed
+        # Event 4: Mandate Revoked / Cancelled
         elif event_type in (
-            "checkout.order.failed",  # Official PhonePe AutoPay Standard Checkout failure event
             "subscription.revoked",
             "SUBSCRIPTION_REVOKED",
             "subscription.cancelled",
             "SUBSCRIPTION_CANCELLED",
             "subscription.halted",
-        ) or webhook_res.state in ("REVOKED", "CANCELLED", "FAILED"):
+        ) or webhook_res.state in ("REVOKED", "CANCELLED"):
             if sub:
                 SubscriptionService.cancel_subscription(sub, reason="Mandate revoked or cancelled")
                 sub.last_webhook_event_id = event_id
@@ -1423,8 +1431,15 @@ def phonepe_webhook():
     payload_bytes = request.get_data()
     headers = dict(request.headers)
 
-    auth_header = (headers.get("Authorization") or headers.get("authorization") or "").strip()
-    if auth_header.startswith("Basic"):
+    auth_header = (request.headers.get("Authorization") or headers.get("Authorization") or headers.get("authorization") or "").strip()
+    is_basic = False
+    if auth_header:
+        parts = auth_header.split(None, 1)
+        scheme = parts[0].lower() if parts else ""
+        if scheme == "basic" or auth_header.lower().startswith("basic"):
+            is_basic = True
+
+    if is_basic:
         return _handle_v2_webhook(payload_bytes, headers)
     else:
         return _handle_v3_webhook(payload_bytes, headers)
