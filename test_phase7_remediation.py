@@ -790,6 +790,134 @@ class TestPhase7Remediation(unittest.TestCase):
             resp = self.client.post("/saas/api/process-renewals")
             self.assertEqual(resp.status_code, 200)
 
+    def test_process_renewals_production_default_runs_v2_only_without_initializing_v3(self):
+        """In production by default, /api/process-renewals processes V2 only and never initializes V3."""
+        self.app.config["FLASK_ENV"] = "production"
+        self.app.config["ENV"] = "production"
+        self.app.config["ALLOW_LEGACY_PHONEPE_V3"] = False
+        self.app.config["ENABLE_PHONEPE_V3_WEBHOOK"] = False
+        self.app.config["RENEWAL_CRON_SECRET"] = "dedicated_renewal_secret_123"
+
+        mock_v2_prov = MagicMock()
+        mock_v2_prov.name = "phonepe_v2"
+
+        with patch("services.billing.billing_service.BillingService.get_provider") as mock_get_prov, \
+             patch("services.billing.renewal_service.RenewalService.process_due_renewals", return_value=[]) as mock_renew, \
+             patch("services.billing.renewal_service.RenewalService.process_upcoming_notifications", return_value=[]) as mock_notify:
+
+            mock_get_prov.side_effect = lambda name: mock_v2_prov if name == "phonepe_v2" else (_ for _ in ()).throw(AssertionError("V3 should not be initialized"))
+
+            resp = self.client.post(
+                "/saas/api/process-renewals",
+                headers={"X-Renewal-Secret": "dedicated_renewal_secret_123"}
+            )
+            self.assertEqual(resp.status_code, 200)
+            data = resp.get_json()
+            self.assertEqual(data.get("status"), "completed")
+
+            mock_get_prov.assert_called_once_with("phonepe_v2")
+            mock_notify.assert_called_once_with(mock_v2_prov, hours_ahead=48)
+            mock_renew.assert_called_once_with(mock_v2_prov)
+
+    def test_process_renewals_production_explicitly_enabled_v3_runs_both(self):
+        """In production when V3 is explicitly authorized, both V2 and V3 are processed."""
+        self.app.config["FLASK_ENV"] = "production"
+        self.app.config["ENV"] = "production"
+        self.app.config["ALLOW_LEGACY_PHONEPE_V3"] = True
+        self.app.config["ENABLE_PHONEPE_V3_WEBHOOK"] = True
+        self.app.config["RENEWAL_CRON_SECRET"] = "dedicated_renewal_secret_123"
+
+        mock_v2_prov = MagicMock()
+        mock_v2_prov.name = "phonepe_v2"
+        mock_v3_prov = MagicMock()
+        mock_v3_prov.name = "phonepe"
+
+        def get_prov(name):
+            if name == "phonepe_v2":
+                return mock_v2_prov
+            elif name == "phonepe":
+                return mock_v3_prov
+            raise ValueError(f"Unknown: {name}")
+
+        with patch("services.billing.billing_service.BillingService.get_provider", side_effect=get_prov), \
+             patch("services.billing.renewal_service.RenewalService.process_due_renewals", return_value=[]) as mock_renew, \
+             patch("services.billing.renewal_service.RenewalService.process_upcoming_notifications", return_value=[]) as mock_notify:
+
+            resp = self.client.post(
+                "/saas/api/process-renewals",
+                headers={"X-Renewal-Secret": "dedicated_renewal_secret_123"}
+            )
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(mock_notify.call_count, 2)
+            self.assertEqual(mock_renew.call_count, 2)
+
+    def test_process_renewals_v3_init_failure_does_not_prevent_v2_processing(self):
+        """When optional V3 fails initialization, V2 renewal processing proceeds safely."""
+        self.app.config["FLASK_ENV"] = "production"
+        self.app.config["ENV"] = "production"
+        self.app.config["ALLOW_LEGACY_PHONEPE_V3"] = True
+        self.app.config["ENABLE_PHONEPE_V3_WEBHOOK"] = True
+        self.app.config["RENEWAL_CRON_SECRET"] = "dedicated_renewal_secret_123"
+
+        mock_v2_prov = MagicMock()
+        mock_v2_prov.name = "phonepe_v2"
+
+        def get_prov(name):
+            if name == "phonepe_v2":
+                return mock_v2_prov
+            elif name == "phonepe":
+                raise ValueError("PhonePe V3 configuration missing salt key")
+            raise ValueError(name)
+
+        with patch("services.billing.billing_service.BillingService.get_provider", side_effect=get_prov), \
+             patch("services.billing.renewal_service.RenewalService.process_due_renewals", return_value=[{"status": "SUCCESS"}]) as mock_renew, \
+             patch("services.billing.renewal_service.RenewalService.process_upcoming_notifications", return_value=[]) as mock_notify:
+
+            resp = self.client.post(
+                "/saas/api/process-renewals",
+                headers={"X-Renewal-Secret": "dedicated_renewal_secret_123"}
+            )
+            self.assertEqual(resp.status_code, 200)
+            data = resp.get_json()
+            self.assertEqual(data.get("status"), "completed")
+            self.assertEqual(data.get("renewals_executed"), 1)
+            mock_renew.assert_called_once_with(mock_v2_prov)
+
+    def test_process_renewals_explicit_phonepe_rejected_in_production_when_not_authorized(self):
+        """Explicitly requesting ?provider=phonepe in production is rejected when not authorized."""
+        self.app.config["FLASK_ENV"] = "production"
+        self.app.config["ENV"] = "production"
+        self.app.config["ALLOW_LEGACY_PHONEPE_V3"] = False
+        self.app.config["RENEWAL_CRON_SECRET"] = "dedicated_renewal_secret_123"
+
+        resp = self.client.post(
+            "/saas/api/process-renewals?provider=phonepe",
+            headers={"X-Renewal-Secret": "dedicated_renewal_secret_123"}
+        )
+        self.assertEqual(resp.status_code, 400)
+        data = resp.get_json()
+        self.assertIn("Legacy PhonePe V3 provider is not enabled in production", data.get("error"))
+
+    def test_process_renewals_does_not_silently_swallow_execution_failures(self):
+        """Unexpected exception during renewal execution returns HTTP 500 with details."""
+        self.app.config["RENEWAL_CRON_SECRET"] = "dedicated_renewal_secret_123"
+
+        mock_v2_prov = MagicMock()
+        mock_v2_prov.name = "phonepe_v2"
+
+        with patch("services.billing.billing_service.BillingService.get_provider", return_value=mock_v2_prov), \
+             patch("services.billing.renewal_service.RenewalService.process_due_renewals", side_effect=RuntimeError("Gateway timeout")):
+
+            resp = self.client.post(
+                "/saas/api/process-renewals?provider=phonepe_v2",
+                headers={"X-Renewal-Secret": "dedicated_renewal_secret_123"}
+            )
+            self.assertEqual(resp.status_code, 500)
+            data = resp.get_json()
+            self.assertEqual(data.get("status"), "error")
+            self.assertTrue(len(data.get("errors", [])) > 0)
+            self.assertIn("Gateway timeout", str(data.get("errors")))
+
     # ─────────────────────────────────────────────────────────────────────────
     # Fix 4 & Fix 5: V3 Webhook Security Tests
     # ─────────────────────────────────────────────────────────────────────────
@@ -1485,6 +1613,138 @@ class TestPhase7Remediation(unittest.TestCase):
                 res = prov.verify_webhook(raw_payload, headers)
                 self.assertTrue(res.is_valid)
                 self.assertFalse(res.error_message)
+
+    def test_v2_webhook_root_json_array_rejected_safely(self):
+        """Root JSON array is rejected safely with controlled invalid WebhookResult."""
+        import hashlib
+        from services.billing.providers.phonepe_autopay_v2_provider import PhonePeAutoPayV2Provider
+        prov = PhonePeAutoPayV2Provider(merchant_id=None)
+        raw_payload = b"[]"
+        user, pwd = "wh_user", "wh_password"
+        auth_token = hashlib.sha256(f"{user}:{pwd}".encode("utf-8")).hexdigest()
+        headers = {"Authorization": f"Basic {auth_token}"}
+
+        with patch.dict(self.app.config, {
+            "PHONEPE_WEBHOOK_USERNAME": user,
+            "PHONEPE_WEBHOOK_PASSWORD": pwd,
+        }):
+            with self.app.app_context():
+                res = prov.verify_webhook(raw_payload, headers)
+                self.assertFalse(res.is_valid)
+                self.assertIn("root must be a JSON object", res.error_message)
+
+            resp = self.client.post("/saas/phonepe-webhook", data=raw_payload, headers={"Authorization": f"Basic {auth_token}", "Content-Type": "application/json"})
+            self.assertEqual(resp.status_code, 400)
+            self.assertIn("root must be a JSON object", resp.get_json().get("error", ""))
+
+    def test_v2_webhook_root_json_string_and_null_rejected_safely(self):
+        """Root JSON string and null are rejected safely."""
+        import hashlib
+        from services.billing.providers.phonepe_autopay_v2_provider import PhonePeAutoPayV2Provider
+        prov = PhonePeAutoPayV2Provider(merchant_id=None)
+        user, pwd = "wh_user", "wh_password"
+        auth_token = hashlib.sha256(f"{user}:{pwd}".encode("utf-8")).hexdigest()
+        headers = {"Authorization": f"Basic {auth_token}"}
+
+        with patch.dict(self.app.config, {
+            "PHONEPE_WEBHOOK_USERNAME": user,
+            "PHONEPE_WEBHOOK_PASSWORD": pwd,
+        }):
+            with self.app.app_context():
+                res_str = prov.verify_webhook(b'"a string"', headers)
+                self.assertFalse(res_str.is_valid)
+                self.assertIn("root must be a JSON object", res_str.error_message)
+
+                res_null = prov.verify_webhook(b'null', headers)
+                self.assertFalse(res_null.is_valid)
+                self.assertIn("root must be a JSON object", res_null.error_message)
+
+    def test_v2_webhook_nested_payload_and_data_arrays_and_strings_handled_safely(self):
+        """Nested payload/data as arrays or strings are rejected safely; null payload handled safely."""
+        import hashlib
+        from services.billing.providers.phonepe_autopay_v2_provider import PhonePeAutoPayV2Provider
+        prov = PhonePeAutoPayV2Provider(merchant_id=None)
+        user, pwd = "wh_user", "wh_password"
+        auth_token = hashlib.sha256(f"{user}:{pwd}".encode("utf-8")).hexdigest()
+        headers = {"Authorization": f"Basic {auth_token}"}
+
+        with patch.dict(self.app.config, {
+            "PHONEPE_WEBHOOK_USERNAME": user,
+            "PHONEPE_WEBHOOK_PASSWORD": pwd,
+        }):
+            with self.app.app_context():
+                # Array payload
+                res_arr = prov.verify_webhook(b'{"event": "checkout.order.completed", "payload": [1, 2, 3]}', headers)
+                self.assertFalse(res_arr.is_valid)
+                self.assertIn("'payload' must be a JSON object", res_arr.error_message)
+
+                # String payload
+                res_str = prov.verify_webhook(b'{"event": "checkout.order.completed", "payload": "not_an_object"}', headers)
+                self.assertFalse(res_str.is_valid)
+                self.assertIn("'payload' must be a JSON object", res_str.error_message)
+
+                # Array data
+                res_data = prov.verify_webhook(b'{"event": "checkout.order.completed", "data": [1, 2, 3]}', headers)
+                self.assertFalse(res_data.is_valid)
+                self.assertIn("'data' must be a JSON object", res_data.error_message)
+
+                # Null payload
+                res_null = prov.verify_webhook(b'{"event": "checkout.order.completed", "payload": null}', headers)
+                self.assertTrue(res_null.is_valid)
+
+    def test_v2_webhook_unauthenticated_failures_remain_http_401(self):
+        """Unauthenticated requests with malformed payloads return HTTP 401 (auth precedes payload check)."""
+        # 1. Invalid credentials with malformed payload
+        with patch.dict(self.app.config, {
+            "PHONEPE_WEBHOOK_USERNAME": "wh_user",
+            "PHONEPE_WEBHOOK_PASSWORD": "wh_password",
+        }):
+            resp_bad_auth = self.client.post(
+                "/saas/phonepe-webhook",
+                data=b"[]",
+                headers={"Authorization": "Basic bad_credentials", "Content-Type": "application/json"}
+            )
+            self.assertEqual(resp_bad_auth.status_code, 401)
+
+        # 2. Empty Basic token with malformed payload
+        resp_empty_basic = self.client.post(
+            "/saas/phonepe-webhook",
+            data=b"[]",
+            headers={"Authorization": "Basic ", "Content-Type": "application/json"}
+        )
+        self.assertEqual(resp_empty_basic.status_code, 401)
+
+    def test_v2_webhook_invalid_payload_never_triggers_reconciliation_or_mutations(self):
+        """Authenticated but malformed payload never triggers S2S reconciliation or DB mutations."""
+        import hashlib
+        user, pwd = "wh_user", "wh_password"
+        auth_token = hashlib.sha256(f"{user}:{pwd}".encode("utf-8")).hexdigest()
+
+        v2_sub = SaaSSubscription(
+            organization_id=self.org.id,
+            plan_id=self.plan.id,
+            payment_provider="phonepe_v2",
+            provider_subscription_id="OMS_V2_SAFETY_123",
+            status=SaaSSubscriptionStatus.PENDING,
+        )
+        db.session.add(v2_sub)
+        db.session.commit()
+
+        with patch.dict(self.app.config, {
+            "PHONEPE_WEBHOOK_USERNAME": user,
+            "PHONEPE_WEBHOOK_PASSWORD": pwd,
+        }), patch("services.billing.subscription_service.SubscriptionService.activate_subscription") as mock_activate:
+
+            resp = self.client.post(
+                "/saas/phonepe-webhook",
+                data=b"[]",
+                headers={"Authorization": f"Basic {auth_token}", "Content-Type": "application/json"}
+            )
+            self.assertEqual(resp.status_code, 400)
+            mock_activate.assert_not_called()
+
+            refreshed = db.session.get(SaaSSubscription, v2_sub.id)
+            self.assertEqual(refreshed.status, SaaSSubscriptionStatus.PENDING)
 
 
 if __name__ == "__main__":

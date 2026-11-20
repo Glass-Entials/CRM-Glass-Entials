@@ -1816,11 +1816,84 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 error_message="Invalid webhook authorization credentials",
             )
 
-        # 2. Business & Tenant Isolation Validation (ONLY after authentication passes):
-        payload_body = data.get("payload") or data.get("data") or {}
+        # 2. Structural & Business Validation (ONLY after authentication passes):
+        # Validate that the JSON root is a dictionary (JSON object)
+        if not isinstance(data, dict):
+            logger.warning("PhonePe V2 Webhook rejected: root JSON is not an object (got %s)", type(data).__name__)
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message=f"Invalid webhook payload: root must be a JSON object, got {type(data).__name__}",
+            )
+
+        # Validate that payload or data, when present, is a dictionary
+        payload_field = data.get("payload")
+        data_field = data.get("data")
+
+        if payload_field is not None and not isinstance(payload_field, dict):
+            logger.warning("PhonePe V2 Webhook rejected: 'payload' field is not an object (got %s)", type(payload_field).__name__)
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message=f"Invalid webhook payload: 'payload' must be a JSON object, got {type(payload_field).__name__}",
+            )
+
+        if data_field is not None and not isinstance(data_field, dict):
+            logger.warning("PhonePe V2 Webhook rejected: 'data' field is not an object (got %s)", type(data_field).__name__)
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message=f"Invalid webhook payload: 'data' must be a JSON object, got {type(data_field).__name__}",
+            )
+
+        payload_body = payload_field or data_field or {}
+
+        # Validate expected event and identifier fields before accessing them
+        raw_event = data.get("event") or data.get("eventType") or data.get("type")
+        if raw_event is not None and not isinstance(raw_event, (str, int)):
+            logger.warning("PhonePe V2 Webhook rejected: event identifier is not a string/primitive")
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message="Invalid webhook payload: event identifier must be a string",
+            )
+
+        raw_event_id = data.get("eventId") or data.get("id") or payload_body.get("eventId")
+        if raw_event_id is not None and not isinstance(raw_event_id, (str, int)):
+            logger.warning("PhonePe V2 Webhook rejected: eventId is not a string/primitive")
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message="Invalid webhook payload: eventId must be a string",
+            )
+
+        raw_mid = data.get("merchantId") or payload_body.get("merchantId")
+        if raw_mid is not None and not isinstance(raw_mid, (str, int)):
+            logger.warning("PhonePe V2 Webhook rejected: merchantId is not a string/primitive")
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message="Invalid webhook payload: merchantId must be a string",
+            )
+
+        raw_order_id = payload_body.get("merchantOrderId") or data.get("merchantOrderId")
+        if raw_order_id is not None and not isinstance(raw_order_id, (str, int)):
+            logger.warning("PhonePe V2 Webhook rejected: merchantOrderId is not a string/primitive")
+            return WebhookResult(
+                is_valid=False,
+                event_id="",
+                event_type="",
+                error_message="Invalid webhook payload: merchantOrderId must be a string",
+            )
 
         # Cross-tenant check: validate merchant ID matches configured merchant (partner/aggregator mode)
-        incoming_mid = data.get("merchantId") or payload_body.get("merchantId")
+        incoming_mid = str(raw_mid) if raw_mid is not None else None
         if incoming_mid and self.merchant_id and incoming_mid != self.merchant_id:
             logger.warning("PhonePe V2 Webhook merchant ID mismatch: %s != %s", incoming_mid, self.merchant_id)
             return WebhookResult(
@@ -1831,14 +1904,11 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
             )
 
         # 3. Payload Attribute Extraction:
-        actual_event_id = data.get("eventId") or data.get("id") or payload_body.get("eventId")
+        actual_event_id = str(raw_event_id) if raw_event_id is not None else None
         # Use root-level 'event' as primary event identifier, with legacy event schema fallbacks ('eventType', 'type').
         # Do not conflate payment/subscription lifecycle state ('payload.state') with event identifiers.
         event_type = (
-            data.get("event")
-            or data.get("eventType")
-            or data.get("type")
-            or "unknown"
+            str(raw_event) if raw_event is not None else "unknown"
         )
         payment_flow = payload_body.get("paymentFlow") if isinstance(payload_body.get("paymentFlow"), dict) else {}
         merchant_order_id = payload_body.get("merchantOrderId") or data.get("merchantOrderId")

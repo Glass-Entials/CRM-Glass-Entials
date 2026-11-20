@@ -701,8 +701,15 @@ def _handle_v2_webhook(payload_bytes: bytes, headers: dict):
     # 1. Authoritative Webhook Authentication Verification (Transport Contract)
     webhook_res = provider.verify_webhook(payload_bytes, headers)
     if not webhook_res.is_valid:
-        logger.warning("Rejected unauthenticated PhonePe V2 webhook: %s", webhook_res.error_message)
-        return jsonify({"error": webhook_res.error_message or "Invalid webhook authentication credentials"}), 401
+        logger.warning("Rejected PhonePe V2 webhook: %s", webhook_res.error_message)
+        # Authentication failures return 401 Unauthorized; malformed payloads return 400 Bad Request
+        is_auth_error = any(msg in (webhook_res.error_message or "") for msg in (
+            "Authorization header",
+            "authorization credentials",
+            "Basic authentication",
+        ))
+        status_code = 401 if is_auth_error else 400
+        return jsonify({"error": webhook_res.error_message or "Invalid webhook authentication credentials"}), status_code
 
     event_id = webhook_res.event_id
     event_type = webhook_res.event_type
@@ -1472,37 +1479,83 @@ def process_renewals():
     if not is_authorized:
         return jsonify({"error": "Unauthorized renewal trigger"}), 403
 
+    from config import is_production_mode
+    is_prod = is_production_mode(current_app.config) if hasattr(current_app, "config") else False
+
+    allow_legacy_v3_raw = current_app.config.get("ALLOW_LEGACY_PHONEPE_V3", False)
+    allow_legacy_v3 = allow_legacy_v3_raw.strip().lower() in ("true", "1", "yes") if isinstance(allow_legacy_v3_raw, str) else bool(allow_legacy_v3_raw)
+
+    enable_v3_raw = current_app.config.get("ENABLE_PHONEPE_V3_WEBHOOK", False if is_prod else True)
+    enable_v3 = enable_v3_raw.strip().lower() in ("true", "1", "yes") if isinstance(enable_v3_raw, str) else bool(enable_v3_raw)
+
+    v3_authorized = (allow_legacy_v3 and enable_v3) if is_prod else True
+
     # Multi-provider support: phonepe, phonepe_v2
     # Specific provider requested via query parameter or JSON body
     req_data = request.get_json(silent=True) or {}
     requested_provider = (request.args.get("provider") or req_data.get("provider") or "").strip().lower()
 
+    providers_to_run = []
     if requested_provider:
         if requested_provider not in ("phonepe", "phonepe_v2"):
             return jsonify({"error": f"Unsupported renewal provider: {requested_provider}"}), 400
-        providers_to_run = [BillingService.get_provider(requested_provider)]
+
+        if requested_provider == "phonepe" and is_prod and not v3_authorized:
+            logger.warning("Rejected explicit legacy PhonePe V3 renewal request: legacy V3 is not authorized in production.")
+            return jsonify({"error": "Legacy PhonePe V3 provider is not enabled in production"}), 400
+
+        try:
+            providers_to_run.append(BillingService.get_provider(requested_provider))
+        except Exception as exc:
+            logger.error("Failed to initialize requested provider '%s': %s", requested_provider, exc, exc_info=True)
+            return jsonify({"error": f"Failed to initialize provider '{requested_provider}': {str(exc)}"}), 500
     else:
-        # Default: process both V2 and V3 (never Razorpay)
-        providers_to_run = [
-            BillingService.get_provider("phonepe_v2"),
-            BillingService.get_provider("phonepe"),
-        ]
+        # Default run:
+        # In production: default to V2-only. Never initialize or execute legacy V3 unless explicitly authorized.
+        # In non-production (UAT/dev): preserve compatibility by attempting both V2 and V3.
+        # A V3 initialization failure must never prevent V2 renewal processing.
+        providers_to_run.append(BillingService.get_provider("phonepe_v2"))
+
+        if (not is_prod) or v3_authorized:
+            try:
+                v3_prov = BillingService.get_provider("phonepe")
+                providers_to_run.append(v3_prov)
+            except Exception as exc:
+                logger.warning(
+                    "Optional legacy PhonePe V3 provider could not be initialized (is_prod=%s, authorized=%s): %s. Proceeding with V2 only.",
+                    is_prod, v3_authorized, exc
+                )
 
     all_notifications = []
     all_renewals = []
+    renewal_errors = []
 
     for provider in providers_to_run:
-        notifs = RenewalService.process_upcoming_notifications(provider, hours_ahead=48)
-        rens = RenewalService.process_due_renewals(provider)
-        all_notifications.extend(notifs)
-        all_renewals.extend(rens)
+        try:
+            notifs = RenewalService.process_upcoming_notifications(provider, hours_ahead=48)
+            all_notifications.extend(notifs)
+        except Exception as exc:
+            logger.error("Error processing renewal notifications for provider %s: %s", provider.name, exc, exc_info=True)
+            renewal_errors.append({"provider": provider.name, "step": "notifications", "error": str(exc)})
 
-    return jsonify({
-        "status": "completed",
+        try:
+            rens = RenewalService.process_due_renewals(provider)
+            all_renewals.extend(rens)
+        except Exception as exc:
+            logger.error("Error processing due renewals for provider %s: %s", provider.name, exc, exc_info=True)
+            renewal_errors.append({"provider": provider.name, "step": "renewals", "error": str(exc)})
+
+    response_data = {
+        "status": "completed" if not renewal_errors else "error",
         "notifications_sent": len(all_notifications),
         "renewals_executed": len(all_renewals),
         "details": {
             "notifications": all_notifications,
             "renewals": all_renewals,
-        }
-    }), 200
+        },
+    }
+    if renewal_errors:
+        response_data["errors"] = renewal_errors
+        return jsonify(response_data), 500
+
+    return jsonify(response_data), 200
