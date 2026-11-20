@@ -21,7 +21,7 @@ def get_aws_secret(secret_name, region_name):
 
 class Config:
     use_aws_secrets = os.environ.get("USE_AWS_SECRETS", "false").lower() == "true"
-    
+
     if use_aws_secrets:
         secret_name = os.environ.get("AWS_SECRET_NAME", "crm-glassentials/prod")
         region_name = os.environ.get("AWS_REGION", "ap-south-1")
@@ -122,7 +122,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(basedir, "static", "uploads"))
     MAX_CONTENT_LENGTH = int(os.environ.get("MAX_CONTENT_LENGTH", 5 * 1024 * 1024))
-    
+
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "true").lower() == "true"
@@ -224,27 +224,27 @@ def validate_production_config(cfg=None, force: bool = False):
             raise RuntimeError(
                 f"Production configuration error: BILLING_DEFAULT_PROVIDER must be 'phonepe_v2' in production (got '{provider}')."
             )
-    
+
         # 2. PhonePe Environment must be PRODUCTION
         phonepe_env = str(_get("PHONEPE_ENV", "")).strip().upper()
         if phonepe_env != "PRODUCTION":
             raise RuntimeError(
                 f"Production configuration error: PHONEPE_ENV must be 'PRODUCTION' in production (got '{phonepe_env}')."
             )
-    
+
         # 3. PhonePe Client ID and Secret must be non-empty
         client_id = str(_get("PHONEPE_CLIENT_ID", "")).strip()
         if not client_id:
             raise RuntimeError(
                 "Production configuration error: PHONEPE_CLIENT_ID is required and cannot be empty in production."
             )
-    
+
         client_secret = str(_get("PHONEPE_CLIENT_SECRET", "")).strip()
         if not client_secret:
             raise RuntimeError(
                 "Production configuration error: PHONEPE_CLIENT_SECRET is required and cannot be empty in production."
             )
-    
+
         # 4. PhonePe Client Version must be a positive integer
         client_version_raw = str(_get("PHONEPE_CLIENT_VERSION", "")).strip()
         if not client_version_raw:
@@ -259,7 +259,7 @@ def validate_production_config(cfg=None, force: bool = False):
             raise RuntimeError(
                 f"Production configuration error: PHONEPE_CLIENT_VERSION must be a positive integer (got '{client_version_raw}')."
             )
-    
+
         # 5. Merchant ID validation:
         # Direct PhonePe AutoPay V2 merchants authenticate via OAuth (Client ID, Client Secret, Client Version).
         # Merchant ID is optional for direct V2 merchants and omitted from the V2 business dashboard.
@@ -270,52 +270,52 @@ def validate_production_config(cfg=None, force: bool = False):
             raise RuntimeError(
                 f"Production configuration error: PHONEPE_MERCHANT_ID cannot be test merchant '{merchant_id}' in production."
             )
-    
+
         # 6. Webhook credentials must be non-empty
         webhook_user = str(_get("PHONEPE_WEBHOOK_USERNAME", "")).strip()
         if not webhook_user:
             raise RuntimeError(
                 "Production configuration error: PHONEPE_WEBHOOK_USERNAME is required and cannot be empty in production."
             )
-    
+
         webhook_pass = str(_get("PHONEPE_WEBHOOK_PASSWORD", "")).strip()
         if not webhook_pass:
             raise RuntimeError(
                 "Production configuration error: PHONEPE_WEBHOOK_PASSWORD is required and cannot be empty in production."
             )
-    
+
         # 7. Dedicated RENEWAL_CRON_SECRET must be non-empty and distinct from SECRET_KEY
         renewal_secret = str(_get("RENEWAL_CRON_SECRET", "")).strip()
         if not renewal_secret:
             raise RuntimeError(
                 "Production configuration error: Dedicated RENEWAL_CRON_SECRET is required and cannot be empty in production."
             )
-    
+
         secret_key = str(_get("SECRET_KEY", "")).strip()
         if secret_key and renewal_secret == secret_key:
             raise RuntimeError(
                 "Production configuration error: RENEWAL_CRON_SECRET must not reuse SECRET_KEY."
             )
-    
+
         # 8. Production V3 Webhook & Legacy Compatibility must fail closed unless explicitly authorized
         enable_v3_raw = _get("ENABLE_PHONEPE_V3_WEBHOOK", False)
         if isinstance(enable_v3_raw, str):
             enable_v3 = enable_v3_raw.strip().lower() in ("true", "1", "yes")
         else:
             enable_v3 = bool(enable_v3_raw)
-    
+
         allow_legacy_v3_raw = _get("ALLOW_LEGACY_PHONEPE_V3", False)
         if isinstance(allow_legacy_v3_raw, str):
             allow_legacy_v3 = allow_legacy_v3_raw.strip().lower() in ("true", "1", "yes")
         else:
             allow_legacy_v3 = bool(allow_legacy_v3_raw)
-    
+
         if enable_v3 and not allow_legacy_v3:
             raise RuntimeError(
                 "Production configuration error: ENABLE_PHONEPE_V3_WEBHOOK cannot be enabled in production "
                 "without explicit authorization (set ALLOW_LEGACY_PHONEPE_V3=true to authorize legacy V3 compatibility)."
             )
-    
+
         # When legacy V3 is explicitly authorized in production, legacy V3 credentials (Merchant ID & Salt Key) are strictly required.
         if enable_v3 and allow_legacy_v3:
             if not merchant_id:
@@ -327,7 +327,7 @@ def validate_production_config(cfg=None, force: bool = False):
                 raise RuntimeError(
                     "Production configuration error: Valid production PHONEPE_SALT_KEY is required in production when legacy PhonePe V3 is enabled."
                 )
-    
+
     # 9. AWS Secrets validation if USE_AWS_SECRETS is active
     use_aws_raw = _get("USE_AWS_SECRETS", False)
     if isinstance(use_aws_raw, str):
