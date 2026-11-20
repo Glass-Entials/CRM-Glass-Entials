@@ -5,6 +5,21 @@ from flask_login import LoginManager
 
 from config import validate_production_config
 from routes.saas import saas_bp
+from routes.auth import _free_plan_available_while_billing_disabled
+
+
+class FreePlanSignupPolicyTests(unittest.TestCase):
+    def test_free_plan_is_allowed_when_billing_is_disabled(self):
+        plan = type("Plan", (), {"is_active": True, "monthly_price_paise": 0, "yearly_price_paise": 0})()
+        self.assertTrue(_free_plan_available_while_billing_disabled(plan))
+
+    def test_paid_plan_is_rejected_when_billing_is_disabled(self):
+        plan = type("Plan", (), {"is_active": True, "monthly_price_paise": 10000, "yearly_price_paise": 100000})()
+        self.assertFalse(_free_plan_available_while_billing_disabled(plan))
+
+    def test_inactive_free_plan_is_rejected(self):
+        plan = type("Plan", (), {"is_active": False, "monthly_price_paise": 0, "yearly_price_paise": 0})()
+        self.assertFalse(_free_plan_available_while_billing_disabled(plan))
 
 
 class BillingDisabledProductionConfigTests(unittest.TestCase):
