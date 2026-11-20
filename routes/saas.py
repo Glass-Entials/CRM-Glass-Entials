@@ -50,6 +50,20 @@ logger = logging.getLogger(__name__)
 saas_bp = Blueprint("saas", __name__, url_prefix="/saas")
 
 
+def _billing_is_enabled() -> bool:
+    """Return the explicit billing feature flag, parsing environment strings safely."""
+    value = current_app.config.get("BILLING_ENABLED", True)
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes")
+    return bool(value)
+
+
+def _billing_unavailable_response():
+    return jsonify({
+        "error": "Billing is temporarily unavailable. Please contact GlassEntials support."
+    }), 503
+
+
 @saas_bp.route("/checkout")
 @login_required
 def checkout():
@@ -79,6 +93,10 @@ def checkout():
         flash("Free / Enterprise plan activated.", "success")
         return redirect(url_for("home_page"))
 
+    if not _billing_is_enabled():
+        flash("Paid subscription checkout is temporarily unavailable. Please contact GlassEntials support.", "warning")
+        return redirect(url_for("home_page"))
+
     provider = BillingService.get_provider(sub.payment_provider if sub and sub.payment_provider else None)
 
     return render_template(
@@ -97,6 +115,9 @@ def create_subscription():
     Creates a PhonePe UPI AutoPay recurring mandate for the selected billing cycle.
     Returns the gateway checkout URL to which the customer is redirected.
     """
+    if not _billing_is_enabled():
+        return _billing_unavailable_response()
+
     org = current_user.organization
     if not org or org.status != OrganizationStatus.PENDING:
         return jsonify({"error": "Organization already active or invalid"}), 400
@@ -151,6 +172,9 @@ def phonepe_callback():
     falls back to the legacy V3 PhonePeProvider.
     Verifies transaction status and activates the organization.
     """
+    if not _billing_is_enabled():
+        return _billing_unavailable_response()
+
     # PhonePe POST redirect sends form fields (e.g. response base64 or merchantTransactionId)
     # or GET redirect params
     payload = {}
@@ -385,6 +409,9 @@ def verify_payment():
     """
     Direct payment verification API endpoint (for client-side or legacy callers).
     """
+    if not _billing_is_enabled():
+        return _billing_unavailable_response()
+
     org = current_user.organization
     # org.id is sourced from server-side authenticated session via current_user.organization, never from request body
     data = request.get_json(silent=True) or {}
@@ -1437,6 +1464,9 @@ def phonepe_webhook():
       - Legacy headers (X-VERIFY or non-Basic auth) -> PhonePe Legacy V3
     Authenticates before resolving internal provider or tenant records.
     """
+    if not _billing_is_enabled():
+        return _billing_unavailable_response()
+
     payload_bytes = request.get_data()
     headers = dict(request.headers)
 
@@ -1462,6 +1492,9 @@ def process_renewals():
     Protected by dedicated RENEWAL_CRON_SECRET or Super Admin authentication.
     Uses timing-attack resistant hmac.compare_digest.
     """
+    if not _billing_is_enabled():
+        return _billing_unavailable_response()
+
     raw_auth = (request.headers.get("X-Renewal-Secret") or request.headers.get("Authorization") or "").strip()
     token = raw_auth[7:].strip() if raw_auth.startswith("Bearer ") else raw_auth
 
