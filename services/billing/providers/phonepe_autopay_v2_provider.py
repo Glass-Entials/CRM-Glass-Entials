@@ -1215,6 +1215,22 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 error_message="No pre-debit notification found for merchant_order_id",
             )
 
+        # Safety Check: Redemption amount must exactly match the notified amount.
+        if notification.amount_paise != amount_paise:
+            logger.error(
+                "execute_redemption blocked: Amount mismatch for order=%s (requested=%s, notified=%s)",
+                merchant_transaction_id,
+                amount_paise,
+                notification.amount_paise,
+            )
+            return RedemptionResult(
+                success=False,
+                status="FAILED",
+                merchant_transaction_id=merchant_transaction_id,
+                amount_paise=amount_paise,
+                error_message="Redemption amount does not match the pre-debit notification amount",
+            )
+
         # Safety Check 2: Block auto-debit mandates from manual redemption
         if notification.auto_debit_snapshot is True:
             logger.error("execute_redemption blocked: auto_debit_snapshot is True for order=%s", merchant_transaction_id)
