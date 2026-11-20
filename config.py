@@ -34,7 +34,7 @@ class Config:
             RAZORPAY_KEY_ID = secrets.get("RAZORPAY_KEY_ID")
             RAZORPAY_KEY_SECRET = secrets.get("RAZORPAY_KEY_SECRET")
             # PhonePe Payment Gateway / UPI AutoPay
-            PHONEPE_MERCHANT_ID = secrets.get("PHONEPE_MERCHANT_ID") or os.environ.get("PHONEPE_MERCHANT_ID", "PGTESTPAYUAT")
+            PHONEPE_MERCHANT_ID = secrets.get("PHONEPE_MERCHANT_ID") or os.environ.get("PHONEPE_MERCHANT_ID", "")
             PHONEPE_SALT_KEY = secrets.get("PHONEPE_SALT_KEY") or os.environ.get("PHONEPE_SALT_KEY", "099eb0cd-0252-4e2a-9123-046648858427")
             PHONEPE_SALT_INDEX = secrets.get("PHONEPE_SALT_INDEX") or os.environ.get("PHONEPE_SALT_INDEX", "1")
             PHONEPE_ENV = secrets.get("PHONEPE_ENV") or os.environ.get("PHONEPE_ENV", "UAT")
@@ -61,7 +61,7 @@ class Config:
             RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID")
             RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET")
             # PhonePe Payment Gateway / UPI AutoPay
-            PHONEPE_MERCHANT_ID = os.environ.get("PHONEPE_MERCHANT_ID", "PGTESTPAYUAT")
+            PHONEPE_MERCHANT_ID = os.environ.get("PHONEPE_MERCHANT_ID", "")
             PHONEPE_SALT_KEY = os.environ.get("PHONEPE_SALT_KEY", "099eb0cd-0252-4e2a-9123-046648858427")
             PHONEPE_SALT_INDEX = os.environ.get("PHONEPE_SALT_INDEX", "1")
             PHONEPE_ENV = os.environ.get("PHONEPE_ENV", "UAT")
@@ -87,7 +87,7 @@ class Config:
         RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID")
         RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET")
         # PhonePe Payment Gateway / UPI AutoPay
-        PHONEPE_MERCHANT_ID = os.environ.get("PHONEPE_MERCHANT_ID", "PGTESTPAYUAT")
+        PHONEPE_MERCHANT_ID = os.environ.get("PHONEPE_MERCHANT_ID", "")
         PHONEPE_SALT_KEY = os.environ.get("PHONEPE_SALT_KEY", "099eb0cd-0252-4e2a-9123-046648858427")
         PHONEPE_SALT_INDEX = os.environ.get("PHONEPE_SALT_INDEX", "1")
         PHONEPE_ENV = os.environ.get("PHONEPE_ENV", "UAT")
@@ -246,13 +246,13 @@ def validate_production_config(cfg=None, force: bool = False):
             f"Production configuration error: PHONEPE_CLIENT_VERSION must be a positive integer (got '{client_version_raw}')."
         )
 
-    # 5. Merchant ID must be non-empty and cannot be the UAT test merchant
+    # 5. Merchant ID validation:
+    # Direct PhonePe AutoPay V2 merchants authenticate via OAuth (Client ID, Client Secret, Client Version).
+    # Merchant ID is optional for direct V2 merchants and omitted from the V2 business dashboard.
+    # If PHONEPE_MERCHANT_ID is provided (e.g. for partner/aggregator integration via X-MERCHANT-ID),
+    # it must NOT be a test/sandbox merchant ID in production.
     merchant_id = str(_get("PHONEPE_MERCHANT_ID", "")).strip()
-    if not merchant_id:
-        raise RuntimeError(
-            "Production configuration error: PHONEPE_MERCHANT_ID is required and cannot be empty in production."
-        )
-    if merchant_id.upper() in {"PGTESTPAYUAT", "UAT"}:
+    if merchant_id and merchant_id.upper() in {"PGTESTPAYUAT", "UAT"}:
         raise RuntimeError(
             f"Production configuration error: PHONEPE_MERCHANT_ID cannot be test merchant '{merchant_id}' in production."
         )
@@ -283,7 +283,7 @@ def validate_production_config(cfg=None, force: bool = False):
             "Production configuration error: RENEWAL_CRON_SECRET must not reuse SECRET_KEY."
         )
 
-    # 8. Production V3 Webhook must fail closed unless explicitly authorized
+    # 8. Production V3 Webhook & Legacy Compatibility must fail closed unless explicitly authorized
     enable_v3_raw = _get("ENABLE_PHONEPE_V3_WEBHOOK", False)
     if isinstance(enable_v3_raw, str):
         enable_v3 = enable_v3_raw.strip().lower() in ("true", "1", "yes")
@@ -301,6 +301,18 @@ def validate_production_config(cfg=None, force: bool = False):
             "Production configuration error: ENABLE_PHONEPE_V3_WEBHOOK cannot be enabled in production "
             "without explicit authorization (set ALLOW_LEGACY_PHONEPE_V3=true to authorize legacy V3 compatibility)."
         )
+
+    # When legacy V3 is explicitly authorized in production, legacy V3 credentials (Merchant ID & Salt Key) are strictly required.
+    if enable_v3 and allow_legacy_v3:
+        if not merchant_id:
+            raise RuntimeError(
+                "Production configuration error: PHONEPE_MERCHANT_ID is required in production when legacy PhonePe V3 is enabled."
+            )
+        salt_key = str(_get("PHONEPE_SALT_KEY", "")).strip()
+        if not salt_key or salt_key == "099eb0cd-0252-4e2a-9123-046648858427":
+            raise RuntimeError(
+                "Production configuration error: Valid production PHONEPE_SALT_KEY is required in production when legacy PhonePe V3 is enabled."
+            )
 
     # 9. AWS Secrets validation if USE_AWS_SECRETS is active
     use_aws_raw = _get("USE_AWS_SECRETS", False)

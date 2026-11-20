@@ -39,8 +39,8 @@ class PhonePeProvider(PaymentProvider):
         webhook_username: Optional[str] = None,
         webhook_password: Optional[str] = None,
     ):
-        self.merchant_id = merchant_id or current_app.config.get("PHONEPE_MERCHANT_ID", "PGTESTPAYUAT")
-        self.salt_key = salt_key or current_app.config.get("PHONEPE_SALT_KEY", "099eb0cd-0252-4e2a-9123-046648858427")
+        self.merchant_id = merchant_id or current_app.config.get("PHONEPE_MERCHANT_ID") or "PGTESTPAYUAT"
+        self.salt_key = salt_key or current_app.config.get("PHONEPE_SALT_KEY") or "099eb0cd-0252-4e2a-9123-046648858427"
         self.salt_index = str(salt_index or current_app.config.get("PHONEPE_SALT_INDEX", "1"))
         self.env = (env or current_app.config.get("PHONEPE_ENV", "UAT")).upper()
 
