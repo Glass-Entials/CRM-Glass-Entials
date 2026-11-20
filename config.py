@@ -209,7 +209,7 @@ def validate_production_config(cfg=None, force: bool = False):
             f"Production configuration error: FLASK_ENV must be explicitly set to 'production' in production mode (got '{flask_env}')."
         )
 
-    billing_enabled_raw = _get("BILLING_ENABLED", False)
+    billing_enabled_raw = _get("BILLING_ENABLED", True)
     if isinstance(billing_enabled_raw, str):
         billing_enabled = billing_enabled_raw.strip().lower() in ("true", "1", "yes")
     else:
@@ -328,7 +328,7 @@ def validate_production_config(cfg=None, force: bool = False):
                     "Production configuration error: Valid production PHONEPE_SALT_KEY is required in production when legacy PhonePe V3 is enabled."
                 )
     
-        # 9. AWS Secrets validation if USE_AWS_SECRETS is active
+    # 9. AWS Secrets validation if USE_AWS_SECRETS is active
     use_aws_raw = _get("USE_AWS_SECRETS", False)
     if isinstance(use_aws_raw, str):
         use_aws = use_aws_raw.strip().lower() in ("true", "1", "yes")
