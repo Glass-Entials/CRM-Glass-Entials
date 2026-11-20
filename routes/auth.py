@@ -209,6 +209,16 @@ def register():
             flash("Email already registered.", "registererror")
             return redirect(url_for("auth.register"))
 
+        # Creating a new SaaS organization requires paid-plan checkout. Keep staff
+        # invitations/joins available, but do not create stranded pending tenants
+        # while the payment gateway is intentionally disabled.
+        billing_enabled = current_app.config.get("BILLING_ENABLED", True)
+        if isinstance(billing_enabled, str):
+            billing_enabled = billing_enabled.strip().lower() in ("true", "1", "yes")
+        if org_option == "create" and not billing_enabled:
+            flash("New organization registration is temporarily unavailable while billing is disabled. Please contact GlassEntials support.", "registererror")
+            return redirect(url_for("auth.register"))
+
         org = None
         if org_option == "create":
             import secrets, string
