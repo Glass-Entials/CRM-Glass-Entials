@@ -4,7 +4,10 @@ from model import db, ActivityLog
 class ActivityService:
     @staticmethod
     def log(action, entity_type, entity_id, entity_name=None, field_name=None, old_value=None, new_value=None, meta_data=None, related_entity_type=None, related_entity_id=None, description=None):
-        if not current_user.is_authenticated:
+        try:
+            if not current_user or not getattr(current_user, "is_authenticated", False):
+                return None
+        except Exception:
             return None
 
         # Check if we should log based on actual changes for updates
