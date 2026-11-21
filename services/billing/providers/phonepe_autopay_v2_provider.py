@@ -1048,6 +1048,9 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 notification.status = PreDebitNotificationStatus.INITIATED.value
                 notification.error_message = None
                 notification.error_code = None
+                raw = dict(notification.raw_response_json or {})
+                raw["guarded_retry_attempted"] = True
+                notification.raw_response_json = raw
                 db.session.commit()
             else:
                 auto_debit_snap = mandate.auto_debit if mandate else False
@@ -1118,7 +1121,10 @@ class PhonePeAutoPayV2Provider(PaymentProvider):
                 notification.phonepe_order_id = resp.get("orderId") or resp.get("phonepeOrderId")
                 notification.valid_after_at = _parse_datetime(resp.get("validAfter"))
                 notification.valid_upto_at = _parse_datetime(resp.get("validUpto"))
-                notification.raw_response_json = resp
+                merged_resp = dict(resp) if isinstance(resp, dict) else {}
+                if allow_retry:
+                    merged_resp["guarded_retry_attempted"] = True
+                notification.raw_response_json = merged_resp
                 db.session.commit()
                 logger.info("PDN accepted by PhonePe for order=%s, status=NOTIFICATION_IN_PROGRESS",
                             merchant_transaction_id)

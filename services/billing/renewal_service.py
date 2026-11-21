@@ -3,11 +3,13 @@ import time
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from sqlalchemy import or_
+from sqlalchemy.orm.attributes import flag_modified
 
 from model import (
     db,
     SaaSSubscription,
     SaaSSubscriptionStatus,
+    SaaSMandate,
     SaaSTransaction,
     SaaSTransactionStatus,
     SaaSBillingPeriodReservation,
@@ -546,11 +548,8 @@ class RenewalService:
 
                 prev_status = pdn.status
 
-                # ── Branch A: INITIATED or NOTIFICATION_IN_PROGRESS ─────────────
-                if pdn.status in (
-                    PreDebitNotificationStatus.INITIATED.value,
-                    PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value,
-                ):
+                # ── Branch A: NOTIFICATION_IN_PROGRESS polling ──────────────────
+                if pdn.status == PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value:
                     reconciled = provider.reconcile_notification_status(pdn)
                     results.append({
                         "notification_id": pdn.id,
@@ -563,8 +562,11 @@ class RenewalService:
                         "success": reconciled.status == PreDebitNotificationStatus.NOTIFIED.value,
                     })
 
-                # ── Branch B: Safe FAILED notification recovery ──────────────────
-                elif pdn.status == PreDebitNotificationStatus.FAILED.value:
+                # ── Branch B: INITIATED & FAILED authoritative check & guarded recovery ──
+                elif pdn.status in (
+                    PreDebitNotificationStatus.INITIATED.value,
+                    PreDebitNotificationStatus.FAILED.value,
+                ):
                     client = provider._get_client()
                     is_not_found = False
                     resp = None
@@ -579,8 +581,8 @@ class RenewalService:
                             state = "NOT_FOUND"
                         else:
                             logger.warning(
-                                "Authoritative check for failed notification %s returned API error: %s. Leaving unresolved.",
-                                pdn.merchant_order_id, resp_err,
+                                "Authoritative check for %s notification %s returned API error: %s. Leaving unresolved.",
+                                prev_status, pdn.merchant_order_id, resp_err,
                             )
                             results.append({
                                 "notification_id": pdn.id,
@@ -597,8 +599,8 @@ class RenewalService:
                     except PhonePeNetworkError as net_err:
                         # Ambiguous network timeout / failure: NEVER blindly retry
                         logger.warning(
-                            "Authoritative check for failed notification %s timed out or network error: %s. Leaving unresolved.",
-                            pdn.merchant_order_id, net_err,
+                            "Authoritative check for %s notification %s timed out or network error: %s. Leaving unresolved.",
+                            prev_status, pdn.merchant_order_id, net_err,
                         )
                         results.append({
                             "notification_id": pdn.id,
@@ -614,8 +616,8 @@ class RenewalService:
                         continue
                     except Exception as exc:
                         logger.error(
-                            "Unexpected error checking status for failed notification %s: %s",
-                            pdn.merchant_order_id, exc, exc_info=True,
+                            "Unexpected error checking status for %s notification %s: %s",
+                            prev_status, pdn.merchant_order_id, exc, exc_info=True,
                         )
                         continue
 
@@ -633,7 +635,7 @@ class RenewalService:
                         if resp and resp.get("validUpto"):
                             pdn.valid_upto_at = _parse_datetime(resp.get("validUpto"))
                         db.session.commit()
-                        logger.info("Authoritative recovery: failed notification %s confirmed NOTIFIED on PhonePe", pdn.merchant_order_id)
+                        logger.info("Authoritative recovery: %s notification %s confirmed NOTIFIED on PhonePe", prev_status, pdn.merchant_order_id)
                         results.append({
                             "notification_id": pdn.id,
                             "organization_id": pdn.organization_id,
@@ -653,7 +655,7 @@ class RenewalService:
                         if resp and resp.get("validUpto"):
                             pdn.valid_upto_at = _parse_datetime(resp.get("validUpto"))
                         db.session.commit()
-                        logger.info("Authoritative recovery: failed notification %s transitioned to NOTIFICATION_IN_PROGRESS", pdn.merchant_order_id)
+                        logger.info("Authoritative recovery: %s notification %s transitioned to NOTIFICATION_IN_PROGRESS", prev_status, pdn.merchant_order_id)
                         results.append({
                             "notification_id": pdn.id,
                             "organization_id": pdn.organization_id,
@@ -667,7 +669,7 @@ class RenewalService:
                     elif state in ("COMPLETED", "SUCCESS"):
                         # FINANCIAL SAFETY: Payment completion state observed when only notification was expected
                         logger.warning(
-                            "Authoritative check for failed notification %s returned payment completion state '%s'. Retaining unresolved manual reconciliation.",
+                            "Authoritative check for notification %s returned payment completion state '%s'. Retaining unresolved manual reconciliation.",
                             pdn.merchant_order_id, state,
                         )
                         pdn.error_message = f"Authoritative state '{state}' is payment completion; requires manual operator reconciliation"
@@ -689,6 +691,7 @@ class RenewalService:
                             "Notification order %s definitively FAILED on PhonePe (%s). Cannot auto-retry with duplicate order ID.",
                             pdn.merchant_order_id, state,
                         )
+                        pdn.status = PreDebitNotificationStatus.FAILED.value
                         pdn.error_message = resp.get("message") or f"PhonePe definitive failure: {state}"
                         db.session.commit()
                         results.append({
@@ -705,7 +708,24 @@ class RenewalService:
                     elif is_not_found:
                         # Order NEVER reached PhonePe (404 NOT_FOUND).
                         # Validate strict safety preconditions before single guarded retry:
-                        # Precondition 1: Subscription active
+
+                        # Guard 1: Single retry limit per notification
+                        if isinstance(pdn.raw_response_json, dict) and pdn.raw_response_json.get("guarded_retry_attempted"):
+                            logger.warning("Guarded retry blocked for %s: retry already attempted previously.", pdn.merchant_order_id)
+                            results.append({
+                                "notification_id": pdn.id,
+                                "organization_id": pdn.organization_id,
+                                "subscription_id": pdn.subscription_id,
+                                "merchant_order_id": pdn.merchant_order_id,
+                                "previous_status": prev_status,
+                                "current_status": pdn.status,
+                                "action": "retry_blocked_already_attempted",
+                                "success": False,
+                                "error": "Guarded retry already attempted for this notification",
+                            })
+                            continue
+
+                        # Guard 2: Subscription active
                         if sub.status not in (SaaSSubscriptionStatus.ACTIVE, SaaSSubscriptionStatus.GRACE):
                             logger.warning("Guarded retry blocked for %s: sub %s status is %s",
                                            pdn.merchant_order_id, sub.id, sub.status)
@@ -721,27 +741,78 @@ class RenewalService:
                             })
                             continue
 
-                        # Precondition 2: Mandate active on PhonePe
-                        if sub.provider_subscription_id:
-                            try:
-                                mandate_chk = provider.check_subscription_status(sub.provider_subscription_id)
-                                if mandate_chk.status not in ("ACTIVE", "PENDING"):
-                                    logger.warning("Guarded retry blocked for %s: PhonePe mandate status is %s",
-                                                   pdn.merchant_order_id, mandate_chk.status)
-                                    results.append({
-                                        "notification_id": pdn.id,
-                                        "organization_id": pdn.organization_id,
-                                        "subscription_id": pdn.subscription_id,
-                                        "merchant_order_id": pdn.merchant_order_id,
-                                        "previous_status": prev_status,
-                                        "current_status": pdn.status,
-                                        "action": "retry_blocked_mandate_not_active",
-                                        "success": False,
-                                    })
-                                    continue
-                            except Exception as m_err:
-                                logger.warning("Guarded retry blocked for %s: could not check mandate status: %s",
-                                               pdn.merchant_order_id, m_err)
+                        # Guard 3: Mandate relationship validation
+                        if not pdn.mandate_id or pdn.mandate_id != sub.active_mandate_id:
+                            logger.warning(
+                                "Guarded retry blocked for %s: pdn mandate %s does not match active mandate %s",
+                                pdn.merchant_order_id, pdn.mandate_id, sub.active_mandate_id,
+                            )
+                            results.append({
+                                "notification_id": pdn.id,
+                                "organization_id": pdn.organization_id,
+                                "subscription_id": pdn.subscription_id,
+                                "merchant_order_id": pdn.merchant_order_id,
+                                "previous_status": prev_status,
+                                "current_status": pdn.status,
+                                "action": "retry_blocked_wrong_mandate_relationship",
+                                "success": False,
+                                "error": "Mandate relationship mismatch with subscription",
+                            })
+                            continue
+
+                        mandate = SaaSMandate.query.filter_by(
+                            id=pdn.mandate_id,
+                            organization_id=sub.organization_id,
+                            subscription_id=sub.id,
+                        ).first()
+
+                        if not mandate:
+                            logger.warning(
+                                "Guarded retry blocked for %s: mandate %s not found for org=%s, sub=%s",
+                                pdn.merchant_order_id, pdn.mandate_id, sub.organization_id, sub.id,
+                            )
+                            results.append({
+                                "notification_id": pdn.id,
+                                "organization_id": pdn.organization_id,
+                                "subscription_id": pdn.subscription_id,
+                                "merchant_order_id": pdn.merchant_order_id,
+                                "previous_status": prev_status,
+                                "current_status": pdn.status,
+                                "action": "retry_blocked_wrong_mandate_relationship",
+                                "success": False,
+                                "error": "Mandate not found for organization and subscription",
+                            })
+                            continue
+
+                        if mandate.merchant_subscription_id != sub.provider_subscription_id:
+                            logger.warning(
+                                "Guarded retry blocked for %s: mandate merchant_sub_id '%s' != sub provider_sub_id '%s'",
+                                pdn.merchant_order_id, mandate.merchant_subscription_id, sub.provider_subscription_id,
+                            )
+                            results.append({
+                                "notification_id": pdn.id,
+                                "organization_id": pdn.organization_id,
+                                "subscription_id": pdn.subscription_id,
+                                "merchant_order_id": pdn.merchant_order_id,
+                                "previous_status": prev_status,
+                                "current_status": pdn.status,
+                                "action": "retry_blocked_wrong_mandate_relationship",
+                                "success": False,
+                                "error": "Mandate merchant_subscription_id mismatch",
+                            })
+                            continue
+
+                        # Guard 4: Live Mandate status against PhonePe must be strictly ACTIVE (reject PENDING)
+                        try:
+                            mandate_chk = provider.check_subscription_status(
+                                mandate.merchant_subscription_id,
+                                organization_id=sub.organization_id,
+                            )
+                            if mandate_chk.status != "ACTIVE":
+                                logger.warning(
+                                    "Guarded retry blocked for %s: PhonePe mandate status is '%s' (strictly 'ACTIVE' required)",
+                                    pdn.merchant_order_id, mandate_chk.status,
+                                )
                                 results.append({
                                     "notification_id": pdn.id,
                                     "organization_id": pdn.organization_id,
@@ -749,13 +820,109 @@ class RenewalService:
                                     "merchant_order_id": pdn.merchant_order_id,
                                     "previous_status": prev_status,
                                     "current_status": pdn.status,
-                                    "action": "retry_blocked_mandate_check_failed",
+                                    "action": "retry_blocked_mandate_not_active",
                                     "success": False,
-                                    "error": str(m_err),
+                                    "error": f"PhonePe mandate status is '{mandate_chk.status}', strictly 'ACTIVE' required",
+                                })
+                                continue
+                        except Exception as m_err:
+                            logger.warning(
+                                "Guarded retry blocked for %s: could not check mandate status: %s",
+                                pdn.merchant_order_id, m_err,
+                            )
+                            results.append({
+                                "notification_id": pdn.id,
+                                "organization_id": pdn.organization_id,
+                                "subscription_id": pdn.subscription_id,
+                                "merchant_order_id": pdn.merchant_order_id,
+                                "previous_status": prev_status,
+                                "current_status": pdn.status,
+                                "action": "retry_blocked_mandate_check_failed",
+                                "success": False,
+                                "error": str(m_err),
+                            })
+                            continue
+
+                        # Guard 5: Strict Billing Reservation Validation
+                        if sub.current_period_start or pdn.billing_period_key:
+                            expected_bpk = (
+                                _compute_billing_period_key(sub.id, sub.current_period_start)
+                                if sub.current_period_start
+                                else pdn.billing_period_key
+                            )
+                            # Require the expected billing-period reservation to exist
+                            bpr = SaaSBillingPeriodReservation.query.filter_by(
+                                organization_id=sub.organization_id,
+                                subscription_id=sub.id,
+                                billing_period_key=expected_bpk,
+                            ).first()
+
+                            if not bpr:
+                                logger.warning(
+                                    "Guarded retry blocked for %s: missing billing period reservation for key %s",
+                                    pdn.merchant_order_id, expected_bpk,
+                                )
+                                results.append({
+                                    "notification_id": pdn.id,
+                                    "organization_id": pdn.organization_id,
+                                    "subscription_id": pdn.subscription_id,
+                                    "merchant_order_id": pdn.merchant_order_id,
+                                    "previous_status": prev_status,
+                                    "current_status": pdn.status,
+                                    "action": "retry_blocked_missing_reservation",
+                                    "success": False,
+                                    "error": f"Billing period reservation missing for key {expected_bpk}",
                                 })
                                 continue
 
-                        # Precondition 3: Amount snapshot matches
+                            # Verify organization_id, subscription_id, billing_period_key, and merchant_order_id match exactly
+                            if (
+                                bpr.organization_id != sub.organization_id
+                                or bpr.subscription_id != sub.id
+                                or bpr.billing_period_key != expected_bpk
+                                or bpr.merchant_order_id != pdn.merchant_order_id
+                                or (pdn.billing_period_key and pdn.billing_period_key != expected_bpk)
+                            ):
+                                logger.warning(
+                                    "Guarded retry blocked for %s: reservation attribute mismatch (bpr.order=%s, pdn.order=%s, bpr.bpk=%s, exp.bpk=%s)",
+                                    pdn.merchant_order_id, bpr.merchant_order_id, pdn.merchant_order_id, bpr.billing_period_key, expected_bpk,
+                                )
+                                results.append({
+                                    "notification_id": pdn.id,
+                                    "organization_id": pdn.organization_id,
+                                    "subscription_id": pdn.subscription_id,
+                                    "merchant_order_id": pdn.merchant_order_id,
+                                    "previous_status": prev_status,
+                                    "current_status": pdn.status,
+                                    "action": "retry_blocked_mismatched_reservation",
+                                    "success": False,
+                                    "error": "Billing period reservation attributes mismatch",
+                                })
+                                continue
+
+                            # Require status to be strictly RESERVED and redemption_initiated_at to be None
+                            if (
+                                bpr.status != BillingPeriodReservationStatus.RESERVED.value
+                                or bpr.redemption_initiated_at is not None
+                            ):
+                                logger.warning(
+                                    "Guarded retry blocked for %s: unsafe reservation state (status=%s, redemption_initiated_at=%s)",
+                                    pdn.merchant_order_id, bpr.status, bpr.redemption_initiated_at,
+                                )
+                                results.append({
+                                    "notification_id": pdn.id,
+                                    "organization_id": pdn.organization_id,
+                                    "subscription_id": pdn.subscription_id,
+                                    "merchant_order_id": pdn.merchant_order_id,
+                                    "previous_status": prev_status,
+                                    "current_status": pdn.status,
+                                    "action": "retry_blocked_unsafe_reservation_state",
+                                    "success": False,
+                                    "error": f"Reservation status '{bpr.status}' or redemption_initiated_at is unsafe for retry",
+                                })
+                                continue
+
+                        # Guard 6: Amount snapshot matches
                         expected_amount = sub.amount_paise or (
                             sub.plan.yearly_price_paise if sub.billing_cycle and sub.billing_cycle.value == "yearly"
                             else (sub.plan.monthly_price_paise if sub.plan else 0)
@@ -775,29 +942,15 @@ class RenewalService:
                             })
                             continue
 
-                        # Precondition 4: Billing period reservation valid and not completed
-                        if pdn.billing_period_key:
-                            bpr = SaaSBillingPeriodReservation.query.filter_by(
-                                subscription_id=sub.id,
-                                organization_id=sub.organization_id,
-                                billing_period_key=pdn.billing_period_key,
-                            ).first()
-                            if bpr and bpr.status == BillingPeriodReservationStatus.COMPLETED.value:
-                                logger.info("Guarded retry blocked for %s: billing period already completed.",
-                                            pdn.merchant_order_id)
-                                results.append({
-                                    "notification_id": pdn.id,
-                                    "organization_id": pdn.organization_id,
-                                    "subscription_id": pdn.subscription_id,
-                                    "merchant_order_id": pdn.merchant_order_id,
-                                    "previous_status": prev_status,
-                                    "current_status": pdn.status,
-                                    "action": "retry_blocked_period_completed",
-                                    "success": False,
-                                })
-                                continue
-
                         # All safety preconditions satisfied: execute single guarded retry with same deterministic order ID
+                        # Mark retry attempted before dispatch
+                        raw = dict(pdn.raw_response_json or {})
+                        raw["guarded_retry_attempted"] = True
+                        raw["guarded_retry_at"] = datetime.utcnow().isoformat()
+                        pdn.raw_response_json = raw
+                        flag_modified(pdn, "raw_response_json")
+                        db.session.commit()
+
                         logger.info("Executing safe guarded retry for order %s on sub %s", pdn.merchant_order_id, sub.id)
                         retry_res = provider.notify_redemption(
                             subscription=sub,
@@ -806,6 +959,16 @@ class RenewalService:
                             claim_token=claim_token,
                             allow_retry=True,
                         )
+
+                        # Re-ensure guarded_retry_attempted flag is preserved on pdn
+                        pdn_reloaded = SaaSPreDebitNotification.query.filter_by(id=pdn.id).first()
+                        if pdn_reloaded:
+                            curr_raw = dict(pdn_reloaded.raw_response_json or {})
+                            curr_raw["guarded_retry_attempted"] = True
+                            pdn_reloaded.raw_response_json = curr_raw
+                            flag_modified(pdn_reloaded, "raw_response_json")
+                            db.session.commit()
+
                         results.append({
                             "notification_id": pdn.id,
                             "organization_id": pdn.organization_id,

@@ -23,6 +23,7 @@ from model import (
 )
 from services.billing.providers.phonepe_autopay_v2_provider import (
     PhonePeAutoPayV2Provider,
+    _compute_billing_period_key,
 )
 from services.billing.providers.phonepe_autopay_client import (
     PhonePeResponseError,
@@ -280,12 +281,22 @@ class PhonePeV2RenewalReconciliationTests(unittest.TestCase):
 
     def test_failed_notification_recovery_guarded_retry_on_404(self):
         """5b. Order never reached PhonePe (404 NOT_FOUND): safe guarded retry reuses same order ID."""
+        bpk = _compute_billing_period_key(self.sub.id, self.sub.current_period_start)
+        res = SaaSBillingPeriodReservation(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            billing_period_key=bpk,
+            merchant_order_id="ORD_ALPHA_RECOVER_RETRY_05B",
+            status=BillingPeriodReservationStatus.RESERVED.value,
+        )
+        db.session.add(res)
         notification = SaaSPreDebitNotification(
             organization_id=self.org.id,
             subscription_id=self.sub.id,
             mandate_id=self.mandate.id,
             merchant_order_id="ORD_ALPHA_RECOVER_RETRY_05B",
             amount_paise=100000,
+            billing_period_key=bpk,
             status=PreDebitNotificationStatus.FAILED.value,
             error_message="Initial connection aborted",
             created_at=datetime.utcnow() - timedelta(minutes=10),
@@ -632,6 +643,377 @@ class PhonePeV2RenewalReconciliationTests(unittest.TestCase):
         mock_recon.assert_called_once()
         mock_upcoming.assert_not_called()
         mock_due.assert_not_called()
+
+    # ── Test 15: INITIATED authoritative 404 guarded retry success ─────────
+    def test_initiated_authoritative_404_guarded_retry_success(self):
+        """15. INITIATED notification receiving authoritative 404 enters guarded retry and succeeds."""
+        bpk = _compute_billing_period_key(self.sub.id, self.sub.current_period_start)
+        res = SaaSBillingPeriodReservation(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            billing_period_key=bpk,
+            merchant_order_id="ORD_ALPHA_INIT_404_RETRY",
+            status=BillingPeriodReservationStatus.RESERVED.value,
+        )
+        db.session.add(res)
+        notification = SaaSPreDebitNotification(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            mandate_id=self.mandate.id,
+            merchant_order_id="ORD_ALPHA_INIT_404_RETRY",
+            amount_paise=100000,
+            billing_period_key=bpk,
+            status=PreDebitNotificationStatus.INITIATED.value,
+            created_at=datetime.utcnow() - timedelta(minutes=10),
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        self.mock_client.get_order_status.side_effect = PhonePeResponseError(
+            "Order not found", status_code=404, error_code="ORDER_NOT_FOUND"
+        )
+        self.mock_client.notify_redemption.return_value = {
+            "orderId": "PP_ORD_INIT_RETRY_01",
+            "validAfter": "2026-11-20T10:00:00Z",
+            "validUpto": "2026-11-22T10:00:00Z",
+        }
+
+        with patch.object(self.provider, "check_subscription_status", return_value=MagicMock(status="ACTIVE")):
+            reconciled = RenewalService.reconcile_unresolved_notifications(
+                self.provider,
+                min_age_minutes=2,
+            )
+
+        self.assertEqual(len(reconciled), 1)
+        self.assertEqual(reconciled[0]["action"], "guarded_retry")
+        self.assertTrue(reconciled[0]["success"])
+
+        # Preserves same record in database (no duplicate order ID created)
+        count = SaaSPreDebitNotification.query.filter_by(merchant_order_id="ORD_ALPHA_INIT_404_RETRY").count()
+        self.assertEqual(count, 1)
+
+        db.session.refresh(notification)
+        self.assertEqual(notification.status, PreDebitNotificationStatus.NOTIFICATION_IN_PROGRESS.value)
+        self.assertTrue(notification.raw_response_json.get("guarded_retry_attempted"))
+
+    # ── Test 16: INITIATED 404 missing reservation blocks retry ────────────
+    def test_initiated_404_missing_reservation_blocks_retry(self):
+        """16. INITIATED notification receiving 404 is blocked from retry if billing reservation is missing."""
+        bpk = _compute_billing_period_key(self.sub.id, self.sub.current_period_start)
+        notification = SaaSPreDebitNotification(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            mandate_id=self.mandate.id,
+            merchant_order_id="ORD_ALPHA_INIT_NO_RES",
+            amount_paise=100000,
+            billing_period_key=bpk,
+            status=PreDebitNotificationStatus.INITIATED.value,
+            created_at=datetime.utcnow() - timedelta(minutes=10),
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        self.mock_client.get_order_status.side_effect = PhonePeResponseError(
+            "Order not found", status_code=404, error_code="ORDER_NOT_FOUND"
+        )
+
+        with patch.object(self.provider, "check_subscription_status", return_value=MagicMock(status="ACTIVE")):
+            reconciled = RenewalService.reconcile_unresolved_notifications(
+                self.provider,
+                min_age_minutes=2,
+            )
+
+        self.assertEqual(len(reconciled), 1)
+        self.assertEqual(reconciled[0]["action"], "retry_blocked_missing_reservation")
+        self.assertFalse(reconciled[0]["success"])
+        self.mock_client.notify_redemption.assert_not_called()
+
+        db.session.refresh(notification)
+        self.assertEqual(notification.status, PreDebitNotificationStatus.INITIATED.value)
+
+    # ── Test 17: INITIATED 404 mismatched reservation blocks retry ─────────
+    def test_initiated_404_mismatched_reservation_blocks_retry(self):
+        """17. INITIATED notification receiving 404 is blocked if reservation attributes do not match."""
+        bpk = _compute_billing_period_key(self.sub.id, self.sub.current_period_start)
+        res = SaaSBillingPeriodReservation(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            billing_period_key=bpk,
+            merchant_order_id="ORD_DIFFERENT_ORDER_999",  # Mismatched order ID
+            status=BillingPeriodReservationStatus.RESERVED.value,
+        )
+        db.session.add(res)
+        notification = SaaSPreDebitNotification(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            mandate_id=self.mandate.id,
+            merchant_order_id="ORD_ALPHA_INIT_MISMATCH_RES",
+            amount_paise=100000,
+            billing_period_key=bpk,
+            status=PreDebitNotificationStatus.INITIATED.value,
+            created_at=datetime.utcnow() - timedelta(minutes=10),
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        self.mock_client.get_order_status.side_effect = PhonePeResponseError(
+            "Order not found", status_code=404, error_code="ORDER_NOT_FOUND"
+        )
+
+        with patch.object(self.provider, "check_subscription_status", return_value=MagicMock(status="ACTIVE")):
+            reconciled = RenewalService.reconcile_unresolved_notifications(
+                self.provider,
+                min_age_minutes=2,
+            )
+
+        self.assertEqual(len(reconciled), 1)
+        self.assertEqual(reconciled[0]["action"], "retry_blocked_mismatched_reservation")
+        self.assertFalse(reconciled[0]["success"])
+        self.mock_client.notify_redemption.assert_not_called()
+
+        db.session.refresh(notification)
+        self.assertEqual(notification.status, PreDebitNotificationStatus.INITIATED.value)
+
+    # ── Test 18: INITIATED network timeout blocks retry ────────────────────
+    def test_initiated_network_timeout_blocks_retry(self):
+        """18. INITIATED notification experiencing network timeout leaves unresolved and never retries."""
+        bpk = _compute_billing_period_key(self.sub.id, self.sub.current_period_start)
+        res = SaaSBillingPeriodReservation(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            billing_period_key=bpk,
+            merchant_order_id="ORD_ALPHA_INIT_TIMEOUT",
+            status=BillingPeriodReservationStatus.RESERVED.value,
+        )
+        db.session.add(res)
+        notification = SaaSPreDebitNotification(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            mandate_id=self.mandate.id,
+            merchant_order_id="ORD_ALPHA_INIT_TIMEOUT",
+            amount_paise=100000,
+            billing_period_key=bpk,
+            status=PreDebitNotificationStatus.INITIATED.value,
+            created_at=datetime.utcnow() - timedelta(minutes=10),
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        self.mock_client.get_order_status.side_effect = PhonePeNetworkError("Connection timed out")
+
+        reconciled = RenewalService.reconcile_unresolved_notifications(
+            self.provider,
+            min_age_minutes=2,
+        )
+
+        self.assertEqual(len(reconciled), 1)
+        self.assertEqual(reconciled[0]["action"], "unresolved_network_timeout")
+        self.assertFalse(reconciled[0]["success"])
+        self.mock_client.notify_redemption.assert_not_called()
+
+        db.session.refresh(notification)
+        self.assertEqual(notification.status, PreDebitNotificationStatus.INITIATED.value)
+
+    # ── Test 19: FAILED 404 mandate PENDING blocks retry ───────────────────
+    def test_failed_404_mandate_pending_blocks_retry(self):
+        """19. FAILED notification receiving 404 blocks retry if PhonePe mandate status is PENDING (not ACTIVE)."""
+        bpk = _compute_billing_period_key(self.sub.id, self.sub.current_period_start)
+        res = SaaSBillingPeriodReservation(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            billing_period_key=bpk,
+            merchant_order_id="ORD_ALPHA_PENDING_MANDATE",
+            status=BillingPeriodReservationStatus.RESERVED.value,
+        )
+        db.session.add(res)
+        notification = SaaSPreDebitNotification(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            mandate_id=self.mandate.id,
+            merchant_order_id="ORD_ALPHA_PENDING_MANDATE",
+            amount_paise=100000,
+            billing_period_key=bpk,
+            status=PreDebitNotificationStatus.FAILED.value,
+            created_at=datetime.utcnow() - timedelta(minutes=10),
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        self.mock_client.get_order_status.side_effect = PhonePeResponseError(
+            "Order not found", status_code=404, error_code="ORDER_NOT_FOUND"
+        )
+
+        # Provider mandate check returns PENDING instead of strictly ACTIVE
+        with patch.object(self.provider, "check_subscription_status", return_value=MagicMock(status="PENDING")):
+            reconciled = RenewalService.reconcile_unresolved_notifications(
+                self.provider,
+                min_age_minutes=2,
+            )
+
+        self.assertEqual(len(reconciled), 1)
+        self.assertEqual(reconciled[0]["action"], "retry_blocked_mandate_not_active")
+        self.assertFalse(reconciled[0]["success"])
+        self.mock_client.notify_redemption.assert_not_called()
+
+        db.session.refresh(notification)
+        self.assertEqual(notification.status, PreDebitNotificationStatus.FAILED.value)
+
+    # ── Test 20: FAILED 404 wrong mandate relationship blocks retry ────────
+    def test_failed_404_wrong_mandate_relationship_blocks_retry(self):
+        """20. FAILED notification receiving 404 blocks retry if mandate relationship is invalid."""
+        bpk = _compute_billing_period_key(self.sub.id, self.sub.current_period_start)
+        res = SaaSBillingPeriodReservation(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            billing_period_key=bpk,
+            merchant_order_id="ORD_ALPHA_WRONG_MANDATE",
+            status=BillingPeriodReservationStatus.RESERVED.value,
+        )
+        db.session.add(res)
+        # Notification pointing to non-matching mandate_id
+        notification = SaaSPreDebitNotification(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            mandate_id=999999,
+            merchant_order_id="ORD_ALPHA_WRONG_MANDATE",
+            amount_paise=100000,
+            billing_period_key=bpk,
+            status=PreDebitNotificationStatus.FAILED.value,
+            created_at=datetime.utcnow() - timedelta(minutes=10),
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        self.mock_client.get_order_status.side_effect = PhonePeResponseError(
+            "Order not found", status_code=404, error_code="ORDER_NOT_FOUND"
+        )
+
+        with patch.object(self.provider, "check_subscription_status", return_value=MagicMock(status="ACTIVE")):
+            reconciled = RenewalService.reconcile_unresolved_notifications(
+                self.provider,
+                min_age_minutes=2,
+            )
+
+        self.assertEqual(len(reconciled), 1)
+        self.assertEqual(reconciled[0]["action"], "retry_blocked_wrong_mandate_relationship")
+        self.assertFalse(reconciled[0]["success"])
+        self.mock_client.notify_redemption.assert_not_called()
+
+        db.session.refresh(notification)
+        self.assertEqual(notification.status, PreDebitNotificationStatus.FAILED.value)
+
+    # ── Test 21: Duplicate guarded retry prevented by flag ──────────────────
+    def test_duplicate_guarded_retry_prevented_by_flag(self):
+        """21. Only one guarded retry is allowed; subsequent retries are blocked by guarded_retry_attempted flag."""
+        bpk = _compute_billing_period_key(self.sub.id, self.sub.current_period_start)
+        res = SaaSBillingPeriodReservation(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            billing_period_key=bpk,
+            merchant_order_id="ORD_ALPHA_DUPLICATE_RETRY",
+            status=BillingPeriodReservationStatus.RESERVED.value,
+        )
+        db.session.add(res)
+        notification = SaaSPreDebitNotification(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            mandate_id=self.mandate.id,
+            merchant_order_id="ORD_ALPHA_DUPLICATE_RETRY",
+            amount_paise=100000,
+            billing_period_key=bpk,
+            status=PreDebitNotificationStatus.FAILED.value,
+            raw_response_json={"guarded_retry_attempted": True, "error": "Previous retry recorded"},
+            created_at=datetime.utcnow() - timedelta(minutes=10),
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        self.mock_client.get_order_status.side_effect = PhonePeResponseError(
+            "Order not found", status_code=404, error_code="ORDER_NOT_FOUND"
+        )
+
+        with patch.object(self.provider, "check_subscription_status", return_value=MagicMock(status="ACTIVE")):
+            reconciled = RenewalService.reconcile_unresolved_notifications(
+                self.provider,
+                min_age_minutes=2,
+            )
+
+        self.assertEqual(len(reconciled), 1)
+        self.assertEqual(reconciled[0]["action"], "retry_blocked_already_attempted")
+        self.assertFalse(reconciled[0]["success"])
+        self.mock_client.notify_redemption.assert_not_called()
+
+        db.session.refresh(notification)
+        self.assertEqual(notification.status, PreDebitNotificationStatus.FAILED.value)
+
+    # ── Test 22: Unsafe reservation states rejected ────────────────────────
+    def test_unsafe_reservation_states_rejected(self):
+        """22. Guarded retry is rejected for unsafe reservation states (COMPLETED, PENDING_RECONCILIATION, redemption_initiated)."""
+        bpk = _compute_billing_period_key(self.sub.id, self.sub.current_period_start)
+
+        res = SaaSBillingPeriodReservation(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            billing_period_key=bpk,
+            merchant_order_id="ORD_ALPHA_UNSAFE_RES",
+            status=BillingPeriodReservationStatus.COMPLETED.value,
+        )
+        db.session.add(res)
+        notification = SaaSPreDebitNotification(
+            organization_id=self.org.id,
+            subscription_id=self.sub.id,
+            mandate_id=self.mandate.id,
+            merchant_order_id="ORD_ALPHA_UNSAFE_RES",
+            amount_paise=100000,
+            billing_period_key=bpk,
+            status=PreDebitNotificationStatus.FAILED.value,
+            created_at=datetime.utcnow() - timedelta(minutes=10),
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        self.mock_client.get_order_status.side_effect = PhonePeResponseError(
+            "Order not found", status_code=404, error_code="ORDER_NOT_FOUND"
+        )
+
+        # Case 1: Status is COMPLETED -> blocked
+        with patch.object(self.provider, "check_subscription_status", return_value=MagicMock(status="ACTIVE")):
+            reconciled = RenewalService.reconcile_unresolved_notifications(
+                self.provider,
+                min_age_minutes=2,
+            )
+        self.assertEqual(len(reconciled), 1)
+        self.assertEqual(reconciled[0]["action"], "retry_blocked_unsafe_reservation_state")
+        self.assertFalse(reconciled[0]["success"])
+
+        # Case 2: Status is PENDING_RECONCILIATION -> blocked
+        res.status = BillingPeriodReservationStatus.PENDING_RECONCILIATION.value
+        db.session.commit()
+        with patch.object(self.provider, "check_subscription_status", return_value=MagicMock(status="ACTIVE")):
+            reconciled = RenewalService.reconcile_unresolved_notifications(
+                self.provider,
+                min_age_minutes=2,
+            )
+        self.assertEqual(len(reconciled), 1)
+        self.assertEqual(reconciled[0]["action"], "retry_blocked_unsafe_reservation_state")
+        self.assertFalse(reconciled[0]["success"])
+
+        # Case 3: Status is RESERVED but redemption_initiated_at is set -> blocked
+        res.status = BillingPeriodReservationStatus.RESERVED.value
+        res.redemption_initiated_at = datetime.utcnow()
+        db.session.commit()
+        with patch.object(self.provider, "check_subscription_status", return_value=MagicMock(status="ACTIVE")):
+            reconciled = RenewalService.reconcile_unresolved_notifications(
+                self.provider,
+                min_age_minutes=2,
+            )
+        self.assertEqual(len(reconciled), 1)
+        self.assertEqual(reconciled[0]["action"], "retry_blocked_unsafe_reservation_state")
+        self.assertFalse(reconciled[0]["success"])
+
+        self.mock_client.notify_redemption.assert_not_called()
+        db.session.refresh(notification)
+        self.assertEqual(notification.status, PreDebitNotificationStatus.FAILED.value)
 
 
 if __name__ == "__main__":
