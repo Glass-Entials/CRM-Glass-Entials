@@ -33,8 +33,13 @@
                 <a href="{{ url_for('leads.all_follow_ups') }}">Follow-Ups</a>
             </div>
         </div>
-        <a href="{{ url_for('projects.projects_list') }}" {% if request.blueprint=='projects' %}class="active" {% endif
-            %}>Projects</a>
+        <div class="dropdown">
+            <a href="#" {% if request.blueprint=='orders' or request.blueprint=='projects' %}class="active" {% endif %}>Orders ▾</a>
+            <div class="dropdown-content">
+                <a href="{{ url_for('orders.list_orders') }}">Order Dashboard</a>
+                <a href="{{ url_for('projects.projects_list') }}">Projects</a>
+            </div>
+        </div>
 
         <div class="dropdown">
             <a href="#" {% if request.blueprint=='tasks' %}class="active" {% endif %}>Tasks ▾</a>
@@ -126,7 +131,7 @@
                    {% if request.blueprint == 'vendors' %}style="color: var(--accent-gold); font-weight: 600;"{% endif %}>
                     Vendor Management
                 </a>
-                {% if current_user.role.value in ['admin', 'manager'] %}
+                {% if current_user.is_authenticated and current_user.role and current_user.role.value in ['admin', 'manager'] %}
                 <a href="{{ url_for('trash.trash_list') }}">Trash</a>
                 {% endif %}
             </div>
