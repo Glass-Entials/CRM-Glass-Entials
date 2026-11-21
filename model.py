@@ -2,6 +2,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from enum import Enum
 from datetime import datetime
+from decimal import Decimal
+from sqlalchemy import event, ForeignKeyConstraint, UniqueConstraint, Index
 from sqlalchemy.orm import validates
 
 db = SQLAlchemy()
@@ -3652,6 +3654,10 @@ class Vendor(db.Model):
     def payment_terms_display(self):
         return self.payment_terms.value if self.payment_terms else ""
 
+    @property
+    def name(self):
+        return self.company_name
+
     def __repr__(self):
         return f"<Vendor {self.company_name}>"
 
@@ -3710,3 +3716,1199 @@ class VendorActivity(db.Model):
 
     def __repr__(self):
         return f"<VendorActivity {self.action} on Vendor {self.vendor_id}>"
+
+
+# ============================================================================
+# ORDER MANAGEMENT SYSTEM (OMS) - PHASE 1 DATABASE FOUNDATION
+# ============================================================================
+
+# --- OMS ENUMS ---
+
+class MasterOrderStatus(Enum):
+    DRAFT = "DRAFT"
+    CONFIRMED = "CONFIRMED"
+    IN_PROCUREMENT = "IN_PROCUREMENT"
+    PARTIALLY_RECEIVED = "PARTIALLY_RECEIVED"
+    RECEIVED = "RECEIVED"
+    IN_DELIVERY = "IN_DELIVERY"
+    PARTIALLY_DELIVERED = "PARTIALLY_DELIVERED"
+    DELIVERED = "DELIVERED"
+    IN_FITTING = "IN_FITTING"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+    CLOSED = "CLOSED"
+    ON_HOLD = "ON_HOLD"
+
+
+class OrderProcurementStatus(Enum):
+    DRAFT = "DRAFT"
+    PO_ISSUED = "PO_ISSUED"
+    ACKNOWLEDGED = "ACKNOWLEDGED"
+    IN_TRANSIT = "IN_TRANSIT"
+    PARTIALLY_RECEIVED = "PARTIALLY_RECEIVED"
+    RECEIVED = "RECEIVED"
+    CANCELLED = "CANCELLED"
+
+
+class OrderDeliveryStatus(Enum):
+    SCHEDULED = "SCHEDULED"
+    OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY"
+    DELIVERED = "DELIVERED"
+    FAILED = "FAILED"
+    RETURNED = "RETURNED"
+
+
+class OrderFittingStatus(Enum):
+    NOT_REQUIRED = "NOT_REQUIRED"
+    PENDING_SCHEDULE = "PENDING_SCHEDULE"
+    SCHEDULED = "SCHEDULED"
+    IN_PROGRESS = "IN_PROGRESS"
+    PARTIALLY_FITTED = "PARTIALLY_FITTED"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class OrderCustomerPaymentStatus(Enum):
+    UNPAID = "UNPAID"
+    PARTIALLY_PAID = "PARTIALLY_PAID"
+    PAID = "PAID"
+    OVERPAID = "OVERPAID"
+
+
+class OrderVendorPaymentStatus(Enum):
+    UNPAID = "UNPAID"
+    PARTIALLY_PAID = "PARTIALLY_PAID"
+    PAID = "PAID"
+
+
+class OrderItemAllocationStatus(Enum):
+    PENDING = "PENDING"
+    PO_CREATED = "PO_CREATED"
+    PARTIALLY_RECEIVED = "PARTIALLY_RECEIVED"
+    RECEIVED = "RECEIVED"
+    CANCELLED = "CANCELLED"
+
+
+class OrderConsignmentStatus(Enum):
+    DISPATCHED = "DISPATCHED"
+    IN_TRANSIT = "IN_TRANSIT"
+    DELIVERED = "DELIVERED"
+    PARTIALLY_RECEIVED = "PARTIALLY_RECEIVED"
+    DAMAGED = "DAMAGED"
+    RETURNED = "RETURNED"
+
+
+class OrderFittingVisitStatus(Enum):
+    SCHEDULED = "SCHEDULED"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    INCOMPLETE = "INCOMPLETE"
+    CANCELLED = "CANCELLED"
+
+
+class OrderPaymentAllocationType(Enum):
+    DIRECT_PAYMENT = "DIRECT_PAYMENT"
+    ADVANCE_UNLINK = "ADVANCE_UNLINK"
+    INVOICE_SETTLEMENT = "INVOICE_SETTLEMENT"
+
+
+class VendorBillStatus(Enum):
+    DRAFT = "DRAFT"
+    PENDING_APPROVAL = "PENDING_APPROVAL"
+    APPROVED = "APPROVED"
+    PARTIALLY_PAID = "PARTIALLY_PAID"
+    PAID = "PAID"
+    CANCELLED = "CANCELLED"
+
+
+class OrderDocumentType(Enum):
+    QUOTATION = "QUOTATION"
+    PURCHASE_ORDER = "PURCHASE_ORDER"
+    DELIVERY_CHALLAN = "DELIVERY_CHALLAN"
+    FITTING_REPORT = "FITTING_REPORT"
+    VENDOR_BILL = "VENDOR_BILL"
+    CUSTOMER_INVOICE = "CUSTOMER_INVOICE"
+    PAYMENT_RECEIPT = "PAYMENT_RECEIPT"
+    SITE_PHOTO = "SITE_PHOTO"
+    OTHER = "OTHER"
+
+
+class OrderClosureType(Enum):
+    CANCELLED = "CANCELLED"
+    FORCE_COMPLETED = "FORCE_COMPLETED"
+    TERMINATED = "TERMINATED"
+
+
+class ImmutableModelError(RuntimeError):
+    """Raised when an update or delete is attempted on an immutable audit record."""
+    pass
+
+
+# --- 19 OMS MODELS ---
+
+class OrderMaster(db.Model):
+    """Central Master Order entity managing the complete business lifecycle."""
+    __tablename__ = "order_master"
+
+    id = db.Column(db.Integer, primary_key=True)
+    master_order_number = db.Column(db.String(50), nullable=False, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    customer_id = db.Column(
+        db.Integer, db.ForeignKey("customer.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    quotation_id = db.Column(
+        db.Integer, db.ForeignKey("quotation.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    project_id = db.Column(
+        db.Integer, db.ForeignKey("project.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+
+    # Status Fields
+    status = db.Column(
+        db.String(50), nullable=False, default=MasterOrderStatus.DRAFT.value, index=True
+    )
+    procurement_status = db.Column(
+        db.String(50), nullable=False, default=OrderProcurementStatus.DRAFT.value, index=True
+    )
+    delivery_status = db.Column(
+        db.String(50), nullable=False, default=OrderDeliveryStatus.SCHEDULED.value, index=True
+    )
+    fitting_status = db.Column(
+        db.String(50), nullable=False, default=OrderFittingStatus.NOT_REQUIRED.value, index=True
+    )
+    customer_payment_status = db.Column(
+        db.String(50), nullable=False, default=OrderCustomerPaymentStatus.UNPAID.value, index=True
+    )
+    vendor_payment_status = db.Column(
+        db.String(50), nullable=False, default=OrderVendorPaymentStatus.UNPAID.value, index=True
+    )
+
+    # Financial Summary (Numeric/Decimal for absolute precision)
+    total_ordered_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    total_tax_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    total_discount_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    net_order_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    total_procurement_cost = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    total_customer_paid = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    total_vendor_billed = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    total_vendor_paid = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+
+    # Dates
+    order_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    expected_delivery_date = db.Column(db.DateTime, nullable=True)
+    actual_delivery_date = db.Column(db.DateTime, nullable=True)
+    expected_fitting_date = db.Column(db.DateTime, nullable=True)
+    actual_fitting_date = db.Column(db.DateTime, nullable=True)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    cancelled_at = db.Column(db.DateTime, nullable=True)
+
+    # Addresses & Notes
+    shipping_address = db.Column(db.Text, nullable=True)
+    billing_address = db.Column(db.Text, nullable=True)
+    site_address = db.Column(db.Text, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    # Concurrency, Auditing & Ownership
+    version_id = db.Column(db.Integer, nullable=False, default=1)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_by_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    assigned_to_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __mapper_args__ = {"version_id_col": version_id}
+    __table_args__ = (
+        UniqueConstraint("organization_id", "master_order_number", name="uq_order_master_org_num"),
+        UniqueConstraint("id", "organization_id", name="uq_order_master_id_org"),
+        Index("ix_order_master_org_date", "organization_id", "order_date"),
+    )
+
+    # Existing module associations
+    organization = db.relationship("Organization")
+    customer = db.relationship("Customer")
+    quotation = db.relationship("Quotation")
+    project = db.relationship("Project")
+    created_by = db.relationship("Employee", foreign_keys=[created_by_id])
+    assigned_to = db.relationship("Employee", foreign_keys=[assigned_to_id])
+
+    # OMS Child Collections
+    items = db.relationship("OrderItem", back_populates="order", cascade="all, delete-orphan", passive_deletes=True)
+    vendor_allocations = db.relationship("OrderItemVendorAllocation", back_populates="order", viewonly=True)
+    procurements = db.relationship("OrderVendorProcurement", back_populates="order")
+    consignments = db.relationship("OrderConsignment", back_populates="order")
+    deliveries = db.relationship("OrderDelivery", back_populates="order")
+    fitting_visits = db.relationship("OrderFittingVisit", back_populates="order")
+    payment_allocations = db.relationship("OrderPaymentAllocation", back_populates="order")
+    vendor_bills = db.relationship("VendorBill", back_populates="order", viewonly=True)
+    vendor_payments = db.relationship("VendorPayment", back_populates="order", viewonly=True)
+    documents = db.relationship("OrderDocument", back_populates="order")
+    revisions = db.relationship("OrderRevision", back_populates="order")
+    status_history = db.relationship("OrderStatusHistory", back_populates="order")
+    exceptional_closure = db.relationship("OrderExceptionalClosure", back_populates="order", uselist=False)
+
+    @property
+    def order_title(self):
+        if self.notes and self.notes.startswith("[") and "]" in self.notes:
+            return self.notes[1:self.notes.index("]")]
+        return self.notes or f"Order #{self.master_order_number}"
+
+    @property
+    def delivery_site_address(self):
+        return self.site_address or self.shipping_address
+
+    @property
+    def tax_amount(self):
+        return self.total_tax_amount
+
+    @property
+    def total_ordered_quantity(self):
+        return sum((it.quantity for it in self.items if not it.is_deleted), Decimal("0.000"))
+
+    @property
+    def total_delivered_quantity(self):
+        return sum((it.delivered_quantity for it in self.items if not it.is_deleted), Decimal("0.000"))
+
+    def __repr__(self):
+        return f"<OrderMaster {self.master_order_number} status={self.status}>"
+
+
+class OrderItem(db.Model):
+    """Line items belonging to an Order."""
+    __tablename__ = "order_item"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    product_id = db.Column(
+        db.Integer, db.ForeignKey("product.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+
+    item_description = db.Column(db.Text, nullable=False)
+    specifications = db.Column(db.Text, nullable=True)
+
+    # Pricing & Quantities
+    quantity = db.Column(db.Numeric(12, 3), nullable=False)
+    unit_price = db.Column(db.Numeric(14, 2), nullable=False)
+    tax_rate = db.Column(db.Numeric(5, 2), nullable=False, default=Decimal("0.00"))
+    tax_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    discount_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    total_price = db.Column(db.Numeric(14, 2), nullable=False)
+
+    # Progress tracking counters
+    allocated_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+    procured_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+    delivered_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+    installed_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "organization_id"],
+            ["order_master.id", "order_master.organization_id"],
+            name="fk_order_item_order_org",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_order_item_id_order_org"),
+        Index("ix_order_item_order_org", "order_id", "organization_id"),
+    )
+
+    order = db.relationship("OrderMaster", back_populates="items")
+    product = db.relationship("Product")
+    allocations = db.relationship("OrderItemVendorAllocation", back_populates="order_item")
+    fitting_items = db.relationship("FittingVisitItem", back_populates="order_item", overlaps="fitting_items,fitting_visit,items")
+    delivery_items = db.relationship("DeliveryItem", back_populates="order_item", overlaps="delivery_items,consignment_item,order_item")
+
+    def __repr__(self):
+        return f"<OrderItem id={self.id} order={self.order_id} qty={self.quantity}>"
+
+
+class OrderVendorProcurement(db.Model):
+    """Purchase Order issued to a vendor for one or more items of an order."""
+    __tablename__ = "order_vendor_procurement"
+
+    id = db.Column(db.Integer, primary_key=True)
+    po_number = db.Column(db.String(50), nullable=False, index=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    vendor_id = db.Column(
+        db.Integer, db.ForeignKey("vendor.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    status = db.Column(
+        db.String(50), nullable=False, default=OrderProcurementStatus.DRAFT.value, index=True
+    )
+    po_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    expected_delivery_date = db.Column(db.DateTime, nullable=True)
+    actual_delivery_date = db.Column(db.DateTime, nullable=True)
+
+    total_procurement_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    tax_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    net_procurement_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+
+    created_by_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    notes = db.Column(db.Text, nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "organization_id"],
+            ["order_master.id", "order_master.organization_id"],
+            name="fk_proc_order_org",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "vendor_id", "order_id", "organization_id", name="uq_proc_id_vendor_order_org"),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_proc_id_order_org"),
+        UniqueConstraint("organization_id", "po_number", name="uq_proc_org_num"),
+    )
+
+    order = db.relationship("OrderMaster", back_populates="procurements")
+    vendor = db.relationship("Vendor")
+    created_by = db.relationship("Employee", foreign_keys=[created_by_id])
+    allocations = db.relationship("OrderItemVendorAllocation", back_populates="procurement")
+    items = db.relationship("OrderProcurementItem", back_populates="procurement", overlaps="items,procurement_items,procurement,allocation")
+    consignments = db.relationship("OrderConsignment", back_populates="procurement")
+    vendor_bills = db.relationship("VendorBill", back_populates="procurement")
+
+    def __repr__(self):
+        return f"<OrderVendorProcurement {self.po_number} vendor={self.vendor_id} status={self.status}>"
+
+
+class OrderItemVendorAllocation(db.Model):
+    """Split allocation of an OrderItem to a specific vendor."""
+    __tablename__ = "order_item_vendor_allocation"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    order_item_id = db.Column(db.Integer, nullable=False, index=True)
+    vendor_id = db.Column(
+        db.Integer, db.ForeignKey("vendor.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    procurement_id = db.Column(
+        db.Integer, db.ForeignKey("order_vendor_procurement.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+
+    allocated_quantity = db.Column(db.Numeric(12, 3), nullable=False)
+    expected_rate = db.Column(db.Numeric(14, 2), nullable=False)
+    estimated_cost = db.Column(db.Numeric(14, 2), nullable=False)
+    received_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+
+    expected_supply_date = db.Column(db.DateTime, nullable=True)
+    actual_supply_date = db.Column(db.DateTime, nullable=True)
+    allocation_status = db.Column(
+        db.String(50), nullable=False, default=OrderItemAllocationStatus.PENDING.value, index=True
+    )
+    notes = db.Column(db.Text, nullable=True)
+
+    created_by_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "organization_id"],
+            ["order_master.id", "order_master.organization_id"],
+            name="fk_alloc_order_org",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["order_item_id", "order_id", "organization_id"],
+            ["order_item.id", "order_item.order_id", "order_item.organization_id"],
+            name="fk_alloc_order_item_org",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "vendor_id", "order_id", "organization_id", name="uq_alloc_id_vendor_order_org"),
+        UniqueConstraint("id", "order_item_id", "order_id", "organization_id", name="uq_alloc_id_item_order_org"),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_alloc_id_order_org"),
+    )
+
+    order = db.relationship("OrderMaster", back_populates="vendor_allocations", viewonly=True)
+    order_item = db.relationship("OrderItem", back_populates="allocations")
+    vendor = db.relationship("Vendor")
+    procurement = db.relationship("OrderVendorProcurement", back_populates="allocations", foreign_keys=[procurement_id])
+    created_by = db.relationship("Employee", foreign_keys=[created_by_id])
+    procurement_items = db.relationship("OrderProcurementItem", back_populates="allocation", overlaps="items,procurement_items,procurement,allocation")
+
+    def __repr__(self):
+        return f"<OrderItemVendorAllocation id={self.id} item={self.order_item_id} vendor={self.vendor_id} qty={self.allocated_quantity}>"
+
+
+class OrderProcurementItem(db.Model):
+    """Line items in a Purchase Order, strictly referencing vendor allocations."""
+    __tablename__ = "order_procurement_item"
+
+    id = db.Column(db.Integer, primary_key=True)
+    procurement_id = db.Column(db.Integer, nullable=False, index=True)
+    allocation_id = db.Column(db.Integer, nullable=False, index=True)
+    vendor_id = db.Column(db.Integer, nullable=False, index=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    quantity = db.Column(db.Numeric(12, 3), nullable=False)
+    unit_rate = db.Column(db.Numeric(14, 2), nullable=False)
+    total_rate = db.Column(db.Numeric(14, 2), nullable=False)
+    tax_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    line_total = db.Column(db.Numeric(14, 2), nullable=False)
+
+    received_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+    accepted_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+    rejected_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+    billed_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["procurement_id", "vendor_id", "order_id", "organization_id"],
+            ["order_vendor_procurement.id", "order_vendor_procurement.vendor_id", "order_vendor_procurement.order_id", "order_vendor_procurement.organization_id"],
+            name="fk_proc_item_proc_vendor",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["allocation_id", "vendor_id", "order_id", "organization_id"],
+            ["order_item_vendor_allocation.id", "order_item_vendor_allocation.vendor_id", "order_item_vendor_allocation.order_id", "order_item_vendor_allocation.organization_id"],
+            name="fk_proc_item_alloc_vendor",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_proc_item_id_order_org"),
+        UniqueConstraint("id", "procurement_id", "order_id", "organization_id", name="uq_proc_item_id_proc_order_org"),
+        UniqueConstraint("procurement_id", "allocation_id", name="uq_proc_item_proc_alloc"),
+    )
+
+    procurement = db.relationship("OrderVendorProcurement", back_populates="items", overlaps="items,procurement_items,procurement,allocation")
+    allocation = db.relationship("OrderItemVendorAllocation", back_populates="procurement_items", foreign_keys=[allocation_id], overlaps="items,procurement_items,procurement,allocation")
+    consignment_items = db.relationship("ConsignmentItem", back_populates="procurement_item", overlaps="consignment,items,consignment_items")
+    bill_items = db.relationship("VendorBillItem", back_populates="procurement_item", overlaps="items,bill,bill_items,vendor_bill_items")
+
+    def __repr__(self):
+        return f"<OrderProcurementItem id={self.id} po={self.procurement_id} alloc={self.allocation_id} qty={self.quantity}>"
+
+
+class OrderConsignment(db.Model):
+    """Transport and shipping consignment for order materials."""
+    __tablename__ = "order_consignment"
+
+    id = db.Column(db.Integer, primary_key=True)
+    consignment_number = db.Column(db.String(50), nullable=False, index=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    procurement_id = db.Column(
+        db.Integer, db.ForeignKey("order_vendor_procurement.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    transporter_name = db.Column(db.String(100), nullable=True)
+    lr_number = db.Column(db.String(50), nullable=True)
+    vehicle_number = db.Column(db.String(50), nullable=True)
+    dispatch_date = db.Column(db.DateTime, nullable=True)
+    expected_arrival_date = db.Column(db.DateTime, nullable=True)
+    actual_arrival_date = db.Column(db.DateTime, nullable=True)
+    status = db.Column(
+        db.String(50), nullable=False, default=OrderConsignmentStatus.DISPATCHED.value, index=True
+    )
+    shipping_cost = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+
+    received_by_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    notes = db.Column(db.Text, nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "organization_id"],
+            ["order_master.id", "order_master.organization_id"],
+            name="fk_consignment_order_org",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_consignment_id_order_org"),
+        UniqueConstraint("organization_id", "consignment_number", name="uq_consignment_org_num"),
+    )
+
+    order = db.relationship("OrderMaster", back_populates="consignments")
+    procurement = db.relationship("OrderVendorProcurement", back_populates="consignments", foreign_keys=[procurement_id])
+    received_by = db.relationship("Employee", foreign_keys=[received_by_id])
+    items = db.relationship("ConsignmentItem", back_populates="consignment", overlaps="consignment,items,consignment_items")
+
+    def __repr__(self):
+        return f"<OrderConsignment {self.consignment_number} status={self.status}>"
+
+
+class ConsignmentItem(db.Model):
+    """Line items inside a consignment shipment."""
+    __tablename__ = "consignment_item"
+
+    id = db.Column(db.Integer, primary_key=True)
+    consignment_id = db.Column(db.Integer, nullable=False, index=True)
+    procurement_item_id = db.Column(db.Integer, nullable=False, index=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    shipped_quantity = db.Column(db.Numeric(12, 3), nullable=False)
+    received_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+    accepted_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+    damaged_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+    rejected_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+
+    qc_status = db.Column(db.String(50), nullable=False, default="PENDING", index=True)
+    qc_remarks = db.Column(db.Text, nullable=True)
+
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["consignment_id", "order_id", "organization_id"],
+            ["order_consignment.id", "order_consignment.order_id", "order_consignment.organization_id"],
+            name="fk_cons_item_cons_order_org",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["procurement_item_id", "order_id", "organization_id"],
+            ["order_procurement_item.id", "order_procurement_item.order_id", "order_procurement_item.organization_id"],
+            name="fk_cons_item_proc_item",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_cons_item_id_order_org"),
+    )
+
+    consignment = db.relationship("OrderConsignment", back_populates="items", overlaps="consignment,items,consignment_items")
+    procurement_item = db.relationship("OrderProcurementItem", back_populates="consignment_items", foreign_keys=[procurement_item_id], overlaps="consignment,items,consignment_items")
+    delivery_items = db.relationship("DeliveryItem", back_populates="consignment_item", overlaps="delivery_items,consignment_item,order_item")
+
+    def __repr__(self):
+        return f"<ConsignmentItem id={self.id} consignment={self.consignment_id} qty={self.shipped_quantity}>"
+
+
+class OrderDelivery(db.Model):
+    """Delivery Challan / Dispatch to the Customer."""
+    __tablename__ = "order_delivery"
+
+    id = db.Column(db.Integer, primary_key=True)
+    delivery_number = db.Column(db.String(50), nullable=False, index=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    delivery_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    recipient_name = db.Column(db.String(100), nullable=True)
+    recipient_phone = db.Column(db.String(20), nullable=True)
+    delivery_address = db.Column(db.Text, nullable=True)
+    challan_number = db.Column(db.String(50), nullable=True)
+    status = db.Column(
+        db.String(50), nullable=False, default=OrderDeliveryStatus.SCHEDULED.value, index=True
+    )
+
+    delivered_by_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    proof_of_delivery_document_id = db.Column(db.Integer, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "organization_id"],
+            ["order_master.id", "order_master.organization_id"],
+            name="fk_delivery_order_org",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_delivery_id_order_org"),
+        UniqueConstraint("organization_id", "delivery_number", name="uq_delivery_org_num"),
+    )
+
+    order = db.relationship("OrderMaster", back_populates="deliveries")
+    delivered_by = db.relationship("Employee", foreign_keys=[delivered_by_id])
+    items = db.relationship("DeliveryItem", back_populates="delivery", overlaps="delivery_items,delivery")
+
+    def __repr__(self):
+        return f"<OrderDelivery {self.delivery_number} status={self.status}>"
+
+
+class DeliveryItem(db.Model):
+    """Line items included in a delivery to the customer."""
+    __tablename__ = "delivery_item"
+
+    id = db.Column(db.Integer, primary_key=True)
+    delivery_id = db.Column(db.Integer, nullable=False, index=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    order_item_id = db.Column(db.Integer, nullable=False, index=True)
+    consignment_item_id = db.Column(db.Integer, nullable=True, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    delivered_quantity = db.Column(db.Numeric(12, 3), nullable=False)
+    accepted_quantity = db.Column(db.Numeric(12, 3), nullable=False)
+    damaged_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+    returned_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+    notes = db.Column(db.Text, nullable=True)
+
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["delivery_id", "order_id", "organization_id"],
+            ["order_delivery.id", "order_delivery.order_id", "order_delivery.organization_id"],
+            name="fk_del_item_del_order_org",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["order_item_id", "order_id", "organization_id"],
+            ["order_item.id", "order_item.order_id", "order_item.organization_id"],
+            name="fk_del_item_order_item",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["consignment_item_id", "order_id", "organization_id"],
+            ["consignment_item.id", "consignment_item.order_id", "consignment_item.organization_id"],
+            name="fk_del_item_cons_item",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_del_item_id_order_org"),
+    )
+
+    delivery = db.relationship("OrderDelivery", back_populates="items", overlaps="delivery_items,delivery")
+    order_item = db.relationship("OrderItem", back_populates="delivery_items", foreign_keys=[order_item_id], overlaps="items,delivery")
+    consignment_item = db.relationship("ConsignmentItem", back_populates="delivery_items", foreign_keys=[consignment_item_id], overlaps="items,delivery,delivery_items,order_item")
+    vendor_bill_items = db.relationship("VendorBillItem", back_populates="delivery_item", overlaps="items,bill,bill_items,vendor_bill_items")
+
+    def __repr__(self):
+        return f"<DeliveryItem id={self.id} del={self.delivery_id} accepted={self.accepted_quantity}>"
+
+
+class OrderFittingVisit(db.Model):
+    """Site installation/fitting visit for an order."""
+    __tablename__ = "order_fitting_visit"
+
+    id = db.Column(db.Integer, primary_key=True)
+    visit_number = db.Column(db.String(50), nullable=False, index=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    technician_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    scheduled_date = db.Column(db.DateTime, nullable=False)
+    started_at = db.Column(db.DateTime, nullable=True)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    status = db.Column(
+        db.String(50), nullable=False, default=OrderFittingVisitStatus.SCHEDULED.value, index=True
+    )
+
+    client_signoff = db.Column(db.Boolean, default=False, nullable=False)
+    signoff_document_id = db.Column(db.Integer, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "organization_id"],
+            ["order_master.id", "order_master.organization_id"],
+            name="fk_fitting_order_org",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_fitting_id_order_org"),
+        UniqueConstraint("organization_id", "visit_number", name="uq_fitting_org_num"),
+    )
+
+    order = db.relationship("OrderMaster", back_populates="fitting_visits")
+    technician = db.relationship("Employee", foreign_keys=[technician_id])
+    items = db.relationship("FittingVisitItem", back_populates="fitting_visit", overlaps="fitting_items,fitting_visit,items")
+
+    def __repr__(self):
+        return f"<OrderFittingVisit {self.visit_number} status={self.status}>"
+
+
+class FittingVisitItem(db.Model):
+    """Installation progress per order item for a specific visit."""
+    __tablename__ = "fitting_visit_item"
+
+    id = db.Column(db.Integer, primary_key=True)
+    visit_id = db.Column(db.Integer, nullable=False, index=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    order_item_id = db.Column(db.Integer, nullable=False, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    planned_quantity = db.Column(db.Numeric(12, 3), nullable=False)
+    installed_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+    remaining_quantity = db.Column(db.Numeric(12, 3), nullable=False, default=Decimal("0.000"))
+    issues_reported = db.Column(db.Text, nullable=True)
+
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["visit_id", "order_id", "organization_id"],
+            ["order_fitting_visit.id", "order_fitting_visit.order_id", "order_fitting_visit.organization_id"],
+            name="fk_fit_item_visit_order_org",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["order_item_id", "order_id", "organization_id"],
+            ["order_item.id", "order_item.order_id", "order_item.organization_id"],
+            name="fk_fit_item_order_item",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_fit_item_id_order_org"),
+        UniqueConstraint("visit_id", "order_item_id", name="uq_fit_item_visit_item"),
+    )
+
+    fitting_visit = db.relationship("OrderFittingVisit", back_populates="items", overlaps="fitting_items,fitting_visit,items")
+    order_item = db.relationship("OrderItem", back_populates="fitting_items", foreign_keys=[order_item_id], overlaps="fitting_items,fitting_visit,items")
+
+    def __repr__(self):
+        return f"<FittingVisitItem id={self.id} visit={self.visit_id} installed={self.installed_quantity}>"
+
+
+class OrderPaymentAllocation(db.Model):
+    """Customer payment allocations linked to master orders and optional invoices."""
+    __tablename__ = "order_payment_allocation"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    payment_id = db.Column(
+        db.Integer, db.ForeignKey("payment.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    invoice_id = db.Column(
+        db.Integer, db.ForeignKey("invoice.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+
+    allocation_type = db.Column(
+        db.String(50), nullable=False, default=OrderPaymentAllocationType.DIRECT_PAYMENT.value, index=True
+    )
+    allocated_amount = db.Column(db.Numeric(14, 2), nullable=False)
+    allocation_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+
+    allocated_by_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "organization_id"],
+            ["order_master.id", "order_master.organization_id"],
+            name="fk_payment_alloc_order_org",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_pay_alloc_id_order_org"),
+    )
+
+    order = db.relationship("OrderMaster", back_populates="payment_allocations")
+    payment = db.relationship("Payment")
+    invoice = db.relationship("Invoice")
+    allocated_by = db.relationship("Employee", foreign_keys=[allocated_by_id])
+
+    def __repr__(self):
+        return f"<OrderPaymentAllocation id={self.id} order={self.order_id} amount={self.allocated_amount} type={self.allocation_type}>"
+
+
+class VendorBill(db.Model):
+    """Vendor bills matched to Purchase Orders and deliveries."""
+    __tablename__ = "vendor_bill"
+
+    id = db.Column(db.Integer, primary_key=True)
+    bill_number = db.Column(db.String(50), nullable=False, index=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    procurement_id = db.Column(db.Integer, nullable=False, index=True)
+    vendor_id = db.Column(
+        db.Integer, db.ForeignKey("vendor.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    bill_date = db.Column(db.DateTime, nullable=False)
+    due_date = db.Column(db.DateTime, nullable=True)
+    status = db.Column(
+        db.String(50), nullable=False, default=VendorBillStatus.DRAFT.value, index=True
+    )
+
+    subtotal_amount = db.Column(db.Numeric(14, 2), nullable=False)
+    tax_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    total_amount = db.Column(db.Numeric(14, 2), nullable=False)
+    paid_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+
+    approved_by_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    approved_at = db.Column(db.DateTime, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "organization_id"],
+            ["order_master.id", "order_master.organization_id"],
+            name="fk_vbill_order_org",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["procurement_id", "vendor_id", "order_id", "organization_id"],
+            ["order_vendor_procurement.id", "order_vendor_procurement.vendor_id", "order_vendor_procurement.order_id", "order_vendor_procurement.organization_id"],
+            name="fk_vbill_proc_vendor",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_vbill_id_order_org"),
+        UniqueConstraint("id", "vendor_id", "order_id", "organization_id", name="uq_vbill_id_vendor_order_org"),
+        UniqueConstraint("organization_id", "vendor_id", "bill_number", name="uq_vbill_org_vendor_num"),
+    )
+
+    order = db.relationship("OrderMaster", back_populates="vendor_bills", viewonly=True)
+    procurement = db.relationship("OrderVendorProcurement", back_populates="vendor_bills")
+    vendor = db.relationship("Vendor", overlaps="procurement,vendor_bills,vendor")
+    approved_by = db.relationship("Employee", foreign_keys=[approved_by_id])
+    items = db.relationship("VendorBillItem", back_populates="bill", overlaps="items,bill,bill_items,vendor_bill_items")
+    payments = db.relationship("VendorPayment", back_populates="bill")
+
+    def __repr__(self):
+        return f"<VendorBill {self.bill_number} vendor={self.vendor_id} total={self.total_amount}>"
+
+
+class VendorBillItem(db.Model):
+    """Line items on a vendor bill with 3-way matching."""
+    __tablename__ = "vendor_bill_item"
+
+    id = db.Column(db.Integer, primary_key=True)
+    bill_id = db.Column(db.Integer, nullable=False, index=True)
+    procurement_item_id = db.Column(db.Integer, nullable=False, index=True)
+    delivery_item_id = db.Column(db.Integer, nullable=True, index=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    billed_quantity = db.Column(db.Numeric(12, 3), nullable=False)
+    unit_rate = db.Column(db.Numeric(14, 2), nullable=False)
+    tax_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    total_amount = db.Column(db.Numeric(14, 2), nullable=False)
+
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["bill_id", "order_id", "organization_id"],
+            ["vendor_bill.id", "vendor_bill.order_id", "vendor_bill.organization_id"],
+            name="fk_vbill_item_bill_order_org",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["procurement_item_id", "order_id", "organization_id"],
+            ["order_procurement_item.id", "order_procurement_item.order_id", "order_procurement_item.organization_id"],
+            name="fk_vbill_item_proc_item",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["delivery_item_id", "order_id", "organization_id"],
+            ["delivery_item.id", "delivery_item.order_id", "delivery_item.organization_id"],
+            name="fk_vbill_item_del_item",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_vbill_item_id_order_org"),
+    )
+
+    bill = db.relationship("VendorBill", back_populates="items", overlaps="items,bill,bill_items,vendor_bill_items")
+    procurement_item = db.relationship("OrderProcurementItem", back_populates="bill_items", foreign_keys=[procurement_item_id], overlaps="items,bill,bill_items,vendor_bill_items")
+    delivery_item = db.relationship("DeliveryItem", back_populates="vendor_bill_items", foreign_keys=[delivery_item_id], overlaps="items,bill,bill_items,vendor_bill_items")
+
+    def __repr__(self):
+        return f"<VendorBillItem id={self.id} bill={self.bill_id} qty={self.billed_quantity} total={self.total_amount}>"
+
+
+class VendorPayment(db.Model):
+    """Payment disbursement to a vendor against a verified bill."""
+    __tablename__ = "vendor_payment"
+
+    id = db.Column(db.Integer, primary_key=True)
+    payment_reference = db.Column(db.String(50), nullable=False, index=True)
+    bill_id = db.Column(db.Integer, nullable=False, index=True)
+    vendor_id = db.Column(
+        db.Integer, db.ForeignKey("vendor.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    payment_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    amount = db.Column(db.Numeric(14, 2), nullable=False)
+    payment_mode = db.Column(db.String(50), nullable=False)
+    transaction_reference = db.Column(db.String(100), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    created_by_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["bill_id", "vendor_id", "order_id", "organization_id"],
+            ["vendor_bill.id", "vendor_bill.vendor_id", "vendor_bill.order_id", "vendor_bill.organization_id"],
+            name="fk_vpay_bill_vendor",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["order_id", "organization_id"],
+            ["order_master.id", "order_master.organization_id"],
+            name="fk_vpay_order_org",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_vpay_id_order_org"),
+        UniqueConstraint("organization_id", "payment_reference", name="uq_vpay_org_ref"),
+    )
+
+    order = db.relationship("OrderMaster", back_populates="vendor_payments", viewonly=True)
+    bill = db.relationship("VendorBill", back_populates="payments")
+    vendor = db.relationship("Vendor", foreign_keys=[vendor_id], overlaps="bill,payments")
+    created_by = db.relationship("Employee", foreign_keys=[created_by_id])
+
+    def __repr__(self):
+        return f"<VendorPayment ref={self.payment_reference} amount={self.amount}>"
+
+
+class OrderDocument(db.Model):
+    """File attachments, drawings, challans, and PO documents."""
+    __tablename__ = "order_document"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    document_type = db.Column(db.String(50), nullable=False, index=True)
+    title = db.Column(db.String(255), nullable=False)
+    file_path = db.Column(db.String(500), nullable=False)
+    file_size = db.Column(db.Integer, nullable=True)
+    mime_type = db.Column(db.String(100), nullable=True)
+    is_customer_visible = db.Column(db.Boolean, default=False, nullable=False)
+
+    uploaded_by_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "organization_id"],
+            ["order_master.id", "order_master.organization_id"],
+            name="fk_doc_order_org",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_doc_id_order_org"),
+    )
+
+    order = db.relationship("OrderMaster", back_populates="documents")
+    uploaded_by = db.relationship("Employee", foreign_keys=[uploaded_by_id])
+
+    def __repr__(self):
+        return f"<OrderDocument {self.title} type={self.document_type}>"
+
+
+class OrderRevision(db.Model):
+    """Immutable audit snapshot of order changes."""
+    __tablename__ = "order_revision"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    revision_number = db.Column(db.Integer, nullable=False)
+
+    snapshot_json = db.Column(db.Text, nullable=False)
+    change_reason = db.Column(db.Text, nullable=False)
+
+    created_by_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "organization_id"],
+            ["order_master.id", "order_master.organization_id"],
+            name="fk_rev_order_org",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("order_id", "revision_number", name="uq_rev_order_num"),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_rev_id_order_org"),
+    )
+
+    order = db.relationship("OrderMaster", back_populates="revisions")
+    created_by = db.relationship("Employee", foreign_keys=[created_by_id])
+
+    def __repr__(self):
+        return f"<OrderRevision order={self.order_id} rev={self.revision_number}>"
+
+
+class OrderStatusHistory(db.Model):
+    """Immutable log of state transitions for orders."""
+    __tablename__ = "order_status_history"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, nullable=False, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    status_type = db.Column(db.String(50), nullable=False, default="MASTER")
+    from_status = db.Column(db.String(50), nullable=True)
+    to_status = db.Column(db.String(50), nullable=False)
+    remarks = db.Column(db.Text, nullable=True)
+
+    changed_by_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "organization_id"],
+            ["order_master.id", "order_master.organization_id"],
+            name="fk_status_hist_order_org",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_status_hist_id_order_org"),
+    )
+
+    order = db.relationship("OrderMaster", back_populates="status_history")
+    changed_by = db.relationship("Employee", foreign_keys=[changed_by_id])
+
+    def __repr__(self):
+        return f"<OrderStatusHistory order={self.order_id} {self.from_status} -> {self.to_status}>"
+
+
+class OrderExceptionalClosure(db.Model):
+    """Immutable audit record for cancelled or force-terminated orders."""
+    __tablename__ = "order_exceptional_closure"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, nullable=False, unique=True, index=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    closure_type = db.Column(
+        db.String(50), nullable=False, default=OrderClosureType.CANCELLED.value
+    )
+    closure_reason = db.Column(db.Text, nullable=False)
+    financial_impact_notes = db.Column(db.Text, nullable=True)
+
+    approved_by_id = db.Column(
+        db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "organization_id"],
+            ["order_master.id", "order_master.organization_id"],
+            name="fk_closure_order_org",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("order_id", name="uq_closure_order_id"),
+        UniqueConstraint("id", "order_id", "organization_id", name="uq_closure_id_order_org"),
+    )
+
+    order = db.relationship("OrderMaster", back_populates="exceptional_closure")
+    approved_by = db.relationship("Employee", foreign_keys=[approved_by_id])
+
+    def __repr__(self):
+        return f"<OrderExceptionalClosure order={self.order_id} type={self.closure_type}>"
+
+
+# --- IMMUTABILITY EVENT LISTENERS ---
+
+@event.listens_for(OrderStatusHistory, "before_update")
+def _prevent_order_status_history_update(mapper, connection, target):
+    raise ImmutableModelError("OrderStatusHistory records are immutable and cannot be updated.")
+
+
+@event.listens_for(OrderStatusHistory, "before_delete")
+def _prevent_order_status_history_delete(mapper, connection, target):
+    raise ImmutableModelError("OrderStatusHistory records are immutable and cannot be deleted.")
+
+
+@event.listens_for(OrderExceptionalClosure, "before_update")
+def _prevent_order_exceptional_closure_update(mapper, connection, target):
+    raise ImmutableModelError("OrderExceptionalClosure records are immutable and cannot be updated.")
+
+
+@event.listens_for(OrderExceptionalClosure, "before_delete")
+def _prevent_order_exceptional_closure_delete(mapper, connection, target):
+    raise ImmutableModelError("OrderExceptionalClosure records are immutable and cannot be deleted.")
+
+
+@event.listens_for(OrderRevision, "before_update")
+def _prevent_order_revision_update(mapper, connection, target):
+    raise ImmutableModelError("OrderRevision records are immutable and cannot be updated.")
+
+
+@event.listens_for(OrderRevision, "before_delete")
+def _prevent_order_revision_delete(mapper, connection, target):
+    raise ImmutableModelError("OrderRevision records are immutable and cannot be deleted.")
+
