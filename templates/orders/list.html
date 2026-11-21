@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified Order Cockpit | GlassEntials CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:wght@0,400;0,600;0,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .ord-page { max-width: 1400px; margin: 30px auto; padding: 0 24px; font-family: 'Montserrat', sans-serif; }
+        .ord-hero { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: #fff; padding: 24px 30px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+        .ord-hero h1 { margin: 0; font-size: 24px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 12px; }
+        .ord-hero p { margin: 4px 0 0 0; color: #64748b; font-size: 14px; }
+        .btn-primary { background: #0284c7; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; border: none; cursor: pointer; transition: background 0.2s; }
+        .btn-primary:hover { background: #0369a1; }
+        .btn-secondary { background: #f1f5f9; color: #334155; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; border: 1px solid #cbd5e1; }
+        .btn-secondary:hover { background: #e2e8f0; }
+        .ord-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .metric-card { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid #0284c7; }
+        .metric-card.green { border-left-color: #10b981; }
+        .metric-card.amber { border-left-color: #f59e0b; }
+        .metric-card.purple { border-left-color: #8b5cf6; }
+        .metric-card.indigo { border-left-color: #6366f1; }
+        .metric-card h3 { margin: 0; font-size: 24px; font-weight: 700; color: #0f172a; }
+        .metric-card span { font-size: 13px; color: #64748b; font-weight: 500; }
+        .ord-filter-bar { background: #fff; padding: 18px 24px; border-radius: 10px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+        .ord-filter-bar input, .ord-filter-bar select { padding: 9px 14px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit; }
+        .ord-filter-bar input[type="text"] { min-width: 260px; }
+        .ord-table-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); overflow: hidden; }
+        .ord-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+        .ord-table th { background: #f8fafc; padding: 14px 18px; font-weight: 600; color: #475569; border-bottom: 1px solid #e2e8f0; }
+        .ord-table td { padding: 14px 18px; border-bottom: 1px solid #f1f5f9; color: #1e293b; vertical-align: middle; }
+        .ord-table tr:hover { background: #f8fafc; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+        .badge-draft { background: #f1f5f9; color: #475569; }
+        .badge-confirmed { background: #e0f2fe; color: #0369a1; }
+        .badge-procurement { background: #fef3c7; color: #92400e; }
+        .badge-delivery { background: #e0e7ff; color: #3730a3; }
+        .badge-fitting { background: #f3e8ff; color: #6b21a8; }
+        .badge-completed { background: #dcfce7; color: #15803d; }
+        .badge-cancelled { background: #fee2e2; color: #991b1b; }
+        .badge-paid { background: #dcfce7; color: #15803d; }
+        .badge-unpaid { background: #fee2e2; color: #b91c1c; }
+        .badge-partial { background: #fef3c7; color: #b45309; }
+        .ord-link { color: #0284c7; font-weight: 600; text-decoration: none; }
+        .ord-link:hover { text-decoration: underline; }
+        .alert { padding: 12px 18px; border-radius: 8px; margin-bottom: 18px; font-size: 13px; font-weight: 500; }
+        .alert-success { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .pagination { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 20px; background: #fff; }
+    </style>
+</head>
+<body class="dashboard-page">
+    {% include 'includes/navbar.html' %}
+
+    <main class="ord-page">
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(category_filter=["order_success"]) %}
+        {% if messages %}{% for msg in messages %}<div class="alert alert-success">{{ msg }}</div>{% endfor %}{% endif %}{% endwith %}
+
+        {% with messages = get_flashed_messages(category_filter=["order_error"]) %}
+        {% if messages %}{% for msg in messages %}<div class="alert alert-error">{{ msg }}</div>{% endfor %}{% endif %}{% endwith %}
+
+        <!-- Hero Header -->
+        <div class="ord-hero">
+            <div>
+                <h1>
+                    <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                    </svg>
+                    Unified Order Cockpit
+                </h1>
+                <p>Complete lifecycle oversight: Procurement, Transit, Delivery, Site Fitting & Financial Reconciliation</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <a href="{{ url_for('orders.orders_dashboard') }}" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                    Dashboard
+                </a>
+                <a href="{{ url_for('orders.export_orders_csv', q=search_query, status=status_filter) }}" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    CSV
+                </a>
+                <a href="{{ url_for('orders.export_orders_excel', q=search_query, status=status_filter) }}" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Excel
+                </a>
+                <a href="{{ url_for('orders.new_order') }}" class="btn-primary">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Create Master Order
+                </a>
+            </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="ord-metrics">
+            <div class="metric-card">
+                <h3>{{ metrics.total_orders }}</h3>
+                <span>Total Master Orders</span>
+            </div>
+            <div class="metric-card amber">
+                <h3>{{ metrics.in_procurement }}</h3>
+                <span>In Procurement / Transit</span>
+            </div>
+            <div class="metric-card indigo">
+                <h3>{{ metrics.in_delivery }}</h3>
+                <span>In Customer Delivery</span>
+            </div>
+            <div class="metric-card purple">
+                <h3>{{ metrics.in_fitting }}</h3>
+                <span>Site Fitting Active</span>
+            </div>
+            <div class="metric-card green">
+                <h3>{{ metrics.completed }}</h3>
+                <span>Fully Completed</span>
+            </div>
+            <div class="metric-card">
+                <h3>₹{{ "{:,.2f}".format(metrics.total_revenue) }}</h3>
+                <span>Total Order Value</span>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <form method="GET" action="{{ url_for('orders.list_orders') }}" class="ord-filter-bar">
+            <input type="text" name="q" placeholder="Search Master ID, Title, Customer..." value="{{ search_query }}">
+            
+            <select name="status">
+                <option value="">All Master Statuses</option>
+                {% for st in master_statuses %}
+                <option value="{{ st }}" {% if status_filter == st %}selected{% endif %}>{{ st }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="procurement_status">
+                <option value="">Procurement Status</option>
+                <option value="DRAFT" {% if procurement_filter == 'DRAFT' %}selected{% endif %}>DRAFT</option>
+                <option value="PO_ISSUED" {% if procurement_filter == 'PO_ISSUED' %}selected{% endif %}>PO ISSUED</option>
+                <option value="IN_TRANSIT" {% if procurement_filter == 'IN_TRANSIT' %}selected{% endif %}>IN TRANSIT</option>
+                <option value="RECEIVED" {% if procurement_filter == 'RECEIVED' %}selected{% endif %}>RECEIVED</option>
+            </select>
+
+            <select name="delivery_status">
+                <option value="">Delivery Status</option>
+                <option value="SCHEDULED" {% if delivery_filter == 'SCHEDULED' %}selected{% endif %}>SCHEDULED</option>
+                <option value="OUT_FOR_DELIVERY" {% if delivery_filter == 'OUT_FOR_DELIVERY' %}selected{% endif %}>OUT FOR DELIVERY</option>
+                <option value="DELIVERED" {% if delivery_filter == 'DELIVERED' %}selected{% endif %}>DELIVERED</option>
+            </select>
+
+            <select name="customer_payment_status">
+                <option value="">Customer Payment</option>
+                <option value="UNPAID" {% if payment_filter == 'UNPAID' %}selected{% endif %}>UNPAID</option>
+                <option value="PARTIALLY_PAID" {% if payment_filter == 'PARTIALLY_PAID' %}selected{% endif %}>PARTIALLY PAID</option>
+                <option value="PAID" {% if payment_filter == 'PAID' %}selected{% endif %}>PAID</option>
+            </select>
+
+            <button type="submit" class="btn-secondary">Filter</button>
+            <a href="{{ url_for('orders.list_orders') }}" class="btn-secondary">Reset</a>
+        </form>
+
+        <!-- Orders Table Card -->
+        <div class="ord-table-card">
+            <table class="ord-table">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Order Title & Customer</th>
+                        <th>Date</th>
+                        <th>Master Status</th>
+                        <th>Procurement</th>
+                        <th>Delivery</th>
+                        <th>Fitting</th>
+                        <th>Net Amount</th>
+                        <th>Payment</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if orders %}
+                    {% for ord in orders %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('orders.detail_order', order_id=ord.id) }}" class="ord-link">
+                                {{ ord.master_order_number }}
+                            </a>
+                        </td>
+                        <td>
+                            <strong>{{ ord.order_title }}</strong><br>
+                            <small style="color: #64748b;">{{ ord.customer.name if ord.customer else 'No Customer' }}</small>
+                        </td>
+                        <td>{{ ord.order_date.strftime('%d-%b-%Y') if ord.order_date else '-' }}</td>
+                        <td>
+                            {% set st = ord.status %}
+                            <span class="badge 
+                                {% if st == 'CONFIRMED' %}badge-confirmed
+                                {% elif 'PROCUREMENT' in st or 'RECEIVED' in st %}badge-procurement
+                                {% elif 'DELIVER' in st %}badge-delivery
+                                {% elif 'FITTING' in st %}badge-fitting
+                                {% elif st == 'COMPLETED' or st == 'CLOSED' %}badge-completed
+                                {% elif st == 'CANCELLED' %}badge-cancelled
+                                {% else %}badge-draft{% endif %}">
+                                {{ st }}
+                            </span>
+                        </td>
+                        <td><span class="badge badge-draft">{{ ord.procurement_status }}</span></td>
+                        <td><span class="badge badge-draft">{{ ord.delivery_status }}</span></td>
+                        <td><span class="badge badge-draft">{{ ord.fitting_status }}</span></td>
+                        <td><strong>₹{{ "{:,.2f}".format(ord.net_order_amount) }}</strong></td>
+                        <td>
+                            {% set pst = ord.customer_payment_status %}
+                            <span class="badge {% if pst == 'PAID' %}badge-paid{% elif pst == 'PARTIALLY_PAID' %}badge-partial{% else %}badge-unpaid{% endif %}">
+                                {{ pst }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('orders.detail_order', order_id=ord.id) }}" class="btn-secondary">
+                                Open Cockpit
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 40px; color: #64748b;">
+                            No orders found matching the filter criteria.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            <!-- Pagination -->
+            {% if pagination.pages > 1 %}
+            <div class="pagination">
+                {% if pagination.page > 1 %}
+                <a href="{{ url_for('orders.list_orders', page=pagination.page-1, q=search_query, status=status_filter) }}" class="btn-secondary">Previous</a>
+                {% endif %}
+                <span style="align-self: center; font-size: 13px; color: #64748b;">
+                    Page {{ pagination.page }} of {{ pagination.pages }} (Total {{ pagination.total }})
+                </span>
+                {% if pagination.page < pagination.pages %}
+                <a href="{{ url_for('orders.list_orders', page=pagination.page+1, q=search_query, status=status_filter) }}" class="btn-secondary">Next</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </main>
+</body>
+</html>

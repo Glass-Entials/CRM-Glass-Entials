@@ -45,6 +45,7 @@ from routes.gst_reports import gst_bp
 from routes.messages import messages_bp
 from routes.org_customers import org_customers_bp
 from routes.vendors import vendors_bp
+from routes.orders import orders_bp
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -344,6 +345,7 @@ app.register_blueprint(ai_chat_bp)
 app.register_blueprint(org_customers_bp)
 app.register_blueprint(vendors_bp)
 app.register_blueprint(messages_bp)
+app.register_blueprint(orders_bp)
 # Exempt the Android device API from CSRF (uses Bearer token auth instead)
 csrf.exempt(call_logger_api_bp)
 # Exempt SaaS billing & PhonePe AutoPay webhooks / callbacks from CSRF (verified by signature)

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Master Order | GlassEntials CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:wght@0,400;0,600;0,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
+    <style>
+        .ord-page { max-width: 1200px; margin: 30px auto; padding: 0 24px; font-family: 'Montserrat', sans-serif; }
+        .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); padding: 30px; margin-bottom: 24px; }
+        .card h2 { margin-top: 0; font-size: 20px; font-weight: 700; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-bottom: 20px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 13px; font-weight: 600; color: #475569; }
+        .form-group input, .form-group select, .form-group textarea { padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit; }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .btn-primary { background: #0284c7; color: #fff; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; border: none; cursor: pointer; }
+        .btn-primary:hover { background: #0369a1; }
+        .btn-secondary { background: #f1f5f9; color: #334155; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; border: 1px solid #cbd5e1; cursor: pointer; }
+        .btn-secondary:hover { background: #e2e8f0; }
+        .btn-danger { background: #ef4444; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+        .btn-danger:hover { background: #dc2626; }
+        .items-table { width: 100%; border-collapse: collapse; margin-top: 14px; margin-bottom: 14px; font-size: 13px; }
+        .items-table th { background: #f8fafc; padding: 10px 14px; text-align: left; color: #475569; border-bottom: 1px solid #e2e8f0; }
+        .items-table td { padding: 8px 14px; border-bottom: 1px solid #f1f5f9; }
+        .items-table input, .items-table select { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; }
+        .alert-error { background: #fee2e2; color: #991b1b; padding: 14px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; }
+    </style>
+</head>
+<body class="dashboard-page">
+    {% include 'includes/navbar.html' %}
+
+    <main class="ord-page">
+        {% with messages = get_flashed_messages(category_filter=["order_error"]) %}
+        {% if messages %}{% for msg in messages %}<div class="alert-error">{{ msg }}</div>{% endfor %}{% endif %}{% endwith %}
+
+        <form method="POST" action="{{ url_for('orders.create_order') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- Basic Details Card -->
+            <div class="card">
+                <h2>Create Master Order</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="customer_id">Customer *</label>
+                        <select name="customer_id" id="customer_id" required>
+                            <option value="">Select Customer</option>
+                            {% for c in customers %}
+                            <option value="{{ c.id }}">{{ c.name }} ({{ c.company_name or 'Individual' }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="order_title">Order Title *</label>
+                        <input type="text" name="order_title" id="order_title" placeholder="e.g. Villa 402 - Toughened Glass & Fittings" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="project_id">Project (Optional)</label>
+                        <select name="project_id" id="project_id">
+                            <option value="">None</option>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="assigned_to_id">Assigned Employee</label>
+                        <select name="assigned_to_id" id="assigned_to_id">
+                            <option value="">Unassigned</option>
+                            {% for e in employees %}
+                            <option value="{{ e.id }}">{{ e.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="shipping_address">Shipping Address</label>
+                        <textarea name="shipping_address" id="shipping_address" placeholder="Delivery destination address"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="site_address">Site / Installation Address</label>
+                        <textarea name="site_address" id="site_address" placeholder="Site location for fitting technicians"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="billing_address">Billing Address</label>
+                        <textarea name="billing_address" id="billing_address" placeholder="Customer billing address"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Line Items Card -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 style="border: none; margin: 0; padding: 0;">Order Line Items</h2>
+                    <button type="button" class="btn-secondary" onclick="addRow()">+ Add Item Row</button>
+                </div>
+
+                <table class="items-table" id="itemsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 35%;">Item Description *</th>
+                            <th style="width: 25%;">Product Link</th>
+                            <th style="width: 12%;">Quantity *</th>
+                            <th style="width: 14%;">Unit Price (₹) *</th>
+                            <th style="width: 10%;">Tax Rate (%)</th>
+                            <th style="width: 4%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody">
+                        <tr id="row_0">
+                            <td><input type="text" name="item_description_0" placeholder="e.g. 12mm Toughened Glass 8ft x 4ft" required></td>
+                            <td>
+                                <select name="product_id_0">
+                                    <option value="">Custom / Ad-hoc</option>
+                                    {% for pr in products %}
+                                    <option value="{{ pr.id }}">{{ pr.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td><input type="number" step="0.001" min="0.001" name="quantity_0" value="1.000" required></td>
+                            <td><input type="number" step="0.01" min="0.00" name="unit_price_0" value="0.00" required></td>
+                            <td><input type="number" step="0.01" min="0.00" name="tax_rate_0" value="18.00"></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="form-group" style="margin-top: 18px;">
+                    <label for="notes">Internal Order Notes</label>
+                    <textarea name="notes" id="notes" placeholder="Special execution instructions, client notes, etc."></textarea>
+                </div>
+
+                <div style="margin-top: 24px; display: flex; gap: 14px;">
+                    <button type="submit" class="btn-primary">Generate Master Order</button>
+                    <a href="{{ url_for('orders.list_orders') }}" class="btn-secondary" style="padding: 12px 20px;">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </main>
+
+    <script>
+        let rowCount = 1;
+        const productsOptions = `
+            <option value="">Custom / Ad-hoc</option>
+            {% for pr in products %}
+            <option value="{{ pr.id }}">{{ pr.name | e }}</option>
+            {% endfor %}
+        `;
+
+        function addRow() {
+            const tbody = document.getElementById("itemsBody");
+            const tr = document.createElement("tr");
+            tr.id = `row_${rowCount}`;
+            tr.innerHTML = `
+                <td><input type="text" name="item_description_${rowCount}" placeholder="e.g. Stainless Steel Spider Fitting" required></td>
+                <td><select name="product_id_${rowCount}">${productsOptions}</select></td>
+                <td><input type="number" step="0.001" min="0.001" name="quantity_${rowCount}" value="1.000" required></td>
+                <td><input type="number" step="0.01" min="0.00" name="unit_price_${rowCount}" value="0.00" required></td>
+                <td><input type="number" step="0.01" min="0.00" name="tax_rate_${rowCount}" value="18.00"></td>
+                <td><button type="button" class="btn-danger" onclick="removeRow(${rowCount})">×</button></td>
+            `;
+            tbody.appendChild(tr);
+            rowCount++;
+        }
+
+        function removeRow(idx) {
+            const row = document.getElementById(`row_${idx}`);
+            if (row) {
+                row.remove();
+            }
+        }
+    </script>
+</body>
+</html>
