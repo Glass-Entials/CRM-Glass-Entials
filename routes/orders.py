@@ -8,6 +8,7 @@ from decimal import Decimal
 from datetime import datetime
 from typing import Optional
 import io
+import re
 from flask import (
     Blueprint,
     render_template,
@@ -27,6 +28,11 @@ from model import (
     OrderItem,
     Customer,
     Vendor,
+    VendorCategory,
+    VendorBusinessType,
+    VendorPaymentTerms,
+    LeadSource,
+    CustomerStatus,
     Product,
     Project,
     Employee,
@@ -179,51 +185,465 @@ def list_orders():
 
 
 
+def _generate_vendor_code(org_id: int) -> str:
+    """Generate next sequential VEN-XXXXX code per tenant."""
+    last = (
+        Vendor.query
+        .filter_by(organization_id=org_id)
+        .order_by(Vendor.id.desc())
+        .first()
+    )
+    next_seq = (last.id + 1) if last else 1
+    return f"VEN-{next_seq:05d}"
+
+
+# ── LIVE AJAX APIS FOR CUSTOMER & VENDOR ONBOARDING ─────────────────────────
+
+def _safe_customer_url(cust_id):
+    try:
+        return url_for("customers.view_customer", customer_id=cust_id)
+    except Exception:
+        return f"/customers/{cust_id}"
+
+
+def _safe_vendor_url(vendor_id):
+    try:
+        return url_for("vendors.vendor_detail", vendor_id=vendor_id)
+    except Exception:
+        return f"/vendors/{vendor_id}"
+
+
+@orders_bp.route("/api/customers/search", methods=["GET"])
+@login_required
+def api_search_customers():
+    """Live search customers by name, company, phone, email, or ID within tenant."""
+    org_id = _get_org_id()
+    q = request.args.get("q", "").strip()
+    query = Customer.query.filter_by(organization_id=org_id, is_deleted=False)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            or_(
+                Customer.name.ilike(like),
+                Customer.company.ilike(like),
+                Customer.phone_number.ilike(like),
+                Customer.email.ilike(like),
+                Customer.city.ilike(like),
+                Customer.gst_number.ilike(like),
+            )
+        )
+    customers = query.order_by(Customer.name.asc()).limit(20).all()
+    results = [
+        {
+            "id": c.id,
+            "name": c.name,
+            "company": c.company or "",
+            "phone_number": c.phone_number or "",
+            "email": c.email or "",
+            "city": c.city or "",
+            "address": c.address or "",
+            "state": c.state or "",
+            "pincode": c.pincode or "",
+            "gst_number": c.gst_number or "",
+            "gst_status": c.gst_status or "",
+            "business_type": c.business_type or "",
+            "notes": c.notes or "",
+        }
+        for c in customers
+    ]
+    return jsonify({"success": True, "results": results})
+
+
+@orders_bp.route("/api/customers/<int:customer_id>", methods=["GET"])
+@login_required
+def api_get_customer_detail(customer_id: int):
+    """Fetch complete saved customer details for auto-populating order fields."""
+    org_id = _get_org_id()
+    c = Customer.query.filter_by(id=customer_id, organization_id=org_id, is_deleted=False).first()
+    if not c:
+        return jsonify({"success": False, "error": f"Customer #{customer_id} not found."}), 404
+
+    return jsonify({
+        "success": True,
+        "customer": {
+            "id": c.id,
+            "name": c.name,
+            "company": c.company or "",
+            "phone_number": c.phone_number or "",
+            "email": c.email or "",
+            "address": c.address or "",
+            "billing_address": c.address or "",
+            "shipping_address": c.address or "",
+            "site_address": c.address or "",
+            "city": c.city or "",
+            "state": c.state or "",
+            "pincode": c.pincode or "",
+            "business_type": c.business_type or "",
+            "gst_status": c.gst_status or "",
+            "gst_number": c.gst_number or "",
+            "notes": c.notes or "",
+            "profile_url": _safe_customer_url(c.id),
+        }
+    })
+
+
+@orders_bp.route("/api/customers/inline", methods=["POST"])
+@login_required
+@require_roles("admin", "manager", "employee")
+def api_create_customer_inline():
+    """Inline customer creation within the Master Order form."""
+    org_id = _get_org_id()
+    actor_id = _get_actor_id() or 1
+    data = request.get_json() if request.is_json else request.form
+
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip()
+    raw_phone = data.get("phone_number", "")
+    phone_number = re.sub(r"\D", "", str(raw_phone))
+
+    if not name:
+        msg = "Customer name is required."
+        return jsonify({"success": False, "error": msg, "message": msg}), 400
+    if not phone_number or len(phone_number) != 10:
+        msg = "Valid 10-digit mobile number is required."
+        return jsonify({"success": False, "error": msg, "message": msg}), 400
+    if email and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        msg = "A valid email address is required."
+        return jsonify({"success": False, "error": msg, "message": msg}), 400
+
+    # Duplicate checks in tenant
+    existing_phone = Customer.query.filter_by(phone_number=phone_number, organization_id=org_id, is_deleted=False).first()
+    if existing_phone:
+        msg = f"Customer with phone '{phone_number}' already exists: '{existing_phone.name}'."
+        return jsonify({"success": False, "error": msg, "message": msg}), 409
+
+    if email:
+        existing_email = Customer.query.filter_by(email=email, organization_id=org_id, is_deleted=False).first()
+        if existing_email:
+            msg = f"Customer with email '{email}' already exists: '{existing_email.name}'."
+            return jsonify({"success": False, "error": msg, "message": msg}), 409
+
+    gst_num = data.get("gst_number", "").strip().upper() or None
+    billing_addr = data.get("billing_address") or data.get("address", "").strip() or None
+
+    new_cust = Customer(
+        name=name,
+        company=data.get("company", "").strip() or None,
+        phone_number=phone_number,
+        email=email,
+        address=billing_addr,
+        city=data.get("city", "").strip() or None,
+        state=data.get("state", "").strip() or None,
+        pincode=data.get("pincode", "").strip() or None,
+        business_type=data.get("business_type", "").strip() or None,
+        gst_status=data.get("gst_status", "").strip() or None,
+        gst_number=gst_num,
+        notes=data.get("notes", "").strip() or None,
+        organization_id=org_id,
+        created_by=actor_id,
+    )
+    db.session.add(new_cust)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": f"Customer '{new_cust.name}' created successfully.",
+        "customer": {
+            "id": new_cust.id,
+            "name": new_cust.name,
+            "company": new_cust.company or "",
+            "phone_number": new_cust.phone_number,
+            "email": new_cust.email,
+            "address": new_cust.address or "",
+            "billing_address": new_cust.address or "",
+            "shipping_address": new_cust.address or "",
+            "site_address": new_cust.address or "",
+            "city": new_cust.city or "",
+            "state": new_cust.state or "",
+            "pincode": new_cust.pincode or "",
+            "gst_number": new_cust.gst_number or "",
+            "gst_status": new_cust.gst_status or "",
+            "business_type": new_cust.business_type or "",
+            "profile_url": _safe_customer_url(new_cust.id),
+        }
+    }), 201
+
+
+@orders_bp.route("/api/vendors/search", methods=["GET"])
+@login_required
+def api_search_vendors():
+    """Live search vendors by company name, code, contact, phone, email, GSTIN, city."""
+    org_id = _get_org_id()
+    q = request.args.get("q", "").strip()
+    query = Vendor.query.filter_by(organization_id=org_id, is_deleted=False)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            or_(
+                Vendor.company_name.ilike(like),
+                Vendor.legal_name.ilike(like),
+                Vendor.code.ilike(like),
+                Vendor.contact_person.ilike(like),
+                Vendor.phone.ilike(like),
+                Vendor.email.ilike(like),
+                Vendor.gstin.ilike(like),
+                Vendor.city.ilike(like),
+                Vendor.products_services.ilike(like),
+            )
+        )
+    vendors = query.order_by(Vendor.company_name.asc()).limit(20).all()
+    results = [
+        {
+            "id": v.id,
+            "code": v.code,
+            "company_name": v.company_name,
+            "contact_person": v.contact_person or "",
+            "phone": v.phone or "",
+            "email": v.email or "",
+            "city": v.city or "",
+            "gstin": v.gstin or "",
+            "category": v.category.name if v.category else "",
+            "status": v.status_display,
+        }
+        for v in vendors
+    ]
+    return jsonify({"success": True, "results": results})
+
+
+@orders_bp.route("/api/vendors/<int:vendor_id>", methods=["GET"])
+@login_required
+def api_get_vendor_detail(vendor_id: int):
+    """Fetch complete saved vendor details for displaying in the order selection."""
+    org_id = _get_org_id()
+    v = Vendor.query.filter_by(id=vendor_id, organization_id=org_id, is_deleted=False).first()
+    if not v:
+        return jsonify({"success": False, "error": f"Vendor #{vendor_id} not found."}), 404
+
+    is_privileged = (current_user.is_authenticated and current_user.role and current_user.role.value in ["admin", "manager"])
+    if is_privileged:
+        bank_data = {
+            "bank_name": v.bank_name or "",
+            "bank_account_no": v.bank_account_no or "",
+            "bank_ifsc": v.bank_ifsc or "",
+        }
+    else:
+        bank_data = {
+            "bank_name": "••••••••" if v.bank_name else "",
+            "bank_account_no": "••••••••" if v.bank_account_no else "",
+            "bank_ifsc": "••••••••" if v.bank_ifsc else "",
+        }
+
+    return jsonify({
+        "success": True,
+        "vendor": {
+            "id": v.id,
+            "code": v.code,
+            "company_name": v.company_name,
+            "legal_name": v.legal_name or "",
+            "category_id": v.category_id,
+            "category": v.category.name if v.category else "",
+            "contact_person": v.contact_person or "",
+            "designation": v.designation or "",
+            "phone": v.phone or "",
+            "alt_phone": v.alt_phone or "",
+            "email": v.email or "",
+            "website": v.website or "",
+            "gstin": v.gstin or "",
+            "pan": v.pan or "",
+            "business_type": v.business_type.value if v.business_type else "",
+            "address": v.address or "",
+            "city": v.city or "",
+            "state": v.state or "",
+            "pincode": v.pincode or "",
+            "country": v.country or "India",
+            "warehouse_address": v.warehouse_address or "",
+            "payment_terms": v.payment_terms.value if v.payment_terms else "",
+            "notes": v.notes or "",
+            "profile_url": _safe_vendor_url(v.id),
+            **bank_data,
+        }
+    })
+
+
+@orders_bp.route("/api/vendors/inline", methods=["POST"])
+@login_required
+@require_roles("admin", "manager", "employee")
+def api_create_vendor_inline():
+    """Inline vendor creation within the Master Order form."""
+    org_id = _get_org_id()
+    actor_id = _get_actor_id() or 1
+    data = request.get_json() if request.is_json else request.form
+
+    company_name = data.get("company_name", "").strip()
+    if not company_name:
+        msg = "Vendor / Business Name is required."
+        return jsonify({"success": False, "error": msg, "message": msg}), 400
+
+    existing = Vendor.query.filter_by(organization_id=org_id, company_name=company_name, is_deleted=False).first()
+    if existing:
+        msg = f"Vendor '{company_name}' already exists ({existing.code})."
+        return jsonify({"success": False, "error": msg, "message": msg}), 409
+
+    code = _generate_vendor_code(org_id)
+    btype_val = data.get("business_type", "")
+    btype_map = {e.value: e for e in VendorBusinessType}
+    pt_val = data.get("payment_terms", "")
+    pt_map = {e.value: e for e in VendorPaymentTerms}
+
+    cat_id = data.get("category_id")
+    if cat_id:
+        try:
+            cat_id = int(cat_id)
+            c_check = VendorCategory.query.filter_by(id=cat_id, organization_id=org_id).first()
+            if not c_check:
+                cat_id = None
+        except (ValueError, TypeError):
+            cat_id = None
+
+    is_privileged = (current_user.is_authenticated and current_user.role and current_user.role.value in ["admin", "manager"])
+    bank_name = data.get("bank_name", "").strip() or None if is_privileged else None
+    bank_account_no = data.get("bank_account_no", "").strip() or None if is_privileged else None
+    bank_ifsc = data.get("bank_ifsc", "").strip().upper() or None if is_privileged else None
+
+    new_vend = Vendor(
+        code=code,
+        company_name=company_name,
+        legal_name=data.get("legal_name", "").strip() or None,
+        category_id=cat_id,
+        products_services=data.get("products_services", "").strip() or None,
+        contact_person=data.get("contact_person", "").strip() or None,
+        designation=data.get("designation", "").strip() or None,
+        phone=data.get("phone", "").strip() or None,
+        alt_phone=data.get("alt_phone", "").strip() or None,
+        email=data.get("email", "").strip() or None,
+        website=data.get("website", "").strip() or None,
+        gstin=data.get("gstin", "").strip().upper() or None,
+        pan=data.get("pan", "").strip().upper() or None,
+        business_type=btype_map.get(btype_val),
+        address=data.get("address", "").strip() or None,
+        city=data.get("city", "").strip() or None,
+        state=data.get("state", "").strip() or None,
+        pincode=data.get("pincode", "").strip() or None,
+        country=data.get("country", "India").strip() or "India",
+        warehouse_address=data.get("warehouse_address", "").strip() or None,
+        payment_terms=pt_map.get(pt_val),
+        bank_name=bank_name,
+        bank_account_no=bank_account_no,
+        bank_ifsc=bank_ifsc,
+        notes=data.get("notes", "").strip() or None,
+        organization_id=org_id,
+        created_by=actor_id,
+    )
+    db.session.add(new_vend)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": f"Vendor '{new_vend.company_name}' ({new_vend.code}) created successfully.",
+        "vendor": {
+            "id": new_vend.id,
+            "code": new_vend.code,
+            "company_name": new_vend.company_name,
+            "contact_person": new_vend.contact_person or "",
+            "phone": new_vend.phone or "",
+            "email": new_vend.email or "",
+            "city": new_vend.city or "",
+            "gstin": new_vend.gstin or "",
+            "category": new_vend.category.name if new_vend.category else "",
+            "profile_url": _safe_vendor_url(new_vend.id),
+        }
+    }), 201
+
+
 @orders_bp.route("/new", methods=["GET"])
 @login_required
 def new_order():
-    """Form to create a new Master Order."""
+    """Form to create a new Master Order with full onboarding workflow."""
     org_id = _get_org_id()
     customers = Customer.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Customer.name.asc()).all()
+    vendors = Vendor.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Vendor.company_name.asc()).all()
+    vendor_categories = VendorCategory.query.filter_by(organization_id=org_id, is_active=True).order_by(VendorCategory.name.asc()).all()
     products = Product.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Product.name.asc()).all()
     projects = Project.query.filter_by(organization_id=org_id).order_by(Project.name.asc()).all()
     employees = Employee.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Employee.name.asc()).all()
+    next_order_number = OrderMasterService.generate_order_number(org_id)
+    is_privileged = (current_user.is_authenticated and current_user.role and current_user.role.value in ["admin", "manager"])
 
     return render_template(
         "orders/create.html",
         customers=customers,
+        vendors=vendors,
+        vendor_categories=vendor_categories,
         products=products,
         projects=projects,
         employees=employees,
+        next_order_number=next_order_number,
+        is_privileged=is_privileged,
+        vendor_business_types=[e.value for e in VendorBusinessType],
+        vendor_payment_terms=[e.value for e in VendorPaymentTerms],
     )
-
 
 
 @orders_bp.route("/", methods=["POST"])
 @login_required
 @require_roles("admin", "manager", "employee")
 def create_order():
-    """Create a new Master Order with line items."""
+    """Create a new Master Order with 7-section data, multiple vendors and line items."""
     org_id = _get_org_id()
     actor_id = _get_actor_id() or 1
 
     if request.is_json:
         data = request.get_json() or {}
     else:
-        # Form submission: parse form and dynamic line items
+        # Form submission: parse all 7 sections
         data = {
             "customer_id": request.form.get("customer_id", type=int),
             "order_title": request.form.get("order_title", "").strip(),
+            "action_type": request.form.get("action_type", "save_draft").strip(),
             "project_id": request.form.get("project_id", type=int) or None,
             "quotation_id": request.form.get("quotation_id", type=int) or None,
             "assigned_to_id": request.form.get("assigned_to_id", type=int) or None,
+            "operations_employee_id": request.form.get("operations_employee_id", type=int) or None,
+            "priority": request.form.get("priority", "Normal").strip(),
             "shipping_address": request.form.get("shipping_address", "").strip() or None,
             "billing_address": request.form.get("billing_address", "").strip() or None,
             "site_address": request.form.get("site_address", "").strip() or None,
             "notes": request.form.get("notes", "").strip() or None,
+            "order_description": request.form.get("order_description", "").strip() or None,
+            "selected_vendor_ids": [int(v) for v in request.form.getlist("selected_vendor_ids") if str(v).isdigit()],
+            "commercial_details": {
+                "currency": request.form.get("currency", "INR").strip(),
+                "payment_terms": request.form.get("payment_terms", "").strip(),
+                "advance_required": request.form.get("advance_required") in ["true", "True", "1", True, "on", "yes"],
+                "advance_percentage": request.form.get("advance_percentage", type=float) or 0.0,
+                "advance_amount": request.form.get("advance_amount", type=float) or 0.0,
+                "overall_discount": request.form.get("overall_discount", type=float) or 0.0,
+                "additional_charges": request.form.get("additional_charges", type=float) or 0.0,
+                "freight_charges": request.form.get("freight_charges", type=float) or 0.0,
+                "gst_treatment": request.form.get("gst_treatment", "INTRA_STATE").strip(),
+                "terms_and_conditions": request.form.get("terms_and_conditions", "").strip(),
+            },
+            "delivery_details": {
+                "delivery_required": request.form.get("delivery_required") in ["true", "True", "1", True, "on", "yes"],
+                "delivery_type": request.form.get("delivery_type", "DOORSTEP").strip(),
+                "expected_delivery_date": request.form.get("expected_delivery_date", "").strip() or None,
+                "delivery_instructions": request.form.get("delivery_instructions", "").strip() or None,
+                "delivery_contact_person": request.form.get("delivery_contact_person", "").strip() or None,
+                "delivery_contact_phone": request.form.get("delivery_contact_phone", "").strip() or None,
+            },
+            "installation_details": {
+                "installation_required": request.form.get("installation_required") in ["true", "True", "1", True, "on", "yes"],
+                "installation_address": request.form.get("installation_address", "").strip() or None,
+                "site_contact_person": request.form.get("site_contact_person", "").strip() or None,
+                "site_contact_phone": request.form.get("site_contact_phone", "").strip() or None,
+                "site_readiness_status": request.form.get("site_readiness_status", "READY").strip(),
+                "expected_fitting_date": request.form.get("expected_fitting_date", "").strip() or None,
+                "installation_notes": request.form.get("installation_notes", "").strip() or None,
+            },
             "items": []
         }
-        # Parse items from indexed form fields e.g. item_description_0, quantity_0, etc.
+
+        # Parse items from indexed form fields
         item_indices = set()
         for k in request.form.keys():
             if k.startswith("item_description_"):
@@ -236,6 +656,20 @@ def create_order():
             price = request.form.get(f"unit_price_{idx}", 0)
             tax = request.form.get(f"tax_rate_{idx}", 0)
             prod_id = request.form.get(f"product_id_{idx}", type=int) or None
+            sku = request.form.get(f"sku_{idx}", "").strip() or None
+            uom = request.form.get(f"uom_{idx}", "").strip() or None
+            disc_type = request.form.get(f"discount_type_{idx}", "none").strip()
+            disc_val = request.form.get(f"discount_val_{idx}", 0)
+            disc_amt = request.form.get(f"discount_amount_{idx}", 0)
+            alloc_vend = request.form.get(f"allocated_vendor_id_{idx}", type=int) or None
+            it_notes = request.form.get(f"item_notes_{idx}", "").strip() or None
+
+            specs_parts = []
+            if sku: specs_parts.append(f"SKU: {sku}")
+            if uom: specs_parts.append(f"UOM: {uom}")
+            if it_notes: specs_parts.append(it_notes)
+            combined_specs = " | ".join(specs_parts) if specs_parts else None
+
             if desc:
                 data["items"].append({
                     "item_description": desc,
@@ -243,7 +677,34 @@ def create_order():
                     "quantity": qty,
                     "unit_price": price,
                     "tax_rate": tax,
+                    "discount_amount": disc_amt or disc_val,
+                    "specifications": combined_specs,
+                    "allocated_vendor_id": alloc_vend,
                 })
+
+    # Parse date strings if present
+    order_date = None
+    if data.get("order_date"):
+        try:
+            order_date = datetime.strptime(data["order_date"][:10], "%Y-%m-%d")
+        except Exception:
+            order_date = None
+
+    exp_deliv_date = None
+    deliv_date_str = data.get("expected_delivery_date") or data.get("delivery_details", {}).get("expected_delivery_date")
+    if deliv_date_str:
+        try:
+            exp_deliv_date = datetime.strptime(deliv_date_str[:10], "%Y-%m-%d")
+        except Exception:
+            exp_deliv_date = None
+
+    exp_fit_date = None
+    fit_date_str = data.get("expected_fitting_date") or data.get("installation_details", {}).get("expected_fitting_date")
+    if fit_date_str:
+        try:
+            exp_fit_date = datetime.strptime(fit_date_str[:10], "%Y-%m-%d")
+        except Exception:
+            exp_fit_date = None
 
     try:
         order = OrderMasterService.create_order(
@@ -257,27 +718,64 @@ def create_order():
             shipping_address=data.get("shipping_address"),
             billing_address=data.get("billing_address"),
             site_address=data.get("site_address"),
-            notes=data.get("notes"),
+            notes=data.get("notes") or data.get("order_description"),
             actor_id=actor_id,
+            selected_vendor_ids=data.get("selected_vendor_ids"),
+            commercial_details=data.get("commercial_details"),
+            delivery_details=data.get("delivery_details"),
+            installation_details=data.get("installation_details"),
+            expected_delivery_date=exp_deliv_date,
+            expected_fitting_date=exp_fit_date,
+            action_type=data.get("action_type", "save_draft"),
+            order_date=order_date,
+            create_initial_revision=True,
         )
+
+        # Handle attached documents if any
+        if not request.is_json and "order_documents" in request.files:
+            files = request.files.getlist("order_documents")
+            for uploaded_file in files:
+                if uploaded_file and uploaded_file.filename:
+                    try:
+                        OMSDocumentService.save_order_document(
+                            org_id=org_id,
+                            order_id=order.id,
+                            file=uploaded_file,
+                            document_type=OrderDocumentType.OTHER.value,
+                            title=uploaded_file.filename,
+                            uploaded_by_id=actor_id,
+                        )
+                    except Exception as doc_err:
+                        current_app.logger.warning(f"Error saving order document: {doc_err}")
+
         db.session.commit()
 
+        status_msg = "confirmed" if order.status == MasterOrderStatus.CONFIRMED.value else "saved as draft"
         if request.is_json or request.headers.get("Accept") == "application/json":
             return jsonify({
                 "success": True,
-                "message": f"Order {order.master_order_number} created successfully.",
+                "message": f"Order {order.master_order_number} {status_msg} successfully.",
                 "order_id": order.id,
                 "master_order_number": order.master_order_number,
+                "status": order.status,
             }), 201
 
-        flash(f"Order {order.master_order_number} created successfully.", "order_success")
+        flash(f"Order {order.master_order_number} {status_msg} successfully.", "order_success")
         return redirect(url_for("orders.detail_order", order_id=order.id))
 
+    except OMSTenantIsolationError as e:
+        db.session.rollback()
+        msg = str(e)
+        if request.is_json or request.headers.get("Accept") == "application/json":
+            return jsonify({"success": False, "error": msg, "message": msg}), 403
+        flash(f"Permission denied: {msg}", "order_error")
+        return redirect(url_for("orders.new_order"))
     except OMSError as e:
         db.session.rollback()
+        msg = str(e)
         if request.is_json or request.headers.get("Accept") == "application/json":
-            return jsonify({"success": False, "error": str(e)}), 400
-        flash(f"Failed to create order: {str(e)}", "order_error")
+            return jsonify({"success": False, "error": msg, "message": msg}), 400
+        flash(f"Failed to create order: {msg}", "order_error")
         return redirect(url_for("orders.new_order"))
     except Exception as e:
         db.session.rollback()

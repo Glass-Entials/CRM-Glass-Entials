@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Master Order | GlassEntials CRM</title>
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
@@ -12,272 +13,2166 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
     <style>
-        .create-wrap { max-width: 1100px; margin: 2rem auto; padding: 0 20px; }
-
-        .create-panel {
-            background: #fff;
-            border-radius: 12px;
-            border: 1px solid rgba(13,27,42,0.07);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-            padding: 2rem 2.2rem;
-            margin-bottom: 1.8rem;
+        /* ═════════════════════════════════════════════════════════════════
+           MASTER ORDER CREATION STYLES (GlassEntials Royal Navy & Gold)
+           ═════════════════════════════════════════════════════════════════ */
+        :root {
+            --primary-navy: #0d1b2a;
+            --accent-gold: #d4af37;
+            --accent-gold-hover: #b8972e;
+            --bg-warm: #fdfcf9;
+            --card-border: rgba(13, 27, 42, 0.08);
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
         }
-        .create-panel-title {
-            font-family: var(--font-heading);
-            font-size: 1.1rem;
-            color: var(--primary-color);
-            margin: 0 0 1.5rem 0;
-            padding-bottom: 0.9rem;
-            border-bottom: 1px solid rgba(13,27,42,0.07);
+
+        body.dashboard-page {
+            background-color: var(--bg-warm);
+            font-family: 'Montserrat', sans-serif;
+            color: var(--text-dark);
+        }
+
+        .master-order-container {
+            max-width: 1320px;
+            margin: 1.5rem auto 6rem auto;
+            padding: 0 1.5rem;
+        }
+
+        /* Top Header */
+        .order-top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.8rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .order-breadcrumb {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+        }
+        .order-breadcrumb a {
+            color: var(--accent-gold);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .order-page-title {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 1.75rem;
+            color: var(--primary-navy);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .order-number-badge {
+            background: rgba(212, 175, 55, 0.12);
+            color: #927517;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 20px;
+            padding: 0.35rem 1rem;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        /* Section Cards */
+        .form-section-card {
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 3px 14px rgba(0, 0, 0, 0.03);
+            margin-bottom: 1.8rem;
+            overflow: hidden;
+            transition: box-shadow 0.2s ease;
+        }
+        .form-section-card:hover {
+            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Section Header */
+        .section-header {
+            padding: 1.25rem 1.75rem;
+            background: #ffffff;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.06);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        .section-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .section-badge-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary-navy);
+            color: #ffffff;
+            font-size: 0.82rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .section-badge-num.gold {
+            background: var(--accent-gold);
+            color: var(--primary-navy);
+        }
+        .section-title-wrap h2 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 1.15rem;
+            color: var(--primary-navy);
+            margin: 0;
+            font-weight: 700;
             display: flex;
             align-items: center;
             gap: 10px;
         }
-        .create-panel-title span { color: var(--accent-gold); }
-
-        .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
-        .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.2rem; }
-        @media (max-width: 768px) { .form-grid-2, .form-grid-3 { grid-template-columns: 1fr; } }
-
-        .oms-field { display: flex; flex-direction: column; gap: 5px; }
-        .oms-field label {
-            font-size: 0.8rem; font-weight: 700; color: var(--text-muted);
-            text-transform: uppercase; letter-spacing: 0.04em;
-        }
-        .oms-field label span { color: #ef4444; }
-        .oms-field input,
-        .oms-field select,
-        .oms-field textarea {
-            padding: 0.72rem 1rem;
-            border: 1px solid rgba(13,27,42,0.15);
-            border-radius: 8px;
-            font-size: 0.93rem;
-            font-family: var(--font-body);
-            color: var(--primary-color);
-            background: #f8fafc;
-            outline: none;
-            transition: border 0.2s, background 0.2s;
-        }
-        .oms-field input:focus,
-        .oms-field select:focus,
-        .oms-field textarea:focus {
-            border-color: var(--accent-gold);
-            background: #fff;
-        }
-        .oms-field textarea { resize: vertical; min-height: 80px; }
-
-        /* Items table */
-        .items-tbl { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 1rem; }
-        .items-tbl th {
-            background: rgba(13,27,42,0.03);
-            padding: 10px 14px;
-            text-align: left;
+        .section-title-wrap p {
+            margin: 3px 0 0 0;
+            font-size: 0.8rem;
             color: var(--text-muted);
+        }
+        .section-header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .section-status-tag {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: #f1f5f9;
+            color: var(--text-muted);
+        }
+        .section-status-tag.active {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+        }
+        .collapse-icon {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            transition: transform 0.25s ease;
+        }
+        .form-section-card.collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+        .form-section-card.collapsed .section-body {
+            display: none;
+        }
+
+        .section-body {
+            padding: 1.75rem;
+        }
+
+        /* Grid Layouts */
+        .form-row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+            margin-bottom: 1.2rem;
+        }
+        .form-row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1.25rem;
+            margin-bottom: 1.2rem;
+        }
+        .form-row-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.25rem;
+            margin-bottom: 1.2rem;
+        }
+        @media (max-width: 900px) {
+            .form-row-2, .form-row-3, .form-row-4 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Form Inputs */
+        .form-group-custom {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-group-custom label {
+            font-size: 0.8rem;
             font-weight: 700;
-            font-size: 0.78rem;
+            color: var(--text-dark);
             text-transform: uppercase;
             letter-spacing: 0.04em;
-            border-bottom: 1px solid rgba(13,27,42,0.08);
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
-        .items-tbl td { padding: 8px 10px; border-bottom: 1px solid rgba(13,27,42,0.05); vertical-align: middle; }
-        .items-tbl tr:last-child td { border-bottom: none; }
-        .items-tbl input, .items-tbl select {
+        .form-group-custom label .req {
+            color: #ef4444;
+        }
+        .form-control-custom {
             width: 100%;
-            padding: 7px 10px;
-            border: 1px solid rgba(13,27,42,0.15);
-            border-radius: 6px;
-            font-size: 0.88rem;
-            font-family: var(--font-body);
+            padding: 0.75rem 1rem;
+            border: 1px solid rgba(13, 27, 42, 0.15);
+            border-radius: 8px;
+            font-size: 0.92rem;
+            font-family: inherit;
+            color: var(--text-dark);
             background: #f8fafc;
+            outline: none;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+        .form-control-custom:focus {
+            border-color: var(--accent-gold);
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+        }
+        .form-control-custom[readonly], .form-control-custom:disabled {
+            background: #f1f5f9;
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+        textarea.form-control-custom {
+            resize: vertical;
+            min-height: 75px;
+        }
+
+        /* Action Buttons */
+        .btn-custom {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 0.65rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: 1.5px solid transparent;
+            font-family: inherit;
+        }
+        .btn-custom.gold {
+            background: var(--accent-gold);
+            color: var(--primary-navy);
+            border-color: var(--accent-gold);
+        }
+        .btn-custom.gold:hover {
+            background: var(--accent-gold-hover);
+            border-color: var(--accent-gold-hover);
+            color: #ffffff;
+        }
+        .btn-custom.navy {
+            background: var(--primary-navy);
+            color: #ffffff;
+            border-color: var(--primary-navy);
+        }
+        .btn-custom.navy:hover {
+            background: #172a3e;
+        }
+        .btn-custom.outline {
+            background: transparent;
+            border-color: rgba(13, 27, 42, 0.2);
+            color: var(--primary-navy);
+        }
+        .btn-custom.outline:hover {
+            border-color: var(--primary-navy);
+            background: rgba(13, 27, 42, 0.04);
+        }
+        .btn-custom.outline-gold {
+            background: transparent;
+            border-color: var(--accent-gold);
+            color: #927517;
+        }
+        .btn-custom.outline-gold:hover {
+            background: rgba(212, 175, 55, 0.1);
+        }
+        .btn-custom.sm {
+            padding: 0.4rem 0.85rem;
+            font-size: 0.8rem;
+            border-radius: 6px;
+        }
+
+        /* Search Autocomplete Box */
+        .autocomplete-wrap {
+            position: relative;
+            width: 100%;
+        }
+        .autocomplete-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid rgba(13, 27, 42, 0.12);
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+            max-height: 280px;
+            overflow-y: auto;
+            z-index: 1000;
+            margin-top: 4px;
+            display: none;
+        }
+        .autocomplete-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.04);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.15s ease;
+        }
+        .autocomplete-item:hover, .autocomplete-item.selected {
+            background: rgba(212, 175, 55, 0.08);
+        }
+        .autocomplete-item-name {
+            font-weight: 700;
+            color: var(--primary-navy);
+            font-size: 0.92rem;
+        }
+        .autocomplete-item-sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .autocomplete-empty {
+            padding: 1rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+        }
+
+        /* Selected Profile Card */
+        .selected-profile-card {
+            background: #f8fafc;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.85rem;
+        }
+        .profile-card-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .profile-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(212, 175, 55, 0.15);
+            color: var(--accent-gold);
+            font-size: 1.3rem;
+            font-weight: 700;
+            font-family: 'Playfair Display', Georgia, serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .profile-meta h4 {
+            margin: 0;
+            font-size: 1rem;
+            color: var(--primary-navy);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .profile-meta-details {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        /* Notice Banner */
+        .notice-banner {
+            background: rgba(212, 175, 55, 0.07);
+            border-left: 3px solid var(--accent-gold);
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            color: #6d5412;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Selected Vendors Table */
+        .vendors-summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            margin-top: 1rem;
+        }
+        .vendors-summary-table th {
+            background: #f1f5f9;
+            padding: 0.7rem 1rem;
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-muted);
+            border-bottom: 1px solid rgba(13, 27, 42, 0.08);
+        }
+        .vendors-summary-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.05);
+            vertical-align: middle;
+        }
+        .vendors-summary-table tr:hover td {
+            background: rgba(212, 175, 55, 0.02);
+        }
+
+        /* Order Items Table */
+        .items-master-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.86rem;
+            margin-top: 0.5rem;
+        }
+        .items-master-table th {
+            background: #f1f5f9;
+            padding: 0.75rem 0.6rem;
+            text-align: left;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--text-muted);
+            border-bottom: 1px solid rgba(13, 27, 42, 0.08);
+            white-space: nowrap;
+        }
+        .items-master-table td {
+            padding: 0.6rem 0.5rem;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.05);
+            vertical-align: middle;
+        }
+        .items-master-table input, .items-master-table select {
+            width: 100%;
+            padding: 0.55rem 0.6rem;
+            border: 1px solid rgba(13, 27, 42, 0.15);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            background: #ffffff;
             box-sizing: border-box;
             outline: none;
-            transition: border 0.2s;
+            transition: border-color 0.2s;
         }
-        .items-tbl input:focus, .items-tbl select:focus {
+        .items-master-table input:focus, .items-master-table select:focus {
             border-color: var(--accent-gold);
-            background: #fff;
         }
         .btn-remove-row {
-            background: rgba(239,68,68,0.1);
+            background: rgba(239, 68, 68, 0.08);
             color: #ef4444;
-            border: 1px solid rgba(239,68,68,0.2);
-            padding: 5px 10px;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            width: 28px;
+            height: 28px;
             border-radius: 6px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 1rem;
             line-height: 1;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
-        .btn-remove-row:hover { background: #ef4444; color: #fff; }
+        .btn-remove-row:hover {
+            background: #ef4444;
+            color: #ffffff;
+        }
 
-        /* Breadcrumb */
-        .create-breadcrumb {
-            margin-bottom: 1.5rem;
-            font-size: 0.9rem;
-            color: var(--text-muted);
+        /* Commercial Summary Card */
+        .commercial-ledger-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            padding: 1.5rem;
         }
-        .create-breadcrumb a { color: var(--accent-gold); text-decoration: none; }
+        .ledger-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.05);
+            font-size: 0.9rem;
+        }
+        .ledger-line.total-row {
+            border-top: 2px solid rgba(13, 27, 42, 0.15);
+            border-bottom: none;
+            margin-top: 0.5rem;
+            padding-top: 0.85rem;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--primary-navy);
+        }
+        .ledger-line.total-row .val {
+            color: #15803d;
+            font-family: 'Playfair Display', Georgia, serif;
+        }
+
+        /* Sticky Footer Bar */
+        .sticky-footer-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border-top: 1px solid rgba(13, 27, 42, 0.1);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .footer-total-display {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .footer-total-label {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+        .footer-total-val {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--primary-navy);
+        }
+        .footer-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Modal Backdrop & Box */
+        .custom-modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(13, 27, 42, 0.55);
+            backdrop-filter: blur(3px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            padding: 1.5rem;
+        }
+        .custom-modal-box {
+            background: #ffffff;
+            border-radius: 14px;
+            width: 100%;
+            max-width: 760px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(13, 27, 42, 0.08);
+        }
+        .modal-box-header {
+            padding: 1.25rem 1.75rem;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: #ffffff;
+            z-index: 10;
+        }
+        .modal-box-header h3 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 1.25rem;
+            margin: 0;
+            color: var(--primary-navy);
+        }
+        .modal-close-btn {
+            background: none;
+            border: none;
+            font-size: 1.35rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            line-height: 1;
+            padding: 4px;
+        }
+        .modal-box-body {
+            padding: 1.75rem;
+        }
+        .modal-box-footer {
+            padding: 1.25rem 1.75rem;
+            border-top: 1px solid rgba(13, 27, 42, 0.08);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            background: #f8fafc;
+            border-bottom-left-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        /* Toast message */
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10001;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        .toast-notification.success {
+            background: #10b981;
+            color: #ffffff;
+        }
+        .toast-notification.error {
+            background: #ef4444;
+            color: #ffffff;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
 </head>
 <body class="dashboard-page">
     {% include 'includes/navbar.html' %}
 
-    <div class="create-wrap">
+    <!-- Toast Notification -->
+    <div id="toastMessage" class="toast-notification"></div>
 
-        <!-- Flash -->
+    <div class="master-order-container">
+
+        <!-- Top Header & Breadcrumbs -->
+        <div class="order-top-header">
+            <div>
+                <div class="order-breadcrumb">
+                    <a href="{{ url_for('orders.list_orders') }}">Orders</a> / <span>Master Order Creation</span>
+                </div>
+                <h1 class="order-page-title">
+                    <span>📋</span> Create New Master Order
+                </h1>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span class="order-number-badge">
+                    Next ID: <strong>{{ next_order_number }}</strong>
+                </span>
+                <a href="{{ url_for('orders.list_orders') }}" class="btn-custom outline sm">
+                    ✕ Cancel &amp; Back
+                </a>
+            </div>
+        </div>
+
+        <!-- Flash Messages -->
         {% with messages = get_flashed_messages(category_filter=["order_error"]) %}
         {% if messages %}{% for msg in messages %}
-        <div style="padding:14px; background:rgba(139,0,0,0.04); border-left:4px solid rgba(139,0,0,0.5); border-radius:4px; color:#8b0000; margin-bottom:1.4rem; font-size:0.93rem; display:flex; gap:10px; align-items:center;">
-            <span>⚠</span> {{ msg }}
+        <div style="padding:14px; background:rgba(239,68,68,0.08); border-left:4px solid #ef4444; border-radius:6px; color:#991b1b; margin-bottom:1.5rem; font-size:0.92rem; display:flex; gap:10px; align-items:center;">
+            <span>⚠️</span> {{ msg }}
         </div>
         {% endfor %}{% endif %}{% endwith %}
 
-        <!-- Breadcrumb -->
-        <div class="create-breadcrumb">
-            <a href="{{ url_for('orders.list_orders') }}">Orders</a> / Create New Master Order
-        </div>
+        <form id="masterOrderForm" method="POST" action="{{ url_for('orders.create_order') }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" id="formCsrfToken" value="{{ csrf_token() }}">
+            <input type="hidden" name="action_type" id="orderActionType" value="save_draft">
 
-        <form method="POST" action="{{ url_for('orders.create_order') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-            <!-- Section 1: Basic Details -->
-            <div class="create-panel">
-                <h2 class="create-panel-title"><span>📋</span> Master Order Details</h2>
-                <div class="form-grid-2" style="margin-bottom:1.2rem;">
-                    <div class="oms-field">
-                        <label for="customer_id">Customer <span>*</span></label>
-                        <select name="customer_id" id="customer_id" required>
-                            <option value="">— Select Customer —</option>
-                            {% for c in customers %}
-                            <option value="{{ c.id }}">{{ c.name }} {% if c.company_name %}({{ c.company_name }}){% endif %}</option>
-                            {% endfor %}
-                        </select>
+            <!-- ══════════════════════════════════════════════════════════════
+                 SECTION 01 — CUSTOMER DETAILS (First & Most Prominent)
+                 ══════════════════════════════════════════════════════════════ -->
+            <div class="form-section-card" id="cardCustomer">
+                <div class="section-header" onclick="toggleSection('cardCustomer')">
+                    <div class="section-header-left">
+                        <div class="section-badge-num gold">01</div>
+                        <div class="section-title-wrap">
+                            <h2><span>👤</span> Customer Details</h2>
+                            <p>Select existing customer or onboard new client directly into the CRM master</p>
+                        </div>
                     </div>
-                    <div class="oms-field">
-                        <label for="order_title">Order Title <span>*</span></label>
-                        <input type="text" name="order_title" id="order_title" placeholder="e.g. Villa 402 — Toughened Glass &amp; Fittings" required>
-                    </div>
-                    <div class="oms-field">
-                        <label for="project_id">Linked Project (Optional)</label>
-                        <select name="project_id" id="project_id">
-                            <option value="">None</option>
-                            {% for p in projects %}
-                            <option value="{{ p.id }}">{{ p.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="oms-field">
-                        <label for="assigned_to_id">Assigned Employee</label>
-                        <select name="assigned_to_id" id="assigned_to_id">
-                            <option value="">— Unassigned —</option>
-                            {% for e in employees %}
-                            <option value="{{ e.id }}">{{ e.name }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="section-header-right">
+                        <span class="section-status-tag" id="customerStatusTag">No Customer Selected</span>
+                        <span class="collapse-icon">▾</span>
                     </div>
                 </div>
+                <div class="section-body">
+                    <!-- Search & Creation Bar -->
+                    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap;">
+                        <div class="autocomplete-wrap" style="flex: 1; min-width: 280px;">
+                            <input type="text" id="customerSearchInput" class="form-control-custom" placeholder="🔍 Search existing customer by Name, Company, Phone, Email, GSTIN..." autocomplete="off">
+                            <div id="customerSearchResults" class="autocomplete-results"></div>
+                        </div>
+                        <button type="button" class="btn-custom gold" onclick="openNewCustomerModal()">
+                            ➕ Create New Customer
+                        </button>
+                    </div>
 
-                <div class="form-grid-3">
-                    <div class="oms-field">
-                        <label for="shipping_address">Shipping Address</label>
-                        <textarea name="shipping_address" id="shipping_address" placeholder="Delivery destination address"></textarea>
+                    <!-- Hidden Customer ID input -->
+                    <input type="hidden" name="customer_id" id="selectedCustomerId" required>
+
+                    <!-- Selected Customer Information Card -->
+                    <div id="selectedCustomerCard" class="selected-profile-card" style="display: none;">
+                        <div class="profile-card-left">
+                            <div class="profile-avatar" id="custCardAvatar">C</div>
+                            <div class="profile-meta">
+                                <h4 id="custCardName">Customer Name</h4>
+                                <div class="profile-meta-details">
+                                    <span id="custCardCompany">🏢 Company</span>
+                                    <span id="custCardPhone">📞 Phone</span>
+                                    <span id="custCardEmail">✉️ Email</span>
+                                    <span id="custCardGstin">🏷️ GSTIN: N/A</span>
+                                    <span id="custCardCity">📍 City</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <a id="custCardProfileLink" href="#" target="_blank" class="btn-custom outline sm">
+                                View Profile ↗
+                            </a>
+                            <button type="button" class="btn-custom sm outline-gold" onclick="clearSelectedCustomer()">
+                                Change Customer
+                            </button>
+                        </div>
                     </div>
-                    <div class="oms-field">
-                        <label for="site_address">Site / Installation Address</label>
-                        <textarea name="site_address" id="site_address" placeholder="Site location for fitting technicians"></textarea>
+
+                    <!-- Order-Specific Address Overrides Section -->
+                    <div id="customerAddressOverrides" style="margin-top: 1.5rem; display: none;">
+                        <div class="notice-banner">
+                            <span>ℹ️</span> <strong>Order-Specific Addresses:</strong> Edits made below apply exclusively to this order and will not overwrite the customer's permanent master record.
+                        </div>
+                        <div class="form-row-3">
+                            <div class="form-group-custom">
+                                <label for="billing_address">Billing Address</label>
+                                <textarea name="billing_address" id="billing_address" class="form-control-custom" placeholder="Official billing address for tax invoices"></textarea>
+                            </div>
+                            <div class="form-group-custom">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <label for="shipping_address">Shipping Address</label>
+                                    <button type="button" class="btn-custom sm outline" style="padding:2px 8px; font-size:0.72rem;" onclick="copyAddress('billing_address', 'shipping_address')">Copy Billing</button>
+                                </div>
+                                <textarea name="shipping_address" id="shipping_address" class="form-control-custom" placeholder="Material dispatch destination"></textarea>
+                            </div>
+                            <div class="form-group-custom">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <label for="site_address">Site / Installation Address</label>
+                                    <button type="button" class="btn-custom sm outline" style="padding:2px 8px; font-size:0.72rem;" onclick="copyAddress('shipping_address', 'site_address')">Copy Shipping</button>
+                                </div>
+                                <textarea name="site_address" id="site_address" class="form-control-custom" placeholder="Job site location for glass measurement & fitting"></textarea>
+                            </div>
+                        </div>
                     </div>
-                    <div class="oms-field">
-                        <label for="billing_address">Billing Address</label>
-                        <textarea name="billing_address" id="billing_address" placeholder="Customer billing address"></textarea>
+
+                </div>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 SECTION 02 — VENDOR DETAILS (Immediately after Customer Details)
+                 ══════════════════════════════════════════════════════════════ -->
+            <div class="form-section-card" id="cardVendor">
+                <div class="section-header" onclick="toggleSection('cardVendor')">
+                    <div class="section-header-left">
+                        <div class="section-badge-num gold">02</div>
+                        <div class="section-title-wrap">
+                            <h2><span>🏭</span> Vendor Details &amp; Multi-Supplier Association</h2>
+                            <p>Associate one or multiple glass, hardware, and processing vendors with this master order</p>
+                        </div>
+                    </div>
+                    <div class="section-header-right">
+                        <span class="section-status-tag" id="vendorCountTag">0 Vendors Associated</span>
+                        <span class="collapse-icon">▾</span>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="notice-banner" style="background: rgba(13,27,42,0.03); border-left-color: var(--primary-navy); color: var(--primary-navy);">
+                        <span>📌</span> Associating vendors links suppliers to this order. Item allocation and purchase orders are initiated subsequently through the OMS procurement cockpit.
+                    </div>
+
+                    <!-- Search & Creation Bar -->
+                    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap;">
+                        <div class="autocomplete-wrap" style="flex: 1; min-width: 280px;">
+                            <input type="text" id="vendorSearchInput" class="form-control-custom" placeholder="🔍 Search existing vendor by Company, Code, Contact, Phone, GSTIN..." autocomplete="off">
+                            <div id="vendorSearchResults" class="autocomplete-results"></div>
+                        </div>
+                        <button type="button" class="btn-custom gold" onclick="openNewVendorModal()">
+                            ➕ Add New Vendor
+                        </button>
+                    </div>
+
+                    <!-- Container for hidden vendor IDs for form submission -->
+                    <div id="selectedVendorIdsContainer"></div>
+
+                    <!-- Selected Vendors Summary Table -->
+                    <div style="overflow-x: auto;">
+                        <table class="vendors-summary-table" id="selectedVendorsTable">
+                            <thead>
+                                <tr>
+                                    <th>Vendor Code</th>
+                                    <th>Company Name</th>
+                                    <th>Category</th>
+                                    <th>Contact Person</th>
+                                    <th>Phone</th>
+                                    <th>GSTIN</th>
+                                    <th>City</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="selectedVendorsTbody">
+                                <tr id="noVendorsRow">
+                                    <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted); font-style: italic;">
+                                        No vendors associated yet. Search above or click "+ Add New Vendor".
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
-            <!-- Section 2: Line Items -->
-            <div class="create-panel">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; padding-bottom:0.9rem; border-bottom:1px solid rgba(13,27,42,0.07);">
-                    <h2 class="create-panel-title" style="margin:0; padding:0; border:none;"><span>📦</span> Order Line Items</h2>
-                    <button type="button" class="btn-action outline" onclick="addRow()" style="padding:0.5rem 1.1rem; font-size:0.88rem;">+ Add Item Row</button>
+            <!-- ══════════════════════════════════════════════════════════════
+                 SECTION 03 — MASTER ORDER INFORMATION
+                 ══════════════════════════════════════════════════════════════ -->
+            <div class="form-section-card" id="cardOrderInfo">
+                <div class="section-header" onclick="toggleSection('cardOrderInfo')">
+                    <div class="section-header-left">
+                        <div class="section-badge-num">03</div>
+                        <div class="section-title-wrap">
+                            <h2><span>📄</span> Master Order Information</h2>
+                            <p>Order title, assignment, project linkage, priority, and target dates</p>
+                        </div>
+                    </div>
+                    <div class="section-header-right">
+                        <span class="collapse-icon">▾</span>
+                    </div>
                 </div>
+                <div class="section-body">
+                    <div class="form-row-2">
+                        <div class="form-group-custom">
+                            <label for="order_title">Order Title <span class="req">*</span></label>
+                            <input type="text" name="order_title" id="order_title" class="form-control-custom" placeholder="e.g. Villa 402 — 12mm Toughened Glass &amp; SS Spider Fittings" required>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="order_number_preview">Master Order Number</label>
+                            <input type="text" id="order_number_preview" class="form-control-custom" value="{{ next_order_number }}" readonly>
+                        </div>
+                    </div>
 
-                <div style="overflow-x:auto;">
-                    <table class="items-tbl" id="itemsTable">
-                        <thead>
-                            <tr>
-                                <th style="width:35%;">Item Description <span style="color:#ef4444;">*</span></th>
-                                <th style="width:22%;">Product Link</th>
-                                <th style="width:12%;">Qty <span style="color:#ef4444;">*</span></th>
-                                <th style="width:14%;">Unit Price (₹) <span style="color:#ef4444;">*</span></th>
-                                <th style="width:10%;">Tax Rate (%)</th>
-                                <th style="width:4%;"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="itemsBody">
-                            <tr id="row_0">
-                                <td><input type="text" name="item_description_0" placeholder="e.g. 12mm Toughened Glass 8ft x 4ft" required></td>
-                                <td>
-                                    <select name="product_id_0">
-                                        <option value="">Custom / Ad-hoc</option>
-                                        {% for pr in products %}
-                                        <option value="{{ pr.id }}">{{ pr.name }}</option>
-                                        {% endfor %}
+                    <div class="form-row-4">
+                        <div class="form-group-custom">
+                            <label for="order_date">Order Date</label>
+                            <input type="date" name="order_date" id="order_date" class="form-control-custom">
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="priority">Priority</label>
+                            <select name="priority" id="priority" class="form-control-custom">
+                                <option value="Normal" selected>Normal</option>
+                                <option value="High">High Priority</option>
+                                <option value="Urgent">Urgent / Express</option>
+                            </select>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="project_id">Linked Project (Optional)</label>
+                            <select name="project_id" id="project_id" class="form-control-custom">
+                                <option value="">— None —</option>
+                                {% for p in projects %}
+                                <option value="{{ p.id }}">{{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="expected_delivery_date">Target Completion Date</label>
+                            <input type="date" name="expected_delivery_date" id="expected_delivery_date" class="form-control-custom">
+                        </div>
+                    </div>
+
+                    <div class="form-row-2">
+                        <div class="form-group-custom">
+                            <label for="assigned_to_id">Assigned Sales Employee</label>
+                            <select name="assigned_to_id" id="assigned_to_id" class="form-control-custom">
+                                <option value="">— Unassigned —</option>
+                                {% for e in employees %}
+                                <option value="{{ e.id }}">{{ e.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="operations_employee_id">Assigned Operations / Site Engineer</label>
+                            <select name="operations_employee_id" id="operations_employee_id" class="form-control-custom">
+                                <option value="">— Unassigned —</option>
+                                {% for e in employees %}
+                                <option value="{{ e.id }}">{{ e.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group-custom">
+                        <label for="order_description">Order Scope &amp; Execution Description</label>
+                        <textarea name="order_description" id="order_description" class="form-control-custom" placeholder="High-level project scope, architectural elevations, structural specifications..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 SECTION 04 — ORDER ITEMS
+                 ══════════════════════════════════════════════════════════════ -->
+            <div class="form-section-card" id="cardItems">
+                <div class="section-header" onclick="toggleSection('cardItems')">
+                    <div class="section-header-left">
+                        <div class="section-badge-num">04</div>
+                        <div class="section-title-wrap">
+                            <h2><span>📦</span> Order Line Items &amp; Products</h2>
+                            <p>Catalogue products, custom architectural glass, quantities, rates, and tax breakdown</p>
+                        </div>
+                    </div>
+                    <div class="section-header-right">
+                        <button type="button" class="btn-custom sm gold" onclick="event.stopPropagation(); addItemRow();">
+                            + Add Line Item
+                        </button>
+                        <span class="collapse-icon">▾</span>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div style="overflow-x: auto;">
+                        <table class="items-master-table" id="itemsTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 20%;">Catalogue Product</th>
+                                    <th style="width: 25%;">Item Description <span style="color:#ef4444;">*</span></th>
+                                    <th style="width: 8%;">UOM</th>
+                                    <th style="width: 9%;">Quantity <span style="color:#ef4444;">*</span></th>
+                                    <th style="width: 10%;">Unit Price (₹) <span style="color:#ef4444;">*</span></th>
+                                    <th style="width: 8%;">Discount (₹)</th>
+                                    <th style="width: 7%;">GST %</th>
+                                    <th style="width: 11%;">Line Total (₹)</th>
+                                    <th style="width: 12%;">Vendor Allocation</th>
+                                    <th style="width: 3%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsTbody">
+                                <!-- Dynamic rows populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div style="margin-top: 1rem; display: flex; justify-content: flex-start;">
+                        <button type="button" class="btn-custom outline sm" onclick="addItemRow()">
+                            + Add Another Item Row
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 SECTION 05 — COMMERCIAL DETAILS & SUMMARY
+                 ══════════════════════════════════════════════════════════════ -->
+            <div class="form-section-card" id="cardCommercial">
+                <div class="section-header" onclick="toggleSection('cardCommercial')">
+                    <div class="section-header-left">
+                        <div class="section-badge-num">05</div>
+                        <div class="section-title-wrap">
+                            <h2><span>💰</span> Commercial Terms &amp; Financial Summary</h2>
+                            <p>Payment milestones, advance terms, freight charges, GST treatment, and net order ledger</p>
+                        </div>
+                    </div>
+                    <div class="section-header-right">
+                        <span class="collapse-icon">▾</span>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="form-row-2">
+                        <!-- Left: Commercial Terms Form -->
+                        <div>
+                            <div class="form-row-2">
+                                <div class="form-group-custom">
+                                    <label for="currency">Currency</label>
+                                    <input type="text" name="currency" id="currency" class="form-control-custom" value="INR (₹)" readonly>
+                                </div>
+                                <div class="form-group-custom">
+                                    <label for="gst_treatment">GST Treatment</label>
+                                    <select name="gst_treatment" id="gst_treatment" class="form-control-custom" onchange="calculateOrderTotals()">
+                                        <option value="INTRA_STATE" selected>Intra-State (CGST + SGST)</option>
+                                        <option value="INTER_STATE">Inter-State (IGST)</option>
+                                        <option value="EXEMPT">Exempt / Zero-Rated</option>
                                     </select>
-                                </td>
-                                <td><input type="number" step="0.001" min="0.001" name="quantity_0" value="1.000" required></td>
-                                <td><input type="number" step="0.01" min="0.00" name="unit_price_0" value="0.00" required></td>
-                                <td><input type="number" step="0.01" min="0.00" name="tax_rate_0" value="18.00"></td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                                </div>
+                            </div>
 
-                <div class="oms-field" style="margin-top:1.4rem;">
-                    <label for="notes">Internal Order Notes</label>
-                    <textarea name="notes" id="notes" placeholder="Special execution instructions, client preferences, drawing references, etc." style="min-height:90px;"></textarea>
-                </div>
+                            <div class="form-row-2">
+                                <div class="form-group-custom">
+                                    <label for="payment_terms">Payment Terms</label>
+                                    <select name="payment_terms" id="payment_terms" class="form-control-custom">
+                                        <option value="50% Advance, 50% on Delivery">50% Advance, 50% on Delivery</option>
+                                        <option value="100% Advance">100% Advance</option>
+                                        <option value="40% Advance, 50% on Dispatch, 10% on Fitting">40% Advance, 50% on Dispatch, 10% on Fitting</option>
+                                        <option value="Net 15 Days">Net 15 Days</option>
+                                        <option value="Net 30 Days">Net 30 Days</option>
+                                        <option value="Custom">Custom Terms</option>
+                                    </select>
+                                </div>
+                                <div class="form-group-custom">
+                                    <label for="advance_percentage">Advance Required (%)</label>
+                                    <input type="number" step="1" min="0" max="100" name="advance_percentage" id="advance_percentage" class="form-control-custom" value="50">
+                                </div>
+                            </div>
 
-                <div style="margin-top:1.8rem; display:flex; gap:14px; align-items:center;">
-                    <button type="submit" class="btn-action gold" style="padding:0.8rem 2rem; font-size:0.95rem;">
-                        🚀 Generate Master Order
-                    </button>
-                    <a href="{{ url_for('orders.list_orders') }}" class="btn-action outline" style="padding:0.8rem 1.6rem; font-size:0.95rem; text-decoration:none;">
+                            <div class="form-row-3">
+                                <div class="form-group-custom">
+                                    <label for="overall_discount">Overall Discount (₹)</label>
+                                    <input type="number" step="0.01" min="0" name="overall_discount" id="overall_discount" class="form-control-custom" value="0.00" oninput="calculateOrderTotals()">
+                                </div>
+                                <div class="form-group-custom">
+                                    <label for="freight_charges">Transportation / Freight (₹)</label>
+                                    <input type="number" step="0.01" min="0" name="freight_charges" id="freight_charges" class="form-control-custom" value="0.00" oninput="calculateOrderTotals()">
+                                </div>
+                                <div class="form-group-custom">
+                                    <label for="additional_charges">Handling / Packing (₹)</label>
+                                    <input type="number" step="0.01" min="0" name="additional_charges" id="additional_charges" class="form-control-custom" value="0.00" oninput="calculateOrderTotals()">
+                                </div>
+                            </div>
+
+                            <div class="form-group-custom">
+                                <label for="terms_and_conditions">Commercial Terms &amp; Conditions</label>
+                                <textarea name="terms_and_conditions" id="terms_and_conditions" class="form-control-custom">1. Glass breakage warranty valid up to site delivery.
+2. Civil work, structural opening readiness & electrical provision by client.
+3. Quotation valid for 30 days from issuance date.</textarea>
+                            </div>
+                        </div>
+
+                        <!-- Right: Live Commercial Summary Card -->
+                        <div class="commercial-ledger-card">
+                            <h3 style="font-family:'Playfair Display',Georgia,serif; margin:0 0 1rem 0; color:var(--primary-navy); font-size:1.15rem; display:flex; align-items:center; gap:8px;">
+                                <span>🧾</span> Commercial Summary
+                            </h3>
+                            <div class="ledger-line">
+                                <span>Line Items Subtotal:</span>
+                                <strong id="summarySubtotal">₹0.00</strong>
+                            </div>
+                            <div class="ledger-line">
+                                <span>Line Discounts Total:</span>
+                                <span style="color:#ef4444;" id="summaryLineDiscount">-₹0.00</span>
+                            </div>
+                            <div class="ledger-line">
+                                <span>Overall Order Discount:</span>
+                                <span style="color:#ef4444;" id="summaryOverallDiscount">-₹0.00</span>
+                            </div>
+                            <div class="ledger-line">
+                                <span>Net Taxable Base Amount:</span>
+                                <strong id="summaryTaxable">₹0.00</strong>
+                            </div>
+                            <div class="ledger-line">
+                                <span>Total Tax / GST:</span>
+                                <span style="color:#0284c7;" id="summaryTax">+₹0.00</span>
+                            </div>
+                            <div class="ledger-line">
+                                <span>Freight &amp; Additional Charges:</span>
+                                <span id="summaryFreight">+₹0.00</span>
+                            </div>
+                            <div class="ledger-line total-row">
+                                <span>Grand Total:</span>
+                                <span class="val" id="summaryGrandTotal">₹0.00</span>
+                            </div>
+
+                            <div style="margin-top:1.25rem; padding:0.85rem; background:#ffffff; border-radius:8px; border:1px solid rgba(13,27,42,0.06); font-size:0.82rem;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                    <span style="color:var(--text-muted);">Required Advance:</span>
+                                    <strong id="summaryAdvanceAmount" style="color:var(--accent-gold);">₹0.00</strong>
+                                </div>
+                                <div style="display:flex; justify-content:space-between;">
+                                    <span style="color:var(--text-muted);">Balance on Delivery:</span>
+                                    <strong id="summaryBalanceAmount">₹0.00</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 SECTION 06 — DELIVERY & INSTALLATION REQUIREMENTS
+                 ══════════════════════════════════════════════════════════════ -->
+            <div class="form-section-card" id="cardDelivery">
+                <div class="section-header" onclick="toggleSection('cardDelivery')">
+                    <div class="section-header-left">
+                        <div class="section-badge-num">06</div>
+                        <div class="section-title-wrap">
+                            <h2><span>🚚</span> Delivery &amp; Site Installation Requirements</h2>
+                            <p>Dispatch parameters, site contact person, installation readiness, and technician coordination</p>
+                        </div>
+                    </div>
+                    <div class="section-header-right">
+                        <span class="collapse-icon">▾</span>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <!-- Delivery Subsection -->
+                    <h3 style="font-size:0.95rem; font-weight:700; color:var(--primary-navy); margin:0 0 1rem 0; text-transform:uppercase; letter-spacing:0.04em;">
+                        🚚 Transit &amp; Delivery Parameters
+                    </h3>
+                    <div class="form-row-3">
+                        <div class="form-group-custom">
+                            <label for="delivery_required">Delivery Required?</label>
+                            <select name="delivery_required" id="delivery_required" class="form-control-custom">
+                                <option value="true" selected>Yes — GlassEntials Logistics</option>
+                                <option value="false">No — Customer Self-Pickup</option>
+                            </select>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="delivery_type">Delivery Mode</label>
+                            <select name="delivery_type" id="delivery_type" class="form-control-custom">
+                                <option value="DIRECT_SITE" selected>Direct Site Delivery</option>
+                                <option value="DOORSTEP">Doorstep / Warehouse</option>
+                                <option value="TRANSPORTER_HUB">Transporter Godown / Hub</option>
+                            </select>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="delivery_contact_person">Delivery Contact Person</label>
+                            <input type="text" name="delivery_contact_person" id="delivery_contact_person" class="form-control-custom" placeholder="Name of recipient at site">
+                        </div>
+                    </div>
+                    <div class="form-row-2">
+                        <div class="form-group-custom">
+                            <label for="delivery_contact_phone">Delivery Contact Mobile</label>
+                            <input type="tel" name="delivery_contact_phone" id="delivery_contact_phone" class="form-control-custom" placeholder="10-digit mobile number">
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="delivery_instructions">Special Delivery / Unloading Instructions</label>
+                            <input type="text" name="delivery_instructions" id="delivery_instructions" class="form-control-custom" placeholder="e.g. Crane unloading required, no daytime truck entry">
+                        </div>
+                    </div>
+
+                    <hr style="border:none; border-top:1px solid rgba(13,27,42,0.06); margin:1.5rem 0;">
+
+                    <!-- Installation Subsection -->
+                    <h3 style="font-size:0.95rem; font-weight:700; color:var(--primary-navy); margin:0 0 1rem 0; text-transform:uppercase; letter-spacing:0.04em;">
+                        🔧 Site Installation &amp; Fitting Parameters
+                    </h3>
+                    <div class="form-row-3">
+                        <div class="form-group-custom">
+                            <label for="installation_required">Installation Required?</label>
+                            <select name="installation_required" id="installation_required" class="form-control-custom">
+                                <option value="true" selected>Yes — GlassEntials Fitting Crew</option>
+                                <option value="false">No — Supply Only</option>
+                            </select>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="site_readiness_status">Site Readiness Status</label>
+                            <select name="site_readiness_status" id="site_readiness_status" class="form-control-custom">
+                                <option value="READY" selected>Ready for Immediate Fitting</option>
+                                <option value="IN_PROGRESS">Civil Work in Progress</option>
+                                <option value="AWAITING_MEASUREMENT">Awaiting Final Site Measurement</option>
+                                <option value="NOT_READY">Site Not Ready</option>
+                            </select>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="expected_fitting_date">Expected Installation Date</label>
+                            <input type="date" name="expected_fitting_date" id="expected_fitting_date" class="form-control-custom">
+                        </div>
+                    </div>
+                    <div class="form-row-2">
+                        <div class="form-group-custom">
+                            <label for="site_contact_person">Site Supervisor / Contact</label>
+                            <input type="text" name="site_contact_person" id="site_contact_person" class="form-control-custom" placeholder="Site supervisor or contractor name">
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="site_contact_phone">Site Supervisor Mobile</label>
+                            <input type="tel" name="site_contact_phone" id="site_contact_phone" class="form-control-custom" placeholder="Site supervisor phone number">
+                        </div>
+                    </div>
+                    <div class="form-group-custom">
+                        <label for="installation_notes">Installation Requirements &amp; Safety Notes</label>
+                        <textarea name="installation_notes" id="installation_notes" class="form-control-custom" placeholder="Scaffolding requirement, suction cups, boom lift, safety work permits..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 SECTION 07 — DOCUMENTS & NOTES
+                 ══════════════════════════════════════════════════════════════ -->
+            <div class="form-section-card" id="cardDocs">
+                <div class="section-header" onclick="toggleSection('cardDocs')">
+                    <div class="section-header-left">
+                        <div class="section-badge-num">07</div>
+                        <div class="section-title-wrap">
+                            <h2><span>📁</span> Order Documents &amp; Internal Notes</h2>
+                            <p>Upload architectural drawings, elevation cuts, PO copies and enter internal instructions</p>
+                        </div>
+                    </div>
+                    <div class="section-header-right">
+                        <span class="collapse-icon">▾</span>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="form-row-2">
+                        <div class="form-group-custom">
+                            <label for="order_documents">Upload Architectural Drawings / PO Documents</label>
+                            <input type="file" name="order_documents" id="order_documents" class="form-control-custom" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.dwg">
+                            <small style="color:var(--text-muted); font-size:0.75rem;">Supported: PDF, Images, Word, Excel, CAD drawings up to 15MB each.</small>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="notes">Internal Execution Notes</label>
+                            <textarea name="notes" id="notes" class="form-control-custom" placeholder="Internal production notes, factory delivery sequence, billing guidelines..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 STICKY ACTION FOOTER BAR
+                 ══════════════════════════════════════════════════════════════ -->
+            <div class="sticky-footer-bar">
+                <div class="footer-total-display">
+                    <div>
+                        <div class="footer-total-label">Grand Total (Tax Included)</div>
+                        <div class="footer-total-val" id="stickyTotalDisplay">₹0.00</div>
+                    </div>
+                    <span id="stickyItemCountBadge" class="section-status-tag" style="padding:4px 10px;">0 Items</span>
+                </div>
+                <div class="footer-actions">
+                    <a href="{{ url_for('orders.list_orders') }}" class="btn-custom outline">
                         Cancel
                     </a>
+                    <button type="button" class="btn-custom outline-gold" onclick="submitMasterOrder('save_draft')">
+                        💾 Save as Draft
+                    </button>
+                    <button type="button" class="btn-custom gold" onclick="submitMasterOrder('confirm_order')">
+                        🚀 Save &amp; Confirm Order
+                    </button>
                 </div>
             </div>
 
         </form>
     </div>
 
-    <script>
-        let rowCount = 1;
-        const productsOptions = `
-            <option value="">Custom / Ad-hoc</option>
-            {% for pr in products %}
-            <option value="{{ pr.id }}">{{ pr.name | e }}</option>
-            {% endfor %}
-        `;
+    <!-- ══════════════════════════════════════════════════════════════════
+         MODAL 1: INLINE CREATE NEW CUSTOMER
+         ══════════════════════════════════════════════════════════════════ -->
+    <div id="modalNewCustomer" class="custom-modal-backdrop">
+        <div class="custom-modal-box">
+            <div class="modal-box-header">
+                <h3><span>👤</span> Onboard New Customer</h3>
+                <button type="button" class="modal-close-btn" onclick="closeNewCustomerModal()">✕</button>
+            </div>
+            <div class="modal-box-body">
+                <form id="inlineCustomerForm" onsubmit="handleInlineCustomerSubmit(event)">
+                    <div class="form-row-2">
+                        <div class="form-group-custom">
+                            <label for="nc_name">Customer Full Name <span class="req">*</span></label>
+                            <input type="text" id="nc_name" class="form-control-custom" placeholder="e.g. Chirag Mehta" required>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nc_company">Company / Business Name</label>
+                            <input type="text" id="nc_company" class="form-control-custom" placeholder="e.g. Mehta Enterprises">
+                        </div>
+                    </div>
 
-        function addRow() {
-            const tbody = document.getElementById("itemsBody");
-            const tr = document.createElement("tr");
-            tr.id = `row_${rowCount}`;
-            tr.innerHTML = `
-                <td><input type="text" name="item_description_${rowCount}" placeholder="e.g. Stainless Steel Spider Fitting" required></td>
-                <td><select name="product_id_${rowCount}">${productsOptions}</select></td>
-                <td><input type="number" step="0.001" min="0.001" name="quantity_${rowCount}" value="1.000" required></td>
-                <td><input type="number" step="0.01" min="0.00" name="unit_price_${rowCount}" value="0.00" required></td>
-                <td><input type="number" step="0.01" min="0.00" name="tax_rate_${rowCount}" value="18.00"></td>
-                <td><button type="button" class="btn-remove-row" onclick="removeRow(${rowCount})">×</button></td>
-            `;
-            tbody.appendChild(tr);
-            rowCount++;
+                    <div class="form-row-2">
+                        <div class="form-group-custom">
+                            <label for="nc_phone">Primary Mobile Number (10 digits) <span class="req">*</span></label>
+                            <input type="tel" id="nc_phone" class="form-control-custom" placeholder="e.g. 9825012345" maxlength="10" required>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nc_email">Email Address <span class="req">*</span></label>
+                            <input type="email" id="nc_email" class="form-control-custom" placeholder="e.g. contact@mehta.com" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row-3">
+                        <div class="form-group-custom">
+                            <label for="nc_business_type">Customer Type</label>
+                            <select id="nc_business_type" class="form-control-custom">
+                                <option value="Individual">Individual</option>
+                                <option value="Business" selected>Business / Corporate</option>
+                                <option value="Architect">Architect / Interior Designer</option>
+                                <option value="Contractor">Civil Contractor</option>
+                            </select>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nc_gst_status">GST Registration</label>
+                            <select id="nc_gst_status" class="form-control-custom" onchange="toggleNcGstin(this.value)">
+                                <option value="Registered" selected>Registered</option>
+                                <option value="Unregistered">Unregistered</option>
+                                <option value="Composition">Composition Scheme</option>
+                            </select>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nc_gstin">GSTIN</label>
+                            <input type="text" id="nc_gstin" class="form-control-custom" placeholder="15-digit GSTIN" maxlength="15" style="text-transform:uppercase;">
+                        </div>
+                    </div>
+
+                    <div class="form-row-3">
+                        <div class="form-group-custom">
+                            <label for="nc_city">City</label>
+                            <input type="text" id="nc_city" class="form-control-custom" placeholder="e.g. Ahmedabad">
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nc_state">State</label>
+                            <input type="text" id="nc_state" class="form-control-custom" placeholder="e.g. Gujarat">
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nc_pincode">PIN Code</label>
+                            <input type="text" id="nc_pincode" class="form-control-custom" placeholder="e.g. 380001" maxlength="6">
+                        </div>
+                    </div>
+
+                    <div class="form-group-custom" style="margin-bottom:1rem;">
+                        <label for="nc_address">Billing / Registered Address</label>
+                        <textarea id="nc_address" class="form-control-custom" placeholder="Complete registered office address"></textarea>
+                    </div>
+
+                    <div class="modal-box-footer">
+                        <button type="button" class="btn-custom outline" onclick="closeNewCustomerModal()">Cancel</button>
+                        <button type="submit" class="btn-custom gold" id="btnSaveNewCustomer">
+                            ✓ Save &amp; Select Customer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         MODAL 2: INLINE CREATE NEW VENDOR
+         ══════════════════════════════════════════════════════════════════ -->
+    <div id="modalNewVendor" class="custom-modal-backdrop">
+        <div class="custom-modal-box">
+            <div class="modal-box-header">
+                <h3><span>🏭</span> Onboard New Vendor</h3>
+                <button type="button" class="modal-close-btn" onclick="closeNewVendorModal()">✕</button>
+            </div>
+            <div class="modal-box-body">
+                <form id="inlineVendorForm" onsubmit="handleInlineVendorSubmit(event)">
+                    <div class="form-row-2">
+                        <div class="form-group-custom">
+                            <label for="nv_company_name">Vendor / Company Name <span class="req">*</span></label>
+                            <input type="text" id="nv_company_name" class="form-control-custom" placeholder="e.g. Saint-Gobain Glass India" required>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nv_category_id">Category</label>
+                            <select id="nv_category_id" class="form-control-custom">
+                                <option value="">— Select Category —</option>
+                                {% for cat in vendor_categories %}
+                                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row-2">
+                        <div class="form-group-custom">
+                            <label for="nv_contact_person">Contact Person</label>
+                            <input type="text" id="nv_contact_person" class="form-control-custom" placeholder="e.g. Rajesh Sharma">
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nv_phone">Primary Phone Number</label>
+                            <input type="tel" id="nv_phone" class="form-control-custom" placeholder="Mobile / Landline">
+                        </div>
+                    </div>
+
+                    <div class="form-row-2">
+                        <div class="form-group-custom">
+                            <label for="nv_email">Email Address</label>
+                            <input type="email" id="nv_email" class="form-control-custom" placeholder="orders@supplier.com">
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nv_gstin">GSTIN</label>
+                            <input type="text" id="nv_gstin" class="form-control-custom" placeholder="15-digit GSTIN" maxlength="15" style="text-transform:uppercase;">
+                        </div>
+                    </div>
+
+                    <div class="form-row-3">
+                        <div class="form-group-custom">
+                            <label for="nv_city">City</label>
+                            <input type="text" id="nv_city" class="form-control-custom" placeholder="City">
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nv_state">State</label>
+                            <input type="text" id="nv_state" class="form-control-custom" placeholder="State">
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nv_payment_terms">Payment Terms</label>
+                            <select id="nv_payment_terms" class="form-control-custom">
+                                {% for pt in vendor_payment_terms %}
+                                <option value="{{ pt }}" {% if pt == 'Net 30' %}selected{% endif %}>{{ pt }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group-custom" style="margin-bottom:1rem;">
+                        <label for="nv_address">Registered Address / Warehouse</label>
+                        <textarea id="nv_address" class="form-control-custom" placeholder="Vendor warehouse or pickup depot address"></textarea>
+                    </div>
+
+                    {% if is_privileged %}
+                    <div style="background:#f8fafc; border-radius:8px; padding:1rem; border:1px solid rgba(13,27,42,0.06); margin-bottom:1rem;">
+                        <h4 style="margin:0 0 0.85rem 0; font-size:0.85rem; text-transform:uppercase; color:var(--primary-navy);">
+                            🔒 Banking Information (Confidential)
+                        </h4>
+                        <div class="form-row-3" style="margin-bottom:0;">
+                            <div class="form-group-custom">
+                                <label for="nv_bank_name">Bank Name</label>
+                                <input type="text" id="nv_bank_name" class="form-control-custom" placeholder="e.g. HDFC Bank">
+                            </div>
+                            <div class="form-group-custom">
+                                <label for="nv_bank_account_no">Account Number</label>
+                                <input type="text" id="nv_bank_account_no" class="form-control-custom" placeholder="A/C Number">
+                            </div>
+                            <div class="form-group-custom">
+                                <label for="nv_bank_ifsc">IFSC Code</label>
+                                <input type="text" id="nv_bank_ifsc" class="form-control-custom" placeholder="HDFC0001234" style="text-transform:uppercase;">
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="modal-box-footer">
+                        <button type="button" class="btn-custom outline" onclick="closeNewVendorModal()">Cancel</button>
+                        <button type="submit" class="btn-custom gold" id="btnSaveNewVendor">
+                            ✓ Save &amp; Add to Order
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         JAVASCRIPT WORKFLOW LOGIC
+         ══════════════════════════════════════════════════════════════════ -->
+    <script>
+        // Pre-loaded catalogue products
+        const CATALOGUE_PRODUCTS = [
+            {% for pr in products %}
+            {
+                id: {{ pr.id }},
+                name: {{ pr.name | tojson }},
+                sku: {{ (pr.sku or '') | tojson }},
+                unit: {{ (pr.unit or 'Sq Ft') | tojson }},
+                price: {{ (pr.selling_price or 0.0) | float }},
+                gst_rate: {{ (pr.gst_rate or 18.0) | float }}
+            },
+            {% endfor %}
+        ];
+
+        // Currently selected vendors list
+        let selectedVendorsList = [];
+        let itemRowCount = 0;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set today's date in order date
+            const todayStr = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('order_date');
+            if (dateInput && !dateInput.value) {
+                dateInput.value = todayStr;
+            }
+
+            // Init customer search autocomplete
+            setupCustomerAutocomplete();
+
+            // Init vendor search autocomplete
+            setupVendorAutocomplete();
+
+            // Add first 2 default line item rows
+            addItemRow();
+            addItemRow();
+
+            // Initial calculation
+            calculateOrderTotals();
+        });
+
+        /* ── SECTION COLLAPSE / EXPAND ── */
+        function toggleSection(sectionId) {
+            const el = document.getElementById(sectionId);
+            if (el) el.classList.toggle('collapsed');
         }
 
-        function removeRow(idx) {
-            const row = document.getElementById(`row_${idx}`);
-            if (row) row.remove();
+        /* ── TOAST NOTIFICATIONS ── */
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toastMessage');
+            toast.textContent = msg;
+            toast.className = `toast-notification ${type}`;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 4000);
+        }
+
+        /* ── ADDRESS COPY HELPERS ── */
+        function copyAddress(fromId, toId) {
+            const fromEl = document.getElementById(fromId);
+            const toEl = document.getElementById(toId);
+            if (fromEl && toEl) {
+                toEl.value = fromEl.value;
+                showToast(`Address copied to ${toId.replace('_', ' ')}.`, 'success');
+            }
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           SECTION 01: CUSTOMER SELECTION & INLINE CREATION
+           ══════════════════════════════════════════════════════════════ */
+        function setupCustomerAutocomplete() {
+            const input = document.getElementById('customerSearchInput');
+            const results = document.getElementById('customerSearchResults');
+            let debounceTimer = null;
+
+            input.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                const q = input.value.trim();
+                if (q.length < 2) {
+                    results.style.display = 'none';
+                    return;
+                }
+                debounceTimer = setTimeout(() => {
+                    fetch(`/orders/api/customers/search?q=${encodeURIComponent(q)}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            results.innerHTML = '';
+                            if (data.success && data.results.length > 0) {
+                                data.results.forEach(c => {
+                                    const item = document.createElement('div');
+                                    item.className = 'autocomplete-item';
+                                    item.innerHTML = `
+                                        <div>
+                                            <div class="autocomplete-item-name">${escapeHtml(c.name)} ${c.company ? '<small>(' + escapeHtml(c.company) + ')</small>' : ''}</div>
+                                            <div class="autocomplete-item-sub">📞 ${escapeHtml(c.phone_number)} &nbsp;·&nbsp; ✉️ ${escapeHtml(c.email)} &nbsp;·&nbsp; 📍 ${escapeHtml(c.city || '—')}</div>
+                                        </div>
+                                        <button type="button" class="btn-custom sm gold">Select</button>
+                                    `;
+                                    item.addEventListener('click', () => { selectCustomerById(c.id); });
+                                    results.appendChild(item);
+                                });
+                                results.style.display = 'block';
+                            } else {
+                                results.innerHTML = `
+                                    <div class="autocomplete-empty">
+                                        No matching customers found.
+                                        <br><button type="button" class="btn-custom sm gold" style="margin-top:6px;" onclick="openNewCustomerModal('${escapeHtml(q)}')">+ Onboard as New Customer</button>
+                                    </div>
+                                `;
+                                results.style.display = 'block';
+                            }
+                        })
+                        .catch(() => { results.style.display = 'none'; });
+                }, 250);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !results.contains(e.target)) {
+                    results.style.display = 'none';
+                }
+            });
+        }
+
+        function selectCustomerById(customerId) {
+            fetch(`/orders/api/customers/${customerId}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.customer) {
+                        applySelectedCustomer(data.customer);
+                        document.getElementById('customerSearchResults').style.display = 'none';
+                        document.getElementById('customerSearchInput').value = '';
+                        showToast(`Selected Customer: ${data.customer.name}`, 'success');
+                    } else {
+                        showToast(data.error || 'Customer not found.', 'error');
+                    }
+                })
+                .catch(() => showToast('Failed to load customer profile.', 'error'));
+        }
+
+        function applySelectedCustomer(c) {
+            document.getElementById('selectedCustomerId').value = c.id;
+
+            // Populate Card
+            document.getElementById('custCardAvatar').textContent = (c.name || 'C').charAt(0).toUpperCase();
+            document.getElementById('custCardName').textContent = c.name;
+            document.getElementById('custCardCompany').textContent = c.company ? `🏢 ${c.company}` : '';
+            document.getElementById('custCardPhone').textContent = `📞 ${c.phone_number}`;
+            document.getElementById('custCardEmail').textContent = `✉️ ${c.email}`;
+            document.getElementById('custCardGstin').textContent = c.gst_number ? `🏷️ GSTIN: ${c.gst_number}` : '🏷️ GSTIN: Unregistered';
+            document.getElementById('custCardCity').textContent = c.city ? `📍 ${c.city}` : '';
+            document.getElementById('custCardProfileLink').href = c.profile_url || `/customer/${c.id}`;
+
+            document.getElementById('selectedCustomerCard').style.display = 'flex';
+            document.getElementById('customerAddressOverrides').style.display = 'block';
+            document.getElementById('customerStatusTag').textContent = `✓ ${c.name}`;
+            document.getElementById('customerStatusTag').className = 'section-status-tag active';
+
+            // Auto-populate Order Addresses if empty
+            if (!document.getElementById('billing_address').value) {
+                document.getElementById('billing_address').value = c.address || (c.city ? `${c.city}, ${c.state || ''}` : '');
+            }
+            if (!document.getElementById('shipping_address').value) {
+                document.getElementById('shipping_address').value = c.address || (c.city ? `${c.city}, ${c.state || ''}` : '');
+            }
+            if (!document.getElementById('site_address').value) {
+                document.getElementById('site_address').value = c.address || (c.city ? `${c.city}, ${c.state || ''}` : '');
+            }
+
+            // Also fill delivery contact
+            if (!document.getElementById('delivery_contact_person').value) {
+                document.getElementById('delivery_contact_person').value = c.name;
+            }
+            if (!document.getElementById('delivery_contact_phone').value) {
+                document.getElementById('delivery_contact_phone').value = c.phone_number;
+            }
+        }
+
+        function clearSelectedCustomer() {
+            document.getElementById('selectedCustomerId').value = '';
+            document.getElementById('selectedCustomerCard').style.display = 'none';
+            document.getElementById('customerAddressOverrides').style.display = 'none';
+            document.getElementById('customerStatusTag').textContent = 'No Customer Selected';
+            document.getElementById('customerStatusTag').className = 'section-status-tag';
+        }
+
+        function openNewCustomerModal(prefillName = '') {
+            document.getElementById('modalNewCustomer').style.display = 'flex';
+            if (prefillName) document.getElementById('nc_name').value = prefillName;
+        }
+
+        function closeNewCustomerModal() {
+            document.getElementById('modalNewCustomer').style.display = 'none';
+        }
+
+        function handleInlineCustomerSubmit(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSaveNewCustomer');
+            btn.disabled = true;
+            btn.textContent = 'Saving Customer...';
+
+            const payload = {
+                name: document.getElementById('nc_name').value.trim(),
+                company: document.getElementById('nc_company').value.trim(),
+                phone_number: document.getElementById('nc_phone').value.trim(),
+                email: document.getElementById('nc_email').value.trim(),
+                business_type: document.getElementById('nc_business_type').value,
+                gst_status: document.getElementById('nc_gst_status').value,
+                gst_number: document.getElementById('nc_gstin').value.trim(),
+                city: document.getElementById('nc_city').value.trim(),
+                state: document.getElementById('nc_state').value.trim(),
+                pincode: document.getElementById('nc_pincode').value.trim(),
+                address: document.getElementById('nc_address').value.trim(),
+            };
+
+            const csrfToken = document.getElementById('formCsrfToken').value;
+
+            fetch('/orders/api/customers/inline', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.textContent = '✓ Save & Select Customer';
+                if (data.success && data.customer) {
+                    closeNewCustomerModal();
+                    document.getElementById('inlineCustomerForm').reset();
+                    applySelectedCustomer(data.customer);
+                    showToast(data.message || 'Customer created and selected!', 'success');
+                } else {
+                    showToast(data.error || 'Failed to create customer.', 'error');
+                }
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.textContent = '✓ Save & Select Customer';
+                showToast('Network error while saving customer.', 'error');
+            });
+        }
+
+        function toggleNcGstin(val) {
+            const gstinInput = document.getElementById('nc_gstin');
+            if (val === 'Unregistered') {
+                gstinInput.placeholder = 'Optional for unregistered';
+            } else {
+                gstinInput.placeholder = '15-digit GSTIN';
+            }
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           SECTION 02: VENDOR SELECTION & INLINE CREATION
+           ══════════════════════════════════════════════════════════════ */
+        function setupVendorAutocomplete() {
+            const input = document.getElementById('vendorSearchInput');
+            const results = document.getElementById('vendorSearchResults');
+            let debounceTimer = null;
+
+            input.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                const q = input.value.trim();
+                if (q.length < 2) {
+                    results.style.display = 'none';
+                    return;
+                }
+                debounceTimer = setTimeout(() => {
+                    fetch(`/orders/api/vendors/search?q=${encodeURIComponent(q)}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            results.innerHTML = '';
+                            if (data.success && data.results.length > 0) {
+                                data.results.forEach(v => {
+                                    const item = document.createElement('div');
+                                    item.className = 'autocomplete-item';
+                                    item.innerHTML = `
+                                        <div>
+                                            <div class="autocomplete-item-name">${escapeHtml(v.company_name)} <small style="color:var(--accent-gold);">(${escapeHtml(v.code)})</small></div>
+                                            <div class="autocomplete-item-sub">Category: ${escapeHtml(v.category || 'General')} &nbsp;·&nbsp; 📞 ${escapeHtml(v.phone || '—')} &nbsp;·&nbsp; 📍 ${escapeHtml(v.city || '—')}</div>
+                                        </div>
+                                        <button type="button" class="btn-custom sm gold">Add to Order</button>
+                                    `;
+                                    item.addEventListener('click', () => { addVendorToOrder(v); });
+                                    results.appendChild(item);
+                                });
+                                results.style.display = 'block';
+                            } else {
+                                results.innerHTML = `
+                                    <div class="autocomplete-empty">
+                                        No matching vendors found.
+                                        <br><button type="button" class="btn-custom sm gold" style="margin-top:6px;" onclick="openNewVendorModal('${escapeHtml(q)}')">+ Onboard New Vendor</button>
+                                    </div>
+                                `;
+                                results.style.display = 'block';
+                            }
+                        })
+                        .catch(() => { results.style.display = 'none'; });
+                }, 250);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !results.contains(e.target)) {
+                    results.style.display = 'none';
+                }
+            });
+        }
+
+        function addVendorToOrder(v) {
+            // Prevent duplicate selection
+            if (selectedVendorsList.some(item => item.id === v.id)) {
+                showToast(`Vendor '${v.company_name}' is already added to this order.`, 'error');
+                document.getElementById('vendorSearchResults').style.display = 'none';
+                document.getElementById('vendorSearchInput').value = '';
+                return;
+            }
+
+            selectedVendorsList.push(v);
+            renderSelectedVendors();
+            updateItemVendorAllocationOptions();
+            document.getElementById('vendorSearchResults').style.display = 'none';
+            document.getElementById('vendorSearchInput').value = '';
+            showToast(`Added Vendor: ${v.company_name}`, 'success');
+        }
+
+        function removeVendorFromOrder(vendorId) {
+            selectedVendorsList = selectedVendorsList.filter(v => v.id !== vendorId);
+            renderSelectedVendors();
+            updateItemVendorAllocationOptions();
+            showToast('Vendor removed from current selection.', 'success');
+        }
+
+        function renderSelectedVendors() {
+            const tbody = document.getElementById('selectedVendorsTbody');
+            const hiddenContainer = document.getElementById('selectedVendorIdsContainer');
+            const countTag = document.getElementById('vendorCountTag');
+
+            tbody.innerHTML = '';
+            hiddenContainer.innerHTML = '';
+
+            countTag.textContent = `${selectedVendorsList.length} Vendor${selectedVendorsList.length === 1 ? '' : 's'} Associated`;
+            countTag.className = `section-status-tag ${selectedVendorsList.length > 0 ? 'active' : ''}`;
+
+            if (selectedVendorsList.length === 0) {
+                tbody.innerHTML = `
+                    <tr id="noVendorsRow">
+                        <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted); font-style: italic;">
+                            No vendors associated yet. Search above or click "+ Add New Vendor".
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            selectedVendorsList.forEach(v => {
+                // Add hidden input
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'selected_vendor_ids';
+                hiddenInput.value = v.id;
+                hiddenContainer.appendChild(hiddenInput);
+
+                // Add row
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${escapeHtml(v.code || '—')}</strong></td>
+                    <td>
+                        <strong style="color:var(--primary-navy);">${escapeHtml(v.company_name)}</strong>
+                    </td>
+                    <td><span class="section-status-tag">${escapeHtml(v.category || 'General')}</span></td>
+                    <td>${escapeHtml(v.contact_person || '—')}</td>
+                    <td>${escapeHtml(v.phone || '—')}</td>
+                    <td><code>${escapeHtml(v.gstin || '—')}</code></td>
+                    <td>${escapeHtml(v.city || '—')}</td>
+                    <td>
+                        <button type="button" class="btn-custom sm" style="background:rgba(239,68,68,0.1); color:#ef4444; border-color:rgba(239,68,68,0.2);" onclick="removeVendorFromOrder(${v.id})">
+                            Remove
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openNewVendorModal(prefillName = '') {
+            document.getElementById('modalNewVendor').style.display = 'flex';
+            if (prefillName) document.getElementById('nv_company_name').value = prefillName;
+        }
+
+        function closeNewVendorModal() {
+            document.getElementById('modalNewVendor').style.display = 'none';
+        }
+
+        function handleInlineVendorSubmit(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSaveNewVendor');
+            btn.disabled = true;
+            btn.textContent = 'Saving Vendor...';
+
+            const payload = {
+                company_name: document.getElementById('nv_company_name').value.trim(),
+                category_id: document.getElementById('nv_category_id').value || null,
+                contact_person: document.getElementById('nv_contact_person').value.trim(),
+                phone: document.getElementById('nv_phone').value.trim(),
+                email: document.getElementById('nv_email').value.trim(),
+                gstin: document.getElementById('nv_gstin').value.trim(),
+                city: document.getElementById('nv_city').value.trim(),
+                state: document.getElementById('nv_state').value.trim(),
+                payment_terms: document.getElementById('nv_payment_terms').value,
+                address: document.getElementById('nv_address').value.trim(),
+            };
+
+            const bankNameEl = document.getElementById('nv_bank_name');
+            if (bankNameEl) payload.bank_name = bankNameEl.value.trim();
+            const bankAccEl = document.getElementById('nv_bank_account_no');
+            if (bankAccEl) payload.bank_account_no = bankAccEl.value.trim();
+            const bankIfscEl = document.getElementById('nv_bank_ifsc');
+            if (bankIfscEl) payload.bank_ifsc = bankIfscEl.value.trim();
+
+            const csrfToken = document.getElementById('formCsrfToken').value;
+
+            fetch('/orders/api/vendors/inline', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.textContent = '✓ Save & Add to Order';
+                if (data.success && data.vendor) {
+                    closeNewVendorModal();
+                    document.getElementById('inlineVendorForm').reset();
+                    addVendorToOrder(data.vendor);
+                    showToast(data.message || 'Vendor created and associated!', 'success');
+                } else {
+                    showToast(data.error || 'Failed to create vendor.', 'error');
+                }
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.textContent = '✓ Save & Add to Order';
+                showToast('Network error while saving vendor.', 'error');
+            });
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           SECTION 04: DYNAMIC ORDER LINE ITEMS
+           ══════════════════════════════════════════════════════════════ */
+        function addItemRow() {
+            const tbody = document.getElementById('itemsTbody');
+            const idx = itemRowCount++;
+
+            let prodOptions = '<option value="">— Custom Product —</option>';
+            CATALOGUE_PRODUCTS.forEach(p => {
+                prodOptions += `<option value="${p.id}" data-sku="${escapeHtml(p.sku)}" data-unit="${escapeHtml(p.unit)}" data-price="${p.price}" data-gst="${p.gst_rate}">${escapeHtml(p.name)}</option>`;
+            });
+
+            let vendorOptions = '<option value="">— Unallocated —</option>';
+            selectedVendorsList.forEach(v => {
+                vendorOptions += `<option value="${v.id}">${escapeHtml(v.company_name)}</option>`;
+            });
+
+            const tr = document.createElement('tr');
+            tr.id = `itemRow_${idx}`;
+            tr.innerHTML = `
+                <td>
+                    <select name="product_id_${idx}" id="prodSelect_${idx}" onchange="handleProductSelect(${idx})">
+                        ${prodOptions}
+                    </select>
+                </td>
+                <td>
+                    <input type="text" name="item_description_${idx}" id="itemDesc_${idx}" placeholder="Description *" required>
+                    <input type="hidden" name="sku_${idx}" id="itemSku_${idx}">
+                </td>
+                <td>
+                    <select name="uom_${idx}" id="itemUom_${idx}">
+                        <option value="Sq Ft" selected>Sq Ft</option>
+                        <option value="Nos">Nos</option>
+                        <option value="Pcs">Pcs</option>
+                        <option value="Rft">Rft</option>
+                        <option value="Set">Set</option>
+                        <option value="Kg">Kg</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="number" step="0.001" min="0.001" name="quantity_${idx}" id="itemQty_${idx}" value="1.000" oninput="calculateItemRow(${idx})" required>
+                </td>
+                <td>
+                    <input type="number" step="0.01" min="0.00" name="unit_price_${idx}" id="itemPrice_${idx}" value="0.00" oninput="calculateItemRow(${idx})" required>
+                </td>
+                <td>
+                    <input type="number" step="0.01" min="0.00" name="discount_amount_${idx}" id="itemDisc_${idx}" value="0.00" oninput="calculateItemRow(${idx})">
+                </td>
+                <td>
+                    <select name="tax_rate_${idx}" id="itemTaxRate_${idx}" onchange="calculateItemRow(${idx})">
+                        <option value="0.00">0%</option>
+                        <option value="5.00">5%</option>
+                        <option value="12.00">12%</option>
+                        <option value="18.00" selected>18%</option>
+                        <option value="28.00">28%</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="text" id="itemTotal_${idx}" value="₹0.00" readonly style="font-weight:700; background:#f8fafc;">
+                </td>
+                <td>
+                    <select name="allocated_vendor_id_${idx}" id="itemVendor_${idx}" class="item-vendor-select">
+                        ${vendorOptions}
+                    </select>
+                </td>
+                <td>
+                    <button type="button" class="btn-remove-row" title="Remove Row" onclick="removeItemRow(${idx})">✕</button>
+                </td>
+            `;
+
+            tbody.appendChild(tr);
+            calculateItemRow(idx);
+        }
+
+        function removeItemRow(idx) {
+            const row = document.getElementById(`itemRow_${idx}`);
+            if (row) {
+                row.remove();
+                calculateOrderTotals();
+            }
+        }
+
+        function handleProductSelect(idx) {
+            const select = document.getElementById(`prodSelect_${idx}`);
+            const selectedOpt = select.options[select.selectedIndex];
+            if (selectedOpt && selectedOpt.value) {
+                const descInput = document.getElementById(`itemDesc_${idx}`);
+                const skuInput = document.getElementById(`itemSku_${idx}`);
+                const uomSelect = document.getElementById(`itemUom_${idx}`);
+                const priceInput = document.getElementById(`itemPrice_${idx}`);
+                const taxSelect = document.getElementById(`itemTaxRate_${idx}`);
+
+                if (!descInput.value || descInput.value.startsWith('Item #')) {
+                    descInput.value = selectedOpt.text;
+                }
+                skuInput.value = selectedOpt.getAttribute('data-sku') || '';
+                const unit = selectedOpt.getAttribute('data-unit');
+                if (unit) uomSelect.value = unit;
+
+                const price = parseFloat(selectedOpt.getAttribute('data-price')) || 0;
+                priceInput.value = price.toFixed(2);
+
+                const gst = parseFloat(selectedOpt.getAttribute('data-gst')) || 18.0;
+                taxSelect.value = gst.toFixed(2);
+            }
+            calculateItemRow(idx);
+        }
+
+        function calculateItemRow(idx) {
+            const qty = parseFloat(document.getElementById(`itemQty_${idx}`)?.value) || 0;
+            const price = parseFloat(document.getElementById(`itemPrice_${idx}`)?.value) || 0;
+            const disc = parseFloat(document.getElementById(`itemDisc_${idx}`)?.value) || 0;
+            const taxRate = parseFloat(document.getElementById(`itemTaxRate_${idx}`)?.value) || 0;
+
+            const base = qty * price;
+            const taxable = Math.max(0, base - disc);
+            const taxAmt = (taxable * taxRate) / 100.0;
+            const total = taxable + taxAmt;
+
+            const totalField = document.getElementById(`itemTotal_${idx}`);
+            if (totalField) {
+                totalField.value = `₹${total.toFixed(2)}`;
+            }
+
+            calculateOrderTotals();
+        }
+
+        function updateItemVendorAllocationOptions() {
+            document.querySelectorAll('.item-vendor-select').forEach(sel => {
+                const currentVal = sel.value;
+                let opts = '<option value="">— Unallocated —</option>';
+                selectedVendorsList.forEach(v => {
+                    opts += `<option value="${v.id}" ${currentVal == v.id ? 'selected' : ''}>${escapeHtml(v.company_name)}</option>`;
+                });
+                sel.innerHTML = opts;
+            });
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           SECTION 05: COMMERCIAL TOTALS CALCULATION
+           ══════════════════════════════════════════════════════════════ */
+        function calculateOrderTotals() {
+            let subtotal = 0;
+            let totalLineDisc = 0;
+            let totalTax = 0;
+            let rowCount = 0;
+
+            const tbody = document.getElementById('itemsTbody');
+            const rows = tbody.querySelectorAll('tr');
+
+            rows.forEach(r => {
+                const rowId = r.id;
+                if (!rowId || !rowId.startsWith('itemRow_')) return;
+                const idx = rowId.split('_')[1];
+
+                const qty = parseFloat(document.getElementById(`itemQty_${idx}`)?.value) || 0;
+                const price = parseFloat(document.getElementById(`itemPrice_${idx}`)?.value) || 0;
+                const disc = parseFloat(document.getElementById(`itemDisc_${idx}`)?.value) || 0;
+                const taxRate = parseFloat(document.getElementById(`itemTaxRate_${idx}`)?.value) || 0;
+
+                const base = qty * price;
+                const taxable = Math.max(0, base - disc);
+                const taxAmt = (taxable * taxRate) / 100.0;
+
+                subtotal += base;
+                totalLineDisc += disc;
+                totalTax += taxAmt;
+                rowCount++;
+            });
+
+            const overallDisc = parseFloat(document.getElementById('overall_discount')?.value) || 0;
+            const freight = parseFloat(document.getElementById('freight_charges')?.value) || 0;
+            const addl = parseFloat(document.getElementById('additional_charges')?.value) || 0;
+
+            const netTaxable = Math.max(0, subtotal - totalLineDisc - overallDisc);
+            const grandTotal = netTaxable + totalTax + freight + addl;
+
+            const advPct = parseFloat(document.getElementById('advance_percentage')?.value) || 50;
+            const advAmt = (grandTotal * advPct) / 100.0;
+            const balAmt = grandTotal - advAmt;
+
+            // Update UI elements
+            document.getElementById('summarySubtotal').textContent = `₹${subtotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('summaryLineDiscount').textContent = `-₹${totalLineDisc.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('summaryOverallDiscount').textContent = `-₹${overallDisc.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('summaryTaxable').textContent = `₹${netTaxable.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('summaryTax').textContent = `+₹${totalTax.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('summaryFreight').textContent = `+₹${(freight + addl).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('summaryGrandTotal').textContent = `₹${grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('stickyTotalDisplay').textContent = `₹${grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('stickyItemCountBadge').textContent = `${rowCount} Item${rowCount === 1 ? '' : 's'}`;
+
+            document.getElementById('summaryAdvanceAmount').textContent = `₹${advAmt.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${advPct}%)`;
+            document.getElementById('summaryBalanceAmount').textContent = `₹${balAmt.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           SUBMISSION HANDLER
+           ══════════════════════════════════════════════════════════════ */
+        function submitMasterOrder(actionType) {
+            // Validate Section 01 Customer
+            const custId = document.getElementById('selectedCustomerId').value;
+            if (!custId) {
+                showToast('Please select or create a Customer before submitting.', 'error');
+                document.getElementById('cardCustomer').classList.remove('collapsed');
+                document.getElementById('customerSearchInput').focus();
+                return;
+            }
+
+            // Validate Section 03 Order Title
+            const titleInput = document.getElementById('order_title');
+            if (!titleInput.value.trim()) {
+                showToast('Order Title is required.', 'error');
+                document.getElementById('cardOrderInfo').classList.remove('collapsed');
+                titleInput.focus();
+                return;
+            }
+
+            // Validate Section 04 Line Items
+            const rows = document.getElementById('itemsTbody').querySelectorAll('tr');
+            if (rows.length === 0) {
+                showToast('Please add at least one line item to the order.', 'error');
+                document.getElementById('cardItems').classList.remove('collapsed');
+                return;
+            }
+
+            let hasValidItem = false;
+            for (let r of rows) {
+                const idx = r.id.split('_')[1];
+                const desc = document.getElementById(`itemDesc_${idx}`)?.value.trim();
+                const qty = parseFloat(document.getElementById(`itemQty_${idx}`)?.value) || 0;
+                if (desc && qty > 0) {
+                    hasValidItem = true;
+                    break;
+                }
+            }
+
+            if (!hasValidItem) {
+                showToast('Please provide a valid description and quantity for line items.', 'error');
+                document.getElementById('cardItems').classList.remove('collapsed');
+                return;
+            }
+
+            // Set action type
+            document.getElementById('orderActionType').value = actionType;
+
+            // Submit form
+            document.getElementById('masterOrderForm').submit();
+        }
+
+        /* Utility HTML Escape */
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
     </script>
 </body>
