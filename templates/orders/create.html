@@ -6,64 +6,159 @@
     <title>Create Master Order | GlassEntials CRM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:wght@0,400;0,600;0,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
     <style>
-        .ord-page { max-width: 1200px; margin: 30px auto; padding: 0 24px; font-family: 'Montserrat', sans-serif; }
-        .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); padding: 30px; margin-bottom: 24px; }
-        .card h2 { margin-top: 0; font-size: 20px; font-weight: 700; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; }
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-bottom: 20px; }
-        .form-group { display: flex; flex-direction: column; gap: 6px; }
-        .form-group label { font-size: 13px; font-weight: 600; color: #475569; }
-        .form-group input, .form-group select, .form-group textarea { padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit; }
-        .form-group textarea { resize: vertical; min-height: 80px; }
-        .btn-primary { background: #0284c7; color: #fff; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; border: none; cursor: pointer; }
-        .btn-primary:hover { background: #0369a1; }
-        .btn-secondary { background: #f1f5f9; color: #334155; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; border: 1px solid #cbd5e1; cursor: pointer; }
-        .btn-secondary:hover { background: #e2e8f0; }
-        .btn-danger { background: #ef4444; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
-        .btn-danger:hover { background: #dc2626; }
-        .items-table { width: 100%; border-collapse: collapse; margin-top: 14px; margin-bottom: 14px; font-size: 13px; }
-        .items-table th { background: #f8fafc; padding: 10px 14px; text-align: left; color: #475569; border-bottom: 1px solid #e2e8f0; }
-        .items-table td { padding: 8px 14px; border-bottom: 1px solid #f1f5f9; }
-        .items-table input, .items-table select { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; }
-        .alert-error { background: #fee2e2; color: #991b1b; padding: 14px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; }
+        .create-wrap { max-width: 1100px; margin: 2rem auto; padding: 0 20px; }
+
+        .create-panel {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid rgba(13,27,42,0.07);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            padding: 2rem 2.2rem;
+            margin-bottom: 1.8rem;
+        }
+        .create-panel-title {
+            font-family: var(--font-heading);
+            font-size: 1.1rem;
+            color: var(--primary-color);
+            margin: 0 0 1.5rem 0;
+            padding-bottom: 0.9rem;
+            border-bottom: 1px solid rgba(13,27,42,0.07);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .create-panel-title span { color: var(--accent-gold); }
+
+        .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+        .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.2rem; }
+        @media (max-width: 768px) { .form-grid-2, .form-grid-3 { grid-template-columns: 1fr; } }
+
+        .oms-field { display: flex; flex-direction: column; gap: 5px; }
+        .oms-field label {
+            font-size: 0.8rem; font-weight: 700; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .oms-field label span { color: #ef4444; }
+        .oms-field input,
+        .oms-field select,
+        .oms-field textarea {
+            padding: 0.72rem 1rem;
+            border: 1px solid rgba(13,27,42,0.15);
+            border-radius: 8px;
+            font-size: 0.93rem;
+            font-family: var(--font-body);
+            color: var(--primary-color);
+            background: #f8fafc;
+            outline: none;
+            transition: border 0.2s, background 0.2s;
+        }
+        .oms-field input:focus,
+        .oms-field select:focus,
+        .oms-field textarea:focus {
+            border-color: var(--accent-gold);
+            background: #fff;
+        }
+        .oms-field textarea { resize: vertical; min-height: 80px; }
+
+        /* Items table */
+        .items-tbl { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 1rem; }
+        .items-tbl th {
+            background: rgba(13,27,42,0.03);
+            padding: 10px 14px;
+            text-align: left;
+            color: var(--text-muted);
+            font-weight: 700;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid rgba(13,27,42,0.08);
+        }
+        .items-tbl td { padding: 8px 10px; border-bottom: 1px solid rgba(13,27,42,0.05); vertical-align: middle; }
+        .items-tbl tr:last-child td { border-bottom: none; }
+        .items-tbl input, .items-tbl select {
+            width: 100%;
+            padding: 7px 10px;
+            border: 1px solid rgba(13,27,42,0.15);
+            border-radius: 6px;
+            font-size: 0.88rem;
+            font-family: var(--font-body);
+            background: #f8fafc;
+            box-sizing: border-box;
+            outline: none;
+            transition: border 0.2s;
+        }
+        .items-tbl input:focus, .items-tbl select:focus {
+            border-color: var(--accent-gold);
+            background: #fff;
+        }
+        .btn-remove-row {
+            background: rgba(239,68,68,0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239,68,68,0.2);
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+            transition: all 0.2s;
+        }
+        .btn-remove-row:hover { background: #ef4444; color: #fff; }
+
+        /* Breadcrumb */
+        .create-breadcrumb {
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .create-breadcrumb a { color: var(--accent-gold); text-decoration: none; }
     </style>
 </head>
 <body class="dashboard-page">
     {% include 'includes/navbar.html' %}
 
-    <main class="ord-page">
+    <div class="create-wrap">
+
+        <!-- Flash -->
         {% with messages = get_flashed_messages(category_filter=["order_error"]) %}
-        {% if messages %}{% for msg in messages %}<div class="alert-error">{{ msg }}</div>{% endfor %}{% endif %}{% endwith %}
+        {% if messages %}{% for msg in messages %}
+        <div style="padding:14px; background:rgba(139,0,0,0.04); border-left:4px solid rgba(139,0,0,0.5); border-radius:4px; color:#8b0000; margin-bottom:1.4rem; font-size:0.93rem; display:flex; gap:10px; align-items:center;">
+            <span>⚠</span> {{ msg }}
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        <!-- Breadcrumb -->
+        <div class="create-breadcrumb">
+            <a href="{{ url_for('orders.list_orders') }}">Orders</a> / Create New Master Order
+        </div>
 
         <form method="POST" action="{{ url_for('orders.create_order') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-            <!-- Basic Details Card -->
-            <div class="card">
-                <h2>Create Master Order</h2>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="customer_id">Customer *</label>
+            <!-- Section 1: Basic Details -->
+            <div class="create-panel">
+                <h2 class="create-panel-title"><span>📋</span> Master Order Details</h2>
+                <div class="form-grid-2" style="margin-bottom:1.2rem;">
+                    <div class="oms-field">
+                        <label for="customer_id">Customer <span>*</span></label>
                         <select name="customer_id" id="customer_id" required>
-                            <option value="">Select Customer</option>
+                            <option value="">— Select Customer —</option>
                             {% for c in customers %}
-                            <option value="{{ c.id }}">{{ c.name }} ({{ c.company_name or 'Individual' }})</option>
+                            <option value="{{ c.id }}">{{ c.name }} {% if c.company_name %}({{ c.company_name }}){% endif %}</option>
                             {% endfor %}
                         </select>
                     </div>
-
-                    <div class="form-group">
-                        <label for="order_title">Order Title *</label>
-                        <input type="text" name="order_title" id="order_title" placeholder="e.g. Villa 402 - Toughened Glass & Fittings" required>
+                    <div class="oms-field">
+                        <label for="order_title">Order Title <span>*</span></label>
+                        <input type="text" name="order_title" id="order_title" placeholder="e.g. Villa 402 — Toughened Glass &amp; Fittings" required>
                     </div>
-
-                    <div class="form-group">
-                        <label for="project_id">Project (Optional)</label>
+                    <div class="oms-field">
+                        <label for="project_id">Linked Project (Optional)</label>
                         <select name="project_id" id="project_id">
                             <option value="">None</option>
                             {% for p in projects %}
@@ -71,11 +166,10 @@
                             {% endfor %}
                         </select>
                     </div>
-
-                    <div class="form-group">
+                    <div class="oms-field">
                         <label for="assigned_to_id">Assigned Employee</label>
                         <select name="assigned_to_id" id="assigned_to_id">
-                            <option value="">Unassigned</option>
+                            <option value="">— Unassigned —</option>
                             {% for e in employees %}
                             <option value="{{ e.id }}">{{ e.name }}</option>
                             {% endfor %}
@@ -83,71 +177,78 @@
                     </div>
                 </div>
 
-                <div class="form-grid">
-                    <div class="form-group">
+                <div class="form-grid-3">
+                    <div class="oms-field">
                         <label for="shipping_address">Shipping Address</label>
                         <textarea name="shipping_address" id="shipping_address" placeholder="Delivery destination address"></textarea>
                     </div>
-                    <div class="form-group">
+                    <div class="oms-field">
                         <label for="site_address">Site / Installation Address</label>
                         <textarea name="site_address" id="site_address" placeholder="Site location for fitting technicians"></textarea>
                     </div>
-                    <div class="form-group">
+                    <div class="oms-field">
                         <label for="billing_address">Billing Address</label>
                         <textarea name="billing_address" id="billing_address" placeholder="Customer billing address"></textarea>
                     </div>
                 </div>
             </div>
 
-            <!-- Line Items Card -->
-            <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h2 style="border: none; margin: 0; padding: 0;">Order Line Items</h2>
-                    <button type="button" class="btn-secondary" onclick="addRow()">+ Add Item Row</button>
+            <!-- Section 2: Line Items -->
+            <div class="create-panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; padding-bottom:0.9rem; border-bottom:1px solid rgba(13,27,42,0.07);">
+                    <h2 class="create-panel-title" style="margin:0; padding:0; border:none;"><span>📦</span> Order Line Items</h2>
+                    <button type="button" class="btn-action outline" onclick="addRow()" style="padding:0.5rem 1.1rem; font-size:0.88rem;">+ Add Item Row</button>
                 </div>
 
-                <table class="items-table" id="itemsTable">
-                    <thead>
-                        <tr>
-                            <th style="width: 35%;">Item Description *</th>
-                            <th style="width: 25%;">Product Link</th>
-                            <th style="width: 12%;">Quantity *</th>
-                            <th style="width: 14%;">Unit Price (₹) *</th>
-                            <th style="width: 10%;">Tax Rate (%)</th>
-                            <th style="width: 4%;"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="itemsBody">
-                        <tr id="row_0">
-                            <td><input type="text" name="item_description_0" placeholder="e.g. 12mm Toughened Glass 8ft x 4ft" required></td>
-                            <td>
-                                <select name="product_id_0">
-                                    <option value="">Custom / Ad-hoc</option>
-                                    {% for pr in products %}
-                                    <option value="{{ pr.id }}">{{ pr.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td><input type="number" step="0.001" min="0.001" name="quantity_0" value="1.000" required></td>
-                            <td><input type="number" step="0.01" min="0.00" name="unit_price_0" value="0.00" required></td>
-                            <td><input type="number" step="0.01" min="0.00" name="tax_rate_0" value="18.00"></td>
-                            <td></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div style="overflow-x:auto;">
+                    <table class="items-tbl" id="itemsTable">
+                        <thead>
+                            <tr>
+                                <th style="width:35%;">Item Description <span style="color:#ef4444;">*</span></th>
+                                <th style="width:22%;">Product Link</th>
+                                <th style="width:12%;">Qty <span style="color:#ef4444;">*</span></th>
+                                <th style="width:14%;">Unit Price (₹) <span style="color:#ef4444;">*</span></th>
+                                <th style="width:10%;">Tax Rate (%)</th>
+                                <th style="width:4%;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsBody">
+                            <tr id="row_0">
+                                <td><input type="text" name="item_description_0" placeholder="e.g. 12mm Toughened Glass 8ft x 4ft" required></td>
+                                <td>
+                                    <select name="product_id_0">
+                                        <option value="">Custom / Ad-hoc</option>
+                                        {% for pr in products %}
+                                        <option value="{{ pr.id }}">{{ pr.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td><input type="number" step="0.001" min="0.001" name="quantity_0" value="1.000" required></td>
+                                <td><input type="number" step="0.01" min="0.00" name="unit_price_0" value="0.00" required></td>
+                                <td><input type="number" step="0.01" min="0.00" name="tax_rate_0" value="18.00"></td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
-                <div class="form-group" style="margin-top: 18px;">
+                <div class="oms-field" style="margin-top:1.4rem;">
                     <label for="notes">Internal Order Notes</label>
-                    <textarea name="notes" id="notes" placeholder="Special execution instructions, client notes, etc."></textarea>
+                    <textarea name="notes" id="notes" placeholder="Special execution instructions, client preferences, drawing references, etc." style="min-height:90px;"></textarea>
                 </div>
 
-                <div style="margin-top: 24px; display: flex; gap: 14px;">
-                    <button type="submit" class="btn-primary">Generate Master Order</button>
-                    <a href="{{ url_for('orders.list_orders') }}" class="btn-secondary" style="padding: 12px 20px;">Cancel</a>
+                <div style="margin-top:1.8rem; display:flex; gap:14px; align-items:center;">
+                    <button type="submit" class="btn-action gold" style="padding:0.8rem 2rem; font-size:0.95rem;">
+                        🚀 Generate Master Order
+                    </button>
+                    <a href="{{ url_for('orders.list_orders') }}" class="btn-action outline" style="padding:0.8rem 1.6rem; font-size:0.95rem; text-decoration:none;">
+                        Cancel
+                    </a>
                 </div>
             </div>
+
         </form>
-    </main>
+    </div>
 
     <script>
         let rowCount = 1;
@@ -168,7 +269,7 @@
                 <td><input type="number" step="0.001" min="0.001" name="quantity_${rowCount}" value="1.000" required></td>
                 <td><input type="number" step="0.01" min="0.00" name="unit_price_${rowCount}" value="0.00" required></td>
                 <td><input type="number" step="0.01" min="0.00" name="tax_rate_${rowCount}" value="18.00"></td>
-                <td><button type="button" class="btn-danger" onclick="removeRow(${rowCount})">×</button></td>
+                <td><button type="button" class="btn-remove-row" onclick="removeRow(${rowCount})">×</button></td>
             `;
             tbody.appendChild(tr);
             rowCount++;
@@ -176,9 +277,7 @@
 
         function removeRow(idx) {
             const row = document.getElementById(`row_${idx}`);
-            if (row) {
-                row.remove();
-            }
+            if (row) row.remove();
         }
     </script>
 </body>

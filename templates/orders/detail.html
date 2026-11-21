@@ -3,902 +3,1107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ cockpit.order.master_order_number }} - Cockpit | GlassEntials CRM</title>
+    <title>{{ cockpit.order.master_order_number }} — Cockpit | GlassEntials CRM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
     <style>
-        .cockpit-page { max-width: 1400px; margin: 24px auto; padding: 0 20px; font-family: 'Montserrat', sans-serif; color: #1e293b; }
-        .cockpit-hero { background: #fff; border-radius: 12px; padding: 24px 30px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); margin-bottom: 20px; }
-        .hero-top { display: flex; justify-content: space-between; align-items: flex-start; }
-        .hero-title h1 { margin: 0; font-size: 24px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 12px; }
-        .hero-title p { margin: 6px 0 0; color: #64748b; font-size: 14px; }
-        .hero-actions { display: flex; gap: 10px; align-items: center; }
-        
-        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-        .badge-draft { background: #f1f5f9; color: #475569; }
-        .badge-confirmed { background: #e0f2fe; color: #0369a1; }
-        .badge-procurement { background: #fef3c7; color: #92400e; }
-        .badge-delivery { background: #e0e7ff; color: #3730a3; }
-        .badge-fitting { background: #f3e8ff; color: #6b21a8; }
-        .badge-completed { background: #dcfce7; color: #15803d; }
-        .badge-cancelled { background: #fee2e2; color: #991b1b; }
-        
-        .pipeline-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 20px; padding-top: 18px; border-top: 1px solid #f1f5f9; }
-        .p-step { background: #f8fafc; border-radius: 8px; padding: 12px 14px; border-left: 3px solid #cbd5e1; }
-        .p-step.active { border-left-color: #0284c7; background: #f0f9ff; }
-        .p-step.done { border-left-color: #10b981; background: #f0fdf4; }
-        .p-step span { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #64748b; }
-        .p-step strong { display: block; font-size: 14px; font-weight: 700; margin-top: 2px; }
+        /* ═══════════════════════════════════
+           Cockpit Layout
+        ═══════════════════════════════════ */
+        .cockpit-wrap { max-width: 1400px; margin: 2rem auto; padding: 0 20px; }
 
-        .tabs-header { display: flex; gap: 4px; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; }
-        .tab-btn { padding: 12px 20px; font-size: 13px; font-weight: 600; background: none; border: none; cursor: pointer; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -2px; }
-        .tab-btn.active { color: #0284c7; border-bottom-color: #0284c7; }
-        .tab-content { display: none; }
+        /* ── Profile Header ── */
+        .cockpit-header {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid rgba(13,27,42,0.07);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            padding: 2rem 2.4rem;
+            margin-bottom: 1.6rem;
+            border-top: 5px solid var(--accent-gold);
+        }
+        .cockpit-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.5rem; flex-wrap: wrap; }
+        .cockpit-identity { display: flex; align-items: center; gap: 20px; }
+        .cockpit-avatar {
+            width: 64px; height: 64px;
+            background: rgba(212,175,55,0.1);
+            color: var(--accent-gold);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.6rem; font-weight: 700; font-family: var(--font-heading);
+            flex-shrink: 0;
+        }
+        .cockpit-title-block h1 {
+            font-family: var(--font-heading);
+            font-size: 1.5rem; margin: 0;
+            color: var(--primary-color);
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        .cockpit-title-block p { margin: 6px 0 0; color: var(--text-muted); font-size: 0.9rem; }
+        .cockpit-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+        /* ── Status Badges ── */
+        .oms-badge {
+            display: inline-block; padding: 4px 12px;
+            border-radius: 20px; font-size: 0.72rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
+        }
+        .ob-draft     { background: rgba(100,116,139,.1); color: #475569; }
+        .ob-confirmed { background: rgba(2,132,199,.1);   color: #0369a1; }
+        .ob-proc      { background: rgba(245,158,11,.12); color: #92400e; }
+        .ob-delivery  { background: rgba(99,102,241,.12); color: #3730a3; }
+        .ob-fitting   { background: rgba(139,92,246,.12); color: #6b21a8; }
+        .ob-completed { background: rgba(16,185,129,.12); color: #15803d; }
+        .ob-cancelled { background: rgba(239,68,68,.1);   color: #991b1b; }
+        .ob-paid      { background: rgba(16,185,129,.12); color: #15803d; }
+        .ob-partial   { background: rgba(245,158,11,.12); color: #b45309; }
+        .ob-unpaid    { background: rgba(239,68,68,.1);   color: #b91c1c; }
+
+        /* ── Pipeline Status Strip ── */
+        .pipeline-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px;
+            margin-top: 1.6rem;
+            padding-top: 1.4rem;
+            border-top: 1px solid rgba(13,27,42,0.06);
+        }
+        .p-step {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 11px 14px;
+            border-left: 3px solid rgba(13,27,42,0.12);
+        }
+        .p-step.active { border-left-color: var(--accent-gold); background: rgba(212,175,55,0.05); }
+        .p-step.done   { border-left-color: #10b981; background: rgba(16,185,129,0.05); }
+        .p-step .ps-label { display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 3px; }
+        .p-step .ps-val   { display: block; font-size: 0.88rem; font-weight: 700; color: var(--primary-color); }
+
+        /* ── Tabs ── */
+        .tabs-container { background: #fff; border-radius: 12px; border: 1px solid rgba(13,27,42,0.07); overflow: hidden; }
+        .tab-nav { display: flex; background: rgba(13,27,42,0.02); border-bottom: 1px solid rgba(13,27,42,0.07); overflow-x: auto; }
+        .tab-btn {
+            padding: 1.1rem 1.5rem; background: none; border: none;
+            cursor: pointer; font-weight: 600; font-size: 0.85rem;
+            color: var(--text-muted); transition: all 0.2s; white-space: nowrap;
+            position: relative; font-family: var(--font-body);
+        }
+        .tab-btn:hover { color: var(--primary-color); }
+        .tab-btn.active { color: var(--primary-color); background: #fff; }
+        .tab-btn.active::after {
+            content: ''; position: absolute; bottom: 0; left: 0;
+            width: 100%; height: 3px; background: var(--accent-gold);
+        }
+        .tab-content { padding: 2rem; display: none; }
         .tab-content.active { display: block; }
 
-        .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); margin-bottom: 20px; }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .card-header h3 { margin: 0; font-size: 16px; font-weight: 700; }
+        /* ── Card within tabs ── */
+        .oms-card {
+            background: #fff; border-radius: 10px;
+            border: 1px solid rgba(13,27,42,0.07);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            margin-bottom: 1.5rem; overflow: hidden;
+        }
+        .oms-card-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1.1rem 1.4rem;
+            border-bottom: 1px solid rgba(13,27,42,0.07);
+            background: rgba(13,27,42,0.015);
+        }
+        .oms-card-header h3 {
+            margin: 0; font-family: var(--font-heading);
+            font-size: 0.95rem; color: var(--primary-color);
+        }
+        .oms-card-body { padding: 1.2rem 1.4rem; }
 
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { background: #f8fafc; padding: 10px 14px; text-align: left; color: #475569; border-bottom: 1px solid #e2e8f0; }
-        td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
-        tr:hover { background: #f8fafc; }
+        /* ── Tables ── */
+        .oms-tbl { width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: left; }
+        .oms-tbl th {
+            background: rgba(13,27,42,0.03); padding: 10px 14px;
+            font-weight: 700; font-size: 0.75rem; text-transform: uppercase;
+            letter-spacing: 0.04em; color: var(--text-muted);
+            border-bottom: 1px solid rgba(13,27,42,0.08);
+        }
+        .oms-tbl td { padding: 11px 14px; border-bottom: 1px solid rgba(13,27,42,0.05); vertical-align: middle; color: var(--primary-color); }
+        .oms-tbl tr:last-child td { border-bottom: none; }
+        .oms-tbl tr:hover td { background: rgba(212,175,55,0.03); }
+        .oms-tbl .empty-row td { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-style: italic; }
 
-        .btn-primary { background: #0284c7; color: #fff; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 13px; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
-        .btn-primary:hover { background: #0369a1; }
-        .btn-secondary { background: #f1f5f9; color: #334155; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 13px; border: 1px solid #cbd5e1; cursor: pointer; text-decoration: none; }
-        .btn-secondary:hover { background: #e2e8f0; }
-        .btn-danger { background: #ef4444; color: #fff; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 13px; border: none; cursor: pointer; }
-        .btn-danger:hover { background: #dc2626; }
-        .btn-sm { padding: 4px 10px; font-size: 11px; }
+        /* ── Form groups (in modals) ── */
+        .oms-fg { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 4px; }
+        .oms-fg label { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+        .oms-fg input, .oms-fg select, .oms-fg textarea {
+            padding: 0.65rem 0.9rem; border: 1px solid rgba(13,27,42,0.15);
+            border-radius: 8px; font-size: 0.9rem; font-family: var(--font-body);
+            color: var(--primary-color); background: #f8fafc;
+            outline: none; transition: border 0.2s, background 0.2s;
+        }
+        .oms-fg input:focus, .oms-fg select:focus, .oms-fg textarea:focus {
+            border-color: var(--accent-gold); background: #fff;
+        }
+        .oms-fg textarea { resize: vertical; min-height: 70px; }
 
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
-        .modal { background: #fff; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; padding: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
-        .modal h3 { margin-top: 0; font-size: 18px; font-weight: 700; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; }
-        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; border-top: 1px solid #f1f5f9; padding-top: 14px; }
-        .form-group { margin-bottom: 14px; display: flex; flex-direction: column; gap: 4px; }
-        .form-group label { font-size: 12px; font-weight: 600; color: #475569; }
-        .form-group input, .form-group select, .form-group textarea { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit; }
-        .alert-success { background: #dcfce7; color: #15803d; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
-        .alert-error { background: #fee2e2; color: #991b1b; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
+        /* ── Modals ── */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); display: none;
+            justify-content: center; align-items: center;
+            z-index: 10000; padding: 1rem;
+        }
+        .modal-box {
+            background: #fff; border-radius: 14px;
+            width: 100%; max-width: 580px; max-height: 90vh;
+            overflow-y: auto; padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+        }
+        .modal-box h3 {
+            font-family: var(--font-heading); font-size: 1.2rem;
+            color: var(--primary-color); margin: 0 0 1.4rem;
+            padding-bottom: 1rem; border-bottom: 1px solid rgba(13,27,42,0.08);
+        }
+        .modal-footer {
+            display: flex; justify-content: flex-end; gap: 10px;
+            margin-top: 1.4rem; padding-top: 1rem;
+            border-top: 1px solid rgba(13,27,42,0.08);
+        }
 
+        /* ── Finance summary row ── */
+        .fin-summ-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.9rem 1.4rem;
+            border-bottom: 1px solid rgba(13,27,42,0.05);
+            font-size: 0.9rem;
+        }
+        .fin-summ-row:last-child { border-bottom: none; }
+        .fin-highlight { background: rgba(16,185,129,0.04); }
+        .fin-highlight-blue { background: rgba(2,132,199,0.04); }
+
+        /* ── Responsive ── */
         @media (max-width: 900px) {
-            .hero-top { flex-direction: column; gap: 16px; }
-            .hero-actions { flex-wrap: wrap; width: 100%; }
-            .tabs-header { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
-            .card { overflow-x: auto; }
-            table { min-width: 600px; }
+            .cockpit-header-row { flex-direction: column; }
+            .tab-nav { overflow-x: auto; }
         }
     </style>
 </head>
 <body class="dashboard-page">
     {% include 'includes/navbar.html' %}
 
-    <main class="cockpit-page">
-        <!-- Flash messages -->
+    {% set ord = cockpit.order %}
+    {% set fin = cockpit.financials %}
+
+    <div class="cockpit-wrap">
+
+        <!-- Flash Messages -->
         {% with messages = get_flashed_messages(category_filter=["order_success"]) %}
-        {% if messages %}{% for msg in messages %}<div class="alert-success">{{ msg }}</div>{% endfor %}{% endif %}{% endwith %}
+        {% if messages %}{% for msg in messages %}
+        <div style="padding:14px; background:rgba(16,185,129,0.08); border-left:4px solid #10b981; border-radius:4px; color:var(--primary-color); margin-bottom:1.4rem; display:flex; gap:10px; align-items:center;">
+            <span style="color:#10b981;">✓</span> {{ msg }}
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
 
         {% with messages = get_flashed_messages(category_filter=["order_error"]) %}
-        {% if messages %}{% for msg in messages %}<div class="alert-error">{{ msg }}</div>{% endfor %}{% endif %}{% endwith %}
+        {% if messages %}{% for msg in messages %}
+        <div style="padding:14px; background:rgba(139,0,0,0.04); border-left:4px solid rgba(139,0,0,0.5); border-radius:4px; color:#8b0000; margin-bottom:1.4rem; display:flex; gap:10px; align-items:center;">
+            <span>⚠</span> {{ msg }}
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
 
-        {% set ord = cockpit.order %}
-        {% set fin = cockpit.financials %}
+        <!-- Breadcrumb -->
+        <div style="margin-bottom:1.2rem; font-size:0.88rem; color:var(--text-muted);">
+            <a href="{{ url_for('orders.list_orders') }}" style="color:var(--accent-gold); text-decoration:none;">Orders</a> / {{ ord.master_order_number }}
+        </div>
 
-        <!-- Hero Header -->
-        <div class="cockpit-hero">
-            <div class="hero-top">
-                <div class="hero-title">
-                    <h1>
-                        {{ ord.master_order_number }}
-                        <span class="badge badge-confirmed">{{ ord.status }}</span>
-                    </h1>
-                    <p>
-                        <strong>{{ ord.order_title }}</strong> | 
-                        Customer: <strong>{{ ord.customer.name if ord.customer else 'Unassigned' }}</strong> 
-                        ({{ ord.customer.mobile if ord.customer else '-' }})
-                    </p>
+        <!-- ── Cockpit Header ── -->
+        <div class="cockpit-header">
+            <div class="cockpit-header-row">
+                <div class="cockpit-identity">
+                    <div class="cockpit-avatar">📋</div>
+                    <div class="cockpit-title-block">
+                        <h1>
+                            {{ ord.master_order_number }}
+                            {% set st = ord.status %}
+                            <span class="oms-badge {% if st == 'CONFIRMED' %}ob-confirmed{% elif 'PROCUREMENT' in st or 'RECEIVED' in st %}ob-proc{% elif 'DELIVER' in st %}ob-delivery{% elif 'FITTING' in st %}ob-fitting{% elif st in ['COMPLETED','CLOSED'] %}ob-completed{% elif st == 'CANCELLED' %}ob-cancelled{% else %}ob-draft{% endif %}">{{ st }}</span>
+                        </h1>
+                        <p>
+                            <strong>{{ ord.order_title }}</strong> &nbsp;·&nbsp;
+                            Customer: <strong>{{ ord.customer.name if ord.customer else 'Unassigned' }}</strong>
+                            {% if ord.customer and ord.customer.mobile %}&nbsp;({{ ord.customer.mobile }}){% endif %}
+                        </p>
+                        <p style="margin-top:4px;">
+                            Ordered: <strong>{{ ord.order_date.strftime('%d %b %Y') if ord.order_date else '—' }}</strong>
+                            &nbsp;·&nbsp; Assigned: <strong>{{ ord.assigned_to.name if ord.assigned_to else 'Unassigned' }}</strong>
+                        </p>
+                    </div>
                 </div>
-                <div class="hero-actions">
-                    <!-- Status Transition Form -->
-                    <form method="POST" action="{{ url_for('orders.transition_status', order_id=ord.id) }}" style="display: flex; gap: 8px;">
+
+                <div class="cockpit-actions">
+                    <!-- Status Transition -->
+                    <form method="POST" action="{{ url_for('orders.transition_status', order_id=ord.id) }}" style="display:flex; gap:8px;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <select name="to_status" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; font-family: inherit;">
+                        <select name="to_status" class="form-control" style="padding:0.55rem 0.9rem; height:auto; font-size:0.85rem; border-radius:8px; border:1px solid rgba(13,27,42,0.15); background:#f8fafc; cursor:pointer; min-width:170px;">
                             {% for st in master_statuses %}
                             {% if st != ord.status %}
                             <option value="{{ st }}">{{ st }}</option>
                             {% endif %}
                             {% endfor %}
                         </select>
-                        <button type="submit" class="btn-primary">Update Status</button>
+                        <button type="submit" class="btn-action gold" style="padding:0.55rem 1.1rem; font-size:0.85rem;">Update Status</button>
                     </form>
 
-                    <a href="{{ url_for('orders.export_order_pdf', order_id=ord.id) }}" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
-                        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        Export PDF
-                    </a>
-                    <button type="button" class="btn-secondary" onclick="openModal('revisionModal')">Snapshot Revision</button>
+                    <a href="{{ url_for('orders.export_order_pdf', order_id=ord.id) }}" class="btn-action outline" style="text-decoration:none; font-size:0.85rem;">📄 Export PDF</a>
+                    <button type="button" class="btn-action outline" onclick="openModal('revisionModal')" style="font-size:0.85rem;">📸 Snapshot</button>
                     {% if ord.status not in ['COMPLETED', 'CLOSED', 'CANCELLED'] %}
-                    <button type="button" class="btn-danger" onclick="openModal('closureModal')">Exceptional Close</button>
+                    <button type="button" class="btn-action" style="background:#ef4444; color:#fff; border-color:#ef4444; font-size:0.85rem;" onclick="openModal('closureModal')">⛔ Close Order</button>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Pipeline Status Bar -->
-            <div class="pipeline-grid">
+            <!-- Pipeline Status Strip -->
+            <div class="pipeline-strip">
                 <div class="p-step {% if ord.status != 'DRAFT' %}done{% else %}active{% endif %}">
-                    <span>Order Confirmation</span>
-                    <strong>{{ ord.status }}</strong>
+                    <span class="ps-label">Order Confirmation</span>
+                    <span class="ps-val">{{ ord.status }}</span>
                 </div>
-                <div class="p-step {% if ord.procurement_status in ['PO_ISSUED', 'IN_TRANSIT', 'RECEIVED'] %}done{% elif ord.procurement_status != 'DRAFT' %}active{% endif %}">
-                    <span>Vendor Procurement</span>
-                    <strong>{{ ord.procurement_status }}</strong>
+                <div class="p-step {% if ord.procurement_status in ['PO_ISSUED','IN_TRANSIT','RECEIVED'] %}done{% elif ord.procurement_status != 'DRAFT' %}active{% endif %}">
+                    <span class="ps-label">Vendor Procurement</span>
+                    <span class="ps-val">{{ ord.procurement_status }}</span>
                 </div>
                 <div class="p-step {% if ord.delivery_status == 'DELIVERED' %}done{% elif ord.delivery_status == 'OUT_FOR_DELIVERY' %}active{% endif %}">
-                    <span>Customer Delivery</span>
-                    <strong>{{ ord.delivery_status }}</strong>
+                    <span class="ps-label">Customer Delivery</span>
+                    <span class="ps-val">{{ ord.delivery_status }}</span>
                 </div>
-                <div class="p-step {% if ord.fitting_status == 'COMPLETED' %}done{% elif ord.fitting_status in ['SCHEDULED', 'PARTIALLY_FITTED'] %}active{% endif %}">
-                    <span>Site Installation</span>
-                    <strong>{{ ord.fitting_status }}</strong>
+                <div class="p-step {% if ord.fitting_status == 'COMPLETED' %}done{% elif ord.fitting_status in ['SCHEDULED','PARTIALLY_FITTED'] %}active{% endif %}">
+                    <span class="ps-label">Site Installation</span>
+                    <span class="ps-val">{{ ord.fitting_status }}</span>
                 </div>
                 <div class="p-step {% if fin.customer_payment_status == 'PAID' %}done{% elif fin.customer_payment_status == 'PARTIALLY_PAID' %}active{% endif %}">
-                    <span>Customer Cash (₹{{ "{:,.0f}".format(fin.total_customer_paid) }})</span>
-                    <strong>{{ fin.customer_payment_status }}</strong>
+                    <span class="ps-label">Customer Cash (₹{{ "{:,.0f}".format(fin.total_customer_paid) }})</span>
+                    <span class="ps-val">{{ fin.customer_payment_status }}</span>
                 </div>
-                <div class="p-step">
-                    <span>Gross Profit Margin</span>
-                    <strong style="color: #0284c7;">₹{{ "{:,.0f}".format(fin.gross_profit) }} ({{ fin.gross_margin_percentage }}%)</strong>
+                <div class="p-step active">
+                    <span class="ps-label">Gross Profit</span>
+                    <span class="ps-val" style="color:var(--accent-gold);">₹{{ "{:,.0f}".format(fin.gross_profit) }} ({{ fin.gross_margin_percentage }}%)</span>
                 </div>
             </div>
         </div>
 
-        <!-- Cockpit Tabs Header -->
-        <div class="tabs-header">
-            <button class="tab-btn active" onclick="switchTab('itemsTab', this)">1. Items & Allocations</button>
-            <button class="tab-btn" onclick="switchTab('procurementTab', this)">2. Procurement & Transporter ({{ cockpit.procurements | length }})</button>
-            <button class="tab-btn" onclick="switchTab('deliveryTab', this)">3. Deliveries ({{ cockpit.deliveries | length }})</button>
-            <button class="tab-btn" onclick="switchTab('fittingTab', this)">4. Site Fitting ({{ cockpit.fitting_visits | length }})</button>
-            <button class="tab-btn" onclick="switchTab('financeTab', this)">5. Financial Reconciliation</button>
-            <button class="tab-btn" onclick="switchTab('historyTab', this)">6. Audit Log ({{ cockpit.status_history | length }})</button>
-            <button class="tab-btn" onclick="switchTab('docsTab', this)">7. Documents ({{ cockpit.documents | length if cockpit.documents else 0 }})</button>
-        </div>
-
-        <!-- TAB 1: Items & Vendor Allocations -->
-        <div id="itemsTab" class="tab-content active">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Order Items & Multi-Vendor Allocations</h3>
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Description</th>
-                            <th>Ordered</th>
-                            <th>Allocated</th>
-                            <th>Procured</th>
-                            <th>Delivered</th>
-                            <th>Installed</th>
-                            <th>Unit Price</th>
-                            <th>Total Price</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for it in cockpit['items'] %}
-                        <tr>
-                            <td>
-                                <strong>{{ it.item_description }}</strong><br>
-                                <small style="color: #64748b;">{{ it.product.name if it.product else 'Custom Product' }}</small>
-                            </td>
-                            <td><strong>{{ it.quantity }}</strong></td>
-                            <td>{{ it.allocated_quantity }}</td>
-                            <td>{{ it.procured_quantity }}</td>
-                            <td>{{ it.delivered_quantity }}</td>
-                            <td>{{ it.installed_quantity }}</td>
-                            <td>₹{{ "{:,.2f}".format(it.unit_price) }}</td>
-                            <td><strong>₹{{ "{:,.2f}".format(it.total_price) }}</strong></td>
-                            <td>
-                                <button type="button" class="btn-primary btn-sm" onclick="openAllocateModal({{ it.id }}, '{{ it.item_description | e }}', {{ it.quantity - it.allocated_quantity }})">
-                                    + Allocate Vendor
-                                </button>
-                            </td>
-                        </tr>
-                        <!-- Show existing allocations -->
-                        {% if it.allocations %}
-                        <tr>
-                            <td colspan="9" style="background: #fafafa; padding-left: 30px;">
-                                <div style="font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px;">Vendor Allocations:</div>
-                                <table style="font-size: 12px; background: #fff; border: 1px solid #e2e8f0;">
-                                    <thead>
-                                        <tr style="background: #f1f5f9;">
-                                            <th>Vendor</th>
-                                            <th>Allocated Qty</th>
-                                            <th>Supplied Qty</th>
-                                            <th>Purchase Rate</th>
-                                            <th>Expected Date</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for al in it.allocations %}
-                                        <tr>
-                                            <td><strong>{{ al.vendor.name if al.vendor else 'Vendor #' ~ al.vendor_id }}</strong></td>
-                                            <td>{{ al.allocated_quantity }}</td>
-                                            <td>{{ al.actual_supplied_quantity }}</td>
-                                            <td>₹{{ "{:,.2f}".format(al.purchase_rate) }}</td>
-                                            <td>{{ al.expected_supply_date if al.expected_supply_date else '-' }}</td>
-                                            <td><span class="badge badge-draft">{{ al.status }}</span></td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-                        {% endif %}
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- TAB 2: Procurement & Transporter -->
-        <div id="procurementTab" class="tab-content">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Vendor Purchase Orders</h3>
-                    <button type="button" class="btn-primary" onclick="openModal('poModal')">+ Issue Purchase Order</button>
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>PO Number</th>
-                            <th>Vendor</th>
-                            <th>Issued Date</th>
-                            <th>Amount</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if cockpit.procurements %}
-                        {% for po in cockpit.procurements %}
-                        <tr>
-                            <td><strong>{{ po.po_number }}</strong></td>
-                            <td>{{ po.vendor.name if (po.vendor and po.vendor.name) else (po.vendor_name or 'Vendor') }}</td>
-                            <td>{{ po.po_date if po.po_date else '-' }}</td>
-                            <td>₹{{ "{:,.2f}".format(po.net_procurement_amount or po.net_amount or po.total_amount or 0) }}</td>
-                            <td><span class="badge badge-draft">{{ po.status }}</span></td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
-                        <tr><td colspan="5" style="text-align: center; color: #64748b;">No Purchase Orders issued yet.</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
+        <!-- ── Tabs ── -->
+        <div class="tabs-container">
+            <div class="tab-nav">
+                <button class="tab-btn active" onclick="switchTab('itemsTab', this)">📦 Items &amp; Allocations</button>
+                <button class="tab-btn" onclick="switchTab('procTab', this)">🏭 Procurement ({{ cockpit.procurements | length }})</button>
+                <button class="tab-btn" onclick="switchTab('delivTab', this)">🚚 Deliveries ({{ cockpit.deliveries | length }})</button>
+                <button class="tab-btn" onclick="switchTab('fittingTab', this)">🔧 Fitting ({{ cockpit.fitting_visits | length }})</button>
+                <button class="tab-btn" onclick="switchTab('finTab', this)">💰 Financials</button>
+                <button class="tab-btn" onclick="switchTab('histTab', this)">🕑 Audit Log ({{ cockpit.status_history | length }})</button>
+                <button class="tab-btn" onclick="switchTab('docsTab', this)">📁 Documents ({{ cockpit.documents | length if cockpit.documents else 0 }})</button>
             </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <h3>Transporter Consignments & Tracking</h3>
-                    <button type="button" class="btn-secondary" onclick="openModal('consignmentModal')">+ Record Consignment</button>
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Consignment #</th>
-                            <th>PO Reference</th>
-                            <th>Transporter</th>
-                            <th>Tracking / LR</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if cockpit.consignments %}
-                        {% for con in cockpit.consignments %}
-                        <tr>
-                            <td><strong>{{ con.consignment_number }}</strong></td>
-                            <td>{{ con.procurement.po_number if con.procurement else '-' }}</td>
-                            <td>{{ con.transporter_name or '-' }} ({{ con.vehicle_number or '-' }})</td>
-                            <td>{{ con.tracking_number or con.lr_number or '-' }}</td>
-                            <td><span class="badge badge-procurement">{{ con.status }}</span></td>
-                            <td>
-                                {% if con.status not in ['RECEIVED', 'VERIFIED'] %}
-                                <button type="button" class="btn-primary btn-sm" onclick="openQCModal({{ con.id }}, '{{ con.consignment_number }}')">Arrival QC</button>
+            <!-- TAB 1: Items & Allocations -->
+            <div id="itemsTab" class="tab-content active">
+                <div class="oms-card">
+                    <div class="oms-card-header">
+                        <h3>Order Items &amp; Multi-Vendor Allocations</h3>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="oms-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Ordered</th>
+                                    <th>Allocated</th>
+                                    <th>Procured</th>
+                                    <th>Delivered</th>
+                                    <th>Installed</th>
+                                    <th>Unit Price</th>
+                                    <th>Total Price</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for it in cockpit['items'] %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ it.item_description }}</strong><br>
+                                        <small style="color:var(--text-muted);">{{ it.product.name if it.product else 'Custom Product' }}</small>
+                                    </td>
+                                    <td><strong>{{ it.quantity }}</strong></td>
+                                    <td>{{ it.allocated_quantity }}</td>
+                                    <td>{{ it.procured_quantity }}</td>
+                                    <td>{{ it.delivered_quantity }}</td>
+                                    <td>{{ it.installed_quantity }}</td>
+                                    <td>₹{{ "{:,.2f}".format(it.unit_price) }}</td>
+                                    <td><strong>₹{{ "{:,.2f}".format(it.total_price) }}</strong></td>
+                                    <td>
+                                        <button type="button" class="btn-action gold" style="padding:0.3rem 0.8rem; font-size:0.78rem;" onclick="openAllocateModal({{ it.id }}, '{{ it.item_description | e }}', {{ it.quantity - it.allocated_quantity }})">
+                                            + Allocate Vendor
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% if it.allocations %}
+                                <tr>
+                                    <td colspan="9" style="background:rgba(13,27,42,0.015); padding:0.8rem 1.4rem 0.8rem 2.4rem;">
+                                        <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Vendor Allocations</div>
+                                        <table class="oms-tbl" style="font-size:0.82rem; background:#fff; border:1px solid rgba(13,27,42,0.08); border-radius:6px; overflow:hidden;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Vendor</th>
+                                                    <th>Allocated Qty</th>
+                                                    <th>Supplied Qty</th>
+                                                    <th>Purchase Rate</th>
+                                                    <th>Expected Date</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for al in it.allocations %}
+                                                <tr>
+                                                    <td><strong>{{ al.vendor.name if al.vendor else 'Vendor #' ~ al.vendor_id }}</strong></td>
+                                                    <td>{{ al.allocated_quantity }}</td>
+                                                    <td>{{ al.actual_supplied_quantity }}</td>
+                                                    <td>₹{{ "{:,.2f}".format(al.purchase_rate) }}</td>
+                                                    <td>{{ al.expected_supply_date if al.expected_supply_date else '—' }}</td>
+                                                    <td><span class="oms-badge ob-draft">{{ al.status }}</span></td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
                                 {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
-                        <tr><td colspan="6" style="text-align: center; color: #64748b;">No consignments recorded yet.</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- TAB 3: Deliveries -->
-        <div id="deliveryTab" class="tab-content">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Customer Delivery Challans</h3>
-                    <button type="button" class="btn-primary" onclick="openModal('deliveryModal')">+ Create Delivery Challan</button>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Delivery #</th>
-                            <th>Challan #</th>
-                            <th>Date</th>
-                            <th>Recipient</th>
-                            <th>Delivered By</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if cockpit.deliveries %}
-                        {% for delv in cockpit.deliveries %}
-                        <tr>
-                            <td><strong>{{ delv.delivery_number }}</strong></td>
-                            <td>{{ delv.challan_number or '-' }}</td>
-                            <td>{{ delv.delivery_date if delv.delivery_date else '-' }}</td>
-                            <td>{{ delv.recipient_name or '-' }} ({{ delv.recipient_phone or '-' }})</td>
-                            <td>{{ delv.delivered_by.name if (delv.delivered_by and delv.delivered_by.name) else (delv.delivered_by or '-') }}</td>
-                            <td><span class="badge badge-delivery">{{ delv.status }}</span></td>
-                            <td>
-                                {% if delv.status != 'DELIVERED' %}
-                                <form method="POST" action="{{ url_for('orders.confirm_delivery', order_id=ord.id, delv_id=delv.id) }}" style="display: inline;">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="btn-primary btn-sm">Confirm Delivery</button>
-                                </form>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
-                        <tr><td colspan="7" style="text-align: center; color: #64748b;">No delivery challans created yet.</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
             </div>
-        </div>
 
-        <!-- TAB 4: Site Fitting -->
-        <div id="fittingTab" class="tab-content">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Site Installation & Fitting Visits</h3>
-                    <button type="button" class="btn-primary" onclick="openModal('fittingModal')">+ Schedule Fitting Visit</button>
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Visit #</th>
-                            <th>Scheduled Date</th>
-                            <th>Technician</th>
-                            <th>Client Signoff</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if cockpit.fitting_visits %}
-                        {% for v in cockpit.fitting_visits %}
-                        <tr>
-                            <td><strong>{{ v.visit_number }}</strong></td>
-                            <td>{{ v.scheduled_date if v.scheduled_date else '-' }}</td>
-                            <td>{{ v.technician.name if (v.technician and v.technician.name) else (v.technician or 'Unassigned') }}</td>
-                            <td>
-                                {% if v.client_signoff %}
-                                <span style="color: #15803d; font-weight: 700;">✓ Signed Off</span>
+            <!-- TAB 2: Procurement -->
+            <div id="procTab" class="tab-content">
+                <div class="oms-card">
+                    <div class="oms-card-header">
+                        <h3>Vendor Purchase Orders</h3>
+                        <button type="button" class="btn-action gold" style="font-size:0.85rem;" onclick="openModal('poModal')">+ Issue Purchase Order</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="oms-tbl">
+                            <thead>
+                                <tr><th>PO Number</th><th>Vendor</th><th>Issued Date</th><th>Amount</th><th>Status</th></tr>
+                            </thead>
+                            <tbody>
+                                {% if cockpit.procurements %}
+                                {% for po in cockpit.procurements %}
+                                <tr>
+                                    <td><strong>{{ po.po_number }}</strong></td>
+                                    <td>{{ po.vendor.name if (po.vendor and po.vendor.name) else (po.vendor_name or 'Vendor') }}</td>
+                                    <td style="color:var(--text-muted);">{{ po.po_date if po.po_date else '—' }}</td>
+                                    <td><strong>₹{{ "{:,.2f}".format(po.net_procurement_amount or po.net_amount or po.total_amount or 0) }}</strong></td>
+                                    <td><span class="oms-badge ob-draft">{{ po.status }}</span></td>
+                                </tr>
+                                {% endfor %}
                                 {% else %}
-                                <span style="color: #94a3b8;">Pending</span>
+                                <tr class="empty-row"><td colspan="5">No purchase orders issued yet.</td></tr>
                                 {% endif %}
-                            </td>
-                            <td><span class="badge badge-fitting">{{ v.status }}</span></td>
-                            <td>
-                                {% if v.status != 'COMPLETED' %}
-                                <form method="POST" action="{{ url_for('orders.complete_fitting_visit', order_id=ord.id, visit_id=v.id) }}" style="display: inline;">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="client_signoff" value="true">
-                                    <button type="submit" class="btn-primary btn-sm">Complete & Sign Off</button>
-                                </form>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="oms-card">
+                    <div class="oms-card-header">
+                        <h3>Transporter Consignments &amp; Tracking</h3>
+                        <button type="button" class="btn-action outline" style="font-size:0.85rem;" onclick="openModal('consignmentModal')">+ Record Consignment</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="oms-tbl">
+                            <thead>
+                                <tr><th>Consignment #</th><th>PO Reference</th><th>Transporter</th><th>Tracking / LR</th><th>Status</th><th>Action</th></tr>
+                            </thead>
+                            <tbody>
+                                {% if cockpit.consignments %}
+                                {% for con in cockpit.consignments %}
+                                <tr>
+                                    <td><strong>{{ con.consignment_number }}</strong></td>
+                                    <td>{{ con.procurement.po_number if con.procurement else '—' }}</td>
+                                    <td>{{ con.transporter_name or '—' }} {% if con.vehicle_number %}({{ con.vehicle_number }}){% endif %}</td>
+                                    <td>{{ con.tracking_number or con.lr_number or '—' }}</td>
+                                    <td><span class="oms-badge ob-proc">{{ con.status }}</span></td>
+                                    <td>
+                                        {% if con.status not in ['RECEIVED', 'VERIFIED'] %}
+                                        <button type="button" class="btn-action gold" style="padding:0.3rem 0.8rem; font-size:0.78rem;" onclick="openQCModal({{ con.id }}, '{{ con.consignment_number }}')">Arrival QC</button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr class="empty-row"><td colspan="6">No consignments recorded yet.</td></tr>
                                 {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
-                        <tr><td colspan="6" style="text-align: center; color: #64748b;">No fitting visits scheduled yet.</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- TAB 5: Financial Reconciliation -->
-        <div id="financeTab" class="tab-content">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Customer Payment Ledger (Zero Double-Counting)</h3>
-                    <button type="button" class="btn-primary" onclick="openModal('paymentModal')">+ Allocate Customer Payment</button>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Allocation ID</th>
-                            <th>Payment #</th>
-                            <th>Type</th>
-                            <th>Allocated Amount</th>
-                            <th>Date</th>
-                            <th>Allocated By</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if cockpit.payment_allocations %}
-                        {% for pa in cockpit.payment_allocations %}
-                        <tr>
-                            <td>#{{ pa.id }}</td>
-                            <td><strong>{{ pa.payment.payment_number if pa.payment else 'Payment #' ~ pa.payment_id }}</strong></td>
-                            <td><span class="badge badge-draft">{{ pa.allocation_type }}</span></td>
-                            <td>
-                                <strong style="color: {% if (pa.allocated_amount or pa.amount or 0) < 0 %}#dc2626{% else %}#15803d{% endif %};">
-                                    ₹{{ "{:,.2f}".format(pa.allocated_amount or pa.amount or 0) }}
-                                </strong>
-                            </td>
-                            <td>{{ pa.allocation_date if pa.allocation_date else '-' }}</td>
-                            <td>{{ pa.allocated_by.name if (pa.allocated_by and pa.allocated_by.name) else (pa.allocated_by or '-') }}</td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
-                        <tr><td colspan="6" style="text-align: center; color: #64748b;">No customer payments allocated yet.</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
             </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <h3>Vendor Bills (3-Way Matching AP)</h3>
-                    <button type="button" class="btn-secondary" onclick="openModal('vendorBillModal')">+ Record Vendor Bill</button>
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Bill #</th>
-                            <th>Vendor</th>
-                            <th>Bill Date</th>
-                            <th>Total Amount</th>
-                            <th>Paid Amount</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if cockpit.vendor_bills %}
-                        {% for vb in cockpit.vendor_bills %}
-                        <tr>
-                            <td><strong>{{ vb.bill_number }}</strong></td>
-                            <td>{{ vb.vendor.name if (vb.vendor and vb.vendor.name) else (vb.vendor_name or 'Vendor') }}</td>
-                            <td>{{ vb.bill_date if vb.bill_date else '-' }}</td>
-                            <td><strong>₹{{ "{:,.2f}".format(vb.total_amount or 0) }}</strong></td>
-                            <td>₹{{ "{:,.2f}".format(vb.paid_amount or 0) }}</td>
-                            <td><span class="badge badge-draft">{{ vb.status }}</span></td>
-                            <td>
-                                {% if vb.status != 'PAID' %}
-                                <button type="button" class="btn-primary btn-sm" onclick="openVendorPayModal({{ vb.id }}, '{{ vb.bill_number }}', {{ vb.total_amount - vb.paid_amount }})">Pay</button>
+            <!-- TAB 3: Deliveries -->
+            <div id="delivTab" class="tab-content">
+                <div class="oms-card">
+                    <div class="oms-card-header">
+                        <h3>Customer Delivery Challans</h3>
+                        <button type="button" class="btn-action gold" style="font-size:0.85rem;" onclick="openModal('deliveryModal')">+ Create Delivery Challan</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="oms-tbl">
+                            <thead>
+                                <tr><th>Delivery #</th><th>Challan #</th><th>Date</th><th>Recipient</th><th>Delivered By</th><th>Status</th><th>Action</th></tr>
+                            </thead>
+                            <tbody>
+                                {% if cockpit.deliveries %}
+                                {% for delv in cockpit.deliveries %}
+                                <tr>
+                                    <td><strong>{{ delv.delivery_number }}</strong></td>
+                                    <td>{{ delv.challan_number or '—' }}</td>
+                                    <td style="color:var(--text-muted);">{{ delv.delivery_date if delv.delivery_date else '—' }}</td>
+                                    <td>{{ delv.recipient_name or '—' }} {% if delv.recipient_phone %}<small style="color:var(--text-muted);">({{ delv.recipient_phone }})</small>{% endif %}</td>
+                                    <td>{{ delv.delivered_by.name if (delv.delivered_by and delv.delivered_by.name) else (delv.delivered_by or '—') }}</td>
+                                    <td><span class="oms-badge ob-delivery">{{ delv.status }}</span></td>
+                                    <td>
+                                        {% if delv.status != 'DELIVERED' %}
+                                        <form method="POST" action="{{ url_for('orders.confirm_delivery', order_id=ord.id, delv_id=delv.id) }}" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn-action green" style="background:rgba(16,185,129,0.1); color:#15803d; border-color:rgba(16,185,129,0.25); padding:0.3rem 0.8rem; font-size:0.78rem;">✓ Confirm</button>
+                                        </form>
+                                        {% else %}
+                                        <span style="color:#15803d; font-weight:700; font-size:0.82rem;">✓ Delivered</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr class="empty-row"><td colspan="7">No delivery challans created yet.</td></tr>
                                 {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
-                        <tr><td colspan="7" style="text-align: center; color: #64748b;">No vendor bills recorded.</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- TAB 6: History & Revisions -->
-        <div id="historyTab" class="tab-content">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Order Status History Timeline</h3>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Timestamp</th>
-                            <th>Status Type</th>
-                            <th>Transition</th>
-                            <th>Remarks</th>
-                            <th>Changed By</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if cockpit.status_history %}
-                        {% for sh in cockpit.status_history %}
-                        <tr>
-                            <td>{{ sh.created_at if sh.created_at else '-' }}</td>
-                            <td><span class="badge badge-draft">{{ sh.status_type }}</span></td>
-                            <td>{{ sh.from_status or 'INIT' }} &rarr; <strong>{{ sh.to_status }}</strong></td>
-                            <td>{{ sh.remarks or '-' }}</td>
-                            <td>{{ sh.changed_by.name if (sh.changed_by and sh.changed_by.name) else (sh.changed_by or '-') }}</td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
-                        <tr><td colspan="5" style="text-align: center; color: #64748b;">No status history yet.</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
             </div>
-        </div>
 
-        <!-- TAB 7: Order Documents & Drawings -->
-        <div id="docsTab" class="tab-content">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Order Files, Quotations, Challans & Site Photos</h3>
-                    <button type="button" class="btn-primary" onclick="openModal('docUploadModal')">+ Upload Document</button>
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Document Title</th>
-                            <th>Category</th>
-                            <th>File Size</th>
-                            <th>Uploaded By</th>
-                            <th>Date</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if cockpit.documents %}
-                        {% for doc in cockpit.documents %}
-                        <tr>
-                            <td>
-                                <strong>{{ doc.title }}</strong>
-                                {% if doc.is_customer_visible %}
-                                <span class="badge badge-confirmed" style="font-size: 9px; margin-left: 6px;">Customer Visible</span>
+            <!-- TAB 4: Site Fitting -->
+            <div id="fittingTab" class="tab-content">
+                <div class="oms-card">
+                    <div class="oms-card-header">
+                        <h3>Site Installation &amp; Fitting Visits</h3>
+                        <button type="button" class="btn-action gold" style="font-size:0.85rem;" onclick="openModal('fittingModal')">+ Schedule Fitting Visit</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="oms-tbl">
+                            <thead>
+                                <tr><th>Visit #</th><th>Scheduled Date</th><th>Technician</th><th>Client Signoff</th><th>Status</th><th>Action</th></tr>
+                            </thead>
+                            <tbody>
+                                {% if cockpit.fitting_visits %}
+                                {% for v in cockpit.fitting_visits %}
+                                <tr>
+                                    <td><strong>{{ v.visit_number }}</strong></td>
+                                    <td style="color:var(--text-muted);">{{ v.scheduled_date if v.scheduled_date else '—' }}</td>
+                                    <td>{{ v.technician.name if (v.technician and v.technician.name) else (v.technician or 'Unassigned') }}</td>
+                                    <td>
+                                        {% if v.client_signoff %}
+                                        <span style="color:#15803d; font-weight:700;">✓ Signed Off</span>
+                                        {% else %}
+                                        <span style="color:var(--text-muted); font-style:italic;">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="oms-badge ob-fitting">{{ v.status }}</span></td>
+                                    <td>
+                                        {% if v.status != 'COMPLETED' %}
+                                        <form method="POST" action="{{ url_for('orders.complete_fitting_visit', order_id=ord.id, visit_id=v.id) }}" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="client_signoff" value="true">
+                                            <button type="submit" class="btn-action gold" style="padding:0.3rem 0.8rem; font-size:0.78rem;">✓ Complete &amp; Sign Off</button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr class="empty-row"><td colspan="6">No fitting visits scheduled yet.</td></tr>
                                 {% endif %}
-                            </td>
-                            <td><span class="badge badge-draft">{{ doc.document_type }}</span></td>
-                            <td>{{ doc.file_size_formatted }}</td>
-                            <td>{{ doc.uploaded_by }}</td>
-                            <td>{{ doc.created_at }}</td>
-                            <td>
-                                <div style="display: flex; gap: 6px; align-items: center;">
-                                    <a href="{{ url_for('orders.preview_order_document', order_id=ord.id, doc_id=doc.id) }}" target="_blank" class="btn-secondary btn-sm" style="text-decoration: none;">Preview</a>
-                                    <a href="{{ url_for('orders.download_order_document', order_id=ord.id, doc_id=doc.id) }}" class="btn-primary btn-sm" style="text-decoration: none;">Download</a>
-                                    <form method="POST" action="{{ url_for('orders.delete_order_document', order_id=ord.id, doc_id=doc.id) }}" style="display: inline;" onsubmit="return confirm('Delete this document?');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn-danger btn-sm" style="padding: 4px 8px; font-size: 11px;">Delete</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: Financial Reconciliation -->
+            <div id="finTab" class="tab-content">
+                <!-- Financial Summary -->
+                <div class="oms-card" style="margin-bottom:1.5rem;">
+                    <div class="oms-card-header"><h3>💰 Order Financial Summary</h3></div>
+                    <div class="fin-summ-row">
+                        <span>Net Order Amount (excl. tax)</span>
+                        <strong>₹{{ "{:,.2f}".format(fin.net_order_amount) }}</strong>
+                    </div>
+                    <div class="fin-summ-row">
+                        <span>Total Tax Amount</span>
+                        <span>₹{{ "{:,.2f}".format(fin.total_tax_amount) }}</span>
+                    </div>
+                    <div class="fin-summ-row">
+                        <span>Total Procurement Cost</span>
+                        <strong style="color:#dc2626;">₹{{ "{:,.2f}".format(fin.total_procurement_cost) }}</strong>
+                    </div>
+                    <div class="fin-summ-row fin-highlight">
+                        <strong>Gross Commercial Profit ({{ fin.gross_margin_percentage }}%)</strong>
+                        <strong style="color:#15803d;">₹{{ "{:,.2f}".format(fin.gross_profit) }}</strong>
+                    </div>
+                    <div class="fin-summ-row">
+                        <span>Customer Total Paid</span>
+                        <strong style="color:#15803d;">₹{{ "{:,.2f}".format(fin.total_customer_paid) }}</strong>
+                    </div>
+                    <div class="fin-summ-row">
+                        <span>Customer Outstanding</span>
+                        <strong style="color:#f59e0b;">₹{{ "{:,.2f}".format(fin.customer_outstanding) }}</strong>
+                    </div>
+                    <div class="fin-summ-row fin-highlight-blue">
+                        <strong>Customer Payment Status</strong>
+                        <span class="oms-badge {% if fin.customer_payment_status == 'PAID' %}ob-paid{% elif fin.customer_payment_status == 'PARTIALLY_PAID' %}ob-partial{% else %}ob-unpaid{% endif %}">{{ fin.customer_payment_status }}</span>
+                    </div>
+                </div>
+
+                <!-- Customer Payments -->
+                <div class="oms-card">
+                    <div class="oms-card-header">
+                        <h3>Customer Payment Ledger</h3>
+                        <button type="button" class="btn-action gold" style="font-size:0.85rem;" onclick="openModal('paymentModal')">+ Allocate Payment</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="oms-tbl">
+                            <thead>
+                                <tr><th>Allocation #</th><th>Payment #</th><th>Type</th><th>Amount</th><th>Date</th><th>Allocated By</th></tr>
+                            </thead>
+                            <tbody>
+                                {% if cockpit.payment_allocations %}
+                                {% for pa in cockpit.payment_allocations %}
+                                <tr>
+                                    <td>#{{ pa.id }}</td>
+                                    <td><strong>{{ pa.payment.payment_number if pa.payment else 'Payment #' ~ pa.payment_id }}</strong></td>
+                                    <td><span class="oms-badge ob-draft">{{ pa.allocation_type }}</span></td>
+                                    <td><strong style="color:{% if (pa.allocated_amount or pa.amount or 0) < 0 %}#dc2626{% else %}#15803d{% endif %};">₹{{ "{:,.2f}".format(pa.allocated_amount or pa.amount or 0) }}</strong></td>
+                                    <td style="color:var(--text-muted);">{{ pa.allocation_date if pa.allocation_date else '—' }}</td>
+                                    <td>{{ pa.allocated_by.name if (pa.allocated_by and pa.allocated_by.name) else '—' }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr class="empty-row"><td colspan="6">No customer payments allocated yet.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Vendor Bills -->
+                <div class="oms-card">
+                    <div class="oms-card-header">
+                        <h3>Vendor Bills (3-Way Matching AP)</h3>
+                        <button type="button" class="btn-action outline" style="font-size:0.85rem;" onclick="openModal('vendorBillModal')">+ Record Vendor Bill</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="oms-tbl">
+                            <thead>
+                                <tr><th>Bill #</th><th>Vendor</th><th>Bill Date</th><th>Total</th><th>Paid</th><th>Status</th><th>Action</th></tr>
+                            </thead>
+                            <tbody>
+                                {% if cockpit.vendor_bills %}
+                                {% for vb in cockpit.vendor_bills %}
+                                <tr>
+                                    <td><strong>{{ vb.bill_number }}</strong></td>
+                                    <td>{{ vb.vendor.name if (vb.vendor and vb.vendor.name) else (vb.vendor_name or 'Vendor') }}</td>
+                                    <td style="color:var(--text-muted);">{{ vb.bill_date if vb.bill_date else '—' }}</td>
+                                    <td><strong>₹{{ "{:,.2f}".format(vb.total_amount or 0) }}</strong></td>
+                                    <td>₹{{ "{:,.2f}".format(vb.paid_amount or 0) }}</td>
+                                    <td><span class="oms-badge ob-draft">{{ vb.status }}</span></td>
+                                    <td>
+                                        {% if vb.status != 'PAID' %}
+                                        <button type="button" class="btn-action gold" style="padding:0.3rem 0.8rem; font-size:0.78rem;" onclick="openVendorPayModal({{ vb.id }}, '{{ vb.bill_number }}', {{ vb.total_amount - vb.paid_amount }})">Pay</button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr class="empty-row"><td colspan="7">No vendor bills recorded.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: Audit Log / History -->
+            <div id="histTab" class="tab-content">
+                <div class="oms-card">
+                    <div class="oms-card-header"><h3>Order Status History Timeline</h3></div>
+                    <div style="overflow-x:auto;">
+                        <table class="oms-tbl">
+                            <thead>
+                                <tr><th>Timestamp</th><th>Status Type</th><th>Transition</th><th>Remarks</th><th>Changed By</th></tr>
+                            </thead>
+                            <tbody>
+                                {% if cockpit.status_history %}
+                                {% for sh in cockpit.status_history %}
+                                <tr>
+                                    <td style="color:var(--text-muted); font-size:0.85rem;">{{ sh.created_at if sh.created_at else '—' }}</td>
+                                    <td><span class="oms-badge ob-draft">{{ sh.status_type }}</span></td>
+                                    <td>{{ sh.from_status or 'INIT' }} &rarr; <strong style="color:var(--accent-gold);">{{ sh.to_status }}</strong></td>
+                                    <td style="color:var(--text-muted);">{{ sh.remarks or '—' }}</td>
+                                    <td>{{ sh.changed_by.name if (sh.changed_by and sh.changed_by.name) else '—' }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr class="empty-row"><td colspan="5">No status history recorded yet.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 7: Documents -->
+            <div id="docsTab" class="tab-content">
+                <div class="oms-card">
+                    <div class="oms-card-header">
+                        <h3>Order Files, Quotations, Challans &amp; Site Photos</h3>
+                        <button type="button" class="btn-action gold" style="font-size:0.85rem;" onclick="openModal('docUploadModal')">📤 Upload Document</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="oms-tbl">
+                            <thead>
+                                <tr><th>Document Title</th><th>Category</th><th>File Size</th><th>Uploaded By</th><th>Date</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody>
+                                {% if cockpit.documents %}
+                                {% for doc in cockpit.documents %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ doc.title }}</strong>
+                                        {% if doc.is_customer_visible %}
+                                        <span class="oms-badge ob-confirmed" style="font-size:0.65rem; margin-left:6px;">Customer Visible</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="oms-badge ob-draft">{{ doc.document_type }}</span></td>
+                                    <td style="color:var(--text-muted);">{{ doc.file_size_formatted }}</td>
+                                    <td>{{ doc.uploaded_by }}</td>
+                                    <td style="color:var(--text-muted); font-size:0.85rem;">{{ doc.created_at }}</td>
+                                    <td>
+                                        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                            <a href="{{ url_for('orders.preview_order_document', order_id=ord.id, doc_id=doc.id) }}" target="_blank" class="btn-action outline" style="padding:0.3rem 0.8rem; font-size:0.78rem; text-decoration:none;">Preview</a>
+                                            <a href="{{ url_for('orders.download_order_document', order_id=ord.id, doc_id=doc.id) }}" class="btn-action gold" style="padding:0.3rem 0.8rem; font-size:0.78rem; text-decoration:none;">Download</a>
+                                            <form method="POST" action="{{ url_for('orders.delete_order_document', order_id=ord.id, doc_id=doc.id) }}" style="display:inline;" onsubmit="return confirm('Delete this document permanently?');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn-action" style="background:rgba(239,68,68,0.1); color:#ef4444; border-color:rgba(239,68,68,0.2); padding:0.3rem 0.8rem; font-size:0.78rem;">Delete</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr class="empty-row">
+                                    <td colspan="6">
+                                        <div style="font-size:2.5rem; opacity:0.2; margin-bottom:10px;">📁</div>
+                                        No documents uploaded yet. Add quotation PDFs, site drawings, delivery challans or vendor bills.
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /tabs-container -->
+    </div><!-- /cockpit-wrap -->
+
+    <!-- ═══════════════════════════════════
+         MODALS
+    ═══════════════════════════════════ -->
+
+    <!-- Upload Document -->
+    <div id="docUploadModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>📤 Upload Order Document</h3>
+            <form method="POST" action="{{ url_for('orders.upload_order_document', order_id=ord.id) }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="oms-fg">
+                    <label for="doc_title">Document Title <span style="color:#ef4444;">*</span></label>
+                    <input type="text" name="title" id="doc_title" placeholder="e.g. Architectural Elevation Drawing v2" required>
+                </div>
+                <div class="oms-fg">
+                    <label for="doc_type">Document Category <span style="color:#ef4444;">*</span></label>
+                    <select name="document_type" id="doc_type" required>
+                        <option value="QUOTATION">QUOTATION (Client / Vendor)</option>
+                        <option value="PURCHASE_ORDER">PURCHASE ORDER (Signed PO)</option>
+                        <option value="DELIVERY_CHALLAN">DELIVERY CHALLAN (Signed Proof of Delivery)</option>
+                        <option value="FITTING_REPORT">FITTING REPORT (Installation Signoff)</option>
+                        <option value="VENDOR_BILL">VENDOR BILL (Supplier Tax Invoice)</option>
+                        <option value="CUSTOMER_INVOICE">CUSTOMER INVOICE</option>
+                        <option value="PAYMENT_RECEIPT">PAYMENT RECEIPT</option>
+                        <option value="SITE_PHOTO">SITE PHOTO (Measurement / Installation)</option>
+                        <option value="OTHER" selected>OTHER (Drawing / Contract / Note)</option>
+                    </select>
+                </div>
+                <div class="oms-fg">
+                    <label for="doc_file">Select File (PDF, Images, Excel, Word — max 15 MB) <span style="color:#ef4444;">*</span></label>
+                    <input type="file" name="file" id="doc_file" required accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.csv">
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:1rem;">
+                    <input type="checkbox" name="is_customer_visible" id="is_cust_vis" value="true">
+                    <label for="is_cust_vis" style="margin:0; font-size:0.9rem; font-weight:500; color:var(--primary-color);">Visible in Customer Portal</label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('docUploadModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Upload Document</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Allocate Vendor -->
+    <div id="allocateModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Allocate Vendor to Item</h3>
+            <form id="allocateForm" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <p id="allocItemDesc" style="font-weight:600; font-size:0.9rem; color:var(--accent-gold); margin-bottom:1.2rem;"></p>
+                <div class="oms-fg">
+                    <label for="alloc_vendor_id">Select Vendor <span style="color:#ef4444;">*</span></label>
+                    <select name="vendor_id" id="alloc_vendor_id" required>
+                        <option value="">— Select Vendor —</option>
+                        {% for v in vendors %}
+                        <option value="{{ v.id }}">{{ v.name }} ({{ v.vendor_code }})</option>
                         {% endfor %}
-                        {% else %}
-                        <tr><td colspan="6" style="text-align: center; color: #64748b;">No documents uploaded yet. Add quotation PDFs, site drawings, delivery challans or vendor bills.</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
+                    </select>
+                </div>
+                <div class="oms-fg">
+                    <label for="alloc_qty">Allocated Quantity <span style="color:#ef4444;">*</span></label>
+                    <input type="number" step="0.001" min="0.001" name="allocated_quantity" id="alloc_qty" required>
+                </div>
+                <div class="oms-fg">
+                    <label for="alloc_rate">Agreed Purchase Rate (₹)</label>
+                    <input type="number" step="0.01" min="0.00" name="purchase_rate" id="alloc_rate" value="0.00">
+                </div>
+                <div class="oms-fg">
+                    <label for="alloc_date">Expected Supply Date</label>
+                    <input type="date" name="expected_supply_date" id="alloc_date">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('allocateModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Save Allocation</button>
+                </div>
+            </form>
         </div>
+    </div>
 
-        <!-- MODAL: Upload Order Document -->
-        <div id="docUploadModal" class="modal-overlay">
-            <div class="modal">
-                <h3>Upload Order Document</h3>
-                <form method="POST" action="{{ url_for('orders.upload_order_document', order_id=ord.id) }}" enctype="multipart/form-data">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="form-group">
-                        <label for="doc_title">Document Title *</label>
-                        <input type="text" name="title" id="doc_title" placeholder="e.g. Architectural Elevation Drawing v2" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="doc_type">Document Category *</label>
-                        <select name="document_type" id="doc_type" required>
-                            <option value="QUOTATION">QUOTATION (Client / Vendor)</option>
-                            <option value="PURCHASE_ORDER">PURCHASE ORDER (Signed PO)</option>
-                            <option value="DELIVERY_CHALLAN">DELIVERY CHALLAN (Signed Proof of Delivery)</option>
-                            <option value="FITTING_REPORT">FITTING REPORT (Installation Signoff)</option>
-                            <option value="VENDOR_BILL">VENDOR BILL (Supplier Tax Invoice)</option>
-                            <option value="CUSTOMER_INVOICE">CUSTOMER INVOICE</option>
-                            <option value="PAYMENT_RECEIPT">PAYMENT RECEIPT</option>
-                            <option value="SITE_PHOTO">SITE PHOTO (Measurement / Installation)</option>
-                            <option value="OTHER" selected>OTHER (Drawing / Contract / Note)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="doc_file">Select File (PDF, Images, Excel, Word - max 15MB) *</label>
-                        <input type="file" name="file" id="doc_file" required accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.csv">
-                    </div>
-                    <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" name="is_customer_visible" id="is_cust_vis" value="true">
-                        <label for="is_cust_vis" style="margin: 0; font-weight: 500;">Visible in Customer Portal</label>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn-secondary" onclick="closeModal('docUploadModal')">Cancel</button>
-                        <button type="submit" class="btn-primary">Upload Document</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- MODAL: Allocate Vendor -->
-        <div id="allocateModal" class="modal-overlay">
-            <div class="modal">
-                <h3>Allocate Vendor to Item</h3>
-                <form id="allocateForm" method="POST" action="">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <p id="allocItemDesc" style="font-weight: 600; font-size: 13px; color: #0284c7;"></p>
-                    <div class="form-group">
-                        <label for="alloc_vendor_id">Select Vendor *</label>
-                        <select name="vendor_id" id="alloc_vendor_id" required>
-                            <option value="">Select Vendor</option>
-                            {% for v in vendors %}
-                            <option value="{{ v.id }}">{{ v.name }} ({{ v.vendor_code }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="alloc_qty">Allocated Quantity *</label>
-                        <input type="number" step="0.001" min="0.001" name="allocated_quantity" id="alloc_qty" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="alloc_rate">Agreed Purchase Rate (₹)</label>
-                        <input type="number" step="0.01" min="0.00" name="purchase_rate" id="alloc_rate" value="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label for="alloc_date">Expected Supply Date</label>
-                        <input type="date" name="expected_supply_date" id="alloc_date">
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn-secondary" onclick="closeModal('allocateModal')">Cancel</button>
-                        <button type="submit" class="btn-primary">Save Allocation</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- MODAL: Issue PO -->
-        <div id="poModal" class="modal-overlay">
-            <div class="modal">
-                <h3>Issue Vendor Purchase Order</h3>
-                <form method="POST" action="{{ url_for('orders.create_procurement', order_id=ord.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="form-group">
-                        <label for="po_vendor_id">Vendor *</label>
-                        <select name="vendor_id" id="po_vendor_id" required>
-                            <option value="">Select Vendor</option>
-                            {% for v in vendors %}
-                            <option value="{{ v.id }}">{{ v.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <p style="font-size: 12px; color: #64748b;">Select allocated items for this Purchase Order:</p>
-                    <div style="max-height: 200px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 14px;">
-                        {% for it in cockpit['items'] %}
-                            {% for al in it.allocations %}
-                            {% if al.status != 'RECEIVED' %}
-                            <div style="font-size: 12px; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
-                                <label style="display: flex; gap: 8px; align-items: center;">
-                                    <input type="checkbox" name="allocation_id" value="{{ al.id }}">
-                                    <span>{{ it.item_description }} (Allocated: {{ al.allocated_quantity }} to {{ al.vendor.name if al.vendor else 'Vendor' }})</span>
-                                </label>
-                                <input type="hidden" name="proc_qty_{{ al.id }}" value="{{ al.allocated_quantity }}">
-                                <input type="hidden" name="proc_rate_{{ al.id }}" value="{{ al.purchase_rate }}">
-                            </div>
-                            {% endif %}
-                            {% endfor %}
+    <!-- Issue PO -->
+    <div id="poModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Issue Vendor Purchase Order</h3>
+            <form method="POST" action="{{ url_for('orders.create_procurement', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="oms-fg">
+                    <label for="po_vendor_id">Vendor <span style="color:#ef4444;">*</span></label>
+                    <select name="vendor_id" id="po_vendor_id" required>
+                        <option value="">— Select Vendor —</option>
+                        {% for v in vendors %}
+                        <option value="{{ v.id }}">{{ v.name }}</option>
                         {% endfor %}
-                    </div>
-                    <div class="form-group">
-                        <label for="po_date">Expected Delivery Date</label>
-                        <input type="date" name="expected_delivery_date" id="po_date">
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn-secondary" onclick="closeModal('poModal')">Cancel</button>
-                        <button type="submit" class="btn-primary">Generate PO</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- MODAL: Record Consignment -->
-        <div id="consignmentModal" class="modal-overlay">
-            <div class="modal">
-                <h3>Record Transporter Consignment</h3>
-                <form method="POST" action="{{ url_for('orders.record_consignment', order_id=ord.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="form-group">
-                        <label for="c_procurement_id">Purchase Order *</label>
-                        <select name="procurement_id" id="c_procurement_id" required>
-                            <option value="">Select PO</option>
-                            {% for po in cockpit.procurements %}
-                            <option value="{{ po.id }}">{{ po.po_number }} - {{ po.vendor.name if po.vendor else 'Vendor' }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="c_transporter">Transporter Name</label>
-                        <input type="text" name="transporter_name" id="c_transporter" placeholder="e.g. VRL Logistics, SafeXpress">
-                    </div>
-                    <div class="form-group">
-                        <label for="c_tracking">Tracking / LR Number</label>
-                        <input type="text" name="tracking_number" id="c_tracking" placeholder="LR or Consignment tracking #">
-                    </div>
-                    <div class="form-group">
-                        <label for="c_vehicle">Vehicle Number</label>
-                        <input type="text" name="vehicle_number" id="c_vehicle" placeholder="e.g. MH 12 AB 1234">
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn-secondary" onclick="closeModal('consignmentModal')">Cancel</button>
-                        <button type="submit" class="btn-primary">Record Consignment</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- MODAL: Create Delivery Challan -->
-        <div id="deliveryModal" class="modal-overlay">
-            <div class="modal">
-                <h3>Create Customer Delivery Challan</h3>
-                <form method="POST" action="{{ url_for('orders.create_delivery', order_id=ord.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="form-group">
-                        <label for="d_recipient">Recipient Name</label>
-                        <input type="text" name="recipient_name" id="d_recipient" value="{{ ord.customer.name if ord.customer else '' }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="d_phone">Recipient Phone</label>
-                        <input type="text" name="recipient_phone" id="d_phone" value="{{ ord.customer.mobile if ord.customer else '' }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="d_address">Delivery Address</label>
-                        <textarea name="delivery_address" id="d_address">{{ ord.shipping_address or ord.site_address or '' }}</textarea>
-                    </div>
-                    <p style="font-size: 12px; font-weight: 600; color: #475569;">Specify Delivered Quantities:</p>
+                    </select>
+                </div>
+                <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.8rem;">Select allocated items for this Purchase Order:</p>
+                <div style="max-height:200px; overflow-y:auto; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:10px; margin-bottom:1rem; background:#f8fafc;">
                     {% for it in cockpit['items'] %}
-                    {% set remaining = it.quantity - it.delivered_quantity %}
-                    {% if remaining > 0 %}
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px;">
-                        <span>{{ it.item_description }} (Max: {{ remaining }})</span>
-                        <input type="number" step="0.001" min="0" max="{{ remaining }}" name="delv_qty_{{ it.id }}" value="{{ remaining }}" style="width: 100px;">
-                    </div>
-                    {% endif %}
+                        {% for al in it.allocations %}
+                        {% if al.status != 'RECEIVED' %}
+                        <div style="font-size:0.85rem; padding:6px 0; border-bottom:1px solid rgba(13,27,42,0.05);">
+                            <label style="display:flex; gap:8px; align-items:center; cursor:pointer;">
+                                <input type="checkbox" name="allocation_id" value="{{ al.id }}">
+                                <span>{{ it.item_description }} (Allocated: {{ al.allocated_quantity }} to {{ al.vendor.name if al.vendor else 'Vendor' }})</span>
+                            </label>
+                            <input type="hidden" name="proc_qty_{{ al.id }}" value="{{ al.allocated_quantity }}">
+                            <input type="hidden" name="proc_rate_{{ al.id }}" value="{{ al.purchase_rate }}">
+                        </div>
+                        {% endif %}
+                        {% endfor %}
                     {% endfor %}
-                    <div class="modal-footer">
-                        <button type="button" class="btn-secondary" onclick="closeModal('deliveryModal')">Cancel</button>
-                        <button type="submit" class="btn-primary">Generate Challan</button>
-                    </div>
-                </form>
-            </div>
+                </div>
+                <div class="oms-fg">
+                    <label for="po_date">Expected Delivery Date</label>
+                    <input type="date" name="expected_delivery_date" id="po_date">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('poModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Generate PO</button>
+                </div>
+            </form>
         </div>
+    </div>
 
-        <!-- MODAL: Schedule Fitting Visit -->
-        <div id="fittingModal" class="modal-overlay">
-            <div class="modal">
-                <h3>Schedule Site Installation / Fitting Visit</h3>
-                <form method="POST" action="{{ url_for('orders.schedule_fitting_visit', order_id=ord.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="form-group">
-                        <label for="fit_date">Scheduled Date *</label>
-                        <input type="date" name="scheduled_date" id="fit_date" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="fit_tech">Technician</label>
-                        <select name="technician_id" id="fit_tech">
-                            <option value="">Unassigned</option>
-                            {% for e in employees %}
-                            <option value="{{ e.id }}">{{ e.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="fit_notes">Instructions</label>
-                        <textarea name="notes" id="fit_notes" placeholder="Site contact, tools required, etc."></textarea>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn-secondary" onclick="closeModal('fittingModal')">Cancel</button>
-                        <button type="submit" class="btn-primary">Schedule Visit</button>
-                    </div>
-                </form>
-            </div>
+    <!-- Record Consignment -->
+    <div id="consignmentModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Record Transporter Consignment</h3>
+            <form method="POST" action="{{ url_for('orders.record_consignment', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="oms-fg">
+                    <label for="c_procurement_id">Purchase Order <span style="color:#ef4444;">*</span></label>
+                    <select name="procurement_id" id="c_procurement_id" required>
+                        <option value="">— Select PO —</option>
+                        {% for po in cockpit.procurements %}
+                        <option value="{{ po.id }}">{{ po.po_number }} — {{ po.vendor.name if po.vendor else 'Vendor' }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="oms-fg">
+                    <label for="c_transporter">Transporter Name</label>
+                    <input type="text" name="transporter_name" id="c_transporter" placeholder="e.g. VRL Logistics, SafeXpress">
+                </div>
+                <div class="oms-fg">
+                    <label for="c_tracking">Tracking / LR Number</label>
+                    <input type="text" name="tracking_number" id="c_tracking" placeholder="LR or Consignment tracking #">
+                </div>
+                <div class="oms-fg">
+                    <label for="c_vehicle">Vehicle Number</label>
+                    <input type="text" name="vehicle_number" id="c_vehicle" placeholder="e.g. MH 12 AB 1234">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('consignmentModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Record Consignment</button>
+                </div>
+            </form>
         </div>
+    </div>
 
-        <!-- MODAL: Allocate Customer Payment -->
-        <div id="paymentModal" class="modal-overlay">
-            <div class="modal">
-                <h3>Allocate Customer Payment</h3>
-                <form method="POST" action="{{ url_for('orders.allocate_payment', order_id=ord.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="form-group">
-                        <label for="pay_id">Payment Record *</label>
-                        <select name="payment_id" id="pay_id" required>
-                            <option value="">Select Payment</option>
-                            {% for p in available_payments %}
-                            <option value="{{ p.id }}">{{ p.payment_number }} - ₹{{ "{:,.2f}".format(p.amount) }} ({{ p.customer_name }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="alloc_type">Allocation Type</label>
-                        <select name="allocation_type" id="alloc_type">
-                            <option value="DIRECT_PAYMENT">Direct Order Payment</option>
-                            <option value="INVOICE_SETTLEMENT">Invoice Settlement</option>
-                            <option value="ADVANCE_UNLINK">Advance Unlink (Negative adjustment to prevent double-count)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="pay_amt">Allocated Amount (₹) *</label>
-                        <input type="number" step="0.01" min="0.01" name="allocated_amount" id="pay_amt" required>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn-secondary" onclick="closeModal('paymentModal')">Cancel</button>
-                        <button type="submit" class="btn-primary">Save Allocation</button>
-                    </div>
-                </form>
-            </div>
+    <!-- Create Delivery Challan -->
+    <div id="deliveryModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Create Customer Delivery Challan</h3>
+            <form method="POST" action="{{ url_for('orders.create_delivery', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="oms-fg">
+                    <label for="d_recipient">Recipient Name</label>
+                    <input type="text" name="recipient_name" id="d_recipient" value="{{ ord.customer.name if ord.customer else '' }}">
+                </div>
+                <div class="oms-fg">
+                    <label for="d_phone">Recipient Phone</label>
+                    <input type="text" name="recipient_phone" id="d_phone" value="{{ ord.customer.mobile if ord.customer else '' }}">
+                </div>
+                <div class="oms-fg">
+                    <label for="d_address">Delivery Address</label>
+                    <textarea name="delivery_address" id="d_address">{{ ord.shipping_address or ord.site_address or '' }}</textarea>
+                </div>
+                <p style="font-size:0.82rem; font-weight:700; color:var(--text-muted); margin-bottom:0.6rem; text-transform:uppercase; letter-spacing:0.04em;">Specify Delivered Quantities:</p>
+                {% for it in cockpit['items'] %}
+                {% set remaining = it.quantity - it.delivered_quantity %}
+                {% if remaining > 0 %}
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:0.88rem; gap:12px;">
+                    <span style="flex:1; color:var(--primary-color);">{{ it.item_description }} <small style="color:var(--text-muted);">(Max: {{ remaining }})</small></span>
+                    <input type="number" step="0.001" min="0" max="{{ remaining }}" name="delv_qty_{{ it.id }}" value="{{ remaining }}" style="width:90px; padding:5px 8px; border:1px solid rgba(13,27,42,0.15); border-radius:6px; font-size:0.88rem;">
+                </div>
+                {% endif %}
+                {% endfor %}
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('deliveryModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Generate Challan</button>
+                </div>
+            </form>
         </div>
+    </div>
 
-        <!-- MODAL: Revision Snapshot -->
-        <div id="revisionModal" class="modal-overlay">
-            <div class="modal">
-                <h3>Generate Immutable Revision Snapshot</h3>
-                <form method="POST" action="{{ url_for('orders.create_revision', order_id=ord.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="form-group">
-                        <label for="rev_reason">Reason for Revision *</label>
-                        <textarea name="change_reason" id="rev_reason" placeholder="Document changes in scope, drawing amendments, price revisions, etc." required></textarea>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn-secondary" onclick="closeModal('revisionModal')">Cancel</button>
-                        <button type="submit" class="btn-primary">Create Snapshot</button>
-                    </div>
-                </form>
-            </div>
+    <!-- Schedule Fitting Visit -->
+    <div id="fittingModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Schedule Site Installation / Fitting Visit</h3>
+            <form method="POST" action="{{ url_for('orders.schedule_fitting_visit', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="oms-fg">
+                    <label for="fit_date">Scheduled Date <span style="color:#ef4444;">*</span></label>
+                    <input type="date" name="scheduled_date" id="fit_date" required>
+                </div>
+                <div class="oms-fg">
+                    <label for="fit_tech">Assigned Technician</label>
+                    <select name="technician_id" id="fit_tech">
+                        <option value="">— Unassigned —</option>
+                        {% for e in employees %}
+                        <option value="{{ e.id }}">{{ e.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="oms-fg">
+                    <label for="fit_notes">Site Instructions</label>
+                    <textarea name="notes" id="fit_notes" placeholder="Site contact, tools required, special precautions, etc."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('fittingModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Schedule Visit</button>
+                </div>
+            </form>
         </div>
+    </div>
 
-        <!-- MODAL: Exceptional Close -->
-        <div id="closureModal" class="modal-overlay">
-            <div class="modal">
-                <h3 style="color: #991b1b;">Exceptional Order Closure</h3>
-                <form method="POST" action="{{ url_for('orders.exceptional_close', order_id=ord.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="form-group">
-                        <label for="cls_type">Closure Type *</label>
-                        <select name="closure_type" id="cls_type">
-                            <option value="CANCELLED">CANCELLED (Client or Vendor Request)</option>
-                            <option value="TERMINATED">FORCE TERMINATED (Default or Insolvency)</option>
-                            <option value="FORCE_CLOSED">FORCE CLOSED (Administrative Discretion)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="cls_reason">Closure Reason *</label>
-                        <textarea name="closure_reason" id="cls_reason" placeholder="Detailed legal/commercial reason for early closure" required></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="cls_impact">Financial Impact Notes</label>
-                        <textarea name="financial_impact_notes" id="cls_impact" placeholder="Forfeited advances, vendor penalties, scrap write-offs..."></textarea>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn-secondary" onclick="closeModal('closureModal')">Cancel</button>
-                        <button type="submit" class="btn-danger">Confirm Closure</button>
-                    </div>
-                </form>
-            </div>
+    <!-- Allocate Customer Payment -->
+    <div id="paymentModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Allocate Customer Payment</h3>
+            <form method="POST" action="{{ url_for('orders.allocate_payment', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="oms-fg">
+                    <label for="pay_id">Payment Record <span style="color:#ef4444;">*</span></label>
+                    <select name="payment_id" id="pay_id" required>
+                        <option value="">— Select Payment —</option>
+                        {% for p in available_payments %}
+                        <option value="{{ p.id }}">{{ p.payment_number }} — ₹{{ "{:,.2f}".format(p.amount) }} ({{ p.customer_name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="oms-fg">
+                    <label for="alloc_type">Allocation Type</label>
+                    <select name="allocation_type" id="alloc_type">
+                        <option value="DIRECT_PAYMENT">Direct Order Payment</option>
+                        <option value="INVOICE_SETTLEMENT">Invoice Settlement</option>
+                        <option value="ADVANCE_UNLINK">Advance Unlink (Negative — prevents double-count)</option>
+                    </select>
+                </div>
+                <div class="oms-fg">
+                    <label for="pay_amt">Allocated Amount (₹) <span style="color:#ef4444;">*</span></label>
+                    <input type="number" step="0.01" min="0.01" name="allocated_amount" id="pay_amt" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('paymentModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Save Allocation</button>
+                </div>
+            </form>
         </div>
+    </div>
 
-    </main>
+    <!-- Record Vendor Bill -->
+    <div id="vendorBillModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Record Vendor Bill</h3>
+            <form method="POST" action="{{ url_for('orders.record_vendor_bill', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="oms-fg">
+                    <label for="vb_vendor">Vendor <span style="color:#ef4444;">*</span></label>
+                    <select name="vendor_id" id="vb_vendor" required>
+                        <option value="">— Select Vendor —</option>
+                        {% for v in vendors %}
+                        <option value="{{ v.id }}">{{ v.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="oms-fg">
+                    <label for="vb_number">Bill Number <span style="color:#ef4444;">*</span></label>
+                    <input type="text" name="bill_number" id="vb_number" placeholder="Supplier invoice / bill number" required>
+                </div>
+                <div class="oms-fg">
+                    <label for="vb_date">Bill Date</label>
+                    <input type="date" name="bill_date" id="vb_date">
+                </div>
+                <div class="oms-fg">
+                    <label for="vb_amount">Total Bill Amount (₹) <span style="color:#ef4444;">*</span></label>
+                    <input type="number" step="0.01" min="0.01" name="total_amount" id="vb_amount" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('vendorBillModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Record Bill</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Pay Vendor Bill (dynamic) -->
+    <div id="vendorPayModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Pay Vendor Bill</h3>
+            <form id="vendorPayForm" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <p id="vendorPayDesc" style="font-weight:600; color:var(--accent-gold); font-size:0.9rem; margin-bottom:1.2rem;"></p>
+                <div class="oms-fg">
+                    <label for="vpay_method">Payment Method</label>
+                    <select name="payment_method" id="vpay_method">
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                        <option value="CHEQUE">Cheque</option>
+                        <option value="CASH">Cash</option>
+                        <option value="UPI">UPI</option>
+                    </select>
+                </div>
+                <div class="oms-fg">
+                    <label for="vpay_amount">Amount Paid (₹) <span style="color:#ef4444;">*</span></label>
+                    <input type="number" step="0.01" min="0.01" name="amount_paid" id="vpay_amount" required>
+                </div>
+                <div class="oms-fg">
+                    <label for="vpay_ref">Reference / UTR Number</label>
+                    <input type="text" name="reference_number" id="vpay_ref" placeholder="Transaction reference">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('vendorPayModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Record Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Revision Snapshot -->
+    <div id="revisionModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>📸 Generate Immutable Revision Snapshot</h3>
+            <form method="POST" action="{{ url_for('orders.create_revision', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="oms-fg">
+                    <label for="rev_reason">Reason for Revision <span style="color:#ef4444;">*</span></label>
+                    <textarea name="change_reason" id="rev_reason" placeholder="Document changes in scope, drawing amendments, price revisions, etc." required style="min-height:100px;"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('revisionModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Create Snapshot</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Exceptional Closure -->
+    <div id="closureModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 style="color:#991b1b;">⛔ Exceptional Order Closure</h3>
+            <form method="POST" action="{{ url_for('orders.exceptional_close', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="oms-fg">
+                    <label for="cls_type">Closure Type <span style="color:#ef4444;">*</span></label>
+                    <select name="closure_type" id="cls_type">
+                        <option value="CANCELLED">CANCELLED (Client or Vendor Request)</option>
+                        <option value="TERMINATED">FORCE TERMINATED (Default or Insolvency)</option>
+                        <option value="FORCE_CLOSED">FORCE CLOSED (Administrative Discretion)</option>
+                    </select>
+                </div>
+                <div class="oms-fg">
+                    <label for="cls_reason">Closure Reason <span style="color:#ef4444;">*</span></label>
+                    <textarea name="closure_reason" id="cls_reason" placeholder="Detailed legal / commercial reason for early closure" required style="min-height:90px;"></textarea>
+                </div>
+                <div class="oms-fg">
+                    <label for="cls_impact">Financial Impact Notes</label>
+                    <textarea name="financial_impact_notes" id="cls_impact" placeholder="Forfeited advances, vendor penalties, scrap write-offs..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('closureModal')">Cancel</button>
+                    <button type="submit" class="btn-action" style="background:#ef4444; color:#fff; border-color:#ef4444;">Confirm Closure</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script>
+        /* ── Tab Switching ── */
         function switchTab(tabId, btn) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -906,20 +1111,42 @@
             btn.classList.add('active');
         }
 
-        function openModal(id) {
-            document.getElementById(id).style.display = 'flex';
-        }
+        /* ── Modals ── */
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-        function closeModal(id) {
-            document.getElementById(id).style.display = 'none';
-        }
+        // Close modal on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.style.display = 'none'; });
+        });
 
+        /* ── Allocate Vendor Modal ── */
         function openAllocateModal(itemId, desc, maxQty) {
-            document.getElementById('allocItemDesc').innerText = `Item: ${desc} (Unallocated: ${maxQty})`;
+            document.getElementById('allocItemDesc').innerText = `Item: ${desc} — Unallocated Qty: ${maxQty}`;
             document.getElementById('alloc_qty').value = maxQty > 0 ? maxQty : 1;
             document.getElementById('allocateForm').action = `/orders/{{ ord.id }}/items/${itemId}/allocate`;
             openModal('allocateModal');
         }
+
+        /* ── Vendor Pay Modal ── */
+        function openVendorPayModal(billId, billNumber, outstanding) {
+            document.getElementById('vendorPayDesc').innerText = `Bill: ${billNumber} — Outstanding: ₹${parseFloat(outstanding).toFixed(2)}`;
+            document.getElementById('vpay_amount').value = outstanding > 0 ? outstanding.toFixed(2) : '0.00';
+            document.getElementById('vendorPayForm').action = `/orders/{{ ord.id }}/vendor-bills/${billId}/pay`;
+            openModal('vendorPayModal');
+        }
+
+        /* ── QC Modal (placeholder — open consignment update if implemented) ── */
+        function openQCModal(consignmentId, number) {
+            alert(`QC Arrival check for consignment: ${number}\n\nPlease use the consignment update endpoint or implement inline QC form.`);
+        }
+
+        /* ── ESC to close modals ── */
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay').forEach(o => o.style.display = 'none');
+            }
+        });
     </script>
 </body>
 </html>

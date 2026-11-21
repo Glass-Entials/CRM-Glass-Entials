@@ -6,248 +6,311 @@
     <title>Unified Order Cockpit | GlassEntials CRM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:wght@0,400;0,600;0,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
     <style>
-        .ord-page { max-width: 1400px; margin: 30px auto; padding: 0 24px; font-family: 'Montserrat', sans-serif; }
-        .ord-hero { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: #fff; padding: 24px 30px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
-        .ord-hero h1 { margin: 0; font-size: 24px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 12px; }
-        .ord-hero p { margin: 4px 0 0 0; color: #64748b; font-size: 14px; }
-        .btn-primary { background: #0284c7; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; border: none; cursor: pointer; transition: background 0.2s; }
-        .btn-primary:hover { background: #0369a1; }
-        .btn-secondary { background: #f1f5f9; color: #334155; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; border: 1px solid #cbd5e1; }
-        .btn-secondary:hover { background: #e2e8f0; }
-        .ord-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
-        .metric-card { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid #0284c7; }
-        .metric-card.green { border-left-color: #10b981; }
-        .metric-card.amber { border-left-color: #f59e0b; }
-        .metric-card.purple { border-left-color: #8b5cf6; }
-        .metric-card.indigo { border-left-color: #6366f1; }
-        .metric-card h3 { margin: 0; font-size: 24px; font-weight: 700; color: #0f172a; }
-        .metric-card span { font-size: 13px; color: #64748b; font-weight: 500; }
-        .ord-filter-bar { background: #fff; padding: 18px 24px; border-radius: 10px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
-        .ord-filter-bar input, .ord-filter-bar select { padding: 9px 14px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit; }
-        .ord-filter-bar input[type="text"] { min-width: 260px; }
-        .ord-table-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); overflow: hidden; }
-        .ord-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
-        .ord-table th { background: #f8fafc; padding: 14px 18px; font-weight: 600; color: #475569; border-bottom: 1px solid #e2e8f0; }
-        .ord-table td { padding: 14px 18px; border-bottom: 1px solid #f1f5f9; color: #1e293b; vertical-align: middle; }
-        .ord-table tr:hover { background: #f8fafc; }
-        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-        .badge-draft { background: #f1f5f9; color: #475569; }
-        .badge-confirmed { background: #e0f2fe; color: #0369a1; }
-        .badge-procurement { background: #fef3c7; color: #92400e; }
-        .badge-delivery { background: #e0e7ff; color: #3730a3; }
-        .badge-fitting { background: #f3e8ff; color: #6b21a8; }
-        .badge-completed { background: #dcfce7; color: #15803d; }
-        .badge-cancelled { background: #fee2e2; color: #991b1b; }
-        .badge-paid { background: #dcfce7; color: #15803d; }
-        .badge-unpaid { background: #fee2e2; color: #b91c1c; }
-        .badge-partial { background: #fef3c7; color: #b45309; }
-        .ord-link { color: #0284c7; font-weight: 600; text-decoration: none; }
-        .ord-link:hover { text-decoration: underline; }
-        .alert { padding: 12px 18px; border-radius: 8px; margin-bottom: 18px; font-size: 13px; font-weight: 500; }
-        .alert-success { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-        .pagination { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 20px; background: #fff; }
+        /* ── OMS Status Badges ── */
+        .oms-badge {
+            display: inline-block; padding: 3px 10px; border-radius: 20px;
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.04em; white-space: nowrap;
+        }
+        .ob-draft     { background: rgba(100,116,139,.1);  color: #475569; }
+        .ob-confirmed { background: rgba(2,132,199,.1);    color: #0369a1; }
+        .ob-proc      { background: rgba(245,158,11,.12);  color: #92400e; }
+        .ob-delivery  { background: rgba(99,102,241,.12);  color: #3730a3; }
+        .ob-fitting   { background: rgba(139,92,246,.12);  color: #6b21a8; }
+        .ob-completed { background: rgba(16,185,129,.12);  color: #15803d; }
+        .ob-cancelled { background: rgba(239,68,68,.1);    color: #991b1b; }
+        .ob-paid      { background: rgba(16,185,129,.12);  color: #15803d; }
+        .ob-partial   { background: rgba(245,158,11,.12);  color: #b45309; }
+        .ob-unpaid    { background: rgba(239,68,68,.1);    color: #b91c1c; }
+
+        /* ── Metric cards ── */
+        .oms-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 1.2rem;
+            margin-bottom: 2rem;
+        }
+        .oms-metric-card {
+            background: #fff;
+            padding: 1.4rem 1.6rem;
+            border-radius: 12px;
+            border: 1px solid rgba(13,27,42,0.07);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            border-left: 4px solid var(--accent-gold);
+            transition: box-shadow 0.2s;
+        }
+        .oms-metric-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+        .oms-metric-card.blue  { border-left-color: #0284c7; }
+        .oms-metric-card.green { border-left-color: #10b981; }
+        .oms-metric-card.amber { border-left-color: #f59e0b; }
+        .oms-metric-card.purple{ border-left-color: #8b5cf6; }
+        .oms-metric-card.indigo{ border-left-color: #6366f1; }
+        .oms-metric-card h3 {
+            margin: 0; font-size: 1.75rem; font-weight: 800;
+            color: var(--primary-color); font-family: var(--font-heading);
+        }
+        .oms-metric-card span {
+            font-size: 0.78rem; color: var(--text-muted);
+            font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+            display: block; margin-top: 4px;
+        }
+
+        /* ── Order Table ── */
+        .oms-table-link {
+            color: var(--accent-gold); font-weight: 700; text-decoration: none;
+            border-bottom: 1px solid transparent; transition: border-color 0.2s;
+        }
+        .oms-table-link:hover { border-bottom-color: var(--accent-gold); }
+
+        /* ── Filter bar form submit button alignment ── */
+        .oms-filter-actions { display: flex; gap: 10px; align-items: center; }
     </style>
 </head>
 <body class="dashboard-page">
     {% include 'includes/navbar.html' %}
 
-    <main class="ord-page">
-        <!-- Flash messages -->
+    <main class="container">
+
+        <!-- Flash Messages -->
         {% with messages = get_flashed_messages(category_filter=["order_success"]) %}
-        {% if messages %}{% for msg in messages %}<div class="alert alert-success">{{ msg }}</div>{% endfor %}{% endif %}{% endwith %}
+        {% if messages %}{% for msg in messages %}
+        <div class="flash-message" style="padding:15px; background-color:rgba(16,185,129,0.08); border-left:4px solid #10b981; font-family:var(--font-body); color:var(--primary-color); display:flex; align-items:center; gap:10px; margin-bottom:1.5rem; border-radius:4px;">
+            <span style="color:#10b981;font-size:1.2rem;line-height:1;">✓</span> {{ msg }}
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
 
         {% with messages = get_flashed_messages(category_filter=["order_error"]) %}
-        {% if messages %}{% for msg in messages %}<div class="alert alert-error">{{ msg }}</div>{% endfor %}{% endif %}{% endwith %}
+        {% if messages %}{% for msg in messages %}
+        <div class="flash-message" style="padding:15px; background-color:rgba(139,0,0,0.04); border-left:4px solid rgba(139,0,0,0.5); font-family:var(--font-body); color:#8b0000; display:flex; align-items:center; gap:10px; margin-bottom:1.5rem; border-radius:4px;">
+            <span style="font-size:1.2rem;line-height:1;">⚠</span> {{ msg }}
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
 
-        <!-- Hero Header -->
-        <div class="ord-hero">
-            <div>
-                <h1>
-                    <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
-                    </svg>
-                    Unified Order Cockpit
-                </h1>
-                <p>Complete lifecycle oversight: Procurement, Transit, Delivery, Site Fitting & Financial Reconciliation</p>
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="search-bar">
+                <span class="search-icon">🔍</span>
+                <form method="GET" action="{{ url_for('orders.list_orders') }}" id="searchForm" style="display:contents;">
+                    <input type="text" name="q" placeholder="Search orders, customers, IDs..." value="{{ search_query }}" id="orderSearchInput" onchange="document.getElementById('searchForm').submit()">
+                    <!-- preserve other filters on search -->
+                    {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+                    {% if payment_filter %}<input type="hidden" name="customer_payment_status" value="{{ payment_filter }}">{% endif %}
+                </form>
             </div>
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <a href="{{ url_for('orders.orders_dashboard') }}" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
-                    Dashboard
-                </a>
-                <a href="{{ url_for('orders.export_orders_csv', q=search_query, status=status_filter) }}" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    CSV
-                </a>
-                <a href="{{ url_for('orders.export_orders_excel', q=search_query, status=status_filter) }}" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    Excel
-                </a>
-                <a href="{{ url_for('orders.new_order') }}" class="btn-primary">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Create Master Order
-                </a>
+            <div class="btn-group">
+                <div class="export-dropdown">
+                    <button class="btn-action outline export-trigger">📤 Export ▾</button>
+                    <div class="export-menu">
+                        <div class="export-menu-inner">
+                            <a href="{{ url_for('orders.export_orders_csv', q=search_query, status=status_filter) }}">📄 Export CSV</a>
+                            <a href="{{ url_for('orders.export_orders_excel', q=search_query, status=status_filter) }}">📊 Export Excel</a>
+                        </div>
+                    </div>
+                </div>
+                <a href="{{ url_for('orders.orders_dashboard') }}" class="btn-action outline" style="text-decoration:none;">📊 Dashboard</a>
+                <a href="{{ url_for('orders.new_order') }}" class="btn-action gold" style="text-decoration:none;">➕ Create Order</a>
             </div>
         </div>
 
-        <!-- Metrics Grid -->
-        <div class="ord-metrics">
-            <div class="metric-card">
+        <!-- Metric Cards -->
+        <div class="oms-metrics">
+            <div class="oms-metric-card blue">
                 <h3>{{ metrics.total_orders }}</h3>
                 <span>Total Master Orders</span>
             </div>
-            <div class="metric-card amber">
+            <div class="oms-metric-card amber">
                 <h3>{{ metrics.in_procurement }}</h3>
                 <span>In Procurement / Transit</span>
             </div>
-            <div class="metric-card indigo">
+            <div class="oms-metric-card indigo">
                 <h3>{{ metrics.in_delivery }}</h3>
                 <span>In Customer Delivery</span>
             </div>
-            <div class="metric-card purple">
+            <div class="oms-metric-card purple">
                 <h3>{{ metrics.in_fitting }}</h3>
                 <span>Site Fitting Active</span>
             </div>
-            <div class="metric-card green">
+            <div class="oms-metric-card green">
                 <h3>{{ metrics.completed }}</h3>
                 <span>Fully Completed</span>
             </div>
-            <div class="metric-card">
-                <h3>₹{{ "{:,.2f}".format(metrics.total_revenue) }}</h3>
+            <div class="oms-metric-card">
+                <h3 style="font-size:1.3rem;">₹{{ "{:,.0f}".format(metrics.total_revenue) }}</h3>
                 <span>Total Order Value</span>
             </div>
         </div>
 
         <!-- Filter Bar -->
-        <form method="GET" action="{{ url_for('orders.list_orders') }}" class="ord-filter-bar">
-            <input type="text" name="q" placeholder="Search Master ID, Title, Customer..." value="{{ search_query }}">
-            
-            <select name="status">
-                <option value="">All Master Statuses</option>
-                {% for st in master_statuses %}
-                <option value="{{ st }}" {% if status_filter == st %}selected{% endif %}>{{ st }}</option>
-                {% endfor %}
-            </select>
+        <form method="GET" action="{{ url_for('orders.list_orders') }}" id="filterForm">
+            <div class="filter-bar" style="display:flex; gap:1.2rem; align-items:center; margin-bottom:2rem; background:#fff; padding:1.25rem 1.5rem; border-radius:12px; border:1px solid rgba(13,27,42,0.1); box-shadow:0 2px 10px rgba(0,0,0,0.03); flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:8px; color:var(--primary-color); font-weight:700; font-size:0.9rem; text-transform:uppercase; letter-spacing:0.05em; flex-shrink:0;">
+                    <span style="font-size:1.2rem;">⚡</span> Filters
+                </div>
+                <div class="filter-group" style="display:flex; gap:12px; align-items:center; flex:1; flex-wrap:wrap;">
+                    {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
 
-            <select name="procurement_status">
-                <option value="">Procurement Status</option>
-                <option value="DRAFT" {% if procurement_filter == 'DRAFT' %}selected{% endif %}>DRAFT</option>
-                <option value="PO_ISSUED" {% if procurement_filter == 'PO_ISSUED' %}selected{% endif %}>PO ISSUED</option>
-                <option value="IN_TRANSIT" {% if procurement_filter == 'IN_TRANSIT' %}selected{% endif %}>IN TRANSIT</option>
-                <option value="RECEIVED" {% if procurement_filter == 'RECEIVED' %}selected{% endif %}>RECEIVED</option>
-            </select>
+                    <div style="position:relative; min-width:170px;">
+                        <select name="status" class="form-control" style="padding:0.7rem 1rem; height:auto; font-size:0.9rem; border-radius:8px; border:1px solid rgba(13,27,42,0.15); background:#f8fafc; cursor:pointer; width:100%;" onchange="document.getElementById('filterForm').submit()">
+                            <option value="">All Statuses</option>
+                            {% for st in master_statuses %}
+                            <option value="{{ st }}" {% if status_filter == st %}selected{% endif %}>{{ st }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-            <select name="delivery_status">
-                <option value="">Delivery Status</option>
-                <option value="SCHEDULED" {% if delivery_filter == 'SCHEDULED' %}selected{% endif %}>SCHEDULED</option>
-                <option value="OUT_FOR_DELIVERY" {% if delivery_filter == 'OUT_FOR_DELIVERY' %}selected{% endif %}>OUT FOR DELIVERY</option>
-                <option value="DELIVERED" {% if delivery_filter == 'DELIVERED' %}selected{% endif %}>DELIVERED</option>
-            </select>
+                    <div style="position:relative; min-width:190px;">
+                        <select name="procurement_status" class="form-control" style="padding:0.7rem 1rem; height:auto; font-size:0.9rem; border-radius:8px; border:1px solid rgba(13,27,42,0.15); background:#f8fafc; cursor:pointer; width:100%;" onchange="document.getElementById('filterForm').submit()">
+                            <option value="">Procurement Status</option>
+                            <option value="DRAFT" {% if procurement_filter == 'DRAFT' %}selected{% endif %}>Draft</option>
+                            <option value="PO_ISSUED" {% if procurement_filter == 'PO_ISSUED' %}selected{% endif %}>PO Issued</option>
+                            <option value="IN_TRANSIT" {% if procurement_filter == 'IN_TRANSIT' %}selected{% endif %}>In Transit</option>
+                            <option value="RECEIVED" {% if procurement_filter == 'RECEIVED' %}selected{% endif %}>Received</option>
+                        </select>
+                    </div>
 
-            <select name="customer_payment_status">
-                <option value="">Customer Payment</option>
-                <option value="UNPAID" {% if payment_filter == 'UNPAID' %}selected{% endif %}>UNPAID</option>
-                <option value="PARTIALLY_PAID" {% if payment_filter == 'PARTIALLY_PAID' %}selected{% endif %}>PARTIALLY PAID</option>
-                <option value="PAID" {% if payment_filter == 'PAID' %}selected{% endif %}>PAID</option>
-            </select>
+                    <div style="position:relative; min-width:180px;">
+                        <select name="delivery_status" class="form-control" style="padding:0.7rem 1rem; height:auto; font-size:0.9rem; border-radius:8px; border:1px solid rgba(13,27,42,0.15); background:#f8fafc; cursor:pointer; width:100%;" onchange="document.getElementById('filterForm').submit()">
+                            <option value="">Delivery Status</option>
+                            <option value="SCHEDULED" {% if delivery_filter == 'SCHEDULED' %}selected{% endif %}>Scheduled</option>
+                            <option value="OUT_FOR_DELIVERY" {% if delivery_filter == 'OUT_FOR_DELIVERY' %}selected{% endif %}>Out for Delivery</option>
+                            <option value="DELIVERED" {% if delivery_filter == 'DELIVERED' %}selected{% endif %}>Delivered</option>
+                        </select>
+                    </div>
 
-            <button type="submit" class="btn-secondary">Filter</button>
-            <a href="{{ url_for('orders.list_orders') }}" class="btn-secondary">Reset</a>
+                    <div style="position:relative; min-width:190px;">
+                        <select name="customer_payment_status" class="form-control" style="padding:0.7rem 1rem; height:auto; font-size:0.9rem; border-radius:8px; border:1px solid rgba(13,27,42,0.15); background:#f8fafc; cursor:pointer; width:100%;" onchange="document.getElementById('filterForm').submit()">
+                            <option value="">Customer Payment</option>
+                            <option value="UNPAID" {% if payment_filter == 'UNPAID' %}selected{% endif %}>Unpaid</option>
+                            <option value="PARTIALLY_PAID" {% if payment_filter == 'PARTIALLY_PAID' %}selected{% endif %}>Partially Paid</option>
+                            <option value="PAID" {% if payment_filter == 'PAID' %}selected{% endif %}>Paid</option>
+                        </select>
+                    </div>
+                </div>
+                <a href="{{ url_for('orders.list_orders') }}" class="action-pill edit-pill" style="padding:0.6rem 1.2rem; display:flex; align-items:center; gap:6px; background:#fff; text-decoration:none; border-radius:20px;">
+                    <span>🔄</span> Reset
+                </a>
+            </div>
         </form>
 
-        <!-- Orders Table Card -->
-        <div class="ord-table-card">
-            <table class="ord-table">
-                <thead>
-                    <tr>
-                        <th>Order ID</th>
-                        <th>Order Title & Customer</th>
-                        <th>Date</th>
-                        <th>Master Status</th>
-                        <th>Procurement</th>
-                        <th>Delivery</th>
-                        <th>Fitting</th>
-                        <th>Net Amount</th>
-                        <th>Payment</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if orders %}
-                    {% for ord in orders %}
-                    <tr>
-                        <td>
-                            <a href="{{ url_for('orders.detail_order', order_id=ord.id) }}" class="ord-link">
-                                {{ ord.master_order_number }}
-                            </a>
-                        </td>
-                        <td>
-                            <strong>{{ ord.order_title }}</strong><br>
-                            <small style="color: #64748b;">{{ ord.customer.name if ord.customer else 'No Customer' }}</small>
-                        </td>
-                        <td>{{ ord.order_date.strftime('%d-%b-%Y') if ord.order_date else '-' }}</td>
-                        <td>
-                            {% set st = ord.status %}
-                            <span class="badge 
-                                {% if st == 'CONFIRMED' %}badge-confirmed
-                                {% elif 'PROCUREMENT' in st or 'RECEIVED' in st %}badge-procurement
-                                {% elif 'DELIVER' in st %}badge-delivery
-                                {% elif 'FITTING' in st %}badge-fitting
-                                {% elif st == 'COMPLETED' or st == 'CLOSED' %}badge-completed
-                                {% elif st == 'CANCELLED' %}badge-cancelled
-                                {% else %}badge-draft{% endif %}">
-                                {{ st }}
-                            </span>
-                        </td>
-                        <td><span class="badge badge-draft">{{ ord.procurement_status }}</span></td>
-                        <td><span class="badge badge-draft">{{ ord.delivery_status }}</span></td>
-                        <td><span class="badge badge-draft">{{ ord.fitting_status }}</span></td>
-                        <td><strong>₹{{ "{:,.2f}".format(ord.net_order_amount) }}</strong></td>
-                        <td>
-                            {% set pst = ord.customer_payment_status %}
-                            <span class="badge {% if pst == 'PAID' %}badge-paid{% elif pst == 'PARTIALLY_PAID' %}badge-partial{% else %}badge-unpaid{% endif %}">
-                                {{ pst }}
-                            </span>
-                        </td>
-                        <td>
-                            <a href="{{ url_for('orders.detail_order', order_id=ord.id) }}" class="btn-secondary">
-                                Open Cockpit
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    {% else %}
-                    <tr>
-                        <td colspan="10" style="text-align: center; padding: 40px; color: #64748b;">
-                            No orders found matching the filter criteria.
-                        </td>
-                    </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+        <!-- Orders Table -->
+        <div class="panel">
+            <div class="table-responsive" style="overflow-x:auto;">
+                <table class="customer-table" style="width:100%;">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Title &amp; Customer</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Procurement</th>
+                            <th>Delivery</th>
+                            <th>Fitting</th>
+                            <th>Net Amount</th>
+                            <th>Payment</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if orders %}
+                        {% for ord in orders %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('orders.detail_order', order_id=ord.id) }}" class="oms-table-link">
+                                    {{ ord.master_order_number }}
+                                </a>
+                            </td>
+                            <td>
+                                <strong style="color:var(--primary-color);">{{ ord.order_title }}</strong><br>
+                                <small style="color:var(--text-muted);">{{ ord.customer.name if ord.customer else 'No Customer' }}</small>
+                            </td>
+                            <td style="font-size:0.88rem; color:var(--text-muted);">{{ ord.order_date.strftime('%d %b %Y') if ord.order_date else '—' }}</td>
+                            <td>
+                                {% set st = ord.status %}
+                                <span class="oms-badge
+                                    {% if st == 'CONFIRMED' %}ob-confirmed
+                                    {% elif 'PROCUREMENT' in st or 'RECEIVED' in st %}ob-proc
+                                    {% elif 'DELIVER' in st %}ob-delivery
+                                    {% elif 'FITTING' in st %}ob-fitting
+                                    {% elif st in ['COMPLETED', 'CLOSED'] %}ob-completed
+                                    {% elif st == 'CANCELLED' %}ob-cancelled
+                                    {% else %}ob-draft{% endif %}">{{ st }}</span>
+                            </td>
+                            <td><span class="oms-badge ob-draft">{{ ord.procurement_status }}</span></td>
+                            <td><span class="oms-badge ob-draft">{{ ord.delivery_status }}</span></td>
+                            <td><span class="oms-badge ob-draft">{{ ord.fitting_status }}</span></td>
+                            <td><strong style="color:var(--primary-color);">₹{{ "{:,.2f}".format(ord.net_order_amount) }}</strong></td>
+                            <td>
+                                {% set pst = ord.customer_payment_status %}
+                                <span class="oms-badge {% if pst == 'PAID' %}ob-paid{% elif pst == 'PARTIALLY_PAID' %}ob-partial{% else %}ob-unpaid{% endif %}">{{ pst }}</span>
+                            </td>
+                            <td>
+                                <div class="table-actions-dropdown">
+                                    <button class="action-trigger" title="Actions">⋮</button>
+                                    <div class="action-menu">
+                                        <a href="{{ url_for('orders.detail_order', order_id=ord.id) }}">
+                                            <span class="icon">📋</span> Open Cockpit
+                                        </a>
+                                        <a href="{{ url_for('orders.export_order_pdf', order_id=ord.id) }}">
+                                            <span class="icon">📄</span> Export PDF
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="10" style="text-align:center; padding:5rem 2.5rem; color:var(--text-muted);">
+                                <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+                                    <div style="font-size:3.5rem; opacity:0.15; filter:grayscale(1);">📋</div>
+                                    <h3 style="font-weight:700; font-size:1.25rem; color:var(--primary-color); margin:0;">No Orders Found</h3>
+                                    <p style="margin:0; opacity:0.7; max-width:320px;">No orders match the current filters. Create your first order or adjust the search criteria.</p>
+                                    <a href="{{ url_for('orders.new_order') }}" class="btn-action gold" style="text-decoration:none; margin-top:10px; padding:0.8rem 2rem;">Create First Order →</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
 
             <!-- Pagination -->
             {% if pagination.pages > 1 %}
-            <div class="pagination">
-                {% if pagination.page > 1 %}
-                <a href="{{ url_for('orders.list_orders', page=pagination.page-1, q=search_query, status=status_filter) }}" class="btn-secondary">Previous</a>
-                {% endif %}
-                <span style="align-self: center; font-size: 13px; color: #64748b;">
-                    Page {{ pagination.page }} of {{ pagination.pages }} (Total {{ pagination.total }})
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1.5rem; flex-wrap:wrap; gap:1rem;">
+                <span style="font-size:0.9rem; color:var(--text-muted); font-weight:500;">
+                    Page {{ pagination.page }} of {{ pagination.pages }} &nbsp;·&nbsp; {{ pagination.total }} total orders
                 </span>
-                {% if pagination.page < pagination.pages %}
-                <a href="{{ url_for('orders.list_orders', page=pagination.page+1, q=search_query, status=status_filter) }}" class="btn-secondary">Next</a>
-                {% endif %}
+                <div class="pagination" style="display:flex; gap:5px;">
+                    {% if pagination.page > 1 %}
+                    <a href="{{ url_for('orders.list_orders', page=pagination.page-1, q=search_query, status=status_filter) }}" class="btn-action outline" style="padding:0.4rem 0.8rem; font-size:0.85rem;">← Prev</a>
+                    {% endif %}
+                    {% if pagination.page < pagination.pages %}
+                    <a href="{{ url_for('orders.list_orders', page=pagination.page+1, q=search_query, status=status_filter) }}" class="btn-action outline" style="padding:0.4rem 0.8rem; font-size:0.85rem;">Next →</a>
+                    {% endif %}
+                </div>
             </div>
             {% endif %}
         </div>
+
     </main>
+
+    <script>
+        // Export dropdown toggle
+        document.querySelectorAll('.export-trigger').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                btn.closest('.export-dropdown').classList.toggle('open');
+            });
+        });
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.export-dropdown.open').forEach(d => d.classList.remove('open'));
+        });
+    </script>
 </body>
 </html>
