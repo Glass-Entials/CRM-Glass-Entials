@@ -296,7 +296,7 @@
         <div class="tabs-container">
             <div class="tab-nav">
                 <button class="tab-btn active" onclick="switchTab('itemsTab', this)">📦 Items &amp; Allocations</button>
-                <button class="tab-btn" onclick="switchTab('procTab', this)">🏭 Procurement ({{ cockpit.procurements | length }})</button>
+                <button class="tab-btn" onclick="switchTab('procTab', this)">🏭 Procurement ({{ (cockpit.procurements | length) + (cockpit.vendor_proforma_invoices | length if cockpit.vendor_proforma_invoices else 0) }})</button>
                 <button class="tab-btn" onclick="switchTab('delivTab', this)">🚚 Deliveries ({{ cockpit.deliveries | length }})</button>
                 <button class="tab-btn" onclick="switchTab('fittingTab', this)">🔧 Fitting ({{ cockpit.fitting_visits | length }})</button>
                 <button class="tab-btn" onclick="switchTab('finTab', this)">💰 Financials</button>
@@ -385,6 +385,72 @@
 
             <!-- TAB 2: Procurement -->
             <div id="procTab" class="tab-content">
+                <!-- Vendor Proforma Invoices (PI) Card -->
+                <div class="oms-card" style="margin-bottom:1.5rem;">
+                    <div class="oms-card-header">
+                        <div>
+                            <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
+                                <span>📄</span> Vendor Proforma Invoices (PI)
+                            </h3>
+                            <p style="margin:4px 0 0 0; font-size:0.8rem; color:var(--text-muted);">
+                                Supplier proforma invoices, quotations, and commercial proposals for this order
+                            </p>
+                        </div>
+                        <button type="button" class="btn-action gold" style="font-size:0.85rem;" onclick="openModal('vendorPIModal')">
+                            + Upload Vendor Proforma Invoice
+                        </button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="oms-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Supplier / Vendor</th>
+                                    <th>Document File</th>
+                                    <th>PI Number / Ref</th>
+                                    <th>Uploaded Date</th>
+                                    <th>File Size</th>
+                                    <th>Uploaded By</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if cockpit.vendor_proforma_invoices %}
+                                {% for pi in cockpit.vendor_proforma_invoices %}
+                                <tr>
+                                    <td><strong style="color:var(--primary-color);">{{ pi.vendor_name }}</strong></td>
+                                    <td>
+                                        <a href="{{ url_for('orders.preview_order_document', order_id=ord.id, doc_id=pi.id) }}" target="_blank" style="color:var(--primary-color); font-weight:600; text-decoration:none;">
+                                            📄 {{ pi.title }}
+                                        </a>
+                                    </td>
+                                    <td><span class="oms-badge ob-proc">{{ pi.reference_number }}</span></td>
+                                    <td style="color:var(--text-muted); font-size:0.85rem;">{{ pi.created_at }}</td>
+                                    <td style="color:var(--text-muted); font-size:0.85rem;">{{ pi.file_size_formatted }}</td>
+                                    <td>{{ pi.uploaded_by }}</td>
+                                    <td>
+                                        <div style="display:flex; gap:6px; align-items:center;">
+                                            <a href="{{ url_for('orders.preview_order_document', order_id=ord.id, doc_id=pi.id) }}" target="_blank" class="btn-action outline" style="padding:0.25rem 0.6rem; font-size:0.75rem;">👁️ View</a>
+                                            <a href="{{ url_for('orders.download_order_document', order_id=ord.id, doc_id=pi.id) }}" class="btn-action outline" style="padding:0.25rem 0.6rem; font-size:0.75rem;">⬇️</a>
+                                            <form method="POST" action="{{ url_for('orders.delete_order_document', order_id=ord.id, doc_id=pi.id) }}" onsubmit="return confirm('Delete this vendor proforma invoice?');" style="display:inline; margin:0;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn-action" style="padding:0.25rem 0.6rem; font-size:0.75rem; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2);">🗑️</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr class="empty-row">
+                                    <td colspan="7">
+                                        No vendor proforma invoices uploaded yet. Click <strong>"+ Upload Vendor Proforma Invoice"</strong> to attach a supplier PI.
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div class="oms-card">
                     <div class="oms-card-header">
                         <h3>Vendor Purchase Orders</h3>
@@ -801,6 +867,45 @@
                 <div class="modal-footer">
                     <button type="button" class="btn-action outline" onclick="closeModal('allocateModal')">Cancel</button>
                     <button type="submit" class="btn-action gold">Save Allocation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload Vendor Proforma Invoice Modal -->
+    <div id="vendorPIModal" class="modal-overlay">
+        <div class="modal-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+                <h3 style="margin:0; font-size:1.15rem; color:var(--primary-color);">📄 Upload Vendor Proforma Invoice</h3>
+                <button type="button" onclick="closeModal('vendorPIModal')" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--text-muted); line-height:1;">&times;</button>
+            </div>
+            <form method="POST" action="{{ url_for('orders.upload_vendor_proforma_invoice', order_id=ord.id) }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="oms-fg">
+                    <label for="vpi_vendor_id">Supplier / Vendor <span style="color:#ef4444;">*</span></label>
+                    <select name="vendor_id" id="vpi_vendor_id" required style="width:100%; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.88rem; background:#fff;">
+                        <option value="">— Select Vendor —</option>
+                        {% for v in vendors %}
+                        <option value="{{ v.id }}">{{ v.company_name or v.name }} {% if v.code %}({{ v.code }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="oms-fg">
+                    <label for="vpi_pi_number">Proforma Invoice Number / Ref</label>
+                    <input type="text" name="pi_number" id="vpi_pi_number" placeholder="e.g. PI/2026/041" style="width:100%; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.88rem;">
+                </div>
+                <div class="oms-fg">
+                    <label for="vpi_file">Proforma Invoice Document <span style="color:#ef4444;">*</span></label>
+                    <input type="file" name="file" id="vpi_file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx" required style="width:100%; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.88rem; background:#f8fafc;">
+                    <small style="color:var(--text-muted); font-size:0.75rem; margin-top:4px; display:block;">Supported: PDF, PNG, JPG, DOCX, XLSX (Max 15MB)</small>
+                </div>
+                <div class="oms-fg">
+                    <label for="vpi_notes">Notes / Scope (Optional)</label>
+                    <textarea name="notes" id="vpi_notes" rows="2" placeholder="e.g. Rate quotation for 12mm Toughened Glass" style="width:100%; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.88rem;"></textarea>
+                </div>
+                <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px; margin-top:1.5rem;">
+                    <button type="button" class="btn-action outline" onclick="closeModal('vendorPIModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Upload Proforma Invoice</button>
                 </div>
             </form>
         </div>

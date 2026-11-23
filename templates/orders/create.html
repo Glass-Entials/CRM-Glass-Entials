@@ -909,6 +909,7 @@
 
                     <!-- Container for hidden vendor IDs for form submission -->
                     <div id="selectedVendorIdsContainer"></div>
+                    <div id="vendorPIFilesContainer" style="display:none;"></div>
 
                     <!-- Selected Vendors Summary Table -->
                     <div style="overflow-x: auto;">
@@ -922,12 +923,13 @@
                                     <th>Phone</th>
                                     <th>GSTIN</th>
                                     <th>City</th>
+                                    <th>Proforma Invoice (Optional)</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="selectedVendorsTbody">
                                 <tr id="noVendorsRow">
-                                    <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted); font-style: italic;">
+                                    <td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-muted); font-style: italic;">
                                         No vendors associated yet. Search above or click "+ Add New Vendor".
                                     </td>
                                 </tr>
@@ -2003,14 +2005,51 @@
 
         function removeVendorFromOrder(vendorId) {
             selectedVendorsList = selectedVendorsList.filter(v => v.id !== vendorId);
+            const piInput = document.getElementById(`vendor_pi_input_${vendorId}`);
+            if (piInput) piInput.remove();
             renderSelectedVendors();
             updateItemVendorAllocationOptions();
             showToast('Vendor removed from current selection.', 'success');
         }
 
+        function triggerVendorPIUpload(vendorId) {
+            const input = document.getElementById(`vendor_pi_input_${vendorId}`);
+            if (input) input.click();
+        }
+
+        function getVendorPIFileDisplay(vendorId) {
+            const input = document.getElementById(`vendor_pi_input_${vendorId}`);
+            if (input && input.files && input.files[0]) {
+                const f = input.files[0];
+                const sizeKb = (f.size / 1024).toFixed(0);
+                return `<span style="color:#15803d; font-weight:600;" title="${escapeHtml(f.name)} (${sizeKb} KB)">📄 ${escapeHtml(f.name)}</span> <button type="button" onclick="clearVendorPIFile(event, ${vendorId})" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:0.85rem;padding:0 2px;" title="Remove file">✕</button>`;
+            }
+            return `<span style="color:var(--text-muted); font-style:italic;">Optional</span>`;
+        }
+
+        function handleVendorPIFileSelect(input, vendorId) {
+            const preview = document.getElementById(`vendor_pi_preview_${vendorId}`);
+            if (preview) {
+                preview.innerHTML = getVendorPIFileDisplay(vendorId);
+            }
+        }
+
+        function clearVendorPIFile(e, vendorId) {
+            if (e) e.stopPropagation();
+            const input = document.getElementById(`vendor_pi_input_${vendorId}`);
+            if (input) {
+                input.value = '';
+            }
+            const preview = document.getElementById(`vendor_pi_preview_${vendorId}`);
+            if (preview) {
+                preview.innerHTML = `<span style="color:var(--text-muted); font-style:italic;">Optional</span>`;
+            }
+        }
+
         function renderSelectedVendors() {
             const tbody = document.getElementById('selectedVendorsTbody');
             const hiddenContainer = document.getElementById('selectedVendorIdsContainer');
+            const piFilesContainer = document.getElementById('vendorPIFilesContainer');
             const countTag = document.getElementById('vendorCountTag');
 
             tbody.innerHTML = '';
@@ -2022,7 +2061,7 @@
             if (selectedVendorsList.length === 0) {
                 tbody.innerHTML = `
                     <tr id="noVendorsRow">
-                        <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted); font-style: italic;">
+                        <td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-muted); font-style: italic;">
                             No vendors associated yet. Search above or click "+ Add New Vendor".
                         </td>
                     </tr>
@@ -2038,8 +2077,21 @@
                 hiddenInput.value = v.id;
                 hiddenContainer.appendChild(hiddenInput);
 
+                // Ensure file input exists in persistent container
+                if (piFilesContainer && !document.getElementById(`vendor_pi_input_${v.id}`)) {
+                    const piInput = document.createElement('input');
+                    piInput.type = 'file';
+                    piInput.name = `vendor_pi_${v.id}`;
+                    piInput.id = `vendor_pi_input_${v.id}`;
+                    piInput.accept = '.pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx';
+                    piInput.style.display = 'none';
+                    piInput.onchange = function() { handleVendorPIFileSelect(this, v.id); };
+                    piFilesContainer.appendChild(piInput);
+                }
+
                 // Add row
                 const tr = document.createElement('tr');
+                tr.id = `vendorRow_${v.id}`;
                 tr.innerHTML = `
                     <td><strong>${escapeHtml(v.code || '—')}</strong></td>
                     <td>
@@ -2050,6 +2102,16 @@
                     <td>${escapeHtml(v.phone || '—')}</td>
                     <td><code>${escapeHtml(v.gstin || '—')}</code></td>
                     <td>${escapeHtml(v.city || '—')}</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button type="button" class="btn-custom sm outline-gold" style="padding: 3px 8px; font-size: 0.74rem; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" onclick="triggerVendorPIUpload(${v.id})" title="Attach Vendor Proforma Invoice">
+                                <span>📎 Upload PI</span>
+                            </button>
+                            <span id="vendor_pi_preview_${v.id}" style="font-size: 0.74rem; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">
+                                ${getVendorPIFileDisplay(v.id)}
+                            </span>
+                        </div>
+                    </td>
                     <td>
                         <button type="button" class="btn-custom sm" style="background:rgba(239,68,68,0.1); color:#ef4444; border-color:rgba(239,68,68,0.2);" onclick="removeVendorFromOrder(${v.id})">
                             Remove

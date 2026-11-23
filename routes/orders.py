@@ -47,6 +47,7 @@ from model import (
     OrderPaymentAllocationType,
     OrderClosureType,
     OrderDocumentType,
+    VendorDocument,
 )
 from services.oms import (
     OrderMasterService,
@@ -749,6 +750,55 @@ def create_order():
                         )
                     except Exception as doc_err:
                         current_app.logger.warning(f"Error saving order document: {doc_err}")
+
+        # Handle Vendor Proforma Invoices attached in Section 02 (Vendor Details)
+        if not request.is_json:
+            for v_id in data.get("selected_vendor_ids", []):
+                pi_key = f"vendor_pi_{v_id}"
+                if pi_key in request.files:
+                    v_file = request.files.get(pi_key)
+                    if v_file and v_file.filename:
+                        v_obj = Vendor.query.filter_by(id=v_id, organization_id=org_id).first()
+                        v_name = v_obj.company_name if v_obj else f"Vendor #{v_id}"
+                        try:
+                            saved_pi = OMSDocumentService.save_order_document(
+                                org_id=org_id,
+                                order_id=order.id,
+                                file=v_file,
+                                document_type=OrderDocumentType.VENDOR_PROFORMA_INVOICE.value,
+                                title=f"Vendor PI: {v_name} - {v_file.filename}",
+                                uploaded_by_id=actor_id,
+                            )
+                            if v_obj:
+                                v_doc = VendorDocument(
+                                    vendor_id=v_obj.id,
+                                    filename=os.path.basename(saved_pi.file_path),
+                                    original_name=v_file.filename,
+                                    file_type=v_file.filename.rsplit(".", 1)[-1].lower() if "." in v_file.filename else None,
+                                    file_size=saved_pi.file_size,
+                                    document_type="Proforma Invoice",
+                                    description=f"Master Order {order.master_order_number} Proforma Invoice",
+                                    uploaded_by=actor_id,
+                                    organization_id=org_id,
+                                )
+                                db.session.add(v_doc)
+                        except Exception as pi_err:
+                            current_app.logger.warning(f"Error saving vendor PI for vendor #{v_id}: {pi_err}")
+
+            if "vendor_pi_additional" in request.files:
+                for add_file in request.files.getlist("vendor_pi_additional"):
+                    if add_file and add_file.filename:
+                        try:
+                            OMSDocumentService.save_order_document(
+                                org_id=org_id,
+                                order_id=order.id,
+                                file=add_file,
+                                document_type=OrderDocumentType.VENDOR_PROFORMA_INVOICE.value,
+                                title=f"Vendor PI - {add_file.filename}",
+                                uploaded_by_id=actor_id,
+                            )
+                        except Exception as pi_err:
+                            current_app.logger.warning(f"Error saving additional vendor PI: {pi_err}")
 
         db.session.commit()
 
@@ -1788,4 +1838,96 @@ def download_order_document(order_id: int, doc_id: int):
     except OMSError as e:
         flash(str(e), "order_error")
         return redirect(url_for("orders.detail_order", order_id=order_id))
+
+
+@orders_bp.route("/<int:order_id>/vendor-proforma-invoice", methods=["POST"])
+@login_required
+@require_roles("admin", "manager", "employee")
+def upload_vendor_proforma_invoice(order_id: int):
+    """Upload a Vendor Proforma Invoice in the Order Cockpit Procurement tab."""
+    org_id = _get_org_id()
+    actor_id = _get_actor_id() or 1
+    wants_json = request.is_json or request.headers.get("Accept") == "application/json"
+
+    order = OrderMaster.query.filter_by(id=order_id, organization_id=org_id).first()
+    if not order:
+        if wants_json:
+            return jsonify({"success": False, "error": "Order not found."}), 404
+        flash("Order not found.", "order_error")
+        return redirect(url_for("orders.list_orders"))
+
+    vendor_id = request.form.get("vendor_id", type=int)
+    if not vendor_id:
+        if wants_json:
+            return jsonify({"success": False, "error": "Please select a supplier / vendor."}), 400
+        flash("Please select a vendor.", "order_error")
+        return redirect(url_for("orders.detail_order", order_id=order_id))
+
+    vendor = Vendor.query.filter_by(id=vendor_id, organization_id=org_id, is_deleted=False).first()
+    if not vendor:
+        if wants_json:
+            return jsonify({"success": False, "error": f"Vendor #{vendor_id} not found."}), 404
+        flash("Vendor not found.", "order_error")
+        return redirect(url_for("orders.detail_order", order_id=order_id))
+
+    file = request.files.get("file")
+    if not file or not file.filename:
+        if wants_json:
+            return jsonify({"success": False, "error": "Please select a proforma invoice file to upload."}), 400
+        flash("Please select a proforma invoice file to upload.", "order_error")
+        return redirect(url_for("orders.detail_order", order_id=order_id))
+
+    pi_number = request.form.get("pi_number", "").strip()
+    notes = request.form.get("notes", "").strip()
+    title_suffix = f" - {pi_number}" if pi_number else f" - {file.filename}"
+    doc_title = f"Vendor PI: {vendor.company_name}{title_suffix}"
+
+    try:
+        saved_doc = OMSDocumentService.save_order_document(
+            org_id=org_id,
+            order_id=order.id,
+            file=file,
+            document_type=OrderDocumentType.VENDOR_PROFORMA_INVOICE.value,
+            title=doc_title,
+            is_customer_visible=False,
+            uploaded_by_id=actor_id,
+        )
+
+        # Synchronize with VendorDocument master
+        v_doc = VendorDocument(
+            vendor_id=vendor.id,
+            filename=os.path.basename(saved_doc.file_path),
+            original_name=file.filename,
+            file_type=file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else None,
+            file_size=saved_doc.file_size,
+            document_type="Proforma Invoice",
+            description=f"Master Order {order.master_order_number} {f'(Ref: {pi_number})' if pi_number else ''} {f'- {notes}' if notes else ''}".strip(),
+            uploaded_by=actor_id,
+            organization_id=org_id,
+        )
+        db.session.add(v_doc)
+        db.session.commit()
+
+        if wants_json:
+            return jsonify({
+                "success": True,
+                "message": f"Proforma invoice for {vendor.company_name} uploaded successfully.",
+                "document_id": saved_doc.id,
+                "title": saved_doc.title,
+            }), 201
+
+        flash(f"Vendor Proforma Invoice for {vendor.company_name} uploaded successfully.", "order_success")
+    except OMSError as e:
+        db.session.rollback()
+        if wants_json:
+            return jsonify({"success": False, "error": str(e)}), 400
+        flash(f"Upload failed: {str(e)}", "order_error")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Unexpected error uploading vendor proforma invoice")
+        if wants_json:
+            return jsonify({"success": False, "error": str(e)}), 500
+        flash(f"An unexpected error occurred: {str(e)}", "order_error")
+
+    return redirect(url_for("orders.detail_order", order_id=order_id))
 

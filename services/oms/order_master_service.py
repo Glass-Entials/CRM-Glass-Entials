@@ -667,8 +667,54 @@ class OrderMasterService:
             or f"Order #{order.master_order_number}"
         )
 
+        # Collect vendor proforma invoices
+        v_pi_list = []
+        for doc in order.documents:
+            if not doc.is_deleted and (
+                doc.document_type in ("VENDOR_PROFORMA_INVOICE", "PROFORMA_INVOICE")
+                or "proforma invoice" in doc.title.lower()
+                or "vendor pi" in doc.title.lower()
+            ):
+                v_name = "Supplier / Vendor"
+                ref_num = "—"
+                if "Vendor PI:" in doc.title:
+                    parts = doc.title.split("Vendor PI:", 1)[-1].strip()
+                    if " - " in parts:
+                        subparts = parts.split(" - ", 1)
+                        v_name = subparts[0].strip()
+                        ref_num = subparts[1].strip()
+                    else:
+                        v_name = parts
+                elif "Proforma Invoice —" in doc.title:
+                    parts = doc.title.split("Proforma Invoice —", 1)[-1].strip()
+                    if " — " in parts:
+                        subparts = parts.split(" — ", 1)
+                        v_name = subparts[0].strip()
+                        ref_num = subparts[1].strip()
+                    else:
+                        v_name = parts
+                elif " - " in doc.title:
+                    parts = doc.title.split(" - ")
+                    if len(parts) >= 2:
+                        v_name = parts[0].strip()
+                        ref_num = parts[1].strip()
+
+                v_pi_list.append({
+                    "id": doc.id,
+                    "title": doc.title,
+                    "vendor_name": v_name,
+                    "reference_number": ref_num,
+                    "document_type": doc.document_type,
+                    "file_size": doc.file_size,
+                    "file_size_formatted": f"{(doc.file_size or 0) / 1024:.1f} KB" if (doc.file_size or 0) < 1024 * 1024 else f"{(doc.file_size or 0) / (1024 * 1024):.1f} MB",
+                    "mime_type": doc.mime_type,
+                    "uploaded_by": doc.uploaded_by.name if doc.uploaded_by else "System",
+                    "created_at": doc.created_at.strftime("%d %b %Y, %I:%M %p") if doc.created_at else "—",
+                })
+
         # Serialize order header and child collections
         return {
+            "vendor_proforma_invoices": v_pi_list,
             "order": {
                 "id": order.id,
                 "master_order_number": order.master_order_number,
