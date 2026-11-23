@@ -1264,7 +1264,15 @@ def record_consignment(order_id: int):
     actor_id = _get_actor_id() or 1
 
     data = request.get_json() if request.is_json else request.form
+    vendor_id = data.get("vendor_id", type=int) if not request.is_json else data.get("vendor_id")
     procurement_id = data.get("procurement_id", type=int) if not request.is_json else data.get("procurement_id")
+
+    notes = data.get("notes") or ""
+    if vendor_id:
+        v = Vendor.query.filter_by(id=vendor_id, organization_id=org_id).first()
+        if v:
+            vendor_tag = f"[Vendor: {v.company_name or v.name}]"
+            notes = f"{notes} {vendor_tag}".strip()
 
     items_data = data.get("items", []) if request.is_json else []
     if not items_data and not request.is_json:
@@ -1288,7 +1296,7 @@ def record_consignment(order_id: int):
             driver_contact=data.get("driver_contact"),
             lr_number=data.get("lr_number"),
             eway_bill_number=data.get("eway_bill_number"),
-            notes=data.get("notes"),
+            notes=notes or None,
             actor_id=actor_id,
         )
         db.session.commit()

@@ -168,7 +168,7 @@
                         <select name="procurement_status" class="form-control" style="padding:0.7rem 1rem; height:auto; font-size:0.9rem; border-radius:8px; border:1px solid rgba(13,27,42,0.15); background:#f8fafc; cursor:pointer; width:100%;" onchange="document.getElementById('filterForm').submit()">
                             <option value="">Procurement Status</option>
                             <option value="DRAFT" {% if procurement_filter == 'DRAFT' %}selected{% endif %}>Draft</option>
-                            <option value="PO_ISSUED" {% if procurement_filter == 'PO_ISSUED' %}selected{% endif %}>PO Issued</option>
+                            <option value="PO_ISSUED" {% if procurement_filter == 'PO_ISSUED' %}selected{% endif %}>In Procurement / Ordered</option>
                             <option value="IN_TRANSIT" {% if procurement_filter == 'IN_TRANSIT' %}selected{% endif %}>In Transit</option>
                             <option value="RECEIVED" {% if procurement_filter == 'RECEIVED' %}selected{% endif %}>Received</option>
                         </select>

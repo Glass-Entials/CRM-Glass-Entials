@@ -815,9 +815,17 @@ class OrderMasterService:
                     "transporter_name": c.transporter_name,
                     "vehicle_number": c.vehicle_number,
                     "lr_number": c.lr_number,
-                    "tracking_number": c.lr_number or c.tracking_reference,
+                    "tracking_number": c.lr_number or getattr(c, 'tracking_reference', None) or '',
                     "status": c.status,
                     "dispatch_date": c.dispatch_date.strftime("%Y-%m-%d") if c.dispatch_date else None,
+                    "vendor_name": (
+                        c.procurement.vendor.name if (c.procurement and c.procurement.vendor)
+                        else (
+                            c.notes.split("[Vendor: ")[1].split("]")[0]
+                            if c.notes and "[Vendor: " in c.notes
+                            else None
+                        )
+                    ),
                     "procurement": {"po_number": c.procurement.po_number if c.procurement else None},
                 }
                 for c in order.consignments if not c.is_deleted

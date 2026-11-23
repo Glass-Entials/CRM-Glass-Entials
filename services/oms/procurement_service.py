@@ -261,8 +261,7 @@ class ProcurementService:
         **kwargs
     ) -> OrderConsignment:
         """Record dispatch of materials from vendor via transporter consignment."""
-        if not items_data:
-            raise OMSValidationError("A consignment must specify at least one procurement item.")
+        items_data = items_data or []
 
         order = OrderMasterService.lock_order(org_id, order_id)
         cons_number = cls.generate_consignment_number(org_id)
@@ -294,38 +293,41 @@ class ProcurementService:
         db.session.add(cons)
         db.session.flush()
 
-        for it in items_data:
-            po_item_id = it.get("procurement_item_id")
-            shipped_qty = Decimal(str(it.get("shipped_quantity", "0.000")))
+        if items_data:
+            for it in items_data:
+                po_item_id = it.get("procurement_item_id")
+                shipped_qty = Decimal(str(it.get("shipped_quantity", "0.000")))
 
-            po_item = OrderProcurementItem.query.filter_by(
-                id=po_item_id, order_id=order_id, organization_id=org_id
-            ).first()
-            if not po_item:
-                raise OMSValidationError(f"Procurement item #{po_item_id} not found on Order #{order_id}.")
+                po_item = OrderProcurementItem.query.filter_by(
+                    id=po_item_id, order_id=order_id, organization_id=org_id
+                ).first()
+                if not po_item:
+                    raise OMSValidationError(f"Procurement item #{po_item_id} not found on Order #{order_id}.")
 
-            remaining_to_ship = po_item.quantity - po_item.received_quantity
-            if shipped_qty <= Decimal("0"):
-                raise OMSInvariantError("Shipped quantity must be greater than zero.")
-            if shipped_qty > remaining_to_ship:
-                raise OMSInvariantError(
-                    f"Shipped quantity ({shipped_qty}) exceeds pending procurement line quantity ({remaining_to_ship})."
+                remaining_to_ship = po_item.quantity - po_item.received_quantity
+                if shipped_qty <= Decimal("0"):
+                    raise OMSInvariantError("Shipped quantity must be greater than zero.")
+                if shipped_qty > remaining_to_ship:
+                    raise OMSInvariantError(
+                        f"Shipped quantity ({shipped_qty}) exceeds pending procurement line quantity ({remaining_to_ship})."
+                    )
+
+                cons_item = ConsignmentItem(
+                    consignment_id=cons.id,
+                    procurement_item_id=po_item.id,
+                    order_id=order_id,
+                    organization_id=org_id,
+                    shipped_quantity=shipped_qty,
+                    qc_status="PENDING",
                 )
-
-            cons_item = ConsignmentItem(
-                consignment_id=cons.id,
-                procurement_item_id=po_item.id,
-                order_id=order_id,
-                organization_id=org_id,
-                shipped_quantity=shipped_qty,
-                qc_status="PENDING",
-            )
-            db.session.add(cons_item)
+                db.session.add(cons_item)
 
         if procurement_id:
             po = OrderVendorProcurement.query.filter_by(id=procurement_id, organization_id=org_id).first()
             if po and po.status in (OrderProcurementStatus.PO_ISSUED.value, OrderProcurementStatus.ACKNOWLEDGED.value):
                 po.status = OrderProcurementStatus.IN_TRANSIT.value
+        elif order.procurement_status == OrderProcurementStatus.DRAFT.value:
+            order.procurement_status = OrderProcurementStatus.IN_TRANSIT.value
 
         db.session.commit()
         return cons

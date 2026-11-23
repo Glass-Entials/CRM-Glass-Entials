@@ -271,7 +271,7 @@
                 </div>
                 <div class="p-step {% if ord.procurement_status in ['PO_ISSUED','IN_TRANSIT','RECEIVED'] %}done{% elif ord.procurement_status != 'DRAFT' %}active{% endif %}">
                     <span class="ps-label">Vendor Procurement</span>
-                    <span class="ps-val">{{ ord.procurement_status }}</span>
+                    <span class="ps-val">{{ 'ORDERED' if ord.procurement_status == 'PO_ISSUED' else ord.procurement_status }}</span>
                 </div>
                 <div class="p-step {% if ord.delivery_status == 'DELIVERED' %}done{% elif ord.delivery_status == 'OUT_FOR_DELIVERY' %}active{% endif %}">
                     <span class="ps-label">Customer Delivery</span>
@@ -296,7 +296,7 @@
         <div class="tabs-container">
             <div class="tab-nav">
                 <button class="tab-btn active" onclick="switchTab('itemsTab', this)">📦 Items &amp; Allocations</button>
-                <button class="tab-btn" onclick="switchTab('procTab', this)">🏭 Procurement ({{ (cockpit.procurements | length) + (cockpit.vendor_proforma_invoices | length if cockpit.vendor_proforma_invoices else 0) }})</button>
+                <button class="tab-btn" onclick="switchTab('procTab', this)">🏭 Procurement ({{ cockpit.vendor_proforma_invoices | length if cockpit.vendor_proforma_invoices else 0 }})</button>
                 <button class="tab-btn" onclick="switchTab('delivTab', this)">🚚 Deliveries ({{ cockpit.deliveries | length }})</button>
                 <button class="tab-btn" onclick="switchTab('fittingTab', this)">🔧 Fitting ({{ cockpit.fitting_visits | length }})</button>
                 <button class="tab-btn" onclick="switchTab('finTab', this)">💰 Financials</button>
@@ -453,49 +453,20 @@
 
                 <div class="oms-card">
                     <div class="oms-card-header">
-                        <h3>Vendor Purchase Orders</h3>
-                        <button type="button" class="btn-action gold" style="font-size:0.85rem;" onclick="openModal('poModal')">+ Issue Purchase Order</button>
-                    </div>
-                    <div style="overflow-x:auto;">
-                        <table class="oms-tbl">
-                            <thead>
-                                <tr><th>PO Number</th><th>Vendor</th><th>Issued Date</th><th>Amount</th><th>Status</th></tr>
-                            </thead>
-                            <tbody>
-                                {% if cockpit.procurements %}
-                                {% for po in cockpit.procurements %}
-                                <tr>
-                                    <td><strong>{{ po.po_number }}</strong></td>
-                                    <td>{{ po.vendor.name if (po.vendor and po.vendor.name) else (po.vendor_name or 'Vendor') }}</td>
-                                    <td style="color:var(--text-muted);">{{ po.po_date if po.po_date else '—' }}</td>
-                                    <td><strong>₹{{ "{:,.2f}".format(po.net_procurement_amount or po.net_amount or po.total_amount or 0) }}</strong></td>
-                                    <td><span class="oms-badge ob-draft">{{ po.status }}</span></td>
-                                </tr>
-                                {% endfor %}
-                                {% else %}
-                                <tr class="empty-row"><td colspan="5">No purchase orders issued yet.</td></tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="oms-card">
-                    <div class="oms-card-header">
                         <h3>Transporter Consignments &amp; Tracking</h3>
                         <button type="button" class="btn-action outline" style="font-size:0.85rem;" onclick="openModal('consignmentModal')">+ Record Consignment</button>
                     </div>
                     <div style="overflow-x:auto;">
                         <table class="oms-tbl">
                             <thead>
-                                <tr><th>Consignment #</th><th>PO Reference</th><th>Transporter</th><th>Tracking / LR</th><th>Status</th><th>Action</th></tr>
+                                <tr><th>Consignment #</th><th>Supplier / Reference</th><th>Transporter</th><th>Tracking / LR</th><th>Status</th><th>Action</th></tr>
                             </thead>
                             <tbody>
                                 {% if cockpit.consignments %}
                                 {% for con in cockpit.consignments %}
                                 <tr>
                                     <td><strong>{{ con.consignment_number }}</strong></td>
-                                    <td>{{ con.procurement.po_number if con.procurement else '—' }}</td>
+                                    <td>{{ con.vendor_name or (con.procurement.po_number if con.procurement else '—') }}</td>
                                     <td>{{ con.transporter_name or '—' }} {% if con.vehicle_number %}({{ con.vehicle_number }}){% endif %}</td>
                                     <td>{{ con.tracking_number or con.lr_number or '—' }}</td>
                                     <td><span class="oms-badge ob-proc">{{ con.status }}</span></td>
@@ -810,7 +781,7 @@
                     <label for="doc_type">Document Category <span style="color:#ef4444;">*</span></label>
                     <select name="document_type" id="doc_type" required>
                         <option value="QUOTATION">QUOTATION (Client / Vendor)</option>
-                        <option value="PURCHASE_ORDER">PURCHASE ORDER (Signed PO)</option>
+                        <option value="VENDOR_PROFORMA_INVOICE">VENDOR PROFORMA INVOICE (PI)</option>
                         <option value="DELIVERY_CHALLAN">DELIVERY CHALLAN (Signed Proof of Delivery)</option>
                         <option value="FITTING_REPORT">FITTING REPORT (Installation Signoff)</option>
                         <option value="VENDOR_BILL">VENDOR BILL (Supplier Tax Invoice)</option>
@@ -911,50 +882,6 @@
         </div>
     </div>
 
-    <!-- Issue PO -->
-    <div id="poModal" class="modal-overlay">
-        <div class="modal-box">
-            <h3>Issue Vendor Purchase Order</h3>
-            <form method="POST" action="{{ url_for('orders.create_procurement', order_id=ord.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="oms-fg">
-                    <label for="po_vendor_id">Vendor <span style="color:#ef4444;">*</span></label>
-                    <select name="vendor_id" id="po_vendor_id" required>
-                        <option value="">— Select Vendor —</option>
-                        {% for v in vendors %}
-                        <option value="{{ v.id }}">{{ v.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.8rem;">Select allocated items for this Purchase Order:</p>
-                <div style="max-height:200px; overflow-y:auto; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:10px; margin-bottom:1rem; background:#f8fafc;">
-                    {% for it in cockpit['items'] %}
-                        {% for al in it.allocations %}
-                        {% if al.status != 'RECEIVED' %}
-                        <div style="font-size:0.85rem; padding:6px 0; border-bottom:1px solid rgba(13,27,42,0.05);">
-                            <label style="display:flex; gap:8px; align-items:center; cursor:pointer;">
-                                <input type="checkbox" name="allocation_id" value="{{ al.id }}">
-                                <span>{{ it.item_description }} (Allocated: {{ al.allocated_quantity }} to {{ al.vendor.name if al.vendor else 'Vendor' }})</span>
-                            </label>
-                            <input type="hidden" name="proc_qty_{{ al.id }}" value="{{ al.allocated_quantity }}">
-                            <input type="hidden" name="proc_rate_{{ al.id }}" value="{{ al.purchase_rate }}">
-                        </div>
-                        {% endif %}
-                        {% endfor %}
-                    {% endfor %}
-                </div>
-                <div class="oms-fg">
-                    <label for="po_date">Expected Delivery Date</label>
-                    <input type="date" name="expected_delivery_date" id="po_date">
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-action outline" onclick="closeModal('poModal')">Cancel</button>
-                    <button type="submit" class="btn-action gold">Generate PO</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- Record Consignment -->
     <div id="consignmentModal" class="modal-overlay">
         <div class="modal-box">
@@ -962,11 +889,11 @@
             <form method="POST" action="{{ url_for('orders.record_consignment', order_id=ord.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="oms-fg">
-                    <label for="c_procurement_id">Purchase Order <span style="color:#ef4444;">*</span></label>
-                    <select name="procurement_id" id="c_procurement_id" required>
-                        <option value="">— Select PO —</option>
-                        {% for po in cockpit.procurements %}
-                        <option value="{{ po.id }}">{{ po.po_number }} — {{ po.vendor.name if po.vendor else 'Vendor' }}</option>
+                    <label for="c_vendor_id">Supplier / Vendor <span style="color:#ef4444;">*</span></label>
+                    <select name="vendor_id" id="c_vendor_id" required style="width:100%; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.88rem; background:#fff;">
+                        <option value="">— Select Supplier / Vendor —</option>
+                        {% for v in vendors %}
+                        <option value="{{ v.id }}">{{ v.company_name or v.name }} {% if v.code %}({{ v.code }}){% endif %}</option>
                         {% endfor %}
                     </select>
                 </div>
