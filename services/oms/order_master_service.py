@@ -119,7 +119,7 @@ def detect_lead_customer(org_id: int, lead: Lead) -> Optional[Customer]:
     Follows strict priority:
     1. Direct relationship / conversion reference:
        Customer.lead_id == lead.id
-       or (if contact_id present) Customer.id == lead.contact_id
+       or lead.converted_customer
     2. Normalized mobile matching (last 10 digits) within the same organization.
     3. Normalized email matching (case-insensitive stripped) within the same organization.
     NEVER matches by name alone. Never crosses tenant boundaries.
@@ -127,38 +127,42 @@ def detect_lead_customer(org_id: int, lead: Lead) -> Optional[Customer]:
     if not lead:
         return None
 
-    # Priority 1: Direct conversion relationship
-    cust = Customer.query.filter_by(lead_id=lead.id, organization_id=org_id, is_deleted=False).first()
-    if cust:
-        return cust
-
-    if getattr(lead, "contact_id", None):
-        cust = Customer.query.filter_by(id=lead.contact_id, organization_id=org_id, is_deleted=False).first()
+    try:
+        # Priority 1: Direct conversion relationship
+        cust = Customer.query.filter_by(lead_id=lead.id, organization_id=org_id, is_deleted=False).first()
         if cust:
             return cust
 
-    # Priority 2: Normalized mobile match
-    lead_phone = getattr(lead, "phone_number", None) or getattr(lead, "phone", None)
-    if lead_phone:
-        raw_digits = "".join(filter(str.isdigit, str(lead_phone)))
-        if len(raw_digits) >= 10:
-            target_10 = raw_digits[-10:]
+        if getattr(lead, "converted_customer", None):
+            c = lead.converted_customer
+            if c and not getattr(c, "is_deleted", False) and getattr(c, "organization_id", None) == org_id:
+                return c
+
+        # Priority 2: Normalized mobile match (last 10 digits)
+        lead_phone = getattr(lead, "phone_number", None) or getattr(lead, "phone", None)
+        if lead_phone:
+            raw_digits = "".join(filter(str.isdigit, str(lead_phone)))
+            if len(raw_digits) >= 10:
+                target_10 = raw_digits[-10:]
+                candidates = Customer.query.filter_by(organization_id=org_id, is_deleted=False).all()
+                for c in candidates:
+                    c_phone = getattr(c, "phone_number", None) or getattr(c, "phone", None)
+                    if c_phone:
+                        c_digits = "".join(filter(str.isdigit, str(c_phone)))
+                        if len(c_digits) >= 10 and c_digits[-10:] == target_10:
+                            return c
+
+        # Priority 3: Normalized email match
+        lead_email = (getattr(lead, "email", None) or "").strip().lower()
+        if lead_email and "@" in lead_email:
             candidates = Customer.query.filter_by(organization_id=org_id, is_deleted=False).all()
             for c in candidates:
-                c_phone = getattr(c, "phone_number", None) or getattr(c, "phone", None)
-                if c_phone:
-                    c_digits = "".join(filter(str.isdigit, str(c_phone)))
-                    if len(c_digits) >= 10 and c_digits[-10:] == target_10:
-                        return c
-
-    # Priority 3: Normalized email match
-    lead_email = (getattr(lead, "email", None) or "").strip().lower()
-    if lead_email and "@" in lead_email:
-        candidates = Customer.query.filter_by(organization_id=org_id, is_deleted=False).all()
-        for c in candidates:
-            c_email = (getattr(c, "email", None) or "").strip().lower()
-            if c_email and c_email == lead_email:
-                return c
+                c_email = (getattr(c, "email", None) or "").strip().lower()
+                if c_email and c_email == lead_email:
+                    return c
+    except Exception as e:
+        import logging
+        logging.getLogger("oms").exception(f"Error detecting customer for lead #{getattr(lead, 'id', None)}: {e}")
 
     return None
 

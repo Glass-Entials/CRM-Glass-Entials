@@ -271,51 +271,58 @@ def api_search_leads():
 def api_get_lead_detail(lead_id: int):
     """Fetch complete saved lead details and detect whether already associated with a Customer."""
     org_id = _get_org_id()
-    l = Lead.query.filter_by(id=lead_id, organization_id=org_id, is_deleted=False).first()
-    if not l:
-        return jsonify({"success": False, "error": f"Lead #{lead_id} not found."}), 404
+    try:
+        l = Lead.query.filter_by(id=lead_id, organization_id=org_id, is_deleted=False).first()
+        if not l:
+            return jsonify({"success": False, "error": f"Lead #{lead_id} not found."}), 404
 
-    detected_cust = detect_lead_customer(org_id, l)
-    match_reason = None
-    if detected_cust:
-        if getattr(detected_cust, "lead_id", None) == l.id:
-            match_reason = "Direct Lead Conversion Record"
-        elif getattr(l, "contact_id", None) == detected_cust.id:
-            match_reason = "Direct Contact Link"
-        else:
-            match_reason = "Matching Verified Mobile Number or Email"
+        detected_cust = detect_lead_customer(org_id, l)
+        match_reason = None
+        if detected_cust:
+            if getattr(detected_cust, "lead_id", None) == l.id or getattr(l, "converted_customer", None) == detected_cust:
+                match_reason = "Direct Lead Conversion Record"
+            else:
+                l_phone = "".join(filter(str.isdigit, str(getattr(l, "phone_number", "") or "")))
+                c_phone = "".join(filter(str.isdigit, str(getattr(detected_cust, "phone_number", "") or "")))
+                if len(l_phone) >= 10 and len(c_phone) >= 10 and l_phone[-10:] == c_phone[-10:]:
+                    match_reason = "Matching Verified Mobile Number"
+                else:
+                    match_reason = "Matching Verified Email"
 
-    return jsonify({
-        "success": True,
-        "lead": {
-            "id": l.id,
-            "name": l.name,
-            "company": l.company or "",
-            "phone_number": l.phone_number or "",
-            "email": l.email or "",
-            "address": l.address or "",
-            "billing_address": l.address or "",
-            "shipping_address": l.address or "",
-            "site_address": l.address or "",
-            "city": l.city or "",
-            "state": l.state or "",
-            "pincode": l.pincode or "",
-            "gst_number": l.gst_number or "",
-            "status": l.status.value if hasattr(l.status, "value") else str(l.status or ""),
-            "notes": l.notes or "",
-            "profile_url": _safe_lead_url(l.id),
-        },
-        "is_already_customer": bool(detected_cust),
-        "associated_customer": {
-            "id": detected_cust.id,
-            "name": detected_cust.name,
-            "company": detected_cust.company or "",
-            "phone_number": detected_cust.phone_number or "",
-            "email": detected_cust.email or "",
-            "match_reason": match_reason,
-            "profile_url": _safe_customer_url(detected_cust.id),
-        } if detected_cust else None,
-    })
+        return jsonify({
+            "success": True,
+            "lead": {
+                "id": l.id,
+                "name": l.name,
+                "company": l.company or "",
+                "phone_number": l.phone_number or "",
+                "email": l.email or "",
+                "address": l.address or "",
+                "billing_address": l.address or "",
+                "shipping_address": l.address or "",
+                "site_address": l.address or "",
+                "city": l.city or "",
+                "state": l.state or "",
+                "pincode": l.pincode or "",
+                "gst_number": l.gst_number or "",
+                "status": l.status.value if hasattr(l.status, "value") else str(l.status or ""),
+                "notes": l.notes or "",
+                "profile_url": _safe_lead_url(l.id),
+            },
+            "is_already_customer": bool(detected_cust),
+            "associated_customer": {
+                "id": detected_cust.id,
+                "name": detected_cust.name,
+                "company": detected_cust.company or "",
+                "phone_number": detected_cust.phone_number or "",
+                "email": detected_cust.email or "",
+                "match_reason": match_reason,
+                "profile_url": _safe_customer_url(detected_cust.id),
+            } if detected_cust else None,
+        })
+    except Exception as e:
+        current_app.logger.exception(f"Error retrieving lead #{lead_id} details")
+        return jsonify({"success": False, "error": f"Failed to load lead details: {str(e)}"}), 500
 
 
 @orders_bp.route("/api/customers/search", methods=["GET"])

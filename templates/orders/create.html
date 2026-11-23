@@ -2283,46 +2283,85 @@
 
         function showLeadCustomerConfirm(lead, associatedCustomer) {
             pendingLeadData = { lead: lead, associated_customer: associatedCustomer };
-            document.getElementById('confirmModalCustName').textContent = associatedCustomer.name + (associatedCustomer.company ? ` (${associatedCustomer.company})` : '');
-            document.getElementById('confirmModalCustPhone').textContent = `📞 ${associatedCustomer.phone_number || '—'}`;
-            document.getElementById('confirmModalCustEmail').textContent = `✉️ ${associatedCustomer.email || '—'}`;
-            document.getElementById('confirmModalCustReason').textContent = `Match: ${associatedCustomer.match_reason || 'Verified match'}`;
-            document.getElementById('leadCustomerConfirmModal').style.display = 'flex';
+            const nameEl = document.getElementById('confirmModalCustName');
+            if (nameEl) {
+                nameEl.textContent = (associatedCustomer.name || 'Customer') + (associatedCustomer.company ? ` (${associatedCustomer.company})` : '');
+            }
+            const phoneEl = document.getElementById('confirmModalCustPhone');
+            if (phoneEl) {
+                phoneEl.textContent = `📞 ${associatedCustomer.phone_number || '—'}`;
+            }
+            const emailEl = document.getElementById('confirmModalCustEmail');
+            if (emailEl) {
+                emailEl.textContent = `✉️ ${associatedCustomer.email || '—'}`;
+            }
+            const reasonEl = document.getElementById('confirmModalCustReason');
+            if (reasonEl) {
+                reasonEl.textContent = `Match: ${associatedCustomer.match_reason || 'Verified match'}`;
+            }
+            const modalEl = document.getElementById('leadCustomerConfirmModal');
+            if (modalEl) {
+                modalEl.style.display = 'flex';
+            }
         }
 
         function selectLeadById(leadId) {
             fetch(`/orders/api/leads/${leadId}`)
-                .then(r => r.json())
+                .then(async (r) => {
+                    let data;
+                    try {
+                        data = await r.json();
+                    } catch (parseErr) {
+                        throw new Error(`Server returned HTTP ${r.status} (${r.statusText || 'Non-JSON response'})`);
+                    }
+                    if (!r.ok || (data && data.success === false)) {
+                        throw new Error((data && data.error) ? data.error : `HTTP ${r.status}`);
+                    }
+                    return data;
+                })
                 .then(data => {
-                    if (data.success && data.lead) {
-                        document.getElementById('leadSearchResults').style.display = 'none';
-                        const toggleBtn = document.getElementById('leadDropdownToggle');
-                        if (toggleBtn) toggleBtn.classList.remove('open');
-                        document.getElementById('leadSearchInput').value = '';
+                    if (data && data.lead) {
+                        try {
+                            const resultsEl = document.getElementById('leadSearchResults');
+                            if (resultsEl) resultsEl.style.display = 'none';
+                            const toggleBtn = document.getElementById('leadDropdownToggle');
+                            if (toggleBtn) toggleBtn.classList.remove('open');
+                            const searchInp = document.getElementById('leadSearchInput');
+                            if (searchInp) searchInp.value = '';
 
-                        if (data.is_already_customer && data.associated_customer) {
-                            showLeadCustomerConfirm(data.lead, data.associated_customer);
-                        } else {
-                            applySelectedLead(data.lead, null);
-                            showToast(`Selected Lead: ${data.lead.name}`, 'success');
+                            if (data.is_already_customer && data.associated_customer) {
+                                showLeadCustomerConfirm(data.lead, data.associated_customer);
+                            } else {
+                                applySelectedLead(data.lead, null);
+                                showToast(`Selected Lead: ${data.lead.name}`, 'success');
+                            }
+                        } catch (uiErr) {
+                            console.error('Error applying lead UI:', uiErr);
+                            showToast('Error displaying lead details: ' + (uiErr.message || uiErr), 'error');
                         }
                     } else {
-                        showToast(data.error || 'Lead not found.', 'error');
+                        showToast((data && data.error) ? data.error : 'Lead not found.', 'error');
                     }
                 })
-                .catch(() => showToast('Failed to load lead details.', 'error'));
+                .catch(err => {
+                    console.error('Failed to load lead details:', err);
+                    showToast(err && err.message ? err.message : 'Failed to load lead details.', 'error');
+                });
         }
 
         function cancelLeadCustomerConfirm() {
-            document.getElementById('leadCustomerConfirmModal').style.display = 'none';
+            const modalEl = document.getElementById('leadCustomerConfirmModal');
+            if (modalEl) modalEl.style.display = 'none';
             pendingLeadData = null;
             showToast('Lead selection cancelled.', 'info');
         }
 
         function proceedWithLeadCustomerConfirm() {
-            document.getElementById('leadCustomerConfirmModal').style.display = 'none';
+            const modalEl = document.getElementById('leadCustomerConfirmModal');
+            if (modalEl) modalEl.style.display = 'none';
             if (pendingLeadData && pendingLeadData.lead) {
-                document.getElementById('confirmedLeadOverride').value = 'true';
+                const overrideInp = document.getElementById('confirmedLeadOverride');
+                if (overrideInp) overrideInp.value = 'true';
                 applySelectedLead(pendingLeadData.lead, pendingLeadData.associated_customer);
                 showToast(`Selected Lead: ${pendingLeadData.lead.name} (Linked to existing Customer)`, 'success');
                 pendingLeadData = null;
