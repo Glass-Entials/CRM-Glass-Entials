@@ -814,6 +814,64 @@ class OMSMasterOrderCreationTests(unittest.TestCase):
         res = self.client.post("/orders/", json=payload_missing_client, headers={"Accept": "application/json"})
         self.assertEqual(res.status_code, 400)
 
+    # --------------------------------------------------------------------------
+    # 15. Inline Lead Creation API
+    # --------------------------------------------------------------------------
+    def test_15_lead_inline_creation_api(self):
+        """Test POST /orders/api/leads/inline validation, duplicates, and creation."""
+        self._login(1)
+
+        # Missing required name
+        res = self.client.post("/orders/api/leads/inline", json={
+            "phone_number": "9988776655"
+        })
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("Lead name is required", res.get_json()["message"])
+
+        # Invalid phone format
+        res = self.client.post("/orders/api/leads/inline", json={
+            "name": "Invalid Phone Lead",
+            "phone_number": "1234"
+        })
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("10 digits", res.get_json()["message"])
+
+        # Duplicate phone in tenant
+        res = self.client.post("/orders/api/leads/inline", json={
+            "name": "Duplicate Lead",
+            "phone_number": self.lead1.phone_number
+        })
+        self.assertEqual(res.status_code, 409)
+        self.assertIn("already exists", res.get_json()["message"])
+
+        # Successful inline creation of new lead
+        payload = {
+            "name": "Rohit Verma Architects",
+            "company": "Verma Design House",
+            "phone_number": "9819922334",
+            "email": "rohit@verma.in",
+            "source": "Website",
+            "status": "Prospect",
+            "city": "Pune",
+            "state": "Maharashtra",
+            "pincode": "411001",
+            "address": "Baner Road, Pune",
+            "notes": "Interested in curtain glass installation."
+        }
+        res = self.client.post("/orders/api/leads/inline", json=payload)
+        self.assertEqual(res.status_code, 201)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        new_lead = data["lead"]
+        self.assertEqual(new_lead["name"], "Rohit Verma Architects")
+        self.assertEqual(new_lead["phone_number"], "9819922334")
+        self.assertFalse(data["is_already_customer"])
+
+        # Verify created in DB
+        saved = db.session.get(Lead, new_lead["id"])
+        self.assertIsNotNone(saved)
+        self.assertEqual(saved.company, "Verma Design House")
+
 
 if __name__ == "__main__":
     unittest.main()

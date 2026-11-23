@@ -77,36 +77,236 @@
             letter-spacing: 0.05em;
         }
 
-        /* Client Association Mode Toggle */
+        /* Client Association Mode Toggle & Selection Panel */
+        .client-selection-box {
+            background: #ffffff;
+            border: 1px solid rgba(13, 27, 42, 0.09);
+            border-radius: 12px;
+            padding: 1.25rem 1.4rem;
+            box-shadow: 0 2px 10px rgba(13, 27, 42, 0.02);
+            margin-bottom: 0.75rem;
+            position: relative;
+        }
+        .client-mode-strip {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding-bottom: 0.9rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.06);
+        }
+        .client-mode-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--primary-navy);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .client-mode-label .live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            display: inline-block;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+        }
+        .client-mode-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: normal;
+            margin-left: 4px;
+        }
         .entity-mode-toggle {
             display: inline-flex;
             background: #f1f5f9;
-            padding: 4px;
+            padding: 3px;
             border-radius: 10px;
             gap: 4px;
             border: 1px solid rgba(13, 27, 42, 0.08);
         }
         .entity-toggle-btn {
-            padding: 0.45rem 1.25rem;
-            font-size: 0.85rem;
+            padding: 0.4rem 1.1rem;
+            font-size: 0.84rem;
             font-weight: 600;
-            border-radius: 8px;
+            border-radius: 7px;
             border: none;
             background: transparent;
             color: #64748b;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-flex;
             align-items: center;
             gap: 6px;
         }
         .entity-toggle-btn:hover {
             color: var(--primary-navy);
+            background: rgba(255, 255, 255, 0.5);
         }
         .entity-toggle-btn.active {
             background: var(--primary-navy);
             color: #ffffff;
             box-shadow: 0 2px 6px rgba(13, 27, 42, 0.18);
+        }
+        .entity-toggle-btn .mode-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: inherit;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        .entity-toggle-btn.active .mode-tag.gold {
+            background: rgba(212, 175, 55, 0.35);
+            color: #ffe082;
+        }
+
+        /* Luxury Search Inputs & Actions */
+        .luxury-search-input {
+            width: 100%;
+            height: 44px;
+            padding: 0.65rem 7.5rem 0.65rem 2.6rem;
+            border: 1.5px solid rgba(13, 27, 42, 0.13);
+            border-radius: 9px;
+            font-size: 0.92rem;
+            font-family: inherit;
+            color: var(--text-dark);
+            background: #ffffff;
+            outline: none;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+        .luxury-search-input:focus {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.16);
+            background: #ffffff;
+        }
+        .search-lead-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1rem;
+            color: var(--text-muted);
+            pointer-events: none;
+            z-index: 2;
+        }
+        .luxury-dropdown-btn {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 32px;
+            padding: 0 10px;
+            background: #f1f5f9;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--primary-navy);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.15s ease;
+            z-index: 2;
+        }
+        .luxury-dropdown-btn:hover {
+            background: var(--primary-navy);
+            color: #ffffff;
+            border-color: var(--primary-navy);
+        }
+        .luxury-action-btn {
+            height: 44px;
+            padding: 0 1.35rem;
+            border-radius: 9px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            background: linear-gradient(135deg, #d4af37 0%, #c59b27 100%);
+            color: #0d1b2a;
+            border: 1px solid #c59b27;
+            box-shadow: 0 2px 6px rgba(212, 175, 55, 0.22);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .luxury-action-btn:hover {
+            background: linear-gradient(135deg, #e0b838 0%, #d4af37 100%);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.35);
+            transform: translateY(-1px);
+            color: #0d1b2a;
+        }
+
+        /* Empty / Unselected State Strip */
+        .client-unselected-strip {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 0.85rem;
+            padding: 0.85rem 1.15rem;
+            background: #fbfbfd;
+            border: 1px dashed rgba(212, 175, 55, 0.45);
+            border-radius: 9px;
+            transition: all 0.2s ease;
+        }
+        .client-unselected-strip .unselected-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .client-unselected-strip .unselected-info strong {
+            font-size: 0.88rem;
+            color: var(--primary-navy);
+            font-weight: 700;
+        }
+        .client-unselected-strip .unselected-info span {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .client-unselected-strip .unselected-pills {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .pill-perk {
+            font-size: 0.74rem;
+            font-weight: 600;
+            color: #92400e;
+            background: rgba(212, 175, 55, 0.12);
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            padding: 3px 8px;
+            border-radius: 12px;
+        }
+        .profile-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.8rem;
+            color: var(--text-dark);
+            background: #ffffff;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            padding: 3px 9px;
+            border-radius: 6px;
+        }
+        .selected-profile-card.customer-theme {
+            border-left: 5px solid var(--primary-navy);
+        }
+        .selected-profile-card.lead-theme {
+            border-left: 5px solid var(--accent-gold);
         }
 
         /* Section Cards */
@@ -834,23 +1034,7 @@
                         <span class="collapse-icon">▾</span>
                     </div>
                 </div>
-                <div class="section-body">
-                    <!-- Customer / Lead Mode Toggle -->
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid rgba(13,27,42,0.08); padding-bottom: 1rem;">
-                        <div>
-                            <span style="font-size: 0.85rem; font-weight: 700; color: var(--primary-navy); text-transform: uppercase; letter-spacing: 0.04em;">Client Association Mode:</span>
-                            <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px;">Select whether to book this order against a registered Customer or an active CRM Lead</span>
-                        </div>
-                        <div class="entity-mode-toggle">
-                            <button type="button" id="toggleModeCustomer" class="entity-toggle-btn active" onclick="switchClientMode('customer')">
-                                👤 Customer
-                            </button>
-                            <button type="button" id="toggleModeLead" class="entity-toggle-btn" onclick="switchClientMode('lead')">
-                                🎯 Lead
-                            </button>
-                        </div>
-                    </div>
-
+                <div class="section-body" style="padding: 1.25rem 1.5rem;">
                     <!-- Hidden Client Association Mode & Overrides -->
                     <input type="hidden" name="entity_mode" id="clientEntityMode" value="customer">
                     <input type="hidden" name="confirmed_lead_override" id="confirmedLeadOverride" value="false">
@@ -858,31 +1042,88 @@
                     <input type="hidden" name="selected_lead_id" id="selectedLeadId" value="">
                     <input type="hidden" name="customer_id" id="selectedCustomerId" value="">
 
-                    <!-- CUSTOMER MODE: Search & Creation Bar -->
-                    <div id="customerSearchContainer" style="display: block;">
-                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap;">
-                            <div class="autocomplete-wrap" style="flex: 1; min-width: 280px;">
-                                <input type="text" id="customerSearchInput" class="form-control-custom" placeholder="🔍 Search or click ▾ to view all customers..." autocomplete="off" spellcheck="false">
-                                <button type="button" class="autocomplete-toggle-btn" id="customerDropdownToggle" title="View all customers" aria-label="Toggle all customers">▾</button>
-                                <div id="customerSearchResults" class="autocomplete-results"></div>
+                    <!-- Unified Client Selection Control Panel -->
+                    <div class="client-selection-box">
+                        <!-- Top Strip: Record Type Segmented Switcher -->
+                        <div class="client-mode-strip">
+                            <div class="client-mode-label">
+                                <span class="live-dot"></span>
+                                <span>Order Client Type:</span>
+                                <span class="client-mode-desc" id="clientModeDesc">Book against registered CRM customer</span>
                             </div>
-                            <button type="button" class="btn-custom gold" onclick="openNewCustomerModal()">
-                                ➕ Create New Customer
-                            </button>
+                            <div class="entity-mode-toggle" role="tablist">
+                                <button type="button" id="toggleModeCustomer" class="entity-toggle-btn active" onclick="switchClientMode('customer')" title="Book order against registered CRM Customer">
+                                    <span class="mode-icon">👤</span> <span>Customer</span>
+                                    <span class="mode-tag">Master</span>
+                                </button>
+                                <button type="button" id="toggleModeLead" class="entity-toggle-btn" onclick="switchClientMode('lead')" title="Book order against CRM Lead in sales pipeline">
+                                    <span class="mode-icon">🎯</span> <span>Lead</span>
+                                    <span class="mode-tag gold">Pipeline</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- CUSTOMER MODE: Search & Action Row -->
+                        <div id="customerSearchContainer" style="display: block;">
+                            <div style="display: flex; gap: 12px; align-items: stretch; flex-wrap: wrap;">
+                                <div class="autocomplete-wrap" style="flex: 1; min-width: 280px; position: relative;">
+                                    <span class="search-lead-icon">🔍</span>
+                                    <input type="text" id="customerSearchInput" class="luxury-search-input" placeholder="Search by customer name, company, phone, email, GSTIN, or city..." autocomplete="off" spellcheck="false">
+                                    <button type="button" class="luxury-dropdown-btn" id="customerDropdownToggle" title="Browse all customers" aria-label="Toggle all customers">
+                                        <span>Browse All</span> ▾
+                                    </button>
+                                    <div id="customerSearchResults" class="autocomplete-results"></div>
+                                </div>
+                                <button type="button" class="luxury-action-btn" onclick="openNewCustomerModal()" title="Onboard a new customer master record">
+                                    <span style="font-size: 1.1rem; line-height: 1;">➕</span> Create New Customer
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- LEAD MODE: Search & Action Row -->
+                        <div id="leadSearchContainer" style="display: none;">
+                            <div style="display: flex; gap: 12px; align-items: stretch; flex-wrap: wrap;">
+                                <div class="autocomplete-wrap" style="flex: 1; min-width: 280px; position: relative;">
+                                    <span class="search-lead-icon">🎯</span>
+                                    <input type="text" id="leadSearchInput" class="luxury-search-input" placeholder="Search by lead name, company, phone, email, status, or city..." autocomplete="off" spellcheck="false">
+                                    <button type="button" class="luxury-dropdown-btn" id="leadDropdownToggle" title="Browse all leads" aria-label="Toggle all leads">
+                                        <span>Browse All</span> ▾
+                                    </button>
+                                    <div id="leadSearchResults" class="autocomplete-results"></div>
+                                </div>
+                                <button type="button" class="luxury-action-btn" onclick="openNewLeadModal()" title="Create and onboard a new CRM lead">
+                                    <span style="font-size: 1.1rem; line-height: 1;">➕</span> Create New Lead
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Unselected Informational Placeholder (Eliminates Empty Space) -->
+                        <div id="clientUnselectedPlaceholder" class="client-unselected-strip">
+                            <div class="unselected-info">
+                                <strong id="clientPlaceholderTitle">No Customer Selected Yet</strong>
+                                <span id="clientPlaceholderSubtitle">Search existing customer records above or click "Create New Customer" to onboard them into the CRM.</span>
+                            </div>
+                            <div class="unselected-pills">
+                                <span class="pill-perk">⚡ Auto-Fills Addresses</span>
+                                <span class="pill-perk">🔒 100% Master Synced</span>
+                            </div>
                         </div>
 
                         <!-- Selected Customer Information Card -->
-                        <div id="selectedCustomerCard" class="selected-profile-card" style="display: none;">
+                        <div id="selectedCustomerCard" class="selected-profile-card customer-theme" style="display: none;">
                             <div class="profile-card-left">
                                 <div class="profile-avatar" id="custCardAvatar">C</div>
                                 <div class="profile-meta">
-                                    <h4 id="custCardName">Customer Name</h4>
-                                    <div class="profile-meta-details">
-                                        <span id="custCardCompany">🏢 Company</span>
-                                        <span id="custCardPhone">📞 Phone</span>
-                                        <span id="custCardEmail">✉️ Email</span>
-                                        <span id="custCardGstin">🏷️ GSTIN: N/A</span>
-                                        <span id="custCardCity">📍 City</span>
+                                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                        <h4 id="custCardName" style="margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 1.1rem; color: var(--primary-navy);">Customer Name</h4>
+                                        <span class="badge" style="background: rgba(13, 27, 42, 0.08); color: var(--primary-navy); font-size: 0.72rem; padding: 2px 8px; border-radius: 12px; font-weight: 700;">Customer Master</span>
+                                    </div>
+                                    <div class="profile-meta-details" style="margin-top: 6px;">
+                                        <span id="custCardCompany" class="profile-chip">🏢 Company</span>
+                                        <span id="custCardPhone" class="profile-chip">📞 Phone</span>
+                                        <span id="custCardEmail" class="profile-chip">✉️ Email</span>
+                                        <span id="custCardGstin" class="profile-chip">🏷️ GSTIN: N/A</span>
+                                        <span id="custCardCity" class="profile-chip">📍 City</span>
                                     </div>
                                 </div>
                             </div>
@@ -895,36 +1136,25 @@
                                 </button>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- LEAD MODE: Search & Profile Bar -->
-                    <div id="leadSearchContainer" style="display: none;">
-                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap;">
-                            <div class="autocomplete-wrap" style="flex: 1; min-width: 280px;">
-                                <input type="text" id="leadSearchInput" class="form-control-custom" placeholder="🔍 Search or click ▾ to view all leads..." autocomplete="off" spellcheck="false">
-                                <button type="button" class="autocomplete-toggle-btn" id="leadDropdownToggle" title="View all leads" aria-label="Toggle all leads">▾</button>
-                                <div id="leadSearchResults" class="autocomplete-results"></div>
-                            </div>
-                        </div>
 
                         <!-- Selected Lead Information Card -->
-                        <div id="selectedLeadCard" class="selected-profile-card" style="display: none; border-left: 4px solid var(--accent-gold);">
+                        <div id="selectedLeadCard" class="selected-profile-card lead-theme" style="display: none;">
                             <div class="profile-card-left">
                                 <div class="profile-avatar" id="leadCardAvatar" style="background: linear-gradient(135deg, #d4af37, #b89628); color:#fff;">L</div>
                                 <div class="profile-meta">
                                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                                        <h4 id="leadCardName" style="margin:0;">Lead Name</h4>
+                                        <h4 id="leadCardName" style="margin:0; font-family: 'Playfair Display', Georgia, serif; font-size: 1.1rem; color: var(--primary-navy);">Lead Name</h4>
                                         <span id="leadCardStatus" class="badge" style="background:rgba(212,175,55,0.15); color:#92400e; font-size:0.75rem; padding:2px 8px; border-radius:12px; font-weight:700;">New</span>
                                         <span id="leadLinkedCustomerBadge" class="badge" style="display:none; background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:0.75rem; padding:2px 8px; border-radius:12px; font-weight:600;">
                                             🔗 Linked Customer: <span id="leadLinkedCustomerName"></span>
                                         </span>
                                     </div>
                                     <div class="profile-meta-details" style="margin-top:6px;">
-                                        <span id="leadCardCompany">🏢 Company</span>
-                                        <span id="leadCardPhone">📞 Phone</span>
-                                        <span id="leadCardEmail">✉️ Email</span>
-                                        <span id="leadCardGstin">🏷️ GSTIN: N/A</span>
-                                        <span id="leadCardCity">📍 City</span>
+                                        <span id="leadCardCompany" class="profile-chip">🏢 Company</span>
+                                        <span id="leadCardPhone" class="profile-chip">📞 Phone</span>
+                                        <span id="leadCardEmail" class="profile-chip">✉️ Email</span>
+                                        <span id="leadCardGstin" class="profile-chip">🏷️ GSTIN: N/A</span>
+                                        <span id="leadCardCity" class="profile-chip">📍 City</span>
                                     </div>
                                 </div>
                             </div>
@@ -1571,6 +1801,101 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════════
+         MODAL 1B: INLINE CREATE NEW LEAD
+         ══════════════════════════════════════════════════════════════════ -->
+    <div id="modalNewLead" class="custom-modal-backdrop">
+        <div class="custom-modal-box">
+            <div class="modal-box-header">
+                <h3><span>🎯</span> Onboard New CRM Lead</h3>
+                <button type="button" class="modal-close-btn" onclick="closeNewLeadModal()">✕</button>
+            </div>
+            <div class="modal-box-body">
+                <form id="inlineLeadForm" onsubmit="handleInlineLeadSubmit(event)">
+                    <div class="form-row-2">
+                        <div class="form-group-custom">
+                            <label for="nl_name">Lead Full Name <span class="req">*</span></label>
+                            <input type="text" id="nl_name" class="form-control-custom" placeholder="e.g. Rahul Sharma" required>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nl_company">Company / Business Name</label>
+                            <input type="text" id="nl_company" class="form-control-custom" placeholder="e.g. Sharma Glass Studio">
+                        </div>
+                    </div>
+
+                    <div class="form-row-2">
+                        <div class="form-group-custom">
+                            <label for="nl_phone">Primary Mobile Number (10 digits) <span class="req">*</span></label>
+                            <input type="tel" id="nl_phone" class="form-control-custom" placeholder="e.g. 9825099887" maxlength="10" required>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nl_email">Email Address</label>
+                            <input type="email" id="nl_email" class="form-control-custom" placeholder="e.g. rahul@sharmaglass.in">
+                        </div>
+                    </div>
+
+                    <div class="form-row-3">
+                        <div class="form-group-custom">
+                            <label for="nl_source">Lead Source</label>
+                            <select id="nl_source" class="form-control-custom">
+                                <option value="Website">Website</option>
+                                <option value="Google">Google Search</option>
+                                <option value="Social Media">Social Media</option>
+                                <option value="Referral">Client Referral</option>
+                                <option value="Walk-in">Showroom Walk-in</option>
+                                <option value="Other" selected>Direct / Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nl_status">Lead Status</label>
+                            <select id="nl_status" class="form-control-custom">
+                                <option value="New" selected>New</option>
+                                <option value="Prospect">Prospect</option>
+                                <option value="Active">Active</option>
+                            </select>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nl_gstin">GSTIN (Optional)</label>
+                            <input type="text" id="nl_gstin" class="form-control-custom" placeholder="15-digit GSTIN" maxlength="15" style="text-transform:uppercase;">
+                        </div>
+                    </div>
+
+                    <div class="form-row-3">
+                        <div class="form-group-custom">
+                            <label for="nl_city">City</label>
+                            <input type="text" id="nl_city" class="form-control-custom" placeholder="e.g. Mumbai">
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nl_state">State</label>
+                            <input type="text" id="nl_state" class="form-control-custom" placeholder="e.g. Maharashtra">
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="nl_pincode">PIN Code</label>
+                            <input type="text" id="nl_pincode" class="form-control-custom" placeholder="e.g. 400001" maxlength="6">
+                        </div>
+                    </div>
+
+                    <div class="form-group-custom" style="margin-bottom:1rem;">
+                        <label for="nl_address">Address / Site Location</label>
+                        <textarea id="nl_address" class="form-control-custom" placeholder="Site or office address"></textarea>
+                    </div>
+
+                    <div class="form-group-custom" style="margin-bottom:1rem;">
+                        <label for="nl_notes">Requirements &amp; Initial Notes</label>
+                        <textarea id="nl_notes" class="form-control-custom" placeholder="Architectural requirements, glass specifications, budget..."></textarea>
+                    </div>
+
+                    <div class="modal-box-footer">
+                        <button type="button" class="btn-custom outline" onclick="closeNewLeadModal()">Cancel</button>
+                        <button type="submit" class="btn-custom gold" id="btnSaveNewLead">
+                            ✓ Save &amp; Select Lead
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
          MODAL 2: INLINE CREATE NEW VENDOR
          ══════════════════════════════════════════════════════════════════ -->
     <div id="modalNewVendor" class="custom-modal-backdrop">
@@ -1766,22 +2091,33 @@
             const contCust = document.getElementById('customerSearchContainer');
             const contLead = document.getElementById('leadSearchContainer');
             const statusTag = document.getElementById('customerStatusTag');
+            const placeholder = document.getElementById('clientUnselectedPlaceholder');
+            const placeholderTitle = document.getElementById('clientPlaceholderTitle');
+            const placeholderSub = document.getElementById('clientPlaceholderSubtitle');
+            const modeDesc = document.getElementById('clientModeDesc');
 
             if (mode === 'customer') {
                 btnCust.classList.add('active');
                 btnLead.classList.remove('active');
                 contCust.style.display = 'block';
                 contLead.style.display = 'none';
+                if (modeDesc) modeDesc.textContent = 'Book against registered CRM customer';
 
                 const custId = document.getElementById('selectedCustomerId').value;
                 if (custId) {
                     document.getElementById('selectedCustomerCard').style.display = 'flex';
                     document.getElementById('customerAddressOverrides').style.display = 'block';
+                    if (placeholder) placeholder.style.display = 'none';
                     statusTag.textContent = `✓ ${document.getElementById('custCardName').textContent}`;
                     statusTag.className = 'section-status-tag active';
                 } else {
                     document.getElementById('selectedCustomerCard').style.display = 'none';
                     document.getElementById('customerAddressOverrides').style.display = 'none';
+                    if (placeholder) {
+                        placeholder.style.display = 'flex';
+                        placeholderTitle.textContent = 'No Customer Selected Yet';
+                        placeholderSub.textContent = 'Search existing customer records above or click "Create New Customer" to onboard them into the CRM.';
+                    }
                     statusTag.textContent = 'No Customer Selected';
                     statusTag.className = 'section-status-tag';
                 }
@@ -1790,16 +2126,23 @@
                 btnCust.classList.remove('active');
                 contCust.style.display = 'none';
                 contLead.style.display = 'block';
+                if (modeDesc) modeDesc.textContent = 'Book against active CRM sales lead';
 
                 const leadId = document.getElementById('selectedLeadId').value;
                 if (leadId) {
                     document.getElementById('selectedLeadCard').style.display = 'flex';
                     document.getElementById('customerAddressOverrides').style.display = 'block';
+                    if (placeholder) placeholder.style.display = 'none';
                     statusTag.textContent = `✓ Lead: ${document.getElementById('leadCardName').textContent}`;
                     statusTag.className = 'section-status-tag active';
                 } else {
                     document.getElementById('selectedLeadCard').style.display = 'none';
                     document.getElementById('customerAddressOverrides').style.display = 'none';
+                    if (placeholder) {
+                        placeholder.style.display = 'flex';
+                        placeholderTitle.textContent = 'No Lead Selected Yet';
+                        placeholderSub.textContent = 'Search active sales leads above or click "Create New Lead" to onboard a new prospect immediately.';
+                    }
                     statusTag.textContent = 'No Lead Selected';
                     statusTag.className = 'section-status-tag';
                 }
@@ -1863,7 +2206,8 @@
                         } else {
                             results.innerHTML = `
                                 <div class="autocomplete-empty">
-                                    No leads found matching <strong>"${escapeHtml(q)}"</strong>.
+                                    No leads found matching <strong>"${escapeHtml(q)}"</strong>.<br>
+                                    <button type="button" class="btn-custom sm gold" style="margin-top:8px;" onclick="openNewLeadModal('${escapeHtml(q)}')">+ Onboard as New Lead</button>
                                 </div>
                             `;
                         }
@@ -1985,6 +2329,8 @@
             document.getElementById('leadCardCity').textContent = l.city ? `📍 ${l.city}` : '';
             document.getElementById('leadCardProfileLink').href = l.profile_url || `/lead/${l.id}`;
 
+            const placeholder = document.getElementById('clientUnselectedPlaceholder');
+            if (placeholder) placeholder.style.display = 'none';
             document.getElementById('selectedLeadCard').style.display = 'flex';
             document.getElementById('customerAddressOverrides').style.display = 'block';
             document.getElementById('customerStatusTag').textContent = `✓ Lead: ${l.name}`;
@@ -2018,6 +2364,12 @@
             document.getElementById('selectedLeadCard').style.display = 'none';
             if (document.getElementById('clientEntityMode').value === 'lead') {
                 document.getElementById('customerAddressOverrides').style.display = 'none';
+                const placeholder = document.getElementById('clientUnselectedPlaceholder');
+                if (placeholder) {
+                    placeholder.style.display = 'flex';
+                    document.getElementById('clientPlaceholderTitle').textContent = 'No Lead Selected Yet';
+                    document.getElementById('clientPlaceholderSubtitle').textContent = 'Search active sales leads above or click "Create New Lead" to onboard a new prospect immediately.';
+                }
                 document.getElementById('customerStatusTag').textContent = 'No Lead Selected';
                 document.getElementById('customerStatusTag').className = 'section-status-tag';
             }
@@ -2190,6 +2542,8 @@
             document.getElementById('custCardCity').textContent = c.city ? `📍 ${c.city}` : '';
             document.getElementById('custCardProfileLink').href = c.profile_url || `/customer/${c.id}`;
 
+            const placeholder = document.getElementById('clientUnselectedPlaceholder');
+            if (placeholder) placeholder.style.display = 'none';
             document.getElementById('selectedCustomerCard').style.display = 'flex';
             document.getElementById('customerAddressOverrides').style.display = 'block';
             document.getElementById('customerStatusTag').textContent = `✓ ${c.name}`;
@@ -2219,8 +2573,16 @@
             document.getElementById('selectedCustomerId').value = '';
             document.getElementById('selectedCustomerCard').style.display = 'none';
             document.getElementById('customerAddressOverrides').style.display = 'none';
-            document.getElementById('customerStatusTag').textContent = 'No Customer Selected';
-            document.getElementById('customerStatusTag').className = 'section-status-tag';
+            if (document.getElementById('clientEntityMode').value === 'customer') {
+                const placeholder = document.getElementById('clientUnselectedPlaceholder');
+                if (placeholder) {
+                    placeholder.style.display = 'flex';
+                    document.getElementById('clientPlaceholderTitle').textContent = 'No Customer Selected Yet';
+                    document.getElementById('clientPlaceholderSubtitle').textContent = 'Search existing customer records above or click "Create New Customer" to onboard them into the CRM.';
+                }
+                document.getElementById('customerStatusTag').textContent = 'No Customer Selected';
+                document.getElementById('customerStatusTag').className = 'section-status-tag';
+            }
         }
 
         function openNewCustomerModal(prefillName = '') {
@@ -2230,6 +2592,70 @@
 
         function closeNewCustomerModal() {
             document.getElementById('modalNewCustomer').style.display = 'none';
+        }
+
+        function openNewLeadModal(prefillName = '') {
+            document.getElementById('modalNewLead').style.display = 'flex';
+            if (prefillName) document.getElementById('nl_name').value = prefillName;
+        }
+
+        function closeNewLeadModal() {
+            document.getElementById('modalNewLead').style.display = 'none';
+        }
+
+        function handleInlineLeadSubmit(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSaveNewLead');
+            btn.disabled = true;
+            btn.textContent = 'Saving Lead...';
+
+            const payload = {
+                name: document.getElementById('nl_name').value.trim(),
+                company: document.getElementById('nl_company').value.trim(),
+                phone_number: document.getElementById('nl_phone').value.trim(),
+                email: document.getElementById('nl_email').value.trim(),
+                source: document.getElementById('nl_source').value,
+                status: document.getElementById('nl_status').value,
+                gst_number: document.getElementById('nl_gstin').value.trim(),
+                city: document.getElementById('nl_city').value.trim(),
+                state: document.getElementById('nl_state').value.trim(),
+                pincode: document.getElementById('nl_pincode').value.trim(),
+                address: document.getElementById('nl_address').value.trim(),
+                notes: document.getElementById('nl_notes').value.trim(),
+            };
+
+            const csrfToken = document.getElementById('formCsrfToken').value;
+
+            fetch('/orders/api/leads/inline', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.textContent = '✓ Save & Select Lead';
+                if (data.success && data.lead) {
+                    closeNewLeadModal();
+                    document.getElementById('inlineLeadForm').reset();
+                    if (data.is_already_customer && data.associated_customer) {
+                        showLeadCustomerConfirm(data.lead, data.associated_customer);
+                    } else {
+                        applySelectedLead(data.lead, null);
+                        showToast(data.message || 'Lead created and selected!', 'success');
+                    }
+                } else {
+                    showToast(data.error || data.message || 'Failed to create lead.', 'error');
+                }
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.textContent = '✓ Save & Select Lead';
+                showToast('Network error while saving lead.', 'error');
+            });
         }
 
         function handleInlineCustomerSubmit(e) {

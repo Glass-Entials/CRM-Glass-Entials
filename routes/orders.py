@@ -33,6 +33,7 @@ from model import (
     VendorBusinessType,
     VendorPaymentTerms,
     LeadSource,
+    LeadStatus,
     CustomerStatus,
     Product,
     Project,
@@ -471,6 +472,119 @@ def api_create_customer_inline():
             "business_type": new_cust.business_type or "",
             "profile_url": _safe_customer_url(new_cust.id),
         }
+    }), 201
+
+
+@orders_bp.route("/api/leads/inline", methods=["POST"])
+@login_required
+@require_roles("admin", "manager", "employee")
+def api_create_lead_inline():
+    """Inline Lead creation within the Master Order form."""
+    org_id = _get_org_id()
+    actor_id = _get_actor_id() or 1
+    data = request.get_json() if request.is_json else request.form
+
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip() or None
+    raw_phone = data.get("phone_number", "")
+    phone_digits = re.sub(r"\D", "", str(raw_phone))
+    if len(phone_digits) == 12 and phone_digits.startswith("91"):
+        phone_digits = phone_digits[2:]
+    phone_number = phone_digits or None
+
+    if not name:
+        msg = "Lead name is required."
+        return jsonify({"success": False, "error": msg, "message": msg}), 400
+    if not phone_number and not email:
+        msg = "Please provide at least a Phone Number or Email."
+        return jsonify({"success": False, "error": msg, "message": msg}), 400
+    if phone_number and len(phone_number) != 10:
+        msg = "Phone number must be exactly 10 digits."
+        return jsonify({"success": False, "error": msg, "message": msg}), 400
+    if email and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        msg = "A valid email address is required."
+        return jsonify({"success": False, "error": msg, "message": msg}), 400
+
+    # Duplicate checks in tenant (active leads)
+    if phone_number:
+        existing_phone = Lead.query.filter_by(phone_number=phone_number, organization_id=org_id, is_deleted=False).first()
+        if existing_phone:
+            msg = f"A lead with phone '{phone_number}' already exists in your organization: '{existing_phone.name}'."
+            return jsonify({"success": False, "error": msg, "message": msg}), 409
+
+    if email:
+        existing_email = Lead.query.filter_by(email=email, organization_id=org_id, is_deleted=False).first()
+        if existing_email:
+            msg = f"A lead with email '{email}' already exists in your organization: '{existing_email.name}'."
+            return jsonify({"success": False, "error": msg, "message": msg}), 409
+
+    source_val = data.get("source", "Other")
+    source_map = {e.value: e for e in LeadSource}
+    lead_source = source_map.get(source_val, LeadSource.OTHER)
+
+    status_val = data.get("status", "New")
+    status_map = {e.value: e for e in LeadStatus}
+    lead_status = status_map.get(status_val, LeadStatus.NEW)
+
+    gst_num = data.get("gst_number", "").strip().upper() or None
+    addr = data.get("address", "").strip() or None
+
+    new_lead = Lead(
+        name=name,
+        company=data.get("company", "").strip() or None,
+        phone_number=phone_number,
+        email=email,
+        address=addr,
+        city=data.get("city", "").strip() or None,
+        state=data.get("state", "").strip() or None,
+        pincode=data.get("pincode", "").strip() or None,
+        gst_number=gst_num,
+        notes=data.get("notes", "").strip() or None,
+        source=lead_source,
+        status=lead_status,
+        organization_id=org_id,
+        created_by=actor_id,
+    )
+    db.session.add(new_lead)
+    db.session.commit()
+
+    # Detect if this new lead matches an existing Customer in the CRM
+    detected_cust = detect_lead_customer(org_id, new_lead)
+    match_reason = None
+    if detected_cust:
+        match_reason = "Matching Verified Mobile Number or Email"
+
+    return jsonify({
+        "success": True,
+        "message": f"Lead '{new_lead.name}' created successfully.",
+        "lead": {
+            "id": new_lead.id,
+            "name": new_lead.name,
+            "company": new_lead.company or "",
+            "phone_number": new_lead.phone_number or "",
+            "email": new_lead.email or "",
+            "address": new_lead.address or "",
+            "billing_address": new_lead.address or "",
+            "shipping_address": new_lead.address or "",
+            "site_address": new_lead.address or "",
+            "city": new_lead.city or "",
+            "state": new_lead.state or "",
+            "pincode": new_lead.pincode or "",
+            "gst_number": new_lead.gst_number or "",
+            "status": new_lead.status.value if hasattr(new_lead.status, "value") else str(new_lead.status or ""),
+            "notes": new_lead.notes or "",
+            "profile_url": _safe_lead_url(new_lead.id),
+        },
+        "is_already_customer": bool(detected_cust),
+        "associated_customer": {
+            "id": detected_cust.id,
+            "name": detected_cust.name,
+            "company": detected_cust.company or "",
+            "phone_number": detected_cust.phone_number or "",
+            "email": detected_cust.email or "",
+            "match_reason": match_reason,
+            "profile_url": _safe_customer_url(detected_cust.id),
+        } if detected_cust else None,
     }), 201
 
 
