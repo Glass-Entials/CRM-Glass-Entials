@@ -35,6 +35,8 @@ from model import (
     MasterOrderStatus,
     OrderItemAllocationStatus,
     OrderClosureType,
+    OrderDeliveryStatus,
+    OrderDocumentType,
 )
 from . import (
     OMSValidationError,
@@ -712,6 +714,49 @@ class OrderMasterService:
                     "created_at": doc.created_at.strftime("%d %b %Y, %I:%M %p") if doc.created_at else "—",
                 })
 
+        # Collect delivery records with attached challan documents
+        delv_list = []
+        linked_doc_ids = set()
+        for d in order.deliveries:
+            if d.is_deleted:
+                continue
+            doc_obj = next((doc for doc in order.documents if doc.id == d.proof_of_delivery_document_id and not doc.is_deleted), None) if d.proof_of_delivery_document_id else None
+            if doc_obj:
+                linked_doc_ids.add(doc_obj.id)
+            delv_list.append({
+                "id": d.id,
+                "delivery_number": d.delivery_number,
+                "challan_number": d.challan_number,
+                "status": d.status,
+                "delivery_date": d.delivery_date.strftime("%d %b %Y") if d.delivery_date else (d.created_at.strftime("%d %b %Y") if d.created_at else None),
+                "delivered_by": {"name": d.delivered_by.name if d.delivered_by else "Staff"} if d.delivered_by else None,
+                "recipient_name": d.recipient_name,
+                "recipient_phone": d.recipient_phone,
+                "document_id": doc_obj.id if doc_obj else None,
+                "document_title": doc_obj.title if doc_obj else None,
+                "file_size_formatted": (
+                    f"{(doc_obj.file_size or 0) / 1024:.1f} KB" if (doc_obj.file_size or 0) < 1024 * 1024 else f"{(doc_obj.file_size or 0) / (1024 * 1024):.1f} MB"
+                ) if doc_obj else None,
+            })
+
+        for doc in order.documents:
+            if not doc.is_deleted and doc.document_type == OrderDocumentType.DELIVERY_CHALLAN.value and doc.id not in linked_doc_ids:
+                delv_list.append({
+                    "id": 0,
+                    "delivery_number": f"DOC-{doc.id}",
+                    "challan_number": doc.title,
+                    "status": OrderDeliveryStatus.DELIVERED.value,
+                    "delivery_date": doc.created_at.strftime("%d %b %Y") if doc.created_at else None,
+                    "delivered_by": {"name": doc.uploaded_by.name if doc.uploaded_by else "System"},
+                    "recipient_name": order.customer.name if order.customer else "Site Recipient",
+                    "recipient_phone": order.customer.phone_number if order.customer else None,
+                    "document_id": doc.id,
+                    "document_title": doc.title,
+                    "file_size_formatted": (
+                        f"{(doc.file_size or 0) / 1024:.1f} KB" if (doc.file_size or 0) < 1024 * 1024 else f"{(doc.file_size or 0) / (1024 * 1024):.1f} MB"
+                    ),
+                })
+
         # Serialize order header and child collections
         return {
             "vendor_proforma_invoices": v_pi_list,
@@ -830,19 +875,7 @@ class OrderMasterService:
                 }
                 for c in order.consignments if not c.is_deleted
             ],
-            "deliveries": [
-                {
-                    "id": d.id,
-                    "delivery_number": d.delivery_number,
-                    "challan_number": d.challan_number,
-                    "status": d.status,
-                    "delivery_date": d.delivery_date.strftime("%Y-%m-%d %H:%M") if d.delivery_date else None,
-                    "delivered_by": {"name": d.delivered_by.name if d.delivered_by else "Staff"} if d.delivered_by else None,
-                    "recipient_name": d.recipient_name,
-                    "recipient_phone": d.recipient_phone,
-                }
-                for d in order.deliveries if not d.is_deleted
-            ],
+            "deliveries": delv_list,
             "fitting_visits": [
                 {
                     "id": f.id,

@@ -38,6 +38,8 @@ from model import (
     Employee,
     Payment,
     Invoice,
+    OrderDelivery,
+    OrderDocument,
     MasterOrderStatus,
     OrderProcurementStatus,
     OrderDeliveryStatus,
@@ -800,6 +802,57 @@ def create_order():
                         except Exception as pi_err:
                             current_app.logger.warning(f"Error saving additional vendor PI: {pi_err}")
 
+        # Handle Delivery Challan uploaded in Section 06 (Transit & Delivery Parameters)
+        if not request.is_json and "delivery_challan_file" in request.files:
+            delv_file = request.files.get("delivery_challan_file")
+            if delv_file and delv_file.filename:
+                try:
+                    c_num = request.form.get("delivery_challan_number", "").strip() or None
+                    c_date_raw = request.form.get("delivery_challan_date", "").strip()
+                    c_date = datetime.strptime(c_date_raw, "%Y-%m-%d") if c_date_raw else datetime.utcnow()
+                    doc_title = f"Delivery Challan - {c_num}" if c_num else f"Delivery Challan — {delv_file.filename}"
+                    saved_dc = OMSDocumentService.save_order_document(
+                        org_id=org_id,
+                        order_id=order.id,
+                        file=delv_file,
+                        document_type=OrderDocumentType.DELIVERY_CHALLAN.value,
+                        title=doc_title,
+                        uploaded_by_id=actor_id,
+                    )
+                    delv_number = DeliveryService.generate_delivery_number(org_id)
+                    cust_snap = (order.initial_snapshot.get("customer_snapshot", {}) if getattr(order, "initial_snapshot", None) else {}) or {}
+                    rec_name = (
+                        request.form.get("delivery_contact_person", "").strip()
+                        or cust_snap.get("contact_person")
+                        or (order.customer.name if order.customer else "Site Recipient")
+                    )
+                    rec_phone = (
+                        request.form.get("delivery_contact_phone", "").strip()
+                        or cust_snap.get("mobile")
+                        or (order.customer.phone_number if order.customer else None)
+                    )
+                    delv_rec = OrderDelivery(
+                        delivery_number=delv_number,
+                        order_id=order.id,
+                        organization_id=org_id,
+                        delivery_date=c_date,
+                        recipient_name=rec_name,
+                        recipient_phone=rec_phone,
+                        delivery_address=order.shipping_address or order.site_address,
+                        challan_number=c_num or delv_number,
+                        status=OrderDeliveryStatus.DELIVERED.value,
+                        delivered_by_id=actor_id,
+                        proof_of_delivery_document_id=saved_dc.id,
+                        notes=f"Uploaded at order creation: {delv_file.filename}",
+                    )
+                    db.session.add(delv_rec)
+                    order.delivery_status = OrderDeliveryStatus.DELIVERED.value
+                    for it in order.items:
+                        if not it.is_deleted:
+                            it.delivered_quantity = it.quantity
+                except Exception as dc_err:
+                    current_app.logger.warning(f"Error saving order delivery challan: {dc_err}")
+
         db.session.commit()
 
         status_msg = "confirmed" if order.status == MasterOrderStatus.CONFIRMED.value else "saved as draft"
@@ -963,6 +1016,10 @@ def delete_order_document(order_id: int, doc_id: int):
             order_id=order_id,
             doc_id=doc_id,
         )
+        linked_delvs = OrderDelivery.query.filter_by(proof_of_delivery_document_id=doc_id, organization_id=org_id).all()
+        for ld in linked_delvs:
+            ld.is_deleted = True
+        db.session.commit()
         if wants_json:
             return jsonify({"success": True, "message": "Document deleted."})
         flash("Document deleted successfully.", "order_success")
@@ -1465,6 +1522,131 @@ def confirm_delivery(order_id: int, delv_id: int):
             return jsonify({"success": False, "error": str(e)}), 400
         flash(f"Delivery confirmation failed: {str(e)}", "order_error")
 
+    return redirect(url_for("orders.detail_order", order_id=order_id))
+
+
+
+@orders_bp.route("/<int:order_id>/upload-delivery-challan", methods=["POST"])
+@login_required
+@require_roles("admin", "manager", "employee")
+def upload_delivery_challan(order_id: int):
+    """Upload physical/signed customer delivery challan document."""
+    org_id = _get_org_id()
+    actor_id = _get_actor_id() or 1
+    wants_json = request.is_json or request.headers.get("Accept") == "application/json"
+
+    file = request.files.get("file")
+    if not file or not file.filename:
+        if wants_json:
+            return jsonify({"success": False, "error": "No delivery challan file selected"}), 400
+        flash("Please select a delivery challan document to upload.", "order_error")
+        return redirect(url_for("orders.detail_order", order_id=order_id))
+
+    try:
+        order = OrderMasterService.lock_order(org_id, order_id)
+        challan_number = request.form.get("challan_number", "").strip() or None
+        delivery_date_raw = request.form.get("delivery_date", "").strip()
+        delivery_date = datetime.strptime(delivery_date_raw, "%Y-%m-%d") if delivery_date_raw else datetime.utcnow()
+        recipient_name = request.form.get("recipient_name", "").strip() or (order.customer.name if order.customer else "Site Recipient")
+        recipient_phone = request.form.get("recipient_phone", "").strip() or None
+        delivery_address = request.form.get("delivery_address", "").strip() or order.shipping_address or order.site_address
+        status_val = request.form.get("status", "").strip() or OrderDeliveryStatus.DELIVERED.value
+        notes = request.form.get("notes", "").strip() or None
+
+        doc_title = f"Delivery Challan - {challan_number}" if challan_number else f"Delivery Challan — {file.filename}"
+        saved_doc = OMSDocumentService.save_order_document(
+            org_id=org_id,
+            order_id=order_id,
+            file=file,
+            document_type=OrderDocumentType.DELIVERY_CHALLAN.value,
+            title=doc_title,
+            uploaded_by_id=actor_id,
+        )
+
+        delv_number = DeliveryService.generate_delivery_number(org_id)
+        delv = OrderDelivery(
+            delivery_number=delv_number,
+            order_id=order_id,
+            organization_id=org_id,
+            delivery_date=delivery_date,
+            recipient_name=recipient_name,
+            recipient_phone=recipient_phone,
+            delivery_address=delivery_address,
+            challan_number=challan_number or delv_number,
+            status=status_val,
+            delivered_by_id=actor_id,
+            proof_of_delivery_document_id=saved_doc.id,
+            notes=notes,
+        )
+        db.session.add(delv)
+
+        if status_val == OrderDeliveryStatus.DELIVERED.value:
+            order.delivery_status = OrderDeliveryStatus.DELIVERED.value
+            for it in order.items:
+                if not it.is_deleted:
+                    it.delivered_quantity = it.quantity
+        elif order.delivery_status == OrderDeliveryStatus.SCHEDULED.value:
+            order.delivery_status = OrderDeliveryStatus.OUT_FOR_DELIVERY.value
+
+        try:
+            OMSNotificationService.notify_delivery_dispatched(
+                org_id=org_id,
+                order=order,
+                delivery_number=delv.delivery_number,
+                actor_id=actor_id,
+            )
+        except Exception:
+            current_app.logger.warning("Failed to emit delivery dispatch notification")
+
+        db.session.commit()
+
+        if wants_json:
+            return jsonify({
+                "success": True,
+                "message": f"Delivery challan {delv.challan_number} uploaded successfully.",
+                "delivery_id": delv.id,
+                "document_id": saved_doc.id,
+            })
+        flash(f"Delivery challan {delv.challan_number} uploaded successfully.", "order_success")
+
+    except OMSError as e:
+        db.session.rollback()
+        if wants_json:
+            return jsonify({"success": False, "error": str(e)}), 400
+        flash(f"Failed to upload delivery challan: {str(e)}", "order_error")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Error uploading delivery challan")
+        if wants_json:
+            return jsonify({"success": False, "error": str(e)}), 500
+        flash(f"An unexpected error occurred: {str(e)}", "order_error")
+
+    return redirect(url_for("orders.detail_order", order_id=order_id))
+
+
+
+@orders_bp.route("/<int:order_id>/deliveries/<int:delv_id>/delete", methods=["POST"])
+@login_required
+@require_roles("admin", "manager")
+def delete_delivery(order_id: int, delv_id: int):
+    """Delete / soft-delete a delivery challan."""
+    org_id = _get_org_id()
+    doc_id = request.form.get("doc_id", type=int)
+    if delv_id and delv_id > 0:
+        delv = OrderDelivery.query.filter_by(id=delv_id, order_id=order_id, organization_id=org_id, is_deleted=False).first()
+        if delv:
+            delv.is_deleted = True
+            if delv.proof_of_delivery_document_id:
+                doc = OrderDocument.query.filter_by(id=delv.proof_of_delivery_document_id, organization_id=org_id).first()
+                if doc:
+                    doc.is_deleted = True
+    elif doc_id:
+        doc = OrderDocument.query.filter_by(id=doc_id, order_id=order_id, organization_id=org_id).first()
+        if doc:
+            doc.is_deleted = True
+
+    db.session.commit()
+    flash("Delivery challan removed successfully.", "order_success")
     return redirect(url_for("orders.detail_order", order_id=order_id))
 
 

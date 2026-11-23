@@ -1251,6 +1251,38 @@
                         </div>
                     </div>
 
+                    <!-- Delivery Challan Upload Panel -->
+                    <div style="background: rgba(13,27,42,0.02); border: 1px dashed rgba(13,27,42,0.18); border-radius: 8px; padding: 1rem 1.25rem; margin-top: 1rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-wrap:wrap; gap:8px;">
+                            <div>
+                                <strong style="color:var(--primary-navy); font-size:0.9rem; display:flex; align-items:center; gap:6px;">
+                                    <span>📄</span> Upload Delivery Challan <span style="font-size:0.75rem; font-weight:normal; color:var(--text-muted);">(Optional)</span>
+                                </strong>
+                                <p style="margin:2px 0 0 0; font-size:0.78rem; color:var(--text-muted);">
+                                    Attach dispatch note or physical delivery challan document for this order
+                                </p>
+                            </div>
+                            <div id="delvChallanFileStatus" style="display:none; font-size:0.76rem; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:3px 10px; border-radius:12px; font-weight:600;">
+                                ✓ Challan File Attached
+                            </div>
+                        </div>
+                        <div class="form-row-3">
+                            <div class="form-group-custom">
+                                <label for="delivery_challan_file">Delivery Challan File</label>
+                                <input type="file" name="delivery_challan_file" id="delivery_challan_file" class="form-control-custom" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx" onchange="onDeliveryChallanFileSelected(this)">
+                                <small style="color:var(--text-muted); font-size:0.72rem;">Supported: PDF, Images, Word, Excel (Max 15MB)</small>
+                            </div>
+                            <div class="form-group-custom">
+                                <label for="delivery_challan_number">Challan Number / Ref</label>
+                                <input type="text" name="delivery_challan_number" id="delivery_challan_number" class="form-control-custom" placeholder="e.g. DC/2026/001">
+                            </div>
+                            <div class="form-group-custom">
+                                <label for="delivery_challan_date">Challan / Dispatch Date</label>
+                                <input type="date" name="delivery_challan_date" id="delivery_challan_date" class="form-control-custom">
+                            </div>
+                        </div>
+                    </div>
+
                     <hr style="border:none; border-top:1px solid rgba(13,27,42,0.06); margin:1.5rem 0;">
 
                     <!-- Installation Subsection -->
@@ -2435,6 +2467,19 @@
 
             // Submit form
             document.getElementById('masterOrderForm').submit();
+        }
+
+        /* Delivery Challan file selection indicator */
+        function onDeliveryChallanFileSelected(input) {
+            const badge = document.getElementById('delvChallanFileStatus');
+            if (badge) {
+                if (input.files && input.files.length > 0) {
+                    badge.style.display = 'inline-block';
+                    badge.innerText = `✓ Attached: ${input.files[0].name}`;
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
         }
 
         /* Utility HTML Escape */

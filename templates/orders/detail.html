@@ -490,38 +490,87 @@
             <div id="delivTab" class="tab-content">
                 <div class="oms-card">
                     <div class="oms-card-header">
-                        <h3>Customer Delivery Challans</h3>
-                        <button type="button" class="btn-action gold" style="font-size:0.85rem;" onclick="openModal('deliveryModal')">+ Create Delivery Challan</button>
+                        <div>
+                            <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
+                                <span>🚚</span> Customer Delivery Challans
+                            </h3>
+                            <p style="margin:4px 0 0 0; font-size:0.8rem; color:var(--text-muted);">
+                                Signed physical delivery notes, customer dispatches, and material handover documents
+                            </p>
+                        </div>
+                        <button type="button" class="btn-action gold" style="font-size:0.85rem;" onclick="openModal('uploadDeliveryChallanModal')">
+                            + Upload Delivery Challan
+                        </button>
                     </div>
                     <div style="overflow-x:auto;">
                         <table class="oms-tbl">
                             <thead>
-                                <tr><th>Delivery #</th><th>Challan #</th><th>Date</th><th>Recipient</th><th>Delivered By</th><th>Status</th><th>Action</th></tr>
+                                <tr>
+                                    <th>Challan / Ref #</th>
+                                    <th>Document File</th>
+                                    <th>Date</th>
+                                    <th>Recipient &amp; Site</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
                             </thead>
                             <tbody>
                                 {% if cockpit.deliveries %}
                                 {% for delv in cockpit.deliveries %}
                                 <tr>
-                                    <td><strong>{{ delv.delivery_number }}</strong></td>
-                                    <td>{{ delv.challan_number or '—' }}</td>
-                                    <td style="color:var(--text-muted);">{{ delv.delivery_date if delv.delivery_date else '—' }}</td>
-                                    <td>{{ delv.recipient_name or '—' }} {% if delv.recipient_phone %}<small style="color:var(--text-muted);">({{ delv.recipient_phone }})</small>{% endif %}</td>
-                                    <td>{{ delv.delivered_by.name if (delv.delivered_by and delv.delivered_by.name) else (delv.delivered_by or '—') }}</td>
+                                    <td>
+                                        <strong style="color:var(--primary-color);">{{ delv.challan_number or delv.delivery_number }}</strong>
+                                        {% if delv.challan_number and delv.challan_number != delv.delivery_number %}
+                                        <div style="font-size:0.75rem; color:var(--text-muted);">Ref: {{ delv.delivery_number }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if delv.document_id %}
+                                        <a href="{{ url_for('orders.preview_order_document', order_id=ord.id, doc_id=delv.document_id) }}" target="_blank" style="color:var(--primary-color); font-weight:600; text-decoration:none; display:flex; align-items:center; gap:6px;">
+                                            <span>📄</span> {{ delv.document_title or 'Delivery Challan' }}
+                                        </a>
+                                        {% if delv.file_size_formatted %}
+                                        <small style="color:var(--text-muted); font-size:0.75rem;">{{ delv.file_size_formatted }}</small>
+                                        {% endif %}
+                                        {% else %}
+                                        <span style="color:var(--text-muted); font-size:0.85rem;">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="color:var(--text-muted); font-size:0.85rem;">{{ delv.delivery_date if delv.delivery_date else '—' }}</td>
+                                    <td>
+                                        <div><strong>{{ delv.recipient_name or 'Site Recipient' }}</strong></div>
+                                        {% if delv.recipient_phone %}<small style="color:var(--text-muted);">📞 {{ delv.recipient_phone }}</small>{% endif %}
+                                    </td>
                                     <td><span class="oms-badge ob-delivery">{{ delv.status }}</span></td>
                                     <td>
-                                        {% if delv.status != 'DELIVERED' %}
-                                        <form method="POST" action="{{ url_for('orders.confirm_delivery', order_id=ord.id, delv_id=delv.id) }}" style="display:inline;">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="btn-action green" style="background:rgba(16,185,129,0.1); color:#15803d; border-color:rgba(16,185,129,0.25); padding:0.3rem 0.8rem; font-size:0.78rem;">✓ Confirm</button>
-                                        </form>
-                                        {% else %}
-                                        <span style="color:#15803d; font-weight:700; font-size:0.82rem;">✓ Delivered</span>
-                                        {% endif %}
+                                        <div style="display:flex; gap:6px; align-items:center;">
+                                            {% if delv.document_id %}
+                                            <a href="{{ url_for('orders.preview_order_document', order_id=ord.id, doc_id=delv.document_id) }}" target="_blank" class="btn-action outline" style="padding:0.25rem 0.6rem; font-size:0.75rem;">👁️ View</a>
+                                            <a href="{{ url_for('orders.download_order_document', order_id=ord.id, doc_id=delv.document_id) }}" class="btn-action outline" style="padding:0.25rem 0.6rem; font-size:0.75rem;">⬇️</a>
+                                            {% endif %}
+                                            {% if delv.status != 'DELIVERED' and delv.id > 0 %}
+                                            <form method="POST" action="{{ url_for('orders.confirm_delivery', order_id=ord.id, delv_id=delv.id) }}" style="display:inline; margin:0;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn-action green" style="background:rgba(16,185,129,0.1); color:#15803d; border-color:rgba(16,185,129,0.25); padding:0.25rem 0.6rem; font-size:0.75rem;">✓ Confirm</button>
+                                            </form>
+                                            {% else %}
+                                            <span style="color:#15803d; font-weight:700; font-size:0.78rem;">✓ Delivered</span>
+                                            {% endif %}
+                                            <form method="POST" action="{{ url_for('orders.delete_delivery', order_id=ord.id, delv_id=delv.id) }}" onsubmit="return confirm('Delete this delivery challan record?');" style="display:inline; margin:0;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="doc_id" value="{{ delv.document_id or '' }}">
+                                                <button type="submit" class="btn-action" style="padding:0.25rem 0.6rem; font-size:0.75rem; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2);">🗑️</button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
                                 {% else %}
-                                <tr class="empty-row"><td colspan="7">No delivery challans created yet.</td></tr>
+                                <tr class="empty-row">
+                                    <td colspan="6">
+                                        No delivery challans uploaded yet. Click <strong>"+ Upload Delivery Challan"</strong> to attach a customer dispatch note.
+                                    </td>
+                                </tr>
                                 {% endif %}
                             </tbody>
                         </table>
@@ -917,37 +966,65 @@
         </div>
     </div>
 
-    <!-- Create Delivery Challan -->
-    <div id="deliveryModal" class="modal-overlay">
+    <!-- Upload Delivery Challan Modal -->
+    <div id="uploadDeliveryChallanModal" class="modal-overlay">
         <div class="modal-box">
-            <h3>Create Customer Delivery Challan</h3>
-            <form method="POST" action="{{ url_for('orders.create_delivery', order_id=ord.id) }}">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+                <h3 style="margin:0; font-size:1.15rem; color:var(--primary-color);">🚚 Upload Customer Delivery Challan</h3>
+                <button type="button" onclick="closeModal('uploadDeliveryChallanModal')" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--text-muted); line-height:1;">&times;</button>
+            </div>
+            <form method="POST" action="{{ url_for('orders.upload_delivery_challan', order_id=ord.id) }}" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
                 <div class="oms-fg">
-                    <label for="d_recipient">Recipient Name</label>
-                    <input type="text" name="recipient_name" id="d_recipient" value="{{ ord.customer.name if ord.customer else '' }}">
+                    <label for="udc_file">Delivery Challan Document <span style="color:#ef4444;">*</span></label>
+                    <input type="file" name="file" id="udc_file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx" required style="width:100%; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.88rem; background:#f8fafc;">
+                    <small style="color:var(--text-muted); font-size:0.75rem; margin-top:4px; display:block;">Supported: PDF, Images, Word, Excel (Max 15MB)</small>
                 </div>
+
                 <div class="oms-fg">
-                    <label for="d_phone">Recipient Phone</label>
-                    <input type="text" name="recipient_phone" id="d_phone" value="{{ (ord.customer.mobile or ord.customer.phone) if ord.customer else '' }}">
+                    <label for="udc_challan_number">Challan Number / Ref</label>
+                    <input type="text" name="challan_number" id="udc_challan_number" placeholder="e.g. DC/2026/001" style="width:100%; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.88rem;">
                 </div>
+
                 <div class="oms-fg">
-                    <label for="d_address">Delivery Address</label>
-                    <textarea name="delivery_address" id="d_address">{{ ord.shipping_address or ord.site_address or '' }}</textarea>
+                    <label for="udc_delivery_date">Delivery / Dispatch Date</label>
+                    <input type="date" name="delivery_date" id="udc_delivery_date" style="width:100%; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.88rem;">
                 </div>
-                <p style="font-size:0.82rem; font-weight:700; color:var(--text-muted); margin-bottom:0.6rem; text-transform:uppercase; letter-spacing:0.04em;">Specify Delivered Quantities:</p>
-                {% for it in cockpit['items'] %}
-                {% set remaining = it.quantity - it.delivered_quantity %}
-                {% if remaining > 0 %}
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:0.88rem; gap:12px;">
-                    <span style="flex:1; color:var(--primary-color);">{{ it.item_description }} <small style="color:var(--text-muted);">(Max: {{ remaining }})</small></span>
-                    <input type="number" step="0.001" min="0" max="{{ remaining }}" name="delv_qty_{{ it.id }}" value="{{ remaining }}" style="width:90px; padding:5px 8px; border:1px solid rgba(13,27,42,0.15); border-radius:6px; font-size:0.88rem;">
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label for="udc_recipient_name">Recipient Name</label>
+                        <input type="text" name="recipient_name" id="udc_recipient_name" value="{{ ord.customer.name if ord.customer else '' }}" placeholder="Name of receiver at site" style="width:100%; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.88rem;">
+                    </div>
+                    <div class="oms-fg">
+                        <label for="udc_recipient_phone">Recipient Mobile</label>
+                        <input type="tel" name="recipient_phone" id="udc_recipient_phone" value="{{ (ord.customer.phone_number or ord.customer.mobile) if ord.customer else '' }}" placeholder="Mobile number" style="width:100%; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.88rem;">
+                    </div>
                 </div>
-                {% endif %}
-                {% endfor %}
-                <div class="modal-footer">
-                    <button type="button" class="btn-action outline" onclick="closeModal('deliveryModal')">Cancel</button>
-                    <button type="submit" class="btn-action gold">Generate Challan</button>
+
+                <div class="oms-fg">
+                    <label for="udc_delivery_address">Delivery Address / Destination</label>
+                    <textarea name="delivery_address" id="udc_delivery_address" rows="2" style="width:100%; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.88rem;">{{ ord.shipping_address or ord.site_address or '' }}</textarea>
+                </div>
+
+                <div class="oms-fg">
+                    <label for="udc_status">Delivery Status</label>
+                    <select name="status" id="udc_status" style="width:100%; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.88rem; background:#fff;">
+                        <option value="DELIVERED" selected>✓ Delivered / Handed Over to Site</option>
+                        <option value="OUT_FOR_DELIVERY">🚚 Out for Delivery / In Transit</option>
+                        <option value="SCHEDULED">📅 Scheduled / Dispatched</option>
+                    </select>
+                </div>
+
+                <div class="oms-fg">
+                    <label for="udc_notes">Notes / Special Instructions (Optional)</label>
+                    <textarea name="notes" id="udc_notes" rows="2" placeholder="e.g. Unloaded at Ground Floor store room, signed by site supervisor" style="width:100%; border:1px solid rgba(13,27,42,0.15); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.88rem;"></textarea>
+                </div>
+
+                <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px; margin-top:1.5rem;">
+                    <button type="button" class="btn-action outline" onclick="closeModal('uploadDeliveryChallanModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Upload Delivery Challan</button>
                 </div>
             </form>
         </div>
