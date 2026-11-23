@@ -323,10 +323,41 @@
             border-radius: 6px;
         }
 
-        /* Search Autocomplete Box */
+        /* Search Autocomplete & Dropdown Combobox */
         .autocomplete-wrap {
             position: relative;
             width: 100%;
+            display: flex;
+            align-items: center;
+        }
+        .autocomplete-wrap .form-control-custom {
+            padding-right: 2.5rem; /* space for toggle arrow */
+        }
+        .autocomplete-toggle-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            z-index: 2;
+        }
+        .autocomplete-toggle-btn:hover {
+            color: var(--primary-navy);
+            background: rgba(13, 27, 42, 0.06);
+        }
+        .autocomplete-toggle-btn.open {
+            transform: translateY(-50%) rotate(180deg);
+            color: var(--accent-gold);
         }
         .autocomplete-results {
             position: absolute;
@@ -337,15 +368,39 @@
             border: 1px solid rgba(13, 27, 42, 0.15);
             border-radius: 12px;
             box-shadow: 0 16px 40px rgba(13, 27, 42, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
-            max-height: 320px;
+            max-height: 360px;
             overflow-y: auto;
             z-index: 1000;
             display: none;
         }
+        .autocomplete-results-header {
+            padding: 0.65rem 1.15rem;
+            background: #f8fafc;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.08);
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: var(--primary-navy);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+        .autocomplete-results-header .count-badge {
+            background: rgba(212, 175, 55, 0.15);
+            color: #927517;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
         .autocomplete-item {
             padding: 0.85rem 1.15rem;
             cursor: pointer;
-            border-bottom: 1px solid rgba(13, 27, 42, 0.06);
+            border-bottom: 1px solid rgba(13, 27, 42, 0.05);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -371,7 +426,7 @@
             line-height: 1.35;
         }
         .autocomplete-empty {
-            padding: 1.25rem;
+            padding: 1.5rem 1rem;
             text-align: center;
             color: var(--text-muted);
             font-size: 0.88rem;
@@ -751,7 +806,8 @@
                     <!-- Search & Creation Bar -->
                     <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap;">
                         <div class="autocomplete-wrap" style="flex: 1; min-width: 280px;">
-                            <input type="text" id="customerSearchInput" class="form-control-custom" placeholder="🔍 Search existing customer by Name, Company, Phone, Email, GSTIN..." autocomplete="off" spellcheck="false">
+                            <input type="text" id="customerSearchInput" class="form-control-custom" placeholder="🔍 Search or click ▾ to view all customers..." autocomplete="off" spellcheck="false">
+                            <button type="button" class="autocomplete-toggle-btn" id="customerDropdownToggle" title="View all customers" aria-label="Toggle all customers">▾</button>
                             <div id="customerSearchResults" class="autocomplete-results"></div>
                         </div>
                         <button type="button" class="btn-custom gold" onclick="openNewCustomerModal()">
@@ -842,7 +898,8 @@
                     <!-- Search & Creation Bar -->
                     <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap;">
                         <div class="autocomplete-wrap" style="flex: 1; min-width: 280px;">
-                            <input type="text" id="vendorSearchInput" class="form-control-custom" placeholder="🔍 Search existing vendor by Company, Code, Contact, Phone, GSTIN..." autocomplete="off" spellcheck="false">
+                            <input type="text" id="vendorSearchInput" class="form-control-custom" placeholder="🔍 Search or click ▾ to view all vendors..." autocomplete="off" spellcheck="false">
+                            <button type="button" class="autocomplete-toggle-btn" id="vendorDropdownToggle" title="View all vendors" aria-label="Toggle all vendors">▾</button>
                             <div id="vendorSearchResults" class="autocomplete-results"></div>
                         </div>
                         <button type="button" class="btn-custom gold" onclick="openNewVendorModal()">
@@ -1563,53 +1620,108 @@
            ══════════════════════════════════════════════════════════════ */
         function setupCustomerAutocomplete() {
             const input = document.getElementById('customerSearchInput');
+            const toggleBtn = document.getElementById('customerDropdownToggle');
             const results = document.getElementById('customerSearchResults');
             let debounceTimer = null;
+
+            function openCustomerDropdown(q = '') {
+                results.innerHTML = `
+                    <div style="padding: 1.25rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                        <span>⏳ Loading customers...</span>
+                    </div>
+                `;
+                results.style.display = 'block';
+                if (toggleBtn) toggleBtn.classList.add('open');
+
+                fetch(`/orders/api/customers/search?q=${encodeURIComponent(q)}&limit=100`)
+                    .then(r => r.json())
+                    .then(data => {
+                        results.innerHTML = '';
+                        if (data.success && data.results.length > 0) {
+                            const header = document.createElement('div');
+                            header.className = 'autocomplete-results-header';
+                            header.innerHTML = `
+                                <span>👥 ${q ? `Results for "${escapeHtml(q)}"` : 'All Registered Customers'}</span>
+                                <span class="count-badge">${data.results.length} ${data.results.length === 1 ? 'Customer' : 'Customers'}</span>
+                            `;
+                            results.appendChild(header);
+
+                            data.results.forEach(c => {
+                                const item = document.createElement('div');
+                                item.className = 'autocomplete-item';
+                                item.innerHTML = `
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div class="autocomplete-item-name">${escapeHtml(c.name)} ${c.company ? '<small style="color:var(--text-muted); font-weight:normal;">(' + escapeHtml(c.company) + ')</small>' : ''}</div>
+                                        <div class="autocomplete-item-sub">
+                                            <span>📞 ${escapeHtml(c.phone_number)}</span>
+                                            <span>·</span>
+                                            <span>✉️ ${escapeHtml(c.email || '—')}</span>
+                                            <span>·</span>
+                                            <span>📍 ${escapeHtml(c.city || '—')}</span>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn-custom sm gold" style="flex-shrink: 0; margin-left: 12px;">Select</button>
+                                `;
+                                item.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    selectCustomerById(c.id);
+                                });
+                                results.appendChild(item);
+                            });
+                        } else {
+                            results.innerHTML = `
+                                <div class="autocomplete-empty">
+                                    No customers found matching <strong>"${escapeHtml(q)}"</strong>.
+                                    <br><button type="button" class="btn-custom sm gold" style="margin-top:8px;" onclick="openNewCustomerModal('${escapeHtml(q)}')">+ Onboard as New Customer</button>
+                                </div>
+                            `;
+                        }
+                        results.style.display = 'block';
+                        if (toggleBtn) toggleBtn.classList.add('open');
+                    })
+                    .catch(() => {
+                        results.innerHTML = `
+                            <div class="autocomplete-empty" style="color: #ef4444;">
+                                Error loading customers. Please try again.
+                            </div>
+                        `;
+                    });
+            }
+
+            function closeCustomerDropdown() {
+                results.style.display = 'none';
+                if (toggleBtn) toggleBtn.classList.remove('open');
+            }
 
             input.addEventListener('input', () => {
                 clearTimeout(debounceTimer);
                 const q = input.value.trim();
-                if (q.length < 2) {
-                    results.style.display = 'none';
-                    return;
-                }
                 debounceTimer = setTimeout(() => {
-                    fetch(`/orders/api/customers/search?q=${encodeURIComponent(q)}`)
-                        .then(r => r.json())
-                        .then(data => {
-                            results.innerHTML = '';
-                            if (data.success && data.results.length > 0) {
-                                data.results.forEach(c => {
-                                    const item = document.createElement('div');
-                                    item.className = 'autocomplete-item';
-                                    item.innerHTML = `
-                                        <div style="flex: 1; min-width: 0;">
-                                            <div class="autocomplete-item-name">${escapeHtml(c.name)} ${c.company ? '<small style="color:var(--text-muted); font-weight:normal;">(' + escapeHtml(c.company) + ')</small>' : ''}</div>
-                                            <div class="autocomplete-item-sub">📞 ${escapeHtml(c.phone_number)} &nbsp;·&nbsp; ✉️ ${escapeHtml(c.email || '—')} &nbsp;·&nbsp; 📍 ${escapeHtml(c.city || '—')}</div>
-                                        </div>
-                                        <button type="button" class="btn-custom sm gold" style="flex-shrink: 0; margin-left: 12px;">Select</button>
-                                    `;
-                                    item.addEventListener('click', () => { selectCustomerById(c.id); });
-                                    results.appendChild(item);
-                                });
-                                results.style.display = 'block';
-                            } else {
-                                results.innerHTML = `
-                                    <div class="autocomplete-empty">
-                                        No matching customers found.
-                                        <br><button type="button" class="btn-custom sm gold" style="margin-top:6px;" onclick="openNewCustomerModal('${escapeHtml(q)}')">+ Onboard as New Customer</button>
-                                    </div>
-                                `;
-                                results.style.display = 'block';
-                            }
-                        })
-                        .catch(() => { results.style.display = 'none'; });
-                }, 250);
+                    openCustomerDropdown(q);
+                }, 200);
             });
 
+            input.addEventListener('focus', () => {
+                if (results.style.display !== 'block') {
+                    openCustomerDropdown(input.value.trim());
+                }
+            });
+
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (results.style.display === 'block') {
+                        closeCustomerDropdown();
+                    } else {
+                        input.focus();
+                        openCustomerDropdown(input.value.trim());
+                    }
+                });
+            }
+
             document.addEventListener('click', (e) => {
-                if (!input.contains(e.target) && !results.contains(e.target)) {
-                    results.style.display = 'none';
+                if (!input.contains(e.target) && !results.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
+                    closeCustomerDropdown();
                 }
             });
         }
@@ -1621,6 +1733,8 @@
                     if (data.success && data.customer) {
                         applySelectedCustomer(data.customer);
                         document.getElementById('customerSearchResults').style.display = 'none';
+                        const toggleBtn = document.getElementById('customerDropdownToggle');
+                        if (toggleBtn) toggleBtn.classList.remove('open');
                         document.getElementById('customerSearchInput').value = '';
                         showToast(`Selected Customer: ${data.customer.name}`, 'success');
                     } else {
@@ -1749,53 +1863,119 @@
            ══════════════════════════════════════════════════════════════ */
         function setupVendorAutocomplete() {
             const input = document.getElementById('vendorSearchInput');
+            const toggleBtn = document.getElementById('vendorDropdownToggle');
             const results = document.getElementById('vendorSearchResults');
             let debounceTimer = null;
+
+            function openVendorDropdown(q = '') {
+                results.innerHTML = `
+                    <div style="padding: 1.25rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                        <span>⏳ Loading vendors...</span>
+                    </div>
+                `;
+                results.style.display = 'block';
+                if (toggleBtn) toggleBtn.classList.add('open');
+
+                fetch(`/orders/api/vendors/search?q=${encodeURIComponent(q)}&limit=100`)
+                    .then(r => r.json())
+                    .then(data => {
+                        results.innerHTML = '';
+                        if (data.success && data.results.length > 0) {
+                            const header = document.createElement('div');
+                            header.className = 'autocomplete-results-header';
+                            header.innerHTML = `
+                                <span>🏭 ${q ? `Results for "${escapeHtml(q)}"` : 'All Registered Vendors'}</span>
+                                <span class="count-badge">${data.results.length} ${data.results.length === 1 ? 'Vendor' : 'Vendors'}</span>
+                            `;
+                            results.appendChild(header);
+
+                            data.results.forEach(v => {
+                                const isAlreadyAdded = selectedVendorsList.some(item => item.id === v.id);
+                                const item = document.createElement('div');
+                                item.className = 'autocomplete-item' + (isAlreadyAdded ? ' selected' : '');
+                                item.innerHTML = `
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div class="autocomplete-item-name">
+                                            ${escapeHtml(v.company_name)} 
+                                            <small style="color:var(--accent-gold); font-weight:600;">(${escapeHtml(v.code)})</small>
+                                            ${isAlreadyAdded ? '<span style="font-size:0.75rem; background:rgba(16,185,129,0.15); color:#059669; padding:2px 6px; border-radius:10px; margin-left:6px;">✓ Added</span>' : ''}
+                                        </div>
+                                        <div class="autocomplete-item-sub">
+                                            <span>🏷️ ${escapeHtml(v.category || 'General')}</span>
+                                            <span>·</span>
+                                            <span>📞 ${escapeHtml(v.phone || '—')}</span>
+                                            <span>·</span>
+                                            <span>📍 ${escapeHtml(v.city || '—')}</span>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn-custom sm ${isAlreadyAdded ? 'outline' : 'gold'}" style="flex-shrink: 0; margin-left: 12px;">
+                                        ${isAlreadyAdded ? 'Already Added' : 'Add to Order'}
+                                    </button>
+                                `;
+                                item.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    if (isAlreadyAdded) {
+                                        showToast(`Vendor '${v.company_name}' is already added.`, 'info');
+                                        return;
+                                    }
+                                    addVendorToOrder(v);
+                                });
+                                results.appendChild(item);
+                            });
+                        } else {
+                            results.innerHTML = `
+                                <div class="autocomplete-empty">
+                                    No vendors found matching <strong>"${escapeHtml(q)}"</strong>.
+                                    <br><button type="button" class="btn-custom sm gold" style="margin-top:8px;" onclick="openNewVendorModal('${escapeHtml(q)}')">+ Onboard New Vendor</button>
+                                </div>
+                            `;
+                        }
+                        results.style.display = 'block';
+                        if (toggleBtn) toggleBtn.classList.add('open');
+                    })
+                    .catch(() => {
+                        results.innerHTML = `
+                            <div class="autocomplete-empty" style="color: #ef4444;">
+                                Error loading vendors. Please try again.
+                            </div>
+                        `;
+                    });
+            }
+
+            function closeVendorDropdown() {
+                results.style.display = 'none';
+                if (toggleBtn) toggleBtn.classList.remove('open');
+            }
 
             input.addEventListener('input', () => {
                 clearTimeout(debounceTimer);
                 const q = input.value.trim();
-                if (q.length < 2) {
-                    results.style.display = 'none';
-                    return;
-                }
                 debounceTimer = setTimeout(() => {
-                    fetch(`/orders/api/vendors/search?q=${encodeURIComponent(q)}`)
-                        .then(r => r.json())
-                        .then(data => {
-                            results.innerHTML = '';
-                            if (data.success && data.results.length > 0) {
-                                data.results.forEach(v => {
-                                    const item = document.createElement('div');
-                                    item.className = 'autocomplete-item';
-                                    item.innerHTML = `
-                                        <div style="flex: 1; min-width: 0;">
-                                            <div class="autocomplete-item-name">${escapeHtml(v.company_name)} <small style="color:var(--accent-gold); font-weight:600;">(${escapeHtml(v.code)})</small></div>
-                                            <div class="autocomplete-item-sub">Category: ${escapeHtml(v.category || 'General')} &nbsp;·&nbsp; 📞 ${escapeHtml(v.phone || '—')} &nbsp;·&nbsp; 📍 ${escapeHtml(v.city || '—')}</div>
-                                        </div>
-                                        <button type="button" class="btn-custom sm gold" style="flex-shrink: 0; margin-left: 12px;">Add to Order</button>
-                                    `;
-                                    item.addEventListener('click', () => { addVendorToOrder(v); });
-                                    results.appendChild(item);
-                                });
-                                results.style.display = 'block';
-                            } else {
-                                results.innerHTML = `
-                                    <div class="autocomplete-empty">
-                                        No matching vendors found.
-                                        <br><button type="button" class="btn-custom sm gold" style="margin-top:6px;" onclick="openNewVendorModal('${escapeHtml(q)}')">+ Onboard New Vendor</button>
-                                    </div>
-                                `;
-                                results.style.display = 'block';
-                            }
-                        })
-                        .catch(() => { results.style.display = 'none'; });
-                }, 250);
+                    openVendorDropdown(q);
+                }, 200);
             });
 
+            input.addEventListener('focus', () => {
+                if (results.style.display !== 'block') {
+                    openVendorDropdown(input.value.trim());
+                }
+            });
+
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (results.style.display === 'block') {
+                        closeVendorDropdown();
+                    } else {
+                        input.focus();
+                        openVendorDropdown(input.value.trim());
+                    }
+                });
+            }
+
             document.addEventListener('click', (e) => {
-                if (!input.contains(e.target) && !results.contains(e.target)) {
-                    results.style.display = 'none';
+                if (!input.contains(e.target) && !results.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
+                    closeVendorDropdown();
                 }
             });
         }
@@ -1805,6 +1985,8 @@
             if (selectedVendorsList.some(item => item.id === v.id)) {
                 showToast(`Vendor '${v.company_name}' is already added to this order.`, 'error');
                 document.getElementById('vendorSearchResults').style.display = 'none';
+                const toggleBtn = document.getElementById('vendorDropdownToggle');
+                if (toggleBtn) toggleBtn.classList.remove('open');
                 document.getElementById('vendorSearchInput').value = '';
                 return;
             }
@@ -1813,6 +1995,8 @@
             renderSelectedVendors();
             updateItemVendorAllocationOptions();
             document.getElementById('vendorSearchResults').style.display = 'none';
+            const toggleBtn = document.getElementById('vendorDropdownToggle');
+            if (toggleBtn) toggleBtn.classList.remove('open');
             document.getElementById('vendorSearchInput').value = '';
             showToast(`Added Vendor: ${v.company_name}`, 'success');
         }

@@ -232,7 +232,8 @@ def api_search_customers():
                 Customer.gst_number.ilike(like),
             )
         )
-    customers = query.order_by(Customer.name.asc()).limit(20).all()
+    limit = request.args.get("limit", 100, type=int)
+    customers = query.order_by(Customer.name.asc()).limit(min(limit, 200)).all()
     results = [
         {
             "id": c.id,
@@ -391,7 +392,8 @@ def api_search_vendors():
                 Vendor.products_services.ilike(like),
             )
         )
-    vendors = query.order_by(Vendor.company_name.asc()).limit(20).all()
+    limit = request.args.get("limit", 100, type=int)
+    vendors = query.order_by(Vendor.company_name.asc()).limit(min(limit, 200)).all()
     results = [
         {
             "id": v.id,
