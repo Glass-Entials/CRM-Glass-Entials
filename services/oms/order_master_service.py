@@ -165,8 +165,17 @@ class OrderMasterService:
         notes: Optional[str] = None,
         assigned_to_id: Optional[int] = None,
         actor_id: Optional[int] = None,
+        # Extended master order creation parameters
+        selected_vendor_ids: Optional[List[int]] = None,
+        commercial_details: Optional[Dict[str, Any]] = None,
+        delivery_details: Optional[Dict[str, Any]] = None,
+        installation_details: Optional[Dict[str, Any]] = None,
+        expected_fitting_date: Optional[datetime] = None,
+        action_type: str = "save_draft",
+        order_date: Optional[datetime] = None,
+        create_initial_revision: bool = False,
     ) -> OrderMaster:
-        """Create a new Master Order with initial items in DRAFT status."""
+        """Create a new Master Order with initial items and audit snapshot."""
         if not items_data:
             raise OMSValidationError("An order must contain at least one order item.")
 
@@ -187,11 +196,26 @@ class OrderMasterService:
             if not proj:
                 raise OMSTenantIsolationError(f"Project #{project_id} not found in organization {org_id}.")
 
+        # Validate selected vendors tenant isolation
+        valid_vendors = []
+        if selected_vendor_ids:
+            for v_id in selected_vendor_ids:
+                try:
+                    v_int = int(v_id)
+                except (ValueError, TypeError):
+                    continue
+                v = Vendor.query.filter_by(id=v_int, organization_id=org_id, is_deleted=False).first()
+                if not v:
+                    raise OMSTenantIsolationError(f"Vendor #{v_int} does not belong to organization #{org_id}.")
+                valid_vendors.append(v)
+
         if not actor_id:
             creator = Employee.query.filter_by(organization_id=org_id).first()
             actor_id = creator.id if creator else 1
 
         master_num = cls.generate_order_number(org_id)
+        is_confirmed = (action_type == "confirm_order")
+        initial_status = MasterOrderStatus.CONFIRMED.value if is_confirmed else MasterOrderStatus.DRAFT.value
 
         order = OrderMaster(
             master_order_number=master_num,
@@ -199,9 +223,10 @@ class OrderMasterService:
             customer_id=customer_id,
             quotation_id=quotation_id,
             project_id=project_id,
-            status=MasterOrderStatus.DRAFT.value,
-            order_date=datetime.utcnow(),
+            status=initial_status,
+            order_date=order_date or datetime.utcnow(),
             expected_delivery_date=expected_delivery_date,
+            expected_fitting_date=expected_fitting_date,
             shipping_address=shipping_address or customer.address,
             billing_address=billing_address or customer.address,
             site_address=site_address or shipping_address or customer.address,
@@ -216,6 +241,7 @@ class OrderMasterService:
         total_ordered = Decimal("0.00")
         total_tax = Decimal("0.00")
         total_discount = Decimal("0.00")
+        created_items = []
 
         for idx, item_dict in enumerate(items_data):
             qty = Decimal(str(item_dict.get("quantity", "0.000")))
@@ -252,7 +278,32 @@ class OrderMasterService:
                 total_price=item_total.quantize(Decimal("0.01")),
             )
             db.session.add(order_item)
+            db.session.flush()
 
+            # Optional item-level vendor allocation at order creation
+            alloc_vend_id = item_dict.get("allocated_vendor_id") or item_dict.get("vendor_id")
+            if alloc_vend_id:
+                try:
+                    alloc_vend_id = int(alloc_vend_id)
+                    v_match = Vendor.query.filter_by(id=alloc_vend_id, organization_id=org_id).first()
+                    if v_match:
+                        alloc = OrderItemVendorAllocation(
+                            order_id=order.id,
+                            order_item_id=order_item.id,
+                            vendor_id=alloc_vend_id,
+                            organization_id=org_id,
+                            allocated_quantity=qty,
+                            expected_rate=unit_price,
+                            estimated_cost=base_amount.quantize(Decimal("0.01")),
+                            allocation_status=OrderItemAllocationStatus.PENDING.value,
+                            created_by_id=actor_id,
+                        )
+                        db.session.add(alloc)
+                        order_item.allocated_quantity = qty
+                except (ValueError, TypeError):
+                    pass
+
+            created_items.append(order_item)
             total_ordered += base_amount
             total_tax += tax_amount
             total_discount += discount
@@ -262,8 +313,79 @@ class OrderMasterService:
         order.total_discount_amount = total_discount.quantize(Decimal("0.01"))
         order.net_order_amount = (total_ordered - total_discount + total_tax).quantize(Decimal("0.01"))
 
-        # 3. Initial immutable status history
-        hist = OrderStatusHistory(
+        # 3. Create initial immutable OrderRevision (Revision 1) snapshot if requested
+        if create_initial_revision:
+            vendor_snapshots = [
+                {
+                    "id": v.id,
+                    "code": v.code,
+                    "company_name": v.company_name,
+                    "contact_person": v.contact_person,
+                    "phone": v.phone,
+                    "email": v.email,
+                    "gstin": v.gstin,
+                    "city": v.city,
+                    "category": v.category.name if v.category else None,
+                }
+                for v in valid_vendors
+            ]
+
+            customer_snapshot = {
+                "id": customer.id,
+                "name": customer.name,
+                "company": customer.company,
+                "email": customer.email,
+                "phone_number": customer.phone_number,
+                "gst_number": customer.gst_number,
+                "billing_address": order.billing_address,
+                "shipping_address": order.shipping_address,
+                "site_address": order.site_address,
+                "city": customer.city,
+                "state": customer.state,
+                "pincode": customer.pincode,
+            }
+
+            full_snapshot = {
+                "order_number": order.master_order_number,
+                "order_title": order_title,
+                "order_date": order.order_date.isoformat() if order.order_date else None,
+                "status": order.status,
+                "customer_snapshot": customer_snapshot,
+                "selected_vendors": vendor_snapshots,
+                "commercial_details": commercial_details or {},
+                "delivery_details": delivery_details or {},
+                "installation_details": installation_details or {},
+                "financial_summary": {
+                    "total_ordered_amount": str(order.total_ordered_amount),
+                    "total_discount_amount": str(order.total_discount_amount),
+                    "total_tax_amount": str(order.total_tax_amount),
+                    "net_order_amount": str(order.net_order_amount),
+                },
+                "items": [
+                    {
+                        "id": item.id,
+                        "description": item.item_description,
+                        "quantity": str(item.quantity),
+                        "unit_price": str(item.unit_price),
+                        "tax_rate": str(item.tax_rate),
+                        "total_price": str(item.total_price),
+                    }
+                    for item in created_items
+                ],
+            }
+
+            initial_rev = OrderRevision(
+                order_id=order.id,
+                organization_id=org_id,
+                revision_number=1,
+                snapshot_json=json.dumps(full_snapshot),
+                change_reason="Initial master order creation snapshot.",
+                created_by_id=actor_id,
+            )
+            db.session.add(initial_rev)
+
+        # 4. Status history records
+        hist_draft = OrderStatusHistory(
             order_id=order.id,
             organization_id=org_id,
             status_type="MASTER",
@@ -272,7 +394,19 @@ class OrderMasterService:
             remarks="Master Order created in DRAFT.",
             changed_by_id=actor_id,
         )
-        db.session.add(hist)
+        db.session.add(hist_draft)
+
+        if is_confirmed:
+            hist_confirm = OrderStatusHistory(
+                order_id=order.id,
+                organization_id=org_id,
+                status_type="MASTER",
+                from_status=MasterOrderStatus.DRAFT.value,
+                to_status=MasterOrderStatus.CONFIRMED.value,
+                remarks="Master Order confirmed on creation.",
+                changed_by_id=actor_id,
+            )
+            db.session.add(hist_confirm)
 
         db.session.commit()
         return order
@@ -517,6 +651,15 @@ class OrderMasterService:
         if not order:
             raise OMSValidationError(f"Order #{order_id} not found.")
 
+        # Extract initial snapshot if available
+        initial_rev = next((r for r in order.revisions if r.revision_number == 1), None)
+        initial_snapshot = {}
+        if initial_rev and initial_rev.snapshot_json:
+            try:
+                initial_snapshot = json.loads(initial_rev.snapshot_json)
+            except Exception:
+                initial_snapshot = {}
+
         # Serialize order header and child collections
         return {
             "order": {
@@ -736,6 +879,12 @@ class OrderMasterService:
                 }
                 for doc in order.documents if not doc.is_deleted
             ],
+            "initial_snapshot": initial_snapshot,
+            "selected_vendors": initial_snapshot.get("selected_vendors", []),
+            "customer_snapshot": initial_snapshot.get("customer_snapshot", {}),
+            "commercial_details": initial_snapshot.get("commercial_details", {}),
+            "delivery_details": initial_snapshot.get("delivery_details", {}),
+            "installation_details": initial_snapshot.get("installation_details", {}),
             "financials": {
                 "net_order_amount": float(order.net_order_amount),
                 "total_procurement_cost": float(order.total_procurement_cost),

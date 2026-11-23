@@ -6,228 +6,279 @@
     <title>OMS Executive Dashboard | GlassEntials CRM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:wght@0,400;0,600;0,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
     <style>
-        .dash-page { max-width: 1400px; margin: 30px auto; padding: 0 24px; font-family: 'Montserrat', sans-serif; color: #1e293b; }
-        .dash-hero { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: #fff; padding: 24px 30px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
-        .dash-hero h1 { margin: 0; font-size: 24px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 12px; }
-        .dash-hero p { margin: 4px 0 0; color: #64748b; font-size: 14px; }
-        .btn-primary { background: #0284c7; color: #fff; padding: 9px 18px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; border: none; cursor: pointer; }
-        .btn-secondary { background: #f1f5f9; color: #334155; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 6px; }
-        .btn-danger { background: #dc2626; color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; border: none; cursor: pointer; }
-        
-        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 24px; }
-        .kpi-card { background: #fff; padding: 22px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); border-top: 4px solid #0284c7; }
-        .kpi-card.green { border-top-color: #10b981; }
-        .kpi-card.amber { border-top-color: #f59e0b; }
-        .kpi-card.red { border-top-color: #ef4444; }
-        .kpi-card.purple { border-top-color: #8b5cf6; }
-        .kpi-card span { font-size: 12px; font-weight: 600; text-transform: uppercase; color: #64748b; display: block; margin-bottom: 6px; }
-        .kpi-card h2 { margin: 0; font-size: 28px; font-weight: 800; color: #0f172a; }
-        .kpi-card p { margin: 6px 0 0; font-size: 13px; color: #64748b; }
+        /* KPI Grid */
+        .oms-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 1.3rem;
+            margin-bottom: 2rem;
+        }
+        .oms-kpi-card {
+            background: #fff;
+            padding: 1.6rem 1.8rem;
+            border-radius: 12px;
+            border: 1px solid rgba(13,27,42,0.07);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            border-top: 4px solid var(--accent-gold);
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .oms-kpi-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); transform: translateY(-2px); }
+        .oms-kpi-card.green  { border-top-color: #10b981; }
+        .oms-kpi-card.amber  { border-top-color: #f59e0b; }
+        .oms-kpi-card.red    { border-top-color: #ef4444; }
+        .oms-kpi-card.purple { border-top-color: #8b5cf6; }
+        .oms-kpi-card.blue   { border-top-color: #0284c7; }
+        .oms-kpi-label {
+            font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.06em; color: var(--text-muted); display: block; margin-bottom: 8px;
+        }
+        .oms-kpi-val {
+            font-size: 2rem; font-weight: 800; color: var(--primary-color);
+            font-family: var(--font-heading); margin: 0;
+        }
+        .oms-kpi-sub { margin: 6px 0 0; font-size: 0.82rem; color: var(--text-muted); }
 
-        .section-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
-        @media (max-width: 900px) { .section-grid { grid-template-columns: 1fr; } }
+        /* Section grid */
+        .oms-section-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 1.6rem; margin-bottom: 2rem;
+        }
+        @media (max-width: 900px) { .oms-section-grid { grid-template-columns: 1fr; } }
 
-        .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); margin-bottom: 24px; }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; }
-        .card-header h3 { margin: 0; font-size: 16px; font-weight: 700; color: #0f172a; }
+        /* Info panels */
+        .oms-panel {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid rgba(13,27,42,0.07);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            overflow: hidden;
+        }
+        .oms-panel-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1.3rem 1.6rem;
+            border-bottom: 1px solid rgba(13,27,42,0.07);
+        }
+        .oms-panel-header h3 {
+            margin: 0; font-family: var(--font-heading);
+            font-size: 1rem; color: var(--primary-color);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .oms-panel-body { padding: 1.4rem 1.6rem; }
 
-        .pipeline-bars { display: flex; flex-direction: column; gap: 14px; }
-        .bar-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
-        .bar-label { font-weight: 600; width: 180px; }
-        .bar-track { flex: 1; height: 10px; background: #f1f5f9; border-radius: 5px; margin: 0 14px; overflow: hidden; }
-        .bar-fill { height: 100%; border-radius: 5px; background: #0284c7; }
-        .bar-val { font-weight: 700; width: 40px; text-align: right; }
+        /* Pipeline bars */
+        .bar-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .bar-label { font-size: 0.85rem; font-weight: 600; color: var(--primary-color); flex: 0 0 190px; }
+        .bar-track { flex: 1; height: 8px; background: rgba(13,27,42,0.07); border-radius: 10px; margin: 0 14px; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 10px; }
+        .bar-val { font-weight: 700; font-size: 0.9rem; color: var(--primary-color); min-width: 30px; text-align: right; }
 
-        .fin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .fin-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
-        .fin-table tr:last-child td { border-bottom: none; font-weight: 700; }
+        /* Finance ledger */
+        .fin-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.9rem 0;
+            border-bottom: 1px solid rgba(13,27,42,0.05);
+            font-size: 0.9rem;
+        }
+        .fin-row:last-child { border-bottom: none; }
+        .fin-row-label { color: var(--primary-color); font-weight: 500; }
+        .fin-row-val { font-weight: 700; color: var(--primary-color); }
+        .fin-row-val.profit { color: #15803d; }
+        .fin-row-val.cost   { color: #dc2626; }
+        .fin-row-val.cash   { color: #0369a1; }
 
-        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
-        th { background: #f8fafc; padding: 12px 14px; font-weight: 600; color: #475569; border-bottom: 1px solid #e2e8f0; }
-        td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
-        tr:hover { background: #f8fafc; }
-        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-        .badge-red { background: #fee2e2; color: #991b1b; }
-        .badge-amber { background: #fef3c7; color: #92400e; }
-        .badge-blue { background: #e0f2fe; color: #0369a1; }
-        .alert { padding: 12px 18px; border-radius: 8px; margin-bottom: 18px; font-size: 13px; font-weight: 500; }
-        .alert-info { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        /* Overdue table */
+        .oms-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+        .ob-red   { background: rgba(239,68,68,.1); color: #991b1b; }
+        .ob-amber { background: rgba(245,158,11,.12); color: #92400e; }
+        .ob-blue  { background: rgba(2,132,199,.1); color: #0369a1; }
     </style>
 </head>
 <body class="dashboard-page">
     {% include 'includes/navbar.html' %}
 
-    <main class="dash-page">
-        <!-- Flash messages -->
-        {% with messages = get_flashed_messages(category_filter=["order_info"]) %}
-        {% if messages %}{% for msg in messages %}<div class="alert alert-info">{{ msg }}</div>{% endfor %}{% endif %}{% endwith %}
+    <main class="container">
 
-        <!-- Hero Header -->
-        <div class="dash-hero">
+        <!-- Flash -->
+        {% with messages = get_flashed_messages(category_filter=["order_info"]) %}
+        {% if messages %}{% for msg in messages %}
+        <div style="padding:14px 18px; background:rgba(2,132,199,0.06); border-left:4px solid #0284c7; border-radius:4px; color:#0369a1; margin-bottom:1.4rem; font-size:0.93rem;">ℹ {{ msg }}</div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        <!-- Top Bar -->
+        <div class="top-bar" style="margin-bottom:2rem;">
             <div>
-                <h1>
-                    <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
-                    OMS Executive Intelligence
+                <h1 style="font-family:var(--font-heading); font-size:1.6rem; margin:0; color:var(--primary-color); display:flex; align-items:center; gap:10px;">
+                    📊 OMS Executive Intelligence
                 </h1>
-                <p>Real-time pipeline bottlenecks, margin analysis, cash flows, and overdue delivery tracking</p>
+                <p style="margin:4px 0 0; color:var(--text-muted); font-size:0.9rem;">Real-time pipeline, margin analysis, cash flows &amp; overdue tracking</p>
             </div>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <a href="{{ url_for('orders.list_orders') }}" class="btn-secondary">Back to Cockpit</a>
-                <a href="{{ url_for('orders.export_orders_excel') }}" class="btn-secondary">Export Full Excel</a>
-                <a href="{{ url_for('orders.overdue_orders', alert='true') }}" class="btn-danger">Scan & Alert Overdue</a>
+            <div class="btn-group">
+                <a href="{{ url_for('orders.list_orders') }}" class="btn-action outline" style="text-decoration:none;">← Back to Cockpit</a>
+                <a href="{{ url_for('orders.export_orders_excel') }}" class="btn-action outline" style="text-decoration:none;">📊 Export Excel</a>
+                <a href="{{ url_for('orders.overdue_orders', alert='true') }}" class="btn-action" style="background:#ef4444; color:#fff; border-color:#ef4444; text-decoration:none;">🚨 Scan Overdue</a>
             </div>
         </div>
 
         <!-- KPI Grid -->
-        <div class="kpi-grid">
-            <div class="kpi-card">
-                <span>Active Pipeline</span>
-                <h2>{{ metrics.summary.active_orders }}</h2>
-                <p>Of {{ metrics.summary.total_orders }} total master orders</p>
+        <div class="oms-kpi-grid">
+            <div class="oms-kpi-card blue">
+                <span class="oms-kpi-label">Active Pipeline</span>
+                <p class="oms-kpi-val">{{ metrics.summary.active_orders }}</p>
+                <p class="oms-kpi-sub">of {{ metrics.summary.total_orders }} total master orders</p>
             </div>
-            <div class="kpi-card green">
-                <span>Gross Profit</span>
-                <h2>₹{{ "{:,.0f}".format(metrics.financials.gross_profit) }}</h2>
-                <p>{{ metrics.financials.gross_margin_percentage }}% Gross Margin</p>
+            <div class="oms-kpi-card green">
+                <span class="oms-kpi-label">Gross Profit</span>
+                <p class="oms-kpi-val" style="font-size:1.5rem;">₹{{ "{:,.0f}".format(metrics.financials.gross_profit) }}</p>
+                <p class="oms-kpi-sub">{{ metrics.financials.gross_margin_percentage }}% gross margin</p>
             </div>
-            <div class="kpi-card amber">
-                <span>Customer Outstanding</span>
-                <h2>₹{{ "{:,.0f}".format(metrics.financials.customer_outstanding) }}</h2>
-                <p>Receivable vs Billed</p>
+            <div class="oms-kpi-card amber">
+                <span class="oms-kpi-label">Customer Outstanding</span>
+                <p class="oms-kpi-val" style="font-size:1.5rem;">₹{{ "{:,.0f}".format(metrics.financials.customer_outstanding) }}</p>
+                <p class="oms-kpi-sub">Receivable vs billed</p>
             </div>
-            <div class="kpi-card purple">
-                <span>Vendor AP Outstanding</span>
-                <h2>₹{{ "{:,.0f}".format(metrics.financials.vendor_outstanding) }}</h2>
-                <p>Payable to suppliers</p>
+            <div class="oms-kpi-card purple">
+                <span class="oms-kpi-label">Vendor AP Outstanding</span>
+                <p class="oms-kpi-val" style="font-size:1.5rem;">₹{{ "{:,.0f}".format(metrics.financials.vendor_outstanding) }}</p>
+                <p class="oms-kpi-sub">Payable to suppliers</p>
             </div>
-            <div class="kpi-card {% if metrics.summary.overdue_orders > 0 %}red{% else %}green{% endif %}">
-                <span>Delayed / Overdue</span>
-                <h2>{{ metrics.summary.overdue_orders }}</h2>
-                <p>Orders past delivery target</p>
+            <div class="oms-kpi-card {% if metrics.summary.overdue_orders > 0 %}red{% else %}green{% endif %}">
+                <span class="oms-kpi-label">Delayed / Overdue</span>
+                <p class="oms-kpi-val">{{ metrics.summary.overdue_orders }}</p>
+                <p class="oms-kpi-sub">Orders past delivery target</p>
             </div>
         </div>
 
-        <div class="section-grid">
-            <!-- Pipeline Bottleneck Analysis -->
-            <div class="card">
-                <div class="card-header">
-                    <h3>Operational Pipeline Breakdown</h3>
+        <!-- Section Grid: Pipeline + Finance -->
+        <div class="oms-section-grid">
+            <!-- Pipeline Breakdown -->
+            <div class="oms-panel">
+                <div class="oms-panel-header">
+                    <h3>📦 Operational Pipeline Breakdown</h3>
                 </div>
-                <div class="pipeline-bars">
+                <div class="oms-panel-body">
+                    {% set total = metrics.summary.active_orders if metrics.summary.active_orders > 0 else 1 %}
+
                     <div class="bar-row">
                         <span class="bar-label">1. Awaiting Procurement</span>
-                        <div class="bar-track"><div class="bar-fill" style="width: {% if metrics.summary.active_orders > 0 %}{{ (metrics.pipeline.awaiting_procurement / metrics.summary.active_orders * 100)|round }}{% else %}0{% endif %}%; background: #0284c7;"></div></div>
+                        <div class="bar-track"><div class="bar-fill" style="width:{{ (metrics.pipeline.awaiting_procurement / total * 100)|round }}%; background:#0284c7;"></div></div>
                         <span class="bar-val">{{ metrics.pipeline.awaiting_procurement }}</span>
                     </div>
                     <div class="bar-row">
                         <span class="bar-label">2. In Vendor Procurement</span>
-                        <div class="bar-track"><div class="bar-fill" style="width: {% if metrics.summary.active_orders > 0 %}{{ (metrics.pipeline.in_procurement / metrics.summary.active_orders * 100)|round }}{% else %}0{% endif %}%; background: #f59e0b;"></div></div>
+                        <div class="bar-track"><div class="bar-fill" style="width:{{ (metrics.pipeline.in_procurement / total * 100)|round }}%; background:#f59e0b;"></div></div>
                         <span class="bar-val">{{ metrics.pipeline.in_procurement }}</span>
                     </div>
                     <div class="bar-row">
                         <span class="bar-label">3. Awaiting Site Delivery</span>
-                        <div class="bar-track"><div class="bar-fill" style="width: {% if metrics.summary.active_orders > 0 %}{{ (metrics.pipeline.awaiting_delivery / metrics.summary.active_orders * 100)|round }}{% else %}0{% endif %}%; background: #6366f1;"></div></div>
+                        <div class="bar-track"><div class="bar-fill" style="width:{{ (metrics.pipeline.awaiting_delivery / total * 100)|round }}%; background:#6366f1;"></div></div>
                         <span class="bar-val">{{ metrics.pipeline.awaiting_delivery }}</span>
                     </div>
                     <div class="bar-row">
                         <span class="bar-label">4. Partially Delivered</span>
-                        <div class="bar-track"><div class="bar-fill" style="width: {% if metrics.summary.active_orders > 0 %}{{ (metrics.pipeline.partially_delivered / metrics.summary.active_orders * 100)|round }}{% else %}0{% endif %}%; background: #8b5cf6;"></div></div>
+                        <div class="bar-track"><div class="bar-fill" style="width:{{ (metrics.pipeline.partially_delivered / total * 100)|round }}%; background:#8b5cf6;"></div></div>
                         <span class="bar-val">{{ metrics.pipeline.partially_delivered }}</span>
                     </div>
                     <div class="bar-row">
-                        <span class="bar-label">5. Site Installation / Fitting</span>
-                        <div class="bar-track"><div class="bar-fill" style="width: {% if metrics.summary.active_orders > 0 %}{{ (metrics.pipeline.in_fitting / metrics.summary.active_orders * 100)|round }}{% else %}0{% endif %}%; background: #ec4899;"></div></div>
+                        <span class="bar-label">5. Site Installation</span>
+                        <div class="bar-track"><div class="bar-fill" style="width:{{ (metrics.pipeline.in_fitting / total * 100)|round }}%; background:#ec4899;"></div></div>
                         <span class="bar-val">{{ metrics.pipeline.in_fitting }}</span>
                     </div>
-                    <div class="bar-row">
+                    <div class="bar-row" style="margin-bottom:0;">
                         <span class="bar-label">6. Completed / Closed</span>
-                        <div class="bar-track"><div class="bar-fill" style="width: 100%; background: #10b981;"></div></div>
+                        <div class="bar-track"><div class="bar-fill" style="width:100%; background:#10b981;"></div></div>
                         <span class="bar-val">{{ metrics.pipeline.completed }}</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Commercial Reconciliation -->
-            <div class="card">
-                <div class="card-header">
-                    <h3>Commercial & Profitability Ledger</h3>
+            <!-- Commercial Profitability -->
+            <div class="oms-panel">
+                <div class="oms-panel-header">
+                    <h3>💰 Commercial &amp; Profitability Ledger</h3>
                 </div>
-                <table class="fin-table">
-                    <tr>
-                        <td>Total Net Revenue (excl. tax)</td>
-                        <td style="text-align: right; font-weight: 600;">₹{{ "{:,.2f}".format(metrics.financials.total_revenue) }}</td>
-                    </tr>
-                    <tr>
-                        <td>Total Procurement Base Cost</td>
-                        <td style="text-align: right; font-weight: 600; color: #dc2626;">- ₹{{ "{:,.2f}".format(metrics.financials.total_procurement_cost) }}</td>
-                    </tr>
-                    <tr style="background: #f0fdf4;">
-                        <td><strong>Gross Commercial Profit (Margin: {{ metrics.financials.gross_margin_percentage }}%)</strong></td>
-                        <td style="text-align: right; font-weight: 700; color: #15803d;">₹{{ "{:,.2f}".format(metrics.financials.gross_profit) }}</td>
-                    </tr>
-                    <tr>
-                        <td>Customer Cash Inflow (Collected)</td>
-                        <td style="text-align: right; font-weight: 600;">₹{{ "{:,.2f}".format(metrics.financials.total_customer_paid) }}</td>
-                    </tr>
-                    <tr>
-                        <td>Vendor Cash Outflow (Disbursed)</td>
-                        <td style="text-align: right; font-weight: 600; color: #dc2626;">- ₹{{ "{:,.2f}".format(metrics.financials.total_vendor_paid) }}</td>
-                    </tr>
-                    <tr style="background: #eff6ff;">
-                        <td><strong>Net Operating Cash Flow Margin</strong></td>
-                        <td style="text-align: right; font-weight: 700; color: #0369a1;">₹{{ "{:,.2f}".format(metrics.financials.operating_cash_margin) }}</td>
-                    </tr>
-                </table>
+                <div class="oms-panel-body">
+                    <div class="fin-row">
+                        <span class="fin-row-label">Total Net Revenue (excl. tax)</span>
+                        <span class="fin-row-val">₹{{ "{:,.2f}".format(metrics.financials.total_revenue) }}</span>
+                    </div>
+                    <div class="fin-row">
+                        <span class="fin-row-label">Total Procurement Base Cost</span>
+                        <span class="fin-row-val cost">− ₹{{ "{:,.2f}".format(metrics.financials.total_procurement_cost) }}</span>
+                    </div>
+                    <div class="fin-row" style="background:rgba(16,185,129,0.04); margin:0 -1.6rem; padding:0.9rem 1.6rem; border-radius:6px;">
+                        <span class="fin-row-label"><strong>Gross Commercial Profit ({{ metrics.financials.gross_margin_percentage }}%)</strong></span>
+                        <span class="fin-row-val profit"><strong>₹{{ "{:,.2f}".format(metrics.financials.gross_profit) }}</strong></span>
+                    </div>
+                    <div class="fin-row">
+                        <span class="fin-row-label">Customer Cash Inflow (Collected)</span>
+                        <span class="fin-row-val">₹{{ "{:,.2f}".format(metrics.financials.total_customer_paid) }}</span>
+                    </div>
+                    <div class="fin-row">
+                        <span class="fin-row-label">Vendor Cash Outflow (Disbursed)</span>
+                        <span class="fin-row-val cost">− ₹{{ "{:,.2f}".format(metrics.financials.total_vendor_paid) }}</span>
+                    </div>
+                    <div class="fin-row" style="background:rgba(2,132,199,0.04); margin:0 -1.6rem; padding:0.9rem 1.6rem; border-radius:6px;">
+                        <span class="fin-row-label"><strong>Net Operating Cash Flow</strong></span>
+                        <span class="fin-row-val cash"><strong>₹{{ "{:,.2f}".format(metrics.financials.operating_cash_margin) }}</strong></span>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- Overdue Orders Table -->
-        <div class="card">
-            <div class="card-header">
-                <h3>Delayed / Overdue Orders Requiring Immediate Action</h3>
-                <span class="badge badge-red">{{ overdue_orders|length }} Overdue</span>
+        <div class="oms-panel">
+            <div class="oms-panel-header">
+                <h3>🚨 Delayed / Overdue Orders Requiring Immediate Action</h3>
+                <span class="oms-badge ob-red">{{ overdue_orders|length }} Overdue</span>
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Order ID</th>
-                        <th>Title</th>
-                        <th>Customer</th>
-                        <th>Target Date</th>
-                        <th>Status</th>
-                        <th>Days Delayed</th>
-                        <th>Order Value</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if overdue_orders %}
-                    {% for ord in overdue_orders %}
-                    <tr>
-                        <td><strong>{{ ord.order_number }}</strong></td>
-                        <td>{{ ord.title }}</td>
-                        <td>{{ ord.customer_name }}</td>
-                        <td>{{ ord.expected_delivery_date }}</td>
-                        <td><span class="badge badge-amber">{{ ord.status }}</span></td>
-                        <td><strong style="color: #dc2626;">+{{ ord.days_overdue }} days</strong></td>
-                        <td>₹{{ "{:,.2f}".format(ord.net_amount) }}</td>
-                        <td>
-                            <a href="{{ url_for('orders.detail_order', order_id=ord.id) }}" class="btn-primary" style="padding: 4px 10px; font-size: 11px;">View Cockpit</a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    {% else %}
-                    <tr><td colspan="8" style="text-align: center; color: #15803d; padding: 24px;">✓ Zero active orders are overdue! All orders are tracking to schedule.</td></tr>
-                    {% endif %}
-                </tbody>
-            </table>
+            <div style="overflow-x:auto;">
+                <table class="customer-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Title</th>
+                            <th>Customer</th>
+                            <th>Target Date</th>
+                            <th>Status</th>
+                            <th>Days Delayed</th>
+                            <th>Order Value</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if overdue_orders %}
+                        {% for ord in overdue_orders %}
+                        <tr>
+                            <td><strong style="color:var(--primary-color);">{{ ord.order_number }}</strong></td>
+                            <td>{{ ord.title }}</td>
+                            <td>{{ ord.customer_name }}</td>
+                            <td style="color:var(--text-muted); font-size:0.88rem;">{{ ord.expected_delivery_date }}</td>
+                            <td><span class="oms-badge ob-amber">{{ ord.status }}</span></td>
+                            <td><strong style="color:#dc2626;">+{{ ord.days_overdue }} days</strong></td>
+                            <td><strong>₹{{ "{:,.2f}".format(ord.net_amount) }}</strong></td>
+                            <td>
+                                <a href="{{ url_for('orders.detail_order', order_id=ord.id) }}" class="btn-action gold" style="padding:0.4rem 0.9rem; font-size:0.8rem; text-decoration:none;">View Cockpit</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="8" style="text-align:center; padding:3rem 2rem; color:var(--text-muted);">
+                                <div style="font-size:2.5rem; margin-bottom:12px; opacity:0.3;">✅</div>
+                                <p style="margin:0; font-size:0.95rem; font-weight:600; color:#15803d;">Zero overdue orders — all orders are tracking to schedule!</p>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
         </div>
+
     </main>
 </body>
 </html>
