@@ -308,6 +308,81 @@
         .selected-profile-card.lead-theme {
             border-left: 5px solid var(--accent-gold);
         }
+        .selected-profile-card.vendor-theme {
+            border-left: 5px solid var(--accent-gold);
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(13, 27, 42, 0.03);
+            margin-top: 0;
+            padding: 1.15rem 1.35rem;
+            width: 100%;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+        .selected-profile-card.vendor-theme:hover {
+            box-shadow: 0 4px 14px rgba(13, 27, 42, 0.06);
+            border-color: rgba(212, 175, 55, 0.4);
+            border-left-color: var(--accent-gold);
+        }
+
+        /* Vendor Selection Control Box (Matches Client Selection Box) */
+        .vendor-selection-box {
+            background: #ffffff;
+            border: 1px solid rgba(13, 27, 42, 0.09);
+            border-radius: 12px;
+            padding: 1.25rem 1.4rem;
+            box-shadow: 0 2px 10px rgba(13, 27, 42, 0.02);
+            margin-bottom: 0.75rem;
+            position: relative;
+        }
+        .vendor-mode-strip {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding-bottom: 0.9rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.06);
+        }
+        .vendor-mode-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--primary-navy);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .vendor-mode-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: normal;
+            margin-left: 4px;
+        }
+        .vendor-stats-strip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .vendor-stat-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #f1f5f9;
+            padding: 0.35rem 0.85rem;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            color: var(--primary-navy);
+            font-weight: 600;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+        }
+        .vendor-stat-pill strong {
+            color: #b45309;
+            font-weight: 800;
+        }
 
         /* Section Cards */
         .form-section-card {
@@ -1217,50 +1292,60 @@
                     </div>
                 </div>
                 <div class="section-body">
-                    <div class="notice-banner" style="background: rgba(13,27,42,0.03); border-left-color: var(--primary-navy); color: var(--primary-navy);">
-                        <span>📌</span> Associating vendors links suppliers to this order. Supplier proforma invoices and material consignments are managed through the OMS procurement cockpit.
+                    <div class="notice-banner" style="background: rgba(13,27,42,0.03); border-left-color: var(--accent-gold); color: var(--primary-navy); margin-bottom: 1.25rem;">
+                        <span>📌</span> <strong>Supply Chain Linkage:</strong> Associate primary glass fabricators, toughening processors, and architectural hardware vendors. Associated suppliers are immediately available for item line allocations and proforma invoice tracking in the OMS Cockpit.
                     </div>
 
-                    <!-- Search & Creation Bar -->
-                    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap;">
-                        <div class="autocomplete-wrap" style="flex: 1; min-width: 280px;">
-                            <input type="text" id="vendorSearchInput" class="form-control-custom" placeholder="🔍 Search or click ▾ to view all vendors..." autocomplete="off" spellcheck="false">
-                            <button type="button" class="autocomplete-toggle-btn" id="vendorDropdownToggle" title="View all vendors" aria-label="Toggle all vendors">▾</button>
-                            <div id="vendorSearchResults" class="autocomplete-results"></div>
+                    <!-- Unified Vendor Selection Control Panel (Matches Client Selection Box) -->
+                    <div class="vendor-selection-box">
+                        <!-- Top Strip: Role & Active Suppliers Metric -->
+                        <div class="vendor-mode-strip">
+                            <div class="vendor-mode-label">
+                                <span class="live-dot" style="background: var(--accent-gold); box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.25);"></span>
+                                <span>Order Supply Chain Network:</span>
+                                <span class="vendor-mode-desc">Link registered suppliers, fabricators &amp; processors</span>
+                            </div>
+                            <div class="vendor-stats-strip">
+                                <span class="vendor-stat-pill" id="vendorStatPill">
+                                    <span>🏭 Linked Suppliers:</span> <strong id="vendorCountStrong">0</strong>
+                                </span>
+                            </div>
                         </div>
-                        <button type="button" class="btn-custom gold" onclick="openNewVendorModal()">
-                            ➕ Add New Vendor
-                        </button>
-                    </div>
 
-                    <!-- Container for hidden vendor IDs for form submission -->
-                    <div id="selectedVendorIdsContainer"></div>
-                    <div id="vendorPIFilesContainer" style="display:none;"></div>
+                        <!-- Search & Onboarding Row -->
+                        <div style="display: flex; gap: 12px; align-items: stretch; flex-wrap: wrap;">
+                            <div class="autocomplete-wrap" style="flex: 1; min-width: 280px; position: relative;">
+                                <span class="search-lead-icon">🏭</span>
+                                <input type="text" id="vendorSearchInput" class="luxury-search-input" placeholder="Search by company name, vendor code, category, contact, phone, GSTIN, or city..." autocomplete="off" spellcheck="false">
+                                <button type="button" class="luxury-dropdown-btn" id="vendorDropdownToggle" title="Browse all registered vendors" aria-label="Toggle all vendors">
+                                    <span>Browse All</span> ▾
+                                </button>
+                                <div id="vendorSearchResults" class="autocomplete-results"></div>
+                            </div>
+                            <button type="button" class="luxury-action-btn" onclick="openNewVendorModal()" title="Onboard a new vendor master record">
+                                <span style="font-size: 1.1rem; line-height: 1;">➕</span> Onboard New Vendor
+                            </button>
+                        </div>
 
-                    <!-- Selected Vendors Summary Table -->
-                    <div style="overflow-x: auto;">
-                        <table class="vendors-summary-table" id="selectedVendorsTable">
-                            <thead>
-                                <tr>
-                                    <th>Vendor Code</th>
-                                    <th>Company Name</th>
-                                    <th>Category</th>
-                                    <th>Contact Person</th>
-                                    <th>Phone</th>
-                                    <th>GSTIN</th>
-                                    <th>City</th>
-                                    <th>Proforma Invoice (Optional)</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="selectedVendorsTbody">
-                                <tr id="noVendorsRow">
-                                    <td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-muted); font-style: italic;">
-                                        No vendors associated yet. Search above or click "+ Add New Vendor".
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <!-- Hidden Containers for IDs and Multi-part Files -->
+                        <div id="selectedVendorIdsContainer"></div>
+                        <div id="vendorPIFilesContainer" style="display:none;"></div>
+
+                        <!-- Empty State Strip (shown when 0 vendors associated) -->
+                        <div id="vendorUnselectedPlaceholder" class="client-unselected-strip">
+                            <div class="unselected-info">
+                                <strong>No Suppliers Linked Yet</strong>
+                                <span>Search registered vendors above or click "Onboard New Vendor" to link glass fabricators, processing plants, or hardware suppliers.</span>
+                            </div>
+                            <div class="unselected-pills">
+                                <span class="pill-perk">⚡ Multi-Vendor Allocation</span>
+                                <span class="pill-perk">🧾 Proforma Invoice (PI) Uploads</span>
+                                <span class="pill-perk">🚚 Consignment Tracking</span>
+                            </div>
+                        </div>
+
+                        <!-- Associated Vendors Cards Roster (shown when >= 1 vendor associated) -->
+                        <div id="selectedVendorsCardsContainer" style="display: none; margin-top: 1rem; flex-direction: column; gap: 12px;"></div>
                     </div>
                 </div>
             </div>
@@ -2077,6 +2162,7 @@
 
             // Init vendor search autocomplete
             setupVendorAutocomplete();
+            renderSelectedVendors();
 
             // Add first 2 default line item rows
             addItemRow();
@@ -2792,7 +2878,7 @@
             function openVendorDropdown(q = '') {
                 results.innerHTML = `
                     <div style="padding: 1.25rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
-                        <span>⏳ Loading vendors...</span>
+                        <span>⏳ Loading registered vendors...</span>
                     </div>
                 `;
                 results.style.display = 'block';
@@ -2806,7 +2892,7 @@
                             const header = document.createElement('div');
                             header.className = 'autocomplete-results-header';
                             header.innerHTML = `
-                                <span>🏭 ${q ? `Results for "${escapeHtml(q)}"` : 'All Registered Vendors'}</span>
+                                <span>🏭 ${q ? `Results for "${escapeHtml(q)}"` : 'All Registered Suppliers &amp; Fabricators'}</span>
                                 <span class="count-badge">${data.results.length} ${data.results.length === 1 ? 'Vendor' : 'Vendors'}</span>
                             `;
                             results.appendChild(header);
@@ -2819,25 +2905,27 @@
                                     <div style="flex: 1; min-width: 0;">
                                         <div class="autocomplete-item-name">
                                             ${escapeHtml(v.company_name)} 
-                                            <small style="color:var(--accent-gold); font-weight:600;">(${escapeHtml(v.code)})</small>
-                                            ${isAlreadyAdded ? '<span style="font-size:0.75rem; background:rgba(16,185,129,0.15); color:#059669; padding:2px 6px; border-radius:10px; margin-left:6px;">✓ Added</span>' : ''}
+                                            <small style="color:var(--accent-gold); font-weight:600;">(${escapeHtml(v.code || 'VND')})</small>
+                                            ${isAlreadyAdded ? '<span style="font-size:0.75rem; background:rgba(16,185,129,0.15); color:#059669; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">✓ Linked to Order</span>' : ''}
                                         </div>
                                         <div class="autocomplete-item-sub">
-                                            <span>🏷️ ${escapeHtml(v.category || 'General')}</span>
+                                            <span>🏷️ ${escapeHtml(v.category || 'General Supplier')}</span>
+                                            <span>·</span>
+                                            <span>👤 ${escapeHtml(v.contact_person || '—')}</span>
                                             <span>·</span>
                                             <span>📞 ${escapeHtml(v.phone || '—')}</span>
                                             <span>·</span>
                                             <span>📍 ${escapeHtml(v.city || '—')}</span>
                                         </div>
                                     </div>
-                                    <button type="button" class="btn-custom sm ${isAlreadyAdded ? 'outline' : 'gold'}" style="flex-shrink: 0; margin-left: 12px;">
-                                        ${isAlreadyAdded ? 'Already Added' : 'Add to Order'}
+                                    <button type="button" class="btn-custom sm ${isAlreadyAdded ? 'outline' : 'gold'}" style="flex-shrink: 0; margin-left: 12px; font-weight: 600;">
+                                        ${isAlreadyAdded ? 'Already Linked' : '+ Link Vendor'}
                                     </button>
                                 `;
                                 item.addEventListener('click', (e) => {
                                     e.stopPropagation();
                                     if (isAlreadyAdded) {
-                                        showToast(`Vendor '${v.company_name}' is already added.`, 'info');
+                                        showToast(`Vendor '${v.company_name}' is already linked to this order.`, 'info');
                                         return;
                                     }
                                     addVendorToOrder(v);
@@ -2847,8 +2935,8 @@
                         } else {
                             results.innerHTML = `
                                 <div class="autocomplete-empty">
-                                    No vendors found matching <strong>"${escapeHtml(q)}"</strong>.
-                                    <br><button type="button" class="btn-custom sm gold" style="margin-top:8px;" onclick="openNewVendorModal('${escapeHtml(q)}')">+ Onboard New Vendor</button>
+                                    No vendors found matching <strong>"${escapeHtml(q)}"</strong>.<br>
+                                    <button type="button" class="btn-custom sm gold" style="margin-top:8px;" onclick="openNewVendorModal('${escapeHtml(q)}')">+ Onboard as New Vendor</button>
                                 </div>
                             `;
                         }
@@ -2905,7 +2993,7 @@
         function addVendorToOrder(v) {
             // Prevent duplicate selection
             if (selectedVendorsList.some(item => item.id === v.id)) {
-                showToast(`Vendor '${v.company_name}' is already added to this order.`, 'error');
+                showToast(`Vendor '${v.company_name}' is already linked to this order.`, 'error');
                 document.getElementById('vendorSearchResults').style.display = 'none';
                 const toggleBtn = document.getElementById('vendorDropdownToggle');
                 if (toggleBtn) toggleBtn.classList.remove('open');
@@ -2920,7 +3008,7 @@
             const toggleBtn = document.getElementById('vendorDropdownToggle');
             if (toggleBtn) toggleBtn.classList.remove('open');
             document.getElementById('vendorSearchInput').value = '';
-            showToast(`Added Vendor: ${v.company_name}`, 'success');
+            showToast(`Linked Supplier: ${v.company_name}`, 'success');
         }
 
         function removeVendorFromOrder(vendorId) {
@@ -2929,7 +3017,7 @@
             if (piInput) piInput.remove();
             renderSelectedVendors();
             updateItemVendorAllocationOptions();
-            showToast('Vendor removed from current selection.', 'success');
+            showToast('Vendor unlinked from this order.', 'success');
         }
 
         function triggerVendorPIUpload(vendorId) {
@@ -2942,15 +3030,18 @@
             if (input && input.files && input.files[0]) {
                 const f = input.files[0];
                 const sizeKb = (f.size / 1024).toFixed(0);
-                return `<span style="color:#15803d; font-weight:600;" title="${escapeHtml(f.name)} (${sizeKb} KB)">📄 ${escapeHtml(f.name)}</span> <button type="button" onclick="clearVendorPIFile(event, ${vendorId})" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:0.85rem;padding:0 2px;" title="Remove file">✕</button>`;
+                return `<span style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #065f46; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.78rem;" title="${escapeHtml(f.name)} (${sizeKb} KB)">📄 ${escapeHtml(f.name)} (${sizeKb} KB)</span> <button type="button" onclick="clearVendorPIFile(event, ${vendorId})" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:0.85rem;padding:0 4px;font-weight:700;" title="Remove attached PI">✕</button>`;
             }
-            return `<span style="color:var(--text-muted); font-style:italic;">Optional</span>`;
+            return `<span style="color:var(--text-muted); font-style:italic; font-size:0.8rem;">No file attached (Optional)</span>`;
         }
 
         function handleVendorPIFileSelect(input, vendorId) {
             const preview = document.getElementById(`vendor_pi_preview_${vendorId}`);
             if (preview) {
                 preview.innerHTML = getVendorPIFileDisplay(vendorId);
+            }
+            if (input && input.files && input.files[0]) {
+                showToast(`Attached PI: ${input.files[0].name}`, 'success');
             }
         }
 
@@ -2962,35 +3053,42 @@
             }
             const preview = document.getElementById(`vendor_pi_preview_${vendorId}`);
             if (preview) {
-                preview.innerHTML = `<span style="color:var(--text-muted); font-style:italic;">Optional</span>`;
+                preview.innerHTML = `<span style="color:var(--text-muted); font-style:italic; font-size:0.8rem;">No file attached (Optional)</span>`;
             }
+            showToast('Vendor proforma invoice file cleared.', 'info');
         }
 
         function renderSelectedVendors() {
-            const tbody = document.getElementById('selectedVendorsTbody');
+            const cardsContainer = document.getElementById('selectedVendorsCardsContainer');
+            const emptyPlaceholder = document.getElementById('vendorUnselectedPlaceholder');
             const hiddenContainer = document.getElementById('selectedVendorIdsContainer');
             const piFilesContainer = document.getElementById('vendorPIFilesContainer');
             const countTag = document.getElementById('vendorCountTag');
+            const countStrong = document.getElementById('vendorCountStrong');
 
-            tbody.innerHTML = '';
-            hiddenContainer.innerHTML = '';
+            if (cardsContainer) cardsContainer.innerHTML = '';
+            if (hiddenContainer) hiddenContainer.innerHTML = '';
 
-            countTag.textContent = `${selectedVendorsList.length} Vendor${selectedVendorsList.length === 1 ? '' : 's'} Associated`;
-            countTag.className = `section-status-tag ${selectedVendorsList.length > 0 ? 'active' : ''}`;
+            const count = selectedVendorsList.length;
+            if (countTag) {
+                countTag.textContent = `${count} Vendor${count === 1 ? '' : 's'} Associated`;
+                countTag.className = `section-status-tag ${count > 0 ? 'active' : ''}`;
+            }
+            if (countStrong) {
+                countStrong.textContent = count;
+            }
 
-            if (selectedVendorsList.length === 0) {
-                tbody.innerHTML = `
-                    <tr id="noVendorsRow">
-                        <td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-muted); font-style: italic;">
-                            No vendors associated yet. Search above or click "+ Add New Vendor".
-                        </td>
-                    </tr>
-                `;
+            if (count === 0) {
+                if (emptyPlaceholder) emptyPlaceholder.style.display = 'flex';
+                if (cardsContainer) cardsContainer.style.display = 'none';
                 return;
             }
 
-            selectedVendorsList.forEach(v => {
-                // Add hidden input
+            if (emptyPlaceholder) emptyPlaceholder.style.display = 'none';
+            if (cardsContainer) cardsContainer.style.display = 'flex';
+
+            selectedVendorsList.forEach((v, idx) => {
+                // Add hidden input for multi-vendor submission
                 const hiddenInput = document.createElement('input');
                 hiddenInput.type = 'hidden';
                 hiddenInput.name = 'selected_vendor_ids';
@@ -3009,36 +3107,73 @@
                     piFilesContainer.appendChild(piInput);
                 }
 
-                // Add row
-                const tr = document.createElement('tr');
-                tr.id = `vendorRow_${v.id}`;
-                tr.innerHTML = `
-                    <td><strong>${escapeHtml(v.code || '—')}</strong></td>
-                    <td>
-                        <strong style="color:var(--primary-navy);">${escapeHtml(v.company_name)}</strong>
-                    </td>
-                    <td><span class="section-status-tag">${escapeHtml(v.category || 'General')}</span></td>
-                    <td>${escapeHtml(v.contact_person || '—')}</td>
-                    <td>${escapeHtml(v.phone || '—')}</td>
-                    <td><code>${escapeHtml(v.gstin || '—')}</code></td>
-                    <td>${escapeHtml(v.city || '—')}</td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <button type="button" class="btn-custom sm outline-gold" style="padding: 3px 8px; font-size: 0.74rem; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" onclick="triggerVendorPIUpload(${v.id})" title="Attach Vendor Proforma Invoice">
-                                <span>📎 Upload PI</span>
-                            </button>
-                            <span id="vendor_pi_preview_${v.id}" style="font-size: 0.74rem; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">
-                                ${getVendorPIFileDisplay(v.id)}
-                            </span>
+                // Create luxury vendor card
+                const card = document.createElement('div');
+                card.className = 'selected-profile-card vendor-theme';
+                card.id = `vendorCard_${v.id}`;
+
+                const initial = (v.company_name || 'V').trim().charAt(0).toUpperCase();
+                const profileUrl = v.profile_url || `/vendors/${v.id}`;
+
+                card.innerHTML = `
+                    <div class="profile-card-left" style="align-items: flex-start; width: 100%;">
+                        <div class="profile-avatar" style="background: linear-gradient(135deg, #0d1b2a 0%, #1e3a5f 100%); color: #ffe082;">
+                            ${initial}
                         </div>
-                    </td>
-                    <td>
-                        <button type="button" class="btn-custom sm" style="background:rgba(239,68,68,0.1); color:#ef4444; border-color:rgba(239,68,68,0.2);" onclick="removeVendorFromOrder(${v.id})">
-                            Remove
-                        </button>
-                    </td>
+                        <div class="profile-meta" style="flex: 1; min-width: 0;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <h4 style="margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 1.15rem; color: var(--primary-navy);">
+                                        ${escapeHtml(v.company_name)}
+                                    </h4>
+                                    <span class="badge" style="background: rgba(212, 175, 55, 0.15); color: #92400e; font-weight: 700; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px;">
+                                        🏷️ ${escapeHtml(v.category || 'General Supplier')}
+                                    </span>
+                                    <span class="badge" style="background: #f1f5f9; color: var(--primary-navy); border: 1px solid rgba(13,27,42,0.1); font-family: monospace; font-size: 0.75rem; padding: 2px 8px; border-radius: 6px;">
+                                        ${escapeHtml(v.code || 'VND')}
+                                    </span>
+                                    <span class="badge" style="background: rgba(13, 27, 42, 0.05); color: #64748b; font-size: 0.72rem; padding: 2px 8px; border-radius: 12px;">
+                                        Supplier #${idx + 1}
+                                    </span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <a href="${profileUrl}" target="_blank" class="btn-custom sm outline" style="font-size: 0.75rem; padding: 4px 10px; text-decoration: none;" title="View full vendor master profile in new tab">
+                                        ↗ Profile
+                                    </a>
+                                    <button type="button" class="btn-custom sm" style="background: rgba(239, 68, 68, 0.08); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 0.75rem; padding: 4px 10px;" onclick="removeVendorFromOrder(${v.id})" title="Remove this supplier from order">
+                                        ✕ Remove
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="profile-meta-details" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px;">
+                                <span class="profile-chip">👤 ${escapeHtml(v.contact_person || '—')}</span>
+                                <span class="profile-chip">📞 ${escapeHtml(v.phone || '—')}</span>
+                                <span class="profile-chip">✉️ ${escapeHtml(v.email || '—')}</span>
+                                <span class="profile-chip">📍 ${escapeHtml(v.city || '—')}</span>
+                                <span class="profile-chip">🏷️ GSTIN: ${escapeHtml(v.gstin || 'N/A')}</span>
+                                ${v.payment_terms ? `<span class="profile-chip" style="background: rgba(212, 175, 55, 0.12); color: #92400e; font-weight: 600;">💳 Terms: ${escapeHtml(v.payment_terms)}</span>` : ''}
+                            </div>
+
+                            <div class="vendor-pi-attachment-box" style="margin-top: 10px; background: #f8fafc; border: 1px solid rgba(13,27,42,0.08); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <span style="font-size: 0.82rem; font-weight: 700; color: var(--primary-navy); display: flex; align-items: center; gap: 5px;">
+                                        <span>🧾</span> Proforma Invoice (PI):
+                                    </span>
+                                    <span id="vendor_pi_preview_${v.id}" style="font-size: 0.8rem;">
+                                        ${getVendorPIFileDisplay(v.id)}
+                                    </span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <button type="button" class="btn-custom sm gold" style="padding: 4px 12px; font-size: 0.76rem; font-weight: 600;" onclick="triggerVendorPIUpload(${v.id})" title="Upload supplier proforma invoice">
+                                        📎 Attach PI Document
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 `;
-                tbody.appendChild(tr);
+                cardsContainer.appendChild(card);
             });
         }
 
