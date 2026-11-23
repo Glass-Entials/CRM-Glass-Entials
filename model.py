@@ -3857,7 +3857,10 @@ class OrderMaster(db.Model):
         db.Integer, db.ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     customer_id = db.Column(
-        db.Integer, db.ForeignKey("customer.id", ondelete="RESTRICT"), nullable=False, index=True
+        db.Integer, db.ForeignKey("customer.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    lead_id = db.Column(
+        db.Integer, db.ForeignKey("lead.id", ondelete="RESTRICT"), nullable=True, index=True
     )
     quotation_id = db.Column(
         db.Integer, db.ForeignKey("quotation.id", ondelete="RESTRICT"), nullable=True, index=True
@@ -3933,6 +3936,7 @@ class OrderMaster(db.Model):
     # Existing module associations
     organization = db.relationship("Organization")
     customer = db.relationship("Customer")
+    lead = db.relationship("Lead")
     quotation = db.relationship("Quotation")
     project = db.relationship("Project")
     created_by = db.relationship("Employee", foreign_keys=[created_by_id])
@@ -3958,6 +3962,22 @@ class OrderMaster(db.Model):
         if self.notes and self.notes.startswith("[") and "]" in self.notes:
             return self.notes[1:self.notes.index("]")]
         return self.notes or f"Order #{self.master_order_number}"
+
+    @property
+    def client_name(self):
+        if self.lead:
+            return self.lead.name
+        if self.customer:
+            return self.customer.name
+        return "Unknown"
+
+    @property
+    def client_type(self):
+        if self.lead_id and self.customer_id:
+            return "LEAD_CUSTOMER"
+        elif self.lead_id:
+            return "LEAD"
+        return "CUSTOMER"
 
     @property
     def delivery_site_address(self):

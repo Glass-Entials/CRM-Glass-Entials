@@ -31,6 +31,7 @@ from model import (
     UserRole,
     Organization,
     Customer,
+    Lead,
     Vendor,
     VendorCategory,
     Product,
@@ -128,6 +129,44 @@ class OMSMasterOrderCreationTests(unittest.TestCase):
         )
         db.session.add_all([self.cust1, self.cust_org2])
 
+        # Seed Leads
+        self.lead1 = Lead(
+            id=1, name="Apex Skyline Glass", company="Apex Skyline Ltd",
+            phone_number="9123456789", email="contact@apexskyline.com",
+            address="Plot 55, MIDC Industrial Area", city="Navi Mumbai", state="Maharashtra",
+            pincode="400705", gst_number="27AAACA9999Z1Z0", organization_id=1, is_deleted=False, created_by=1
+        )
+        self.lead_converted = Lead(
+            id=2, name="Horizon Heights Lead", company="Horizon Old",
+            phone_number="9876500000", email="oldhorizon@example.com",
+            organization_id=1, is_deleted=False, created_by=1
+        )
+        self.cust1.lead_id = 2  # Direct conversion link
+        self.lead_phone_match = Lead(
+            id=3, name="Mobile Match Lead", company="Match Co",
+            phone_number="+91 9876543210", email="unrelated@example.com",
+            organization_id=1, is_deleted=False, created_by=1
+        )
+        self.lead_email_match = Lead(
+            id=4, name="Email Match Lead", company="Mail Co",
+            phone_number="9999988888", email=" HORIZON@EXAMPLE.COM ",
+            organization_id=1, is_deleted=False, created_by=1
+        )
+        self.lead_name_only = Lead(
+            id=5, name="Horizon Heights", company="Different Entity",
+            phone_number="8888877777", email="totallydifferent@example.com",
+            organization_id=1, is_deleted=False, created_by=1
+        )
+        self.lead_org2 = Lead(
+            id=6, name="Org 2 Competitor Lead", company="Org2 Co",
+            phone_number="9777766666", email="org2lead@example.com",
+            organization_id=2, is_deleted=False, created_by=3
+        )
+        db.session.add_all([
+            self.lead1, self.lead_converted, self.lead_phone_match,
+            self.lead_email_match, self.lead_name_only, self.lead_org2
+        ])
+
         # Seed Vendors
         self.vend1 = Vendor(
             id=1, company_name="Saint-Gobain India", code="VEN-00001",
@@ -157,6 +196,7 @@ class OMSMasterOrderCreationTests(unittest.TestCase):
         db.session.commit()
 
     def tearDown(self):
+        db.session.rollback()
         db.session.remove()
         try:
             db.session.execute(text("PRAGMA foreign_keys = OFF;"))
@@ -572,6 +612,207 @@ class OMSMasterOrderCreationTests(unittest.TestCase):
         res = self.client.post("/orders/", json=payload_bad_vend, headers={"Accept": "application/json"})
         self.assertEqual(res.status_code, 403)
         self.assertIn("does not belong to organization", res.get_json()["message"])
+
+    # --------------------------------------------------------------------------
+    # 10. Lead Search API
+    # --------------------------------------------------------------------------
+    def test_10_lead_search_api(self):
+        """Test GET /orders/api/leads/search matches query and enforces tenant isolation."""
+        self._login(1)
+
+        # Search by lead name
+        res = self.client.get("/orders/api/leads/search?q=Apex")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(len(data["results"]), 1)
+        self.assertEqual(data["results"][0]["name"], "Apex Skyline Glass")
+
+        # Search by phone substring
+        res = self.client.get("/orders/api/leads/search?q=91234")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(len(data["results"]), 1)
+
+        # Tenant isolation: Org 1 cannot find Org 2 lead
+        res = self.client.get("/orders/api/leads/search?q=Competitor")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(len(data["results"]), 0)
+
+    # --------------------------------------------------------------------------
+    # 11. Lead Detail API and Duplicate Customer Detection Priorities
+    # --------------------------------------------------------------------------
+    def test_11_lead_detail_api_and_duplicate_detection_priorities(self):
+        """Test GET /orders/api/leads/<id> and customer duplicate detection priorities."""
+        self._login(1)
+
+        # 1. Plain lead (no customer link)
+        res = self.client.get(f"/orders/api/leads/{self.lead1.id}")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertFalse(data["is_already_customer"])
+        self.assertIsNone(data["associated_customer"])
+
+        # 2. Priority 1: Converted Lead (cust1.lead_id == lead_converted.id)
+        res = self.client.get(f"/orders/api/leads/{self.lead_converted.id}")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["is_already_customer"])
+        self.assertIsNotNone(data["associated_customer"])
+        self.assertEqual(data["associated_customer"]["id"], self.cust1.id)
+        self.assertEqual(data["associated_customer"]["match_reason"], "Direct Lead Conversion Record")
+
+        # 3. Priority 2: Mobile match (last 10 digits match cust1)
+        res = self.client.get(f"/orders/api/leads/{self.lead_phone_match.id}")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["is_already_customer"])
+        self.assertEqual(data["associated_customer"]["id"], self.cust1.id)
+
+        # 4. Priority 3: Email match (normalized lowercase match cust1)
+        res = self.client.get(f"/orders/api/leads/{self.lead_email_match.id}")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["is_already_customer"])
+        self.assertEqual(data["associated_customer"]["id"], self.cust1.id)
+
+        # 5. Name only match: must NOT trigger customer detection
+        res = self.client.get(f"/orders/api/leads/{self.lead_name_only.id}")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertFalse(data["is_already_customer"])
+        self.assertIsNone(data["associated_customer"])
+
+        # 6. Tenant isolation: Org 1 user fetching Org 2 lead -> 404
+        res = self.client.get(f"/orders/api/leads/{self.lead_org2.id}")
+        self.assertEqual(res.status_code, 404)
+
+    # --------------------------------------------------------------------------
+    # 12. Create Order in Lead Mode (Plain Lead)
+    # --------------------------------------------------------------------------
+    def test_12_create_order_lead_mode_plain(self):
+        """Test creating an order in Lead mode for a lead without customer link."""
+        self._login(1)
+        payload = {
+            "entity_mode": "lead",
+            "lead_id": self.lead1.id,
+            "order_title": "Apex Commercial Facade Order",
+            "items": [
+                {
+                    "item_description": "Curtain Wall Glass 24mm DGU",
+                    "quantity": 10,
+                    "unit_price": 4500.00,
+                }
+            ],
+            "action_type": "confirm_order",
+        }
+        res = self.client.post("/orders/", json=payload, headers={"Accept": "application/json"})
+        self.assertEqual(res.status_code, 201)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        order_id = data["order_id"]
+
+        order = db.session.get(OrderMaster, order_id)
+        self.assertIsNotNone(order)
+        self.assertEqual(order.lead_id, self.lead1.id)
+        self.assertIsNone(order.customer_id)
+        self.assertEqual(order.client_type, "LEAD")
+        self.assertEqual(order.client_name, self.lead1.name)
+
+        # Verify revision snapshot
+        rev = OrderRevision.query.filter_by(order_id=order_id).first()
+        self.assertIsNotNone(rev)
+        snap = json.loads(rev.snapshot_json)
+        self.assertEqual(snap["customer_snapshot"]["client_type"], "LEAD")
+        self.assertTrue(snap["customer_snapshot"]["is_lead"])
+        self.assertEqual(snap["customer_snapshot"]["name"], self.lead1.name)
+
+    # --------------------------------------------------------------------------
+    # 13. Create Order in Lead Mode with Customer Match & Confirmation Override
+    # --------------------------------------------------------------------------
+    def test_13_create_order_lead_mode_with_customer_match_and_confirmation(self):
+        """Test creating an order for a lead that matches a customer: requires confirmation override."""
+        self._login(1)
+
+        # Without confirmation override -> 400 validation error
+        payload_unconfirmed = {
+            "entity_mode": "lead",
+            "lead_id": self.lead_phone_match.id,
+            "order_title": "Unconfirmed Override Order",
+            "items": [{"item_description": "Glass", "quantity": 1, "unit_price": 100}],
+            "confirmed_lead_override": False,
+        }
+        res = self.client.post("/orders/", json=payload_unconfirmed, headers={"Accept": "application/json"})
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("already registered as a customer", res.get_json()["message"])
+
+        # With confirmed_lead_override = True -> succeeds!
+        payload_confirmed = {
+            "entity_mode": "lead",
+            "lead_id": self.lead_phone_match.id,
+            "order_title": "Confirmed Lead Override Order",
+            "items": [{"item_description": "Glass", "quantity": 1, "unit_price": 100}],
+            "confirmed_lead_override": True,
+            "action_type": "confirm_order",
+        }
+        cust_count_before = Customer.query.count()
+        res = self.client.post("/orders/", json=payload_confirmed, headers={"Accept": "application/json"})
+        self.assertEqual(res.status_code, 201)
+        order_id = res.get_json()["order_id"]
+
+        order = db.session.get(OrderMaster, order_id)
+        self.assertIsNotNone(order)
+        self.assertEqual(order.lead_id, self.lead_phone_match.id)
+        self.assertEqual(order.customer_id, self.cust1.id)
+        self.assertEqual(order.client_type, "LEAD_CUSTOMER")
+        self.assertEqual(order.client_name, self.lead_phone_match.name)
+
+        # Verify no duplicate customer was created
+        cust_count_after = Customer.query.count()
+        self.assertEqual(cust_count_before, cust_count_after)
+
+    # --------------------------------------------------------------------------
+    # 14. Lead Mode Draft and Tenant Isolation Guards
+    # --------------------------------------------------------------------------
+    def test_14_lead_mode_draft_and_tenant_guards(self):
+        """Test Lead mode draft action and tenant isolation protections."""
+        self._login(1)
+
+        # Draft action with lead
+        payload_draft = {
+            "entity_mode": "lead",
+            "lead_id": self.lead1.id,
+            "order_title": "Draft Lead Order",
+            "items": [{"item_description": "Draft Item", "quantity": 2, "unit_price": 200}],
+            "action_type": "save_draft",
+        }
+        res = self.client.post("/orders/", json=payload_draft, headers={"Accept": "application/json"})
+        self.assertEqual(res.status_code, 201)
+        order_id = res.get_json()["order_id"]
+        order = db.session.get(OrderMaster, order_id)
+        self.assertEqual(order.status, MasterOrderStatus.DRAFT.value)
+        self.assertEqual(order.lead_id, self.lead1.id)
+
+        # Cross-tenant lead ID -> 403 Forbidden
+        payload_cross_tenant = {
+            "entity_mode": "lead",
+            "lead_id": self.lead_org2.id,
+            "order_title": "Hacked Cross-Tenant Order",
+            "items": [{"item_description": "Draft Item", "quantity": 1, "unit_price": 100}],
+        }
+        res = self.client.post("/orders/", json=payload_cross_tenant, headers={"Accept": "application/json"})
+        self.assertEqual(res.status_code, 403)
+        self.assertIn("not found in organization", res.get_json()["message"])
+
+        # Missing both customer and lead -> 400 Bad Request
+        payload_missing_client = {
+            "order_title": "Missing Client Order",
+            "items": [{"item_description": "Item", "quantity": 1, "unit_price": 100}],
+        }
+        res = self.client.post("/orders/", json=payload_missing_client, headers={"Accept": "application/json"})
+        self.assertEqual(res.status_code, 400)
 
 
 if __name__ == "__main__":

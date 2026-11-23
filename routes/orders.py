@@ -27,6 +27,7 @@ from model import (
     OrderMaster,
     OrderItem,
     Customer,
+    Lead,
     Vendor,
     VendorCategory,
     VendorBusinessType,
@@ -66,6 +67,7 @@ from services.oms import (
     OMSInvariantError,
     OMSTenantIsolationError,
 )
+from services.oms.order_master_service import detect_lead_customer
 from utils.security import require_roles
 orders_bp = Blueprint("orders", __name__, url_prefix="/orders")
 
@@ -209,11 +211,110 @@ def _safe_customer_url(cust_id):
         return f"/customers/{cust_id}"
 
 
+def _safe_lead_url(lead_id):
+    try:
+        return url_for("leads.view_lead", lead_id=lead_id)
+    except Exception:
+        return f"/lead/{lead_id}"
+
+
 def _safe_vendor_url(vendor_id):
     try:
         return url_for("vendors.vendor_detail", vendor_id=vendor_id)
     except Exception:
         return f"/vendors/{vendor_id}"
+
+
+@orders_bp.route("/api/leads/search", methods=["GET"])
+@login_required
+def api_search_leads():
+    """Live search leads by name, company, phone, email, or city within tenant."""
+    org_id = _get_org_id()
+    q = request.args.get("q", "").strip()
+    query = Lead.query.filter_by(organization_id=org_id, is_deleted=False)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            or_(
+                Lead.name.ilike(like),
+                Lead.company.ilike(like),
+                Lead.phone_number.ilike(like),
+                Lead.email.ilike(like),
+                Lead.city.ilike(like),
+                Lead.gst_number.ilike(like),
+            )
+        )
+    limit = request.args.get("limit", 100, type=int)
+    leads = query.order_by(Lead.name.asc()).limit(min(limit, 200)).all()
+    results = [
+        {
+            "id": l.id,
+            "name": l.name,
+            "company": l.company or "",
+            "phone_number": l.phone_number or "",
+            "email": l.email or "",
+            "city": l.city or "",
+            "address": l.address or "",
+            "state": l.state or "",
+            "pincode": l.pincode or "",
+            "gst_number": l.gst_number or "",
+            "status": l.status.value if hasattr(l.status, "value") else str(l.status or ""),
+        }
+        for l in leads
+    ]
+    return jsonify({"success": True, "results": results})
+
+
+@orders_bp.route("/api/leads/<int:lead_id>", methods=["GET"])
+@login_required
+def api_get_lead_detail(lead_id: int):
+    """Fetch complete saved lead details and detect whether already associated with a Customer."""
+    org_id = _get_org_id()
+    l = Lead.query.filter_by(id=lead_id, organization_id=org_id, is_deleted=False).first()
+    if not l:
+        return jsonify({"success": False, "error": f"Lead #{lead_id} not found."}), 404
+
+    detected_cust = detect_lead_customer(org_id, l)
+    match_reason = None
+    if detected_cust:
+        if getattr(detected_cust, "lead_id", None) == l.id:
+            match_reason = "Direct Lead Conversion Record"
+        elif getattr(l, "contact_id", None) == detected_cust.id:
+            match_reason = "Direct Contact Link"
+        else:
+            match_reason = "Matching Verified Mobile Number or Email"
+
+    return jsonify({
+        "success": True,
+        "lead": {
+            "id": l.id,
+            "name": l.name,
+            "company": l.company or "",
+            "phone_number": l.phone_number or "",
+            "email": l.email or "",
+            "address": l.address or "",
+            "billing_address": l.address or "",
+            "shipping_address": l.address or "",
+            "site_address": l.address or "",
+            "city": l.city or "",
+            "state": l.state or "",
+            "pincode": l.pincode or "",
+            "gst_number": l.gst_number or "",
+            "status": l.status.value if hasattr(l.status, "value") else str(l.status or ""),
+            "notes": l.notes or "",
+            "profile_url": _safe_lead_url(l.id),
+        },
+        "is_already_customer": bool(detected_cust),
+        "associated_customer": {
+            "id": detected_cust.id,
+            "name": detected_cust.name,
+            "company": detected_cust.company or "",
+            "phone_number": detected_cust.phone_number or "",
+            "email": detected_cust.email or "",
+            "match_reason": match_reason,
+            "profile_url": _safe_customer_url(detected_cust.id),
+        } if detected_cust else None,
+    })
 
 
 @orders_bp.route("/api/customers/search", methods=["GET"])
@@ -566,6 +667,7 @@ def new_order():
     """Form to create a new Master Order with full onboarding workflow."""
     org_id = _get_org_id()
     customers = Customer.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Customer.name.asc()).all()
+    leads = Lead.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Lead.name.asc()).all()
     vendors = Vendor.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Vendor.company_name.asc()).all()
     vendor_categories = VendorCategory.query.filter_by(organization_id=org_id, is_active=True).order_by(VendorCategory.name.asc()).all()
     products = Product.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Product.name.asc()).all()
@@ -577,6 +679,7 @@ def new_order():
     return render_template(
         "orders/create.html",
         customers=customers,
+        leads=leads,
         vendors=vendors,
         vendor_categories=vendor_categories,
         products=products,
@@ -599,10 +702,18 @@ def create_order():
 
     if request.is_json:
         data = request.get_json() or {}
+        if "entity_mode" not in data:
+            data["entity_mode"] = "lead" if ("lead_id" in data and not data.get("customer_id")) else "customer"
     else:
         # Form submission: parse all 7 sections
+        entity_mode = request.form.get("entity_mode", "customer").strip().lower()
+        lead_id = request.form.get("selected_lead_id", type=int) or request.form.get("lead_id", type=int)
+        confirmed_override = request.form.get("confirmed_lead_override") in ["true", "True", "1", True, "yes"]
         data = {
-            "customer_id": request.form.get("customer_id", type=int),
+            "entity_mode": entity_mode,
+            "customer_id": request.form.get("customer_id", type=int) if request.form.get("customer_id") else None,
+            "lead_id": lead_id,
+            "confirmed_lead_override": confirmed_override,
             "order_title": request.form.get("order_title", "").strip(),
             "action_type": request.form.get("action_type", "save_draft").strip(),
             "project_id": request.form.get("project_id", type=int) or None,
@@ -715,6 +826,9 @@ def create_order():
         order = OrderMasterService.create_order(
             org_id=org_id,
             customer_id=data.get("customer_id"),
+            lead_id=data.get("lead_id"),
+            confirmed_lead_override=data.get("confirmed_lead_override", False),
+            entity_mode=data.get("entity_mode", "customer"),
             order_title=data.get("order_title"),
             items_data=data.get("items", []),
             project_id=data.get("project_id"),

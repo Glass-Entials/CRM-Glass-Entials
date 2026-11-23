@@ -27,6 +27,7 @@ from model import (
     OrderStatusHistory,
     OrderExceptionalClosure,
     Customer,
+    Lead,
     Vendor,
     Product,
     Quotation,
@@ -112,6 +113,56 @@ VALID_MASTER_TRANSITIONS = {
 }
 
 
+def detect_lead_customer(org_id: int, lead: Lead) -> Optional[Customer]:
+    """
+    Detect whether a Lead is already associated with or converted to an existing Customer.
+    Follows strict priority:
+    1. Direct relationship / conversion reference:
+       Customer.lead_id == lead.id
+       or (if contact_id present) Customer.id == lead.contact_id
+    2. Normalized mobile matching (last 10 digits) within the same organization.
+    3. Normalized email matching (case-insensitive stripped) within the same organization.
+    NEVER matches by name alone. Never crosses tenant boundaries.
+    """
+    if not lead:
+        return None
+
+    # Priority 1: Direct conversion relationship
+    cust = Customer.query.filter_by(lead_id=lead.id, organization_id=org_id, is_deleted=False).first()
+    if cust:
+        return cust
+
+    if getattr(lead, "contact_id", None):
+        cust = Customer.query.filter_by(id=lead.contact_id, organization_id=org_id, is_deleted=False).first()
+        if cust:
+            return cust
+
+    # Priority 2: Normalized mobile match
+    lead_phone = getattr(lead, "phone_number", None) or getattr(lead, "phone", None)
+    if lead_phone:
+        raw_digits = "".join(filter(str.isdigit, str(lead_phone)))
+        if len(raw_digits) >= 10:
+            target_10 = raw_digits[-10:]
+            candidates = Customer.query.filter_by(organization_id=org_id, is_deleted=False).all()
+            for c in candidates:
+                c_phone = getattr(c, "phone_number", None) or getattr(c, "phone", None)
+                if c_phone:
+                    c_digits = "".join(filter(str.isdigit, str(c_phone)))
+                    if len(c_digits) >= 10 and c_digits[-10:] == target_10:
+                        return c
+
+    # Priority 3: Normalized email match
+    lead_email = (getattr(lead, "email", None) or "").strip().lower()
+    if lead_email and "@" in lead_email:
+        candidates = Customer.query.filter_by(organization_id=org_id, is_deleted=False).all()
+        for c in candidates:
+            c_email = (getattr(c, "email", None) or "").strip().lower()
+            if c_email and c_email == lead_email:
+                return c
+
+    return None
+
+
 class OrderMasterService:
     """Service handling high-level customer orders and allocation state."""
 
@@ -155,8 +206,8 @@ class OrderMasterService:
     def create_order(
         cls,
         org_id: int,
-        customer_id: int,
-        items_data: List[Dict[str, Any]],
+        customer_id: Optional[int] = None,
+        items_data: List[Dict[str, Any]] = None,
         order_title: Optional[str] = None,
         quotation_id: Optional[int] = None,
         project_id: Optional[int] = None,
@@ -176,6 +227,9 @@ class OrderMasterService:
         action_type: str = "save_draft",
         order_date: Optional[datetime] = None,
         create_initial_revision: bool = False,
+        lead_id: Optional[int] = None,
+        confirmed_lead_override: bool = False,
+        entity_mode: str = "customer",
     ) -> OrderMaster:
         """Create a new Master Order with initial items and audit snapshot."""
         if not items_data:
@@ -183,10 +237,39 @@ class OrderMasterService:
 
         effective_notes = f"[{order_title}] {notes}" if order_title and notes else (order_title or notes)
 
-        # 1. Tenant validation
-        customer = Customer.query.filter_by(id=customer_id, organization_id=org_id).first()
-        if not customer:
-            raise OMSTenantIsolationError(f"Customer #{customer_id} not found in organization {org_id}.")
+        # 1. Tenant validation for client (Customer or Lead)
+        customer = None
+        lead = None
+
+        if entity_mode == "lead" or (lead_id and not customer_id):
+            if not lead_id:
+                raise OMSValidationError("Master order in Lead mode must specify a valid Lead ID.")
+            lead = Lead.query.filter_by(id=lead_id, organization_id=org_id, is_deleted=False).first()
+            if not lead:
+                raise OMSTenantIsolationError(f"Lead #{lead_id} not found in organization {org_id}.")
+
+            detected_cust = detect_lead_customer(org_id, lead)
+            if detected_cust:
+                if confirmed_lead_override or (customer_id and customer_id == detected_cust.id):
+                    customer = detected_cust
+                    customer_id = detected_cust.id
+                else:
+                    raise OMSValidationError(
+                        f"This lead is already registered as a customer in the CRM ('{detected_cust.name}'). Confirmation is required to continue with this lead."
+                    )
+            else:
+                customer_id = None
+            client_entity = lead
+        else:
+            if not customer_id:
+                raise OMSValidationError("Master order must be associated with either an existing Customer or a Lead.")
+            customer = Customer.query.filter_by(id=customer_id, organization_id=org_id, is_deleted=False).first()
+            if not customer:
+                raise OMSTenantIsolationError(f"Customer #{customer_id} not found in organization {org_id}.")
+            lead = None
+            client_entity = customer
+
+        default_addr = getattr(client_entity, "address", None)
 
         if quotation_id:
             quot = Quotation.query.filter_by(id=quotation_id, organization_id=org_id).first()
@@ -223,15 +306,16 @@ class OrderMasterService:
             master_order_number=master_num,
             organization_id=org_id,
             customer_id=customer_id,
+            lead_id=lead.id if lead else None,
             quotation_id=quotation_id,
             project_id=project_id,
             status=initial_status,
             order_date=order_date or datetime.utcnow(),
             expected_delivery_date=expected_delivery_date,
             expected_fitting_date=expected_fitting_date,
-            shipping_address=shipping_address or customer.address,
-            billing_address=billing_address or customer.address,
-            site_address=site_address or shipping_address or customer.address,
+            shipping_address=shipping_address or default_addr,
+            billing_address=billing_address or default_addr,
+            site_address=site_address or shipping_address or default_addr,
             notes=effective_notes,
             created_by_id=actor_id,
             assigned_to_id=assigned_to_id,
@@ -333,18 +417,22 @@ class OrderMasterService:
             ]
 
             customer_snapshot = {
-                "id": customer.id,
-                "name": customer.name,
-                "company": customer.company,
-                "email": customer.email,
-                "phone_number": customer.phone_number,
-                "gst_number": customer.gst_number,
+                "id": client_entity.id if client_entity else None,
+                "client_type": "LEAD" if (lead and not customer) else ("LEAD_CUSTOMER" if (lead and customer) else "CUSTOMER"),
+                "is_lead": bool(lead and not customer),
+                "lead_id": lead.id if lead else None,
+                "customer_id": customer.id if customer else None,
+                "name": client_entity.name if client_entity else "Unknown",
+                "company": getattr(client_entity, "company", None),
+                "email": getattr(client_entity, "email", None),
+                "phone_number": getattr(client_entity, "phone_number", None) or getattr(client_entity, "phone", None),
+                "gst_number": getattr(client_entity, "gst_number", None),
                 "billing_address": order.billing_address,
                 "shipping_address": order.shipping_address,
                 "site_address": order.site_address,
-                "city": customer.city,
-                "state": customer.state,
-                "pincode": customer.pincode,
+                "city": getattr(client_entity, "city", None),
+                "state": getattr(client_entity, "state", None),
+                "pincode": getattr(client_entity, "pincode", None),
             }
 
             full_snapshot = {
@@ -786,13 +874,27 @@ class OrderMasterService:
                 "total_customer_paid": float(order.total_customer_paid),
                 "total_vendor_billed": float(order.total_vendor_billed),
                 "total_vendor_paid": float(order.total_vendor_paid),
+                "lead_id": order.lead_id,
+                "client_type": order.client_type,
+                "client_name": order.client_name,
                 "customer": {
-                    "id": order.customer.id if order.customer else None,
-                    "name": order.customer.name if order.customer else "Unknown",
-                    "email": order.customer.email if order.customer else "",
-                    "phone": order.customer.phone_number if order.customer else "",
-                    "mobile": order.customer.phone_number if order.customer else "",
+                    "id": order.customer.id if order.customer else (order.lead.id if order.lead else None),
+                    "name": order.customer.name if order.customer else (order.lead.name if order.lead else "Unknown"),
+                    "email": order.customer.email if order.customer else (order.lead.email if order.lead else ""),
+                    "phone": (order.customer.phone_number if order.customer else (order.lead.phone_number if order.lead else "")),
+                    "mobile": (order.customer.phone_number if order.customer else (order.lead.phone_number if order.lead else "")),
+                    "is_lead": bool(order.lead_id and not order.customer_id),
+                    "lead_id": order.lead_id,
+                    "customer_id": order.customer_id,
                 },
+                "lead": {
+                    "id": order.lead.id,
+                    "name": order.lead.name,
+                    "company": order.lead.company,
+                    "phone_number": order.lead.phone_number,
+                    "email": order.lead.email,
+                    "status": order.lead.status.value if hasattr(order.lead.status, 'value') else str(order.lead.status or ''),
+                } if order.lead else None,
                 "assigned_to": {
                     "id": order.assigned_to.id,
                     "name": order.assigned_to.name,

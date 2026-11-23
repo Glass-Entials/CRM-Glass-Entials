@@ -77,6 +77,38 @@
             letter-spacing: 0.05em;
         }
 
+        /* Client Association Mode Toggle */
+        .entity-mode-toggle {
+            display: inline-flex;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 10px;
+            gap: 4px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+        }
+        .entity-toggle-btn {
+            padding: 0.45rem 1.25rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .entity-toggle-btn:hover {
+            color: var(--primary-navy);
+        }
+        .entity-toggle-btn.active {
+            background: var(--primary-navy);
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(13, 27, 42, 0.18);
+        }
+
         /* Section Cards */
         .form-section-card {
             background: #ffffff;
@@ -803,43 +835,107 @@
                     </div>
                 </div>
                 <div class="section-body">
-                    <!-- Search & Creation Bar -->
-                    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap;">
-                        <div class="autocomplete-wrap" style="flex: 1; min-width: 280px;">
-                            <input type="text" id="customerSearchInput" class="form-control-custom" placeholder="🔍 Search or click ▾ to view all customers..." autocomplete="off" spellcheck="false">
-                            <button type="button" class="autocomplete-toggle-btn" id="customerDropdownToggle" title="View all customers" aria-label="Toggle all customers">▾</button>
-                            <div id="customerSearchResults" class="autocomplete-results"></div>
+                    <!-- Customer / Lead Mode Toggle -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid rgba(13,27,42,0.08); padding-bottom: 1rem;">
+                        <div>
+                            <span style="font-size: 0.85rem; font-weight: 700; color: var(--primary-navy); text-transform: uppercase; letter-spacing: 0.04em;">Client Association Mode:</span>
+                            <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px;">Select whether to book this order against a registered Customer or an active CRM Lead</span>
                         </div>
-                        <button type="button" class="btn-custom gold" onclick="openNewCustomerModal()">
-                            ➕ Create New Customer
-                        </button>
+                        <div class="entity-mode-toggle">
+                            <button type="button" id="toggleModeCustomer" class="entity-toggle-btn active" onclick="switchClientMode('customer')">
+                                👤 Customer
+                            </button>
+                            <button type="button" id="toggleModeLead" class="entity-toggle-btn" onclick="switchClientMode('lead')">
+                                🎯 Lead
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Hidden Customer ID input -->
-                    <input type="hidden" name="customer_id" id="selectedCustomerId" required>
+                    <!-- Hidden Client Association Mode & Overrides -->
+                    <input type="hidden" name="entity_mode" id="clientEntityMode" value="customer">
+                    <input type="hidden" name="confirmed_lead_override" id="confirmedLeadOverride" value="false">
+                    <input type="hidden" name="associated_customer_id" id="associatedCustomerId" value="">
+                    <input type="hidden" name="selected_lead_id" id="selectedLeadId" value="">
+                    <input type="hidden" name="customer_id" id="selectedCustomerId" value="">
 
-                    <!-- Selected Customer Information Card -->
-                    <div id="selectedCustomerCard" class="selected-profile-card" style="display: none;">
-                        <div class="profile-card-left">
-                            <div class="profile-avatar" id="custCardAvatar">C</div>
-                            <div class="profile-meta">
-                                <h4 id="custCardName">Customer Name</h4>
-                                <div class="profile-meta-details">
-                                    <span id="custCardCompany">🏢 Company</span>
-                                    <span id="custCardPhone">📞 Phone</span>
-                                    <span id="custCardEmail">✉️ Email</span>
-                                    <span id="custCardGstin">🏷️ GSTIN: N/A</span>
-                                    <span id="custCardCity">📍 City</span>
+                    <!-- CUSTOMER MODE: Search & Creation Bar -->
+                    <div id="customerSearchContainer" style="display: block;">
+                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap;">
+                            <div class="autocomplete-wrap" style="flex: 1; min-width: 280px;">
+                                <input type="text" id="customerSearchInput" class="form-control-custom" placeholder="🔍 Search or click ▾ to view all customers..." autocomplete="off" spellcheck="false">
+                                <button type="button" class="autocomplete-toggle-btn" id="customerDropdownToggle" title="View all customers" aria-label="Toggle all customers">▾</button>
+                                <div id="customerSearchResults" class="autocomplete-results"></div>
+                            </div>
+                            <button type="button" class="btn-custom gold" onclick="openNewCustomerModal()">
+                                ➕ Create New Customer
+                            </button>
+                        </div>
+
+                        <!-- Selected Customer Information Card -->
+                        <div id="selectedCustomerCard" class="selected-profile-card" style="display: none;">
+                            <div class="profile-card-left">
+                                <div class="profile-avatar" id="custCardAvatar">C</div>
+                                <div class="profile-meta">
+                                    <h4 id="custCardName">Customer Name</h4>
+                                    <div class="profile-meta-details">
+                                        <span id="custCardCompany">🏢 Company</span>
+                                        <span id="custCardPhone">📞 Phone</span>
+                                        <span id="custCardEmail">✉️ Email</span>
+                                        <span id="custCardGstin">🏷️ GSTIN: N/A</span>
+                                        <span id="custCardCity">📍 City</span>
+                                    </div>
                                 </div>
                             </div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <a id="custCardProfileLink" href="#" target="_blank" class="btn-custom outline sm">
+                                    View Profile ↗
+                                </a>
+                                <button type="button" class="btn-custom sm outline-gold" onclick="clearSelectedCustomer()">
+                                    Change Customer
+                                </button>
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <a id="custCardProfileLink" href="#" target="_blank" class="btn-custom outline sm">
-                                View Profile ↗
-                            </a>
-                            <button type="button" class="btn-custom sm outline-gold" onclick="clearSelectedCustomer()">
-                                Change Customer
-                            </button>
+                    </div>
+
+                    <!-- LEAD MODE: Search & Profile Bar -->
+                    <div id="leadSearchContainer" style="display: none;">
+                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap;">
+                            <div class="autocomplete-wrap" style="flex: 1; min-width: 280px;">
+                                <input type="text" id="leadSearchInput" class="form-control-custom" placeholder="🔍 Search or click ▾ to view all leads..." autocomplete="off" spellcheck="false">
+                                <button type="button" class="autocomplete-toggle-btn" id="leadDropdownToggle" title="View all leads" aria-label="Toggle all leads">▾</button>
+                                <div id="leadSearchResults" class="autocomplete-results"></div>
+                            </div>
+                        </div>
+
+                        <!-- Selected Lead Information Card -->
+                        <div id="selectedLeadCard" class="selected-profile-card" style="display: none; border-left: 4px solid var(--accent-gold);">
+                            <div class="profile-card-left">
+                                <div class="profile-avatar" id="leadCardAvatar" style="background: linear-gradient(135deg, #d4af37, #b89628); color:#fff;">L</div>
+                                <div class="profile-meta">
+                                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                        <h4 id="leadCardName" style="margin:0;">Lead Name</h4>
+                                        <span id="leadCardStatus" class="badge" style="background:rgba(212,175,55,0.15); color:#92400e; font-size:0.75rem; padding:2px 8px; border-radius:12px; font-weight:700;">New</span>
+                                        <span id="leadLinkedCustomerBadge" class="badge" style="display:none; background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:0.75rem; padding:2px 8px; border-radius:12px; font-weight:600;">
+                                            🔗 Linked Customer: <span id="leadLinkedCustomerName"></span>
+                                        </span>
+                                    </div>
+                                    <div class="profile-meta-details" style="margin-top:6px;">
+                                        <span id="leadCardCompany">🏢 Company</span>
+                                        <span id="leadCardPhone">📞 Phone</span>
+                                        <span id="leadCardEmail">✉️ Email</span>
+                                        <span id="leadCardGstin">🏷️ GSTIN: N/A</span>
+                                        <span id="leadCardCity">📍 City</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <a id="leadCardProfileLink" href="#" target="_blank" class="btn-custom outline sm">
+                                    View Lead ↗
+                                </a>
+                                <button type="button" class="btn-custom sm outline-gold" onclick="clearSelectedLead()">
+                                    Change Lead
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -1580,6 +1676,39 @@
         </div>
     </div>
 
+    <!-- Confirmation Dialog: Lead is already a Customer -->
+    <div id="leadCustomerConfirmModal" class="modal-overlay" style="display:none;">
+        <div class="modal-box" style="max-width: 480px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                <h3 style="margin: 0; font-size: 1.15rem; color: var(--primary-navy); display:flex; align-items:center; gap:8px;">
+                    <span>⚠️</span> This Lead Is Already a Customer
+                </h3>
+                <button type="button" onclick="cancelLeadCustomerConfirm()" style="background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-muted); line-height: 1;">&times;</button>
+            </div>
+            <p style="font-size: 0.92rem; color: var(--text-main); margin-bottom: 1rem; line-height: 1.5;">
+                This lead is already registered as a customer in the CRM. Are you sure you want to continue with this lead?
+            </p>
+            <div style="background: #f8fafc; border: 1px solid rgba(13,27,42,0.1); border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.5rem;">
+                <div style="font-weight: 700; color: var(--primary-navy); font-size: 0.95rem;" id="confirmModalCustName">Customer Name</div>
+                <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 12px;">
+                    <span id="confirmModalCustPhone">📞 —</span>
+                    <span id="confirmModalCustEmail">✉️ —</span>
+                </div>
+                <div style="font-size: 0.78rem; color: #b45309; margin-top: 6px; font-weight: 600;" id="confirmModalCustReason">
+                    Match: Direct conversion record
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn-custom outline" onclick="cancelLeadCustomerConfirm()">
+                    Cancel
+                </button>
+                <button type="button" class="btn-custom gold" onclick="proceedWithLeadCustomerConfirm()">
+                    Continue with Lead
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- ══════════════════════════════════════════════════════════════════
          JAVASCRIPT WORKFLOW LOGIC
          ══════════════════════════════════════════════════════════════════ -->
@@ -1613,6 +1742,9 @@
             // Init customer search autocomplete
             setupCustomerAutocomplete();
 
+            // Init lead search autocomplete
+            setupLeadAutocomplete();
+
             // Init vendor search autocomplete
             setupVendorAutocomplete();
 
@@ -1623,6 +1755,273 @@
             // Initial calculation
             calculateOrderTotals();
         });
+
+        /* ── CLIENT ASSOCIATION: CUSTOMER & LEAD MODES ── */
+        let pendingLeadData = null;
+
+        function switchClientMode(mode) {
+            document.getElementById('clientEntityMode').value = mode;
+            const btnCust = document.getElementById('toggleModeCustomer');
+            const btnLead = document.getElementById('toggleModeLead');
+            const contCust = document.getElementById('customerSearchContainer');
+            const contLead = document.getElementById('leadSearchContainer');
+            const statusTag = document.getElementById('customerStatusTag');
+
+            if (mode === 'customer') {
+                btnCust.classList.add('active');
+                btnLead.classList.remove('active');
+                contCust.style.display = 'block';
+                contLead.style.display = 'none';
+
+                const custId = document.getElementById('selectedCustomerId').value;
+                if (custId) {
+                    document.getElementById('selectedCustomerCard').style.display = 'flex';
+                    document.getElementById('customerAddressOverrides').style.display = 'block';
+                    statusTag.textContent = `✓ ${document.getElementById('custCardName').textContent}`;
+                    statusTag.className = 'section-status-tag active';
+                } else {
+                    document.getElementById('selectedCustomerCard').style.display = 'none';
+                    document.getElementById('customerAddressOverrides').style.display = 'none';
+                    statusTag.textContent = 'No Customer Selected';
+                    statusTag.className = 'section-status-tag';
+                }
+            } else {
+                btnLead.classList.add('active');
+                btnCust.classList.remove('active');
+                contCust.style.display = 'none';
+                contLead.style.display = 'block';
+
+                const leadId = document.getElementById('selectedLeadId').value;
+                if (leadId) {
+                    document.getElementById('selectedLeadCard').style.display = 'flex';
+                    document.getElementById('customerAddressOverrides').style.display = 'block';
+                    statusTag.textContent = `✓ Lead: ${document.getElementById('leadCardName').textContent}`;
+                    statusTag.className = 'section-status-tag active';
+                } else {
+                    document.getElementById('selectedLeadCard').style.display = 'none';
+                    document.getElementById('customerAddressOverrides').style.display = 'none';
+                    statusTag.textContent = 'No Lead Selected';
+                    statusTag.className = 'section-status-tag';
+                }
+            }
+        }
+
+        /* ── LEAD AUTOCOMPLETE & SELECTION ── */
+        function setupLeadAutocomplete() {
+            const input = document.getElementById('leadSearchInput');
+            const toggleBtn = document.getElementById('leadDropdownToggle');
+            const results = document.getElementById('leadSearchResults');
+            let debounceTimer = null;
+
+            function openLeadDropdown(q = '') {
+                results.innerHTML = `
+                    <div style="padding: 1.25rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                        <span>⏳ Loading CRM leads...</span>
+                    </div>
+                `;
+                results.style.display = 'block';
+
+                const url = q ? `/orders/api/leads/search?q=${encodeURIComponent(q)}` : `/orders/api/leads/search`;
+                fetch(url)
+                    .then(r => r.json())
+                    .then(data => {
+                        results.innerHTML = '';
+                        if (data.success && data.results && data.results.length > 0) {
+                            const header = document.createElement('div');
+                            header.style.cssText = 'padding: 6px 12px; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; background: #f8fafc; border-bottom: 1px solid rgba(13,27,42,0.06);';
+                            header.innerHTML = `
+                                <span>Showing ${data.results.length} Lead${data.results.length === 1 ? '' : 's'}</span>
+                            `;
+                            results.appendChild(header);
+
+                            data.results.forEach(l => {
+                                const item = document.createElement('div');
+                                item.className = 'autocomplete-item';
+                                item.innerHTML = `
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div class="autocomplete-item-name">
+                                            ${escapeHtml(l.name)} 
+                                            ${l.company ? '<small style="color:var(--text-muted); font-weight:normal;">(' + escapeHtml(l.company) + ')</small>' : ''}
+                                            <span style="font-size:0.72rem; padding:1px 6px; border-radius:10px; background:rgba(212,175,55,0.15); color:#92400e; font-weight:600; margin-left:6px;">${escapeHtml(l.status || 'New')}</span>
+                                        </div>
+                                        <div class="autocomplete-item-sub">
+                                            <span>📞 ${escapeHtml(l.phone_number || '—')}</span>
+                                            <span>·</span>
+                                            <span>✉️ ${escapeHtml(l.email || '—')}</span>
+                                            <span>·</span>
+                                            <span>📍 ${escapeHtml(l.city || '—')}</span>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn-custom sm gold" style="flex-shrink: 0; margin-left: 12px;">Select</button>
+                                `;
+                                item.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    selectLeadById(l.id);
+                                });
+                                results.appendChild(item);
+                            });
+                        } else {
+                            results.innerHTML = `
+                                <div class="autocomplete-empty">
+                                    No leads found matching <strong>"${escapeHtml(q)}"</strong>.
+                                </div>
+                            `;
+                        }
+                        results.style.display = 'block';
+                        if (toggleBtn) toggleBtn.classList.add('open');
+                    })
+                    .catch(() => {
+                        results.innerHTML = `
+                            <div class="autocomplete-empty" style="color: #ef4444;">
+                                Error loading leads. Please try again.
+                            </div>
+                        `;
+                    });
+            }
+
+            function closeLeadDropdown() {
+                results.style.display = 'none';
+                if (toggleBtn) toggleBtn.classList.remove('open');
+            }
+
+            input.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                const q = input.value.trim();
+                debounceTimer = setTimeout(() => {
+                    openLeadDropdown(q);
+                }, 200);
+            });
+
+            input.addEventListener('focus', () => {
+                if (results.style.display !== 'block') {
+                    openLeadDropdown(input.value.trim());
+                }
+            });
+
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (results.style.display === 'block') {
+                        closeLeadDropdown();
+                    } else {
+                        input.focus();
+                        openLeadDropdown(input.value.trim());
+                    }
+                });
+            }
+
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !results.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
+                    closeLeadDropdown();
+                }
+            });
+        }
+
+        function selectLeadById(leadId) {
+            fetch(`/orders/api/leads/${leadId}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.lead) {
+                        document.getElementById('leadSearchResults').style.display = 'none';
+                        const toggleBtn = document.getElementById('leadDropdownToggle');
+                        if (toggleBtn) toggleBtn.classList.remove('open');
+                        document.getElementById('leadSearchInput').value = '';
+
+                        if (data.is_already_customer && data.associated_customer) {
+                            pendingLeadData = data;
+                            document.getElementById('confirmModalCustName').textContent = data.associated_customer.name + (data.associated_customer.company ? ` (${data.associated_customer.company})` : '');
+                            document.getElementById('confirmModalCustPhone').textContent = `📞 ${data.associated_customer.phone_number || '—'}`;
+                            document.getElementById('confirmModalCustEmail').textContent = `✉️ ${data.associated_customer.email || '—'}`;
+                            document.getElementById('confirmModalCustReason').textContent = `Match: ${data.associated_customer.match_reason || 'Verified match'}`;
+                            document.getElementById('leadCustomerConfirmModal').style.display = 'flex';
+                        } else {
+                            applySelectedLead(data.lead, null);
+                            showToast(`Selected Lead: ${data.lead.name}`, 'success');
+                        }
+                    } else {
+                        showToast(data.error || 'Lead not found.', 'error');
+                    }
+                })
+                .catch(() => showToast('Failed to load lead details.', 'error'));
+        }
+
+        function cancelLeadCustomerConfirm() {
+            document.getElementById('leadCustomerConfirmModal').style.display = 'none';
+            pendingLeadData = null;
+            showToast('Lead selection cancelled.', 'info');
+        }
+
+        function proceedWithLeadCustomerConfirm() {
+            document.getElementById('leadCustomerConfirmModal').style.display = 'none';
+            if (pendingLeadData && pendingLeadData.lead) {
+                document.getElementById('confirmedLeadOverride').value = 'true';
+                applySelectedLead(pendingLeadData.lead, pendingLeadData.associated_customer);
+                showToast(`Selected Lead: ${pendingLeadData.lead.name} (Linked to existing Customer)`, 'success');
+                pendingLeadData = null;
+            }
+        }
+
+        function applySelectedLead(l, associatedCustomer) {
+            document.getElementById('selectedLeadId').value = l.id;
+
+            if (associatedCustomer) {
+                document.getElementById('associatedCustomerId').value = associatedCustomer.id;
+                document.getElementById('leadLinkedCustomerName').textContent = associatedCustomer.name;
+                document.getElementById('leadLinkedCustomerBadge').style.display = 'inline-block';
+            } else {
+                document.getElementById('associatedCustomerId').value = '';
+                document.getElementById('leadLinkedCustomerBadge').style.display = 'none';
+                document.getElementById('confirmedLeadOverride').value = 'false';
+            }
+
+            // Populate Lead Card
+            document.getElementById('leadCardAvatar').textContent = (l.name || 'L').charAt(0).toUpperCase();
+            document.getElementById('leadCardName').textContent = l.name;
+            document.getElementById('leadCardStatus').textContent = l.status || 'New';
+            document.getElementById('leadCardCompany').textContent = l.company ? `🏢 ${l.company}` : '';
+            document.getElementById('leadCardPhone').textContent = `📞 ${l.phone_number || '—'}`;
+            document.getElementById('leadCardEmail').textContent = `✉️ ${l.email || '—'}`;
+            document.getElementById('leadCardGstin').textContent = l.gst_number ? `🏷️ GSTIN: ${l.gst_number}` : '🏷️ GSTIN: N/A';
+            document.getElementById('leadCardCity').textContent = l.city ? `📍 ${l.city}` : '';
+            document.getElementById('leadCardProfileLink').href = l.profile_url || `/lead/${l.id}`;
+
+            document.getElementById('selectedLeadCard').style.display = 'flex';
+            document.getElementById('customerAddressOverrides').style.display = 'block';
+            document.getElementById('customerStatusTag').textContent = `✓ Lead: ${l.name}`;
+            document.getElementById('customerStatusTag').className = 'section-status-tag active';
+
+            // Auto-populate Order Addresses if empty
+            if (!document.getElementById('billing_address').value) {
+                const parts = [l.address, l.city, l.state, l.pincode].filter(Boolean);
+                document.getElementById('billing_address').value = parts.join(', ');
+            }
+            if (!document.getElementById('shipping_address').value) {
+                document.getElementById('shipping_address').value = document.getElementById('billing_address').value;
+            }
+            if (!document.getElementById('site_address').value) {
+                document.getElementById('site_address').value = document.getElementById('shipping_address').value;
+            }
+
+            // Pre-fill delivery recipient if empty
+            if (!document.getElementById('delivery_contact_person').value) {
+                document.getElementById('delivery_contact_person').value = l.name;
+            }
+            if (!document.getElementById('delivery_contact_phone').value) {
+                document.getElementById('delivery_contact_phone').value = l.phone_number || '';
+            }
+        }
+
+        function clearSelectedLead() {
+            document.getElementById('selectedLeadId').value = '';
+            document.getElementById('associatedCustomerId').value = '';
+            document.getElementById('confirmedLeadOverride').value = 'false';
+            document.getElementById('selectedLeadCard').style.display = 'none';
+            if (document.getElementById('clientEntityMode').value === 'lead') {
+                document.getElementById('customerAddressOverrides').style.display = 'none';
+                document.getElementById('customerStatusTag').textContent = 'No Lead Selected';
+                document.getElementById('customerStatusTag').className = 'section-status-tag';
+            }
+        }
 
         /* ── SECTION COLLAPSE / EXPAND ── */
         function toggleSection(sectionId) {
@@ -2419,13 +2818,24 @@
            SUBMISSION HANDLER
            ══════════════════════════════════════════════════════════════ */
         function submitMasterOrder(actionType) {
-            // Validate Section 01 Customer
-            const custId = document.getElementById('selectedCustomerId').value;
-            if (!custId) {
-                showToast('Please select or create a Customer before submitting.', 'error');
-                document.getElementById('cardCustomer').classList.remove('collapsed');
-                document.getElementById('customerSearchInput').focus();
-                return;
+            // Validate Section 01 Client (Customer or Lead)
+            const mode = document.getElementById('clientEntityMode').value;
+            if (mode === 'customer') {
+                const custId = document.getElementById('selectedCustomerId').value;
+                if (!custId) {
+                    showToast('Please select or create a Customer in Section 01 before submitting.', 'error');
+                    document.getElementById('cardCustomer').classList.remove('collapsed');
+                    document.getElementById('customerSearchInput').focus();
+                    return;
+                }
+            } else {
+                const leadId = document.getElementById('selectedLeadId').value;
+                if (!leadId) {
+                    showToast('Please select a Lead in Section 01 before submitting.', 'error');
+                    document.getElementById('cardCustomer').classList.remove('collapsed');
+                    document.getElementById('leadSearchInput').focus();
+                    return;
+                }
             }
 
             // Validate Section 03 Order Title
