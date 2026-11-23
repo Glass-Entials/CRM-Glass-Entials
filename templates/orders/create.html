@@ -2002,33 +2002,38 @@
     </div>
 
     <!-- Confirmation Dialog: Lead is already a Customer -->
-    <div id="leadCustomerConfirmModal" class="modal-overlay" style="display:none;">
-        <div class="modal-box" style="max-width: 480px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
-                <h3 style="margin: 0; font-size: 1.15rem; color: var(--primary-navy); display:flex; align-items:center; gap:8px;">
+    <div id="leadCustomerConfirmModal" class="custom-modal-backdrop" style="display:none; z-index: 10005;">
+        <div class="custom-modal-box" style="max-width: 500px;">
+            <div class="modal-box-header" style="background: #fff8eb; border-bottom: 1px solid rgba(212, 175, 55, 0.25);">
+                <h3 style="margin: 0; font-size: 1.15rem; color: #92400e; display: flex; align-items: center; gap: 8px;">
                     <span>⚠️</span> This Lead Is Already a Customer
                 </h3>
-                <button type="button" onclick="cancelLeadCustomerConfirm()" style="background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-muted); line-height: 1;">&times;</button>
+                <button type="button" class="modal-close-btn" onclick="cancelLeadCustomerConfirm()">✕</button>
             </div>
-            <p style="font-size: 0.92rem; color: var(--text-main); margin-bottom: 1rem; line-height: 1.5;">
-                This lead is already registered as a customer in the CRM. Are you sure you want to continue with this lead?
-            </p>
-            <div style="background: #f8fafc; border: 1px solid rgba(13,27,42,0.1); border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.5rem;">
-                <div style="font-weight: 700; color: var(--primary-navy); font-size: 0.95rem;" id="confirmModalCustName">Customer Name</div>
-                <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 12px;">
-                    <span id="confirmModalCustPhone">📞 —</span>
-                    <span id="confirmModalCustEmail">✉️ —</span>
+            <div class="modal-box-body" style="padding: 1.5rem 1.75rem;">
+                <p style="font-size: 0.95rem; color: var(--primary-navy); margin-bottom: 1rem; line-height: 1.5; font-weight: 500;">
+                    This lead is already registered as a customer in the CRM. Are you sure you want to continue with this lead?
+                </p>
+                <div style="background: #f8fafc; border: 1px solid rgba(13,27,42,0.1); border-left: 4px solid var(--accent-gold); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
+                    <div style="font-weight: 700; color: var(--primary-navy); font-size: 1rem;" id="confirmModalCustName">Customer Name</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 14px;">
+                        <span id="confirmModalCustPhone">📞 —</span>
+                        <span id="confirmModalCustEmail">✉️ —</span>
+                    </div>
+                    <div style="font-size: 0.8rem; color: #b45309; margin-top: 8px; font-weight: 600; background: rgba(212, 175, 55, 0.15); padding: 3px 8px; border-radius: 6px; display: inline-block;" id="confirmModalCustReason">
+                        Match: Direct conversion record
+                    </div>
                 </div>
-                <div style="font-size: 0.78rem; color: #b45309; margin-top: 6px; font-weight: 600;" id="confirmModalCustReason">
-                    Match: Direct conversion record
+                <div style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+                    ℹ️ Continuing with the lead will retain lead attribution while linking the order to the existing customer master. No duplicate records will be created.
                 </div>
             </div>
-            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
+            <div class="modal-box-footer" style="padding: 1rem 1.75rem; background: #f8fafc; border-top: 1px solid rgba(13, 27, 42, 0.08); display: flex; justify-content: flex-end; gap: 10px;">
                 <button type="button" class="btn-custom outline" onclick="cancelLeadCustomerConfirm()">
                     Cancel
                 </button>
-                <button type="button" class="btn-custom gold" onclick="proceedWithLeadCustomerConfirm()">
-                    Continue with Lead
+                <button type="button" class="btn-custom gold" onclick="proceedWithLeadCustomerConfirm()" style="font-weight: 700;">
+                    ✓ Continue with Lead
                 </button>
             </div>
         </div>
@@ -2079,6 +2084,21 @@
 
             // Initial calculation
             calculateOrderTotals();
+
+            // Dismiss modals when clicking backdrop
+            ['modalNewCustomer', 'modalNewLead', 'modalNewVendor', 'leadCustomerConfirmModal'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('click', (e) => {
+                        if (e.target === el) {
+                            if (id === 'modalNewCustomer') closeNewCustomerModal();
+                            else if (id === 'modalNewLead') closeNewLeadModal();
+                            else if (id === 'modalNewVendor') closeNewVendorModal();
+                            else if (id === 'leadCustomerConfirmModal') cancelLeadCustomerConfirm();
+                        }
+                    });
+                }
+            });
         });
 
         /* ── CLIENT ASSOCIATION: CUSTOMER & LEAD MODES ── */
@@ -2261,6 +2281,15 @@
             });
         }
 
+        function showLeadCustomerConfirm(lead, associatedCustomer) {
+            pendingLeadData = { lead: lead, associated_customer: associatedCustomer };
+            document.getElementById('confirmModalCustName').textContent = associatedCustomer.name + (associatedCustomer.company ? ` (${associatedCustomer.company})` : '');
+            document.getElementById('confirmModalCustPhone').textContent = `📞 ${associatedCustomer.phone_number || '—'}`;
+            document.getElementById('confirmModalCustEmail').textContent = `✉️ ${associatedCustomer.email || '—'}`;
+            document.getElementById('confirmModalCustReason').textContent = `Match: ${associatedCustomer.match_reason || 'Verified match'}`;
+            document.getElementById('leadCustomerConfirmModal').style.display = 'flex';
+        }
+
         function selectLeadById(leadId) {
             fetch(`/orders/api/leads/${leadId}`)
                 .then(r => r.json())
@@ -2272,12 +2301,7 @@
                         document.getElementById('leadSearchInput').value = '';
 
                         if (data.is_already_customer && data.associated_customer) {
-                            pendingLeadData = data;
-                            document.getElementById('confirmModalCustName').textContent = data.associated_customer.name + (data.associated_customer.company ? ` (${data.associated_customer.company})` : '');
-                            document.getElementById('confirmModalCustPhone').textContent = `📞 ${data.associated_customer.phone_number || '—'}`;
-                            document.getElementById('confirmModalCustEmail').textContent = `✉️ ${data.associated_customer.email || '—'}`;
-                            document.getElementById('confirmModalCustReason').textContent = `Match: ${data.associated_customer.match_reason || 'Verified match'}`;
-                            document.getElementById('leadCustomerConfirmModal').style.display = 'flex';
+                            showLeadCustomerConfirm(data.lead, data.associated_customer);
                         } else {
                             applySelectedLead(data.lead, null);
                             showToast(`Selected Lead: ${data.lead.name}`, 'success');
