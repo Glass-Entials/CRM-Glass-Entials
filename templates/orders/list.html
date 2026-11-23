@@ -3,109 +3,768 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Unified Order Cockpit | GlassEntials CRM</title>
+    <title>Order Tracking Dashboard | GlassEntials CRM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=3">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
     <style>
-        /* ── OMS Status Badges ── */
-        .oms-badge {
-            display: inline-block; padding: 3px 10px; border-radius: 20px;
-            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 0.04em; white-space: nowrap;
+        :root {
+            --primary-navy: #0d1b2a;
+            --secondary-navy: #1b263b;
+            --accent-gold: #d4af37;
+            --accent-gold-dark: #b89628;
+            --bg-warm-light: #fdfcf9;
+            --surface-white: #ffffff;
+            --card-border: rgba(13, 27, 42, 0.08);
+            --card-hover-border: rgba(212, 175, 55, 0.4);
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
+            --stage-success: #10b981;
+            --stage-active: #0284c7;
+            --stage-pending: #94a3b8;
+            --stage-warning: #f59e0b;
+            --stage-danger: #ef4444;
         }
-        .ob-draft     { background: rgba(100,116,139,.1);  color: #475569; }
-        .ob-confirmed { background: rgba(2,132,199,.1);    color: #0369a1; }
-        .ob-proc      { background: rgba(245,158,11,.12);  color: #92400e; }
-        .ob-delivery  { background: rgba(99,102,241,.12);  color: #3730a3; }
-        .ob-fitting   { background: rgba(139,92,246,.12);  color: #6b21a8; }
-        .ob-completed { background: rgba(16,185,129,.12);  color: #15803d; }
-        .ob-cancelled { background: rgba(239,68,68,.1);    color: #991b1b; }
-        .ob-paid      { background: rgba(16,185,129,.12);  color: #15803d; }
-        .ob-partial   { background: rgba(245,158,11,.12);  color: #b45309; }
-        .ob-unpaid    { background: rgba(239,68,68,.1);    color: #b91c1c; }
 
-        /* ── Metric cards ── */
-        .oms-metrics {
+        body.dashboard-page {
+            background-color: var(--bg-warm-light);
+            font-family: 'Montserrat', sans-serif;
+            color: var(--text-dark);
+            margin: 0;
+            padding-bottom: 3.5rem;
+        }
+
+        .main-tracking-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem;
+        }
+
+        /* ── Header Cockpit Strip ── */
+        .tracking-header-wrap {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin-bottom: 1.8rem;
+        }
+
+        .header-title-box h1 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 1.85rem;
+            color: var(--primary-navy);
+            margin: 0 0 4px 0;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-title-box p {
+            margin: 0;
+            font-size: 0.88rem;
+            color: var(--text-muted);
+        }
+
+        .header-actions-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-luxury {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.65rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .btn-luxury.gold {
+            background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-dark));
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.25);
+        }
+
+        .btn-luxury.gold:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(212, 175, 55, 0.35);
+        }
+
+        .btn-luxury.outline {
+            background: #ffffff;
+            color: var(--primary-navy);
+            border: 1px solid rgba(13, 27, 42, 0.15);
+        }
+
+        .btn-luxury.outline:hover {
+            background: #f8fafc;
+            border-color: var(--primary-navy);
+        }
+
+        /* ── Executive Metric KPI Strip ── */
+        .oms-kpi-strip {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-            gap: 1.2rem;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.1rem;
+            margin-bottom: 1.8rem;
+        }
+
+        .oms-kpi-card {
+            background: #ffffff;
+            padding: 1.25rem 1.4rem;
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 2px 8px rgba(13, 27, 42, 0.02);
+            border-top: 3.5px solid var(--accent-gold);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .oms-kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(13, 27, 42, 0.06);
+        }
+
+        .oms-kpi-card.blue { border-top-color: #0284c7; }
+        .oms-kpi-card.amber { border-top-color: #f59e0b; }
+        .oms-kpi-card.indigo { border-top-color: #6366f1; }
+        .oms-kpi-card.purple { border-top-color: #8b5cf6; }
+        .oms-kpi-card.green { border-top-color: #10b981; }
+
+        .oms-kpi-card .kpi-val {
+            font-size: 1.65rem;
+            font-weight: 800;
+            color: var(--primary-navy);
+            margin: 0;
+            font-family: 'Playfair Display', Georgia, serif;
+            line-height: 1.2;
+        }
+
+        .oms-kpi-card .kpi-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: block;
+            margin-top: 6px;
+        }
+
+        /* ── Scope Tabs Strip ── */
+        .tracking-tabs-strip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 2px solid rgba(13, 27, 42, 0.08);
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+
+        .tracking-tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.75rem 1.25rem;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .tracking-tab-btn:hover {
+            color: var(--primary-navy);
+        }
+
+        .tracking-tab-btn.active {
+            color: var(--primary-navy);
+            border-bottom-color: var(--accent-gold);
+        }
+
+        .tab-count-pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            background: #f1f5f9;
+            color: var(--text-muted);
+        }
+
+        .tracking-tab-btn.active .tab-count-pill {
+            background: rgba(212, 175, 55, 0.15);
+            color: #92400e;
+        }
+
+        /* ── Multi-Filter Control Console ── */
+        .filter-console-panel {
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid var(--card-border);
+            padding: 1.25rem 1.5rem;
+            box-shadow: 0 2px 10px rgba(13, 27, 42, 0.02);
             margin-bottom: 2rem;
         }
-        .oms-metric-card {
-            background: #fff;
-            padding: 1.4rem 1.6rem;
-            border-radius: 12px;
-            border: 1px solid rgba(13,27,42,0.07);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-            border-left: 4px solid var(--accent-gold);
-            transition: box-shadow 0.2s;
-        }
-        .oms-metric-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
-        .oms-metric-card.blue  { border-left-color: #0284c7; }
-        .oms-metric-card.green { border-left-color: #10b981; }
-        .oms-metric-card.amber { border-left-color: #f59e0b; }
-        .oms-metric-card.purple{ border-left-color: #8b5cf6; }
-        .oms-metric-card.indigo{ border-left-color: #6366f1; }
-        .oms-metric-card h3 {
-            margin: 0; font-size: 1.75rem; font-weight: 800;
-            color: var(--primary-color); font-family: var(--font-heading);
-        }
-        .oms-metric-card span {
-            font-size: 0.78rem; color: var(--text-muted);
-            font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
-            display: block; margin-top: 4px;
+
+        .filter-row-top {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
         }
 
-        /* ── Order Table ── */
-        .oms-table-link {
-            color: var(--accent-gold); font-weight: 700; text-decoration: none;
-            border-bottom: 1px solid transparent; transition: border-color 0.2s;
+        .omni-search-wrap {
+            flex: 1;
+            min-width: 290px;
+            position: relative;
         }
-        .oms-table-link:hover { border-bottom-color: var(--accent-gold); }
 
-        /* ── Filter bar form submit button alignment ── */
-        .oms-filter-actions { display: flex; gap: 10px; align-items: center; }
+        .omni-search-input {
+            width: 100%;
+            padding: 0.8rem 1rem 0.8rem 2.6rem;
+            border: 1px solid rgba(13, 27, 42, 0.14);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: var(--primary-navy);
+            background: #f8fafc;
+            outline: none;
+            box-sizing: border-box;
+            transition: all 0.2s;
+        }
+
+        .omni-search-input:focus {
+            background: #ffffff;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+        }
+
+        .omni-search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1rem;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .filter-row-bottom {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            padding-top: 0.9rem;
+            border-top: 1px dashed rgba(13, 27, 42, 0.07);
+        }
+
+        .filter-select {
+            padding: 0.55rem 0.9rem;
+            border: 1px solid rgba(13, 27, 42, 0.12);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            color: var(--primary-navy);
+            background: #f8fafc;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .filter-select:focus {
+            background: #ffffff;
+            border-color: var(--accent-gold);
+        }
+
+        .btn-filter-reset {
+            margin-left: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 0.45rem 0.9rem;
+            border-radius: 6px;
+            border: 1px solid rgba(13, 27, 42, 0.1);
+            background: #ffffff;
+            transition: all 0.2s;
+        }
+
+        .btn-filter-reset:hover {
+            color: var(--primary-navy);
+            background: #f1f5f9;
+        }
+
+        /* ── Premium Order Tracking Card ── */
+        .order-tracking-card {
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 3px 14px rgba(13, 27, 42, 0.03);
+            margin-bottom: 1.6rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .order-tracking-card:hover {
+            box-shadow: 0 8px 24px rgba(13, 27, 42, 0.07);
+            border-color: var(--card-hover-border);
+        }
+
+        /* Section A: Header */
+        .card-header-section {
+            padding: 1.35rem 1.65rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 1.25rem;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.05);
+        }
+
+        .card-header-left {
+            flex: 1;
+            min-width: 320px;
+        }
+
+        .identity-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .order-id-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--primary-navy);
+            font-family: 'Playfair Display', Georgia, serif;
+            text-decoration: none;
+            letter-spacing: 0.02em;
+        }
+
+        .order-id-title:hover {
+            color: var(--accent-gold);
+        }
+
+        .badge-status {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-status.st-confirmed { background: rgba(2, 132, 199, 0.1); color: #0284c7; }
+        .badge-status.st-proc      { background: rgba(245, 158, 11, 0.12); color: #b45309; }
+        .badge-status.st-delivery  { background: rgba(99, 102, 241, 0.12); color: #4338ca; }
+        .badge-status.st-fitting   { background: rgba(139, 92, 246, 0.12); color: #6d28d9; }
+        .badge-status.st-completed { background: rgba(16, 185, 129, 0.12); color: #059669; }
+        .badge-status.st-draft     { background: rgba(100, 116, 139, 0.1); color: #475569; }
+        .badge-status.st-cancelled { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
+
+        .lead-reference-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            background: rgba(212, 175, 55, 0.12);
+            color: #92400e;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            text-decoration: none;
+            letter-spacing: 0.03em;
+        }
+
+        .lead-reference-pill:hover {
+            background: rgba(212, 175, 55, 0.22);
+        }
+
+        .project-headline {
+            font-size: 0.96rem;
+            font-weight: 700;
+            color: var(--primary-navy);
+            margin: 0 0 6px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .project-meta-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .project-meta-row span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .project-meta-row strong {
+            color: var(--text-dark);
+            font-weight: 600;
+        }
+
+        .overdue-tag {
+            color: #ef4444;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .card-header-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+            text-align: right;
+        }
+
+        .order-value-display {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .order-value-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .order-value-amount {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 1.55rem;
+            font-weight: 800;
+            color: var(--primary-navy);
+            line-height: 1.1;
+            margin-top: 2px;
+        }
+
+        .btn-inspect-360 {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary-navy);
+            color: #ffffff;
+            font-size: 0.82rem;
+            font-weight: 700;
+            padding: 0.55rem 1.15rem;
+            border-radius: 8px;
+            text-decoration: none;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(13, 27, 42, 0.15);
+        }
+
+        .btn-inspect-360:hover {
+            background: var(--secondary-navy);
+            border-color: var(--accent-gold);
+            transform: translateX(2px);
+        }
+
+        /* Section B: Horizontal Workflow Progress Track */
+        .card-workflow-section {
+            padding: 1.25rem 1.65rem;
+            background: #fafbfe;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.05);
+        }
+
+        .workflow-track-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            gap: 15px;
+        }
+
+        .workflow-stage-node {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            background: #ffffff;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            border: 1px solid rgba(13, 27, 42, 0.08);
+            box-shadow: 0 1px 4px rgba(13, 27, 42, 0.02);
+            transition: all 0.2s;
+        }
+
+        .workflow-stage-node.completed {
+            border-color: rgba(16, 185, 129, 0.4);
+            background: rgba(16, 185, 129, 0.04);
+        }
+
+        .workflow-stage-node.active {
+            border-color: rgba(2, 132, 199, 0.45);
+            background: rgba(2, 132, 199, 0.04);
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.1);
+        }
+
+        .workflow-stage-node.warning {
+            border-color: rgba(245, 158, 11, 0.45);
+            background: rgba(245, 158, 11, 0.04);
+        }
+
+        .stage-icon-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 800;
+            flex-shrink: 0;
+            background: #f1f5f9;
+            color: var(--text-muted);
+        }
+
+        .workflow-stage-node.completed .stage-icon-circle {
+            background: var(--stage-success);
+            color: #ffffff;
+        }
+
+        .workflow-stage-node.active .stage-icon-circle {
+            background: var(--stage-active);
+            color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+            animation: pulse-ring 2s infinite;
+        }
+
+        .workflow-stage-node.warning .stage-icon-circle {
+            background: var(--stage-warning);
+            color: #ffffff;
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(2, 132, 199, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0); }
+        }
+
+        .stage-content-box {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .stage-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--primary-navy);
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .stage-detail {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin: 2px 0 0 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .workflow-stage-node.completed .stage-detail { color: #047857; font-weight: 600; }
+        .workflow-stage-node.active .stage-detail { color: #0369a1; font-weight: 600; }
+        .workflow-stage-node.warning .stage-detail { color: #b45309; font-weight: 600; }
+
+        .workflow-track-arrow {
+            font-size: 1.1rem;
+            color: rgba(13, 27, 42, 0.25);
+            flex-shrink: 0;
+        }
+
+        /* Section C: Operational Summary Grid */
+        .card-ops-section {
+            padding: 1.1rem 1.65rem;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 1.1rem;
+            background: #ffffff;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.05);
+        }
+
+        .ops-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .ops-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .ops-value {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary-navy);
+            word-break: break-word;
+        }
+
+        .ops-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            width: fit-content;
+        }
+
+        .qc-passed   { background: rgba(16, 185, 129, 0.1); color: #047857; }
+        .qc-pending  { background: rgba(245, 158, 11, 0.1); color: #b45309; }
+        .qc-failed   { background: rgba(239, 68, 68, 0.1); color: #b91c1c; }
+        .qc-neutral  { background: #f1f5f9; color: var(--text-muted); }
+
+        .pay-paid    { background: rgba(16, 185, 129, 0.1); color: #047857; }
+        .pay-partial { background: rgba(245, 158, 11, 0.12); color: #b45309; }
+        .pay-unpaid  { background: rgba(239, 68, 68, 0.1); color: #b91c1c; }
+        .pay-overdue { background: rgba(239, 68, 68, 0.15); color: #991b1b; font-weight: 800; }
+        .pay-neutral { background: #f1f5f9; color: var(--text-muted); }
+
+        /* Section D: Latest Milestone */
+        .card-milestone-footer {
+            padding: 0.8rem 1.65rem;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .milestone-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 280px;
+        }
+
+        .milestone-icon {
+            font-size: 0.95rem;
+            color: var(--accent-gold);
+            flex-shrink: 0;
+        }
+
+        .milestone-text {
+            color: var(--text-dark);
+            font-weight: 500;
+        }
+
+        .milestone-time {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* ── Responsive adjustments ── */
+        @media (max-width: 1080px) {
+            .card-ops-section {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .workflow-track-wrapper {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .workflow-track-arrow {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-tracking-container {
+                padding: 1rem;
+            }
+            .card-ops-section {
+                grid-template-columns: 1fr 1fr;
+            }
+            .card-header-right {
+                align-items: flex-start;
+                text-align: left;
+                width: 100%;
+            }
+            .order-value-display {
+                align-items: flex-start;
+            }
+        }
     </style>
 </head>
 <body class="dashboard-page">
     {% include 'includes/navbar.html' %}
 
-    <main class="container">
+    <main class="main-tracking-container">
 
         <!-- Flash Messages -->
         {% with messages = get_flashed_messages(category_filter=["order_success"]) %}
         {% if messages %}{% for msg in messages %}
-        <div class="flash-message" style="padding:15px; background-color:rgba(16,185,129,0.08); border-left:4px solid #10b981; font-family:var(--font-body); color:var(--primary-color); display:flex; align-items:center; gap:10px; margin-bottom:1.5rem; border-radius:4px;">
+        <div class="flash-message" style="padding:14px 18px; background-color:rgba(16,185,129,0.08); border-left:4px solid #10b981; color:#065f46; display:flex; align-items:center; gap:10px; margin-bottom:1.5rem; border-radius:6px; font-weight:600; font-size:0.9rem;">
             <span style="color:#10b981;font-size:1.2rem;line-height:1;">✓</span> {{ msg }}
         </div>
         {% endfor %}{% endif %}{% endwith %}
 
         {% with messages = get_flashed_messages(category_filter=["order_error"]) %}
         {% if messages %}{% for msg in messages %}
-        <div class="flash-message" style="padding:15px; background-color:rgba(139,0,0,0.04); border-left:4px solid rgba(139,0,0,0.5); font-family:var(--font-body); color:#8b0000; display:flex; align-items:center; gap:10px; margin-bottom:1.5rem; border-radius:4px;">
+        <div class="flash-message" style="padding:14px 18px; background-color:rgba(239,68,68,0.08); border-left:4px solid #ef4444; color:#991b1b; display:flex; align-items:center; gap:10px; margin-bottom:1.5rem; border-radius:6px; font-weight:600; font-size:0.9rem;">
             <span style="font-size:1.2rem;line-height:1;">⚠</span> {{ msg }}
         </div>
         {% endfor %}{% endif %}{% endwith %}
 
-        <!-- Top Bar -->
-        <div class="top-bar">
-            <div class="search-bar">
-                <span class="search-icon">🔍</span>
-                <form method="GET" action="{{ url_for('orders.list_orders') }}" id="searchForm" style="display:contents;">
-                    <input type="text" name="q" placeholder="Search orders, customers, IDs..." value="{{ search_query }}" id="orderSearchInput" onchange="document.getElementById('searchForm').submit()">
-                    <!-- preserve other filters on search -->
-                    {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
-                    {% if payment_filter %}<input type="hidden" name="customer_payment_status" value="{{ payment_filter }}">{% endif %}
-                </form>
+        <!-- Header Cockpit Strip -->
+        <div class="tracking-header-wrap">
+            <div class="header-title-box">
+                <h1><span>📋</span> Order Tracking Dashboard</h1>
+                <p>Real-time lifecycle tracking across fabrication, logistics, and site installation</p>
             </div>
-            <div class="btn-group">
-                <div class="export-dropdown">
-                    <button class="btn-action outline export-trigger">📤 Export ▾</button>
+            <div class="header-actions-group">
+                <div class="export-dropdown" style="position:relative;">
+                    <button class="btn-luxury outline export-trigger">📤 Export ▾</button>
                     <div class="export-menu">
                         <div class="export-menu-inner">
                             <a href="{{ url_for('orders.export_orders_csv', q=search_query, status=status_filter) }}">📄 Export CSV</a>
@@ -113,195 +772,356 @@
                         </div>
                     </div>
                 </div>
-                <a href="{{ url_for('orders.orders_dashboard') }}" class="btn-action outline" style="text-decoration:none;">📊 Dashboard</a>
-                <a href="{{ url_for('orders.new_order') }}" class="btn-action gold" style="text-decoration:none;">➕ Create Order</a>
+                <a href="{{ url_for('orders.orders_dashboard') }}" class="btn-luxury outline">📊 Analytics Cockpit</a>
+                <a href="{{ url_for('orders.new_order') }}" class="btn-luxury gold">➕ Create Master Order</a>
             </div>
         </div>
 
-        <!-- Metric Cards -->
-        <div class="oms-metrics">
-            <div class="oms-metric-card blue">
-                <h3>{{ metrics.total_orders }}</h3>
-                <span>Total Master Orders</span>
+        <!-- Executive KPI Metric Strip -->
+        <div class="oms-kpi-strip">
+            <div class="oms-kpi-card blue">
+                <div class="kpi-val">{{ metrics.total_active_orders }}</div>
+                <span class="kpi-label">Active Orders</span>
             </div>
-            <div class="oms-metric-card amber">
-                <h3>{{ metrics.in_procurement }}</h3>
-                <span>In Procurement / Transit</span>
+            <div class="oms-kpi-card amber">
+                <div class="kpi-val">{{ metrics.in_procurement }}</div>
+                <span class="kpi-label">Vendor &amp; QC Active</span>
             </div>
-            <div class="oms-metric-card indigo">
-                <h3>{{ metrics.in_delivery }}</h3>
-                <span>In Customer Delivery</span>
+            <div class="oms-kpi-card indigo">
+                <div class="kpi-val">{{ metrics.in_delivery }}</div>
+                <span class="kpi-label">In Transit / Delivery</span>
             </div>
-            <div class="oms-metric-card purple">
-                <h3>{{ metrics.in_fitting }}</h3>
-                <span>Site Fitting Active</span>
+            <div class="oms-kpi-card purple">
+                <div class="kpi-val">{{ metrics.in_fitting }}</div>
+                <span class="kpi-label">Site Fitting Active</span>
             </div>
-            <div class="oms-metric-card green">
-                <h3>{{ metrics.completed }}</h3>
-                <span>Fully Completed</span>
+            <div class="oms-kpi-card green">
+                <div class="kpi-val">{{ metrics.completed }}</div>
+                <span class="kpi-label">Completed &amp; Handover</span>
             </div>
-            <div class="oms-metric-card">
-                <h3 style="font-size:1.3rem;">₹{{ "{:,.0f}".format(metrics.total_revenue) }}</h3>
-                <span>Total Order Value</span>
+            <div class="oms-kpi-card">
+                <div class="kpi-val" style="font-size:1.45rem;">₹{{ "{:,.0f}".format(metrics.total_revenue) }}</div>
+                <span class="kpi-label">Total Booked Value</span>
+            </div>
+            <div class="oms-kpi-card">
+                <div class="kpi-val" style="font-size:1.45rem; color:#b45309;">₹{{ "{:,.0f}".format(metrics.total_outstanding) }}</div>
+                <span class="kpi-label">Balance Outstanding</span>
             </div>
         </div>
 
-        <!-- Filter Bar -->
-        <form method="GET" action="{{ url_for('orders.list_orders') }}" id="filterForm">
-            <div class="filter-bar" style="display:flex; gap:1.2rem; align-items:center; margin-bottom:2rem; background:#fff; padding:1.25rem 1.5rem; border-radius:12px; border:1px solid rgba(13,27,42,0.1); box-shadow:0 2px 10px rgba(0,0,0,0.03); flex-wrap:wrap;">
-                <div style="display:flex; align-items:center; gap:8px; color:var(--primary-color); font-weight:700; font-size:0.9rem; text-transform:uppercase; letter-spacing:0.05em; flex-shrink:0;">
-                    <span style="font-size:1.2rem;">⚡</span> Filters
+        <!-- Scope Tabs Strip (Distinguishes Active Operational Orders vs Drafts) -->
+        <div class="tracking-tabs-strip">
+            <a href="{{ url_for('orders.list_orders', scope='active') }}" class="tracking-tab-btn {% if scope == 'active' and not status_filter %}active{% endif %}">
+                <span>⚡ Active Operational Orders</span>
+                <span class="tab-count-pill">{{ metrics.total_active_orders }}</span>
+            </a>
+            <a href="{{ url_for('orders.list_orders', status='IN_PROCUREMENT') }}" class="tracking-tab-btn {% if status_filter == 'IN_PROCUREMENT' %}active{% endif %}">
+                <span>🏭 In Procurement &amp; QC</span>
+                <span class="tab-count-pill">{{ metrics.in_procurement }}</span>
+            </a>
+            <a href="{{ url_for('orders.list_orders', status='IN_DELIVERY') }}" class="tracking-tab-btn {% if status_filter == 'IN_DELIVERY' %}active{% endif %}">
+                <span>🚚 In Transit &amp; Delivery</span>
+                <span class="tab-count-pill">{{ metrics.in_delivery }}</span>
+            </a>
+            <a href="{{ url_for('orders.list_orders', status='IN_FITTING') }}" class="tracking-tab-btn {% if status_filter == 'IN_FITTING' %}active{% endif %}">
+                <span>🔧 In Site Fitting</span>
+                <span class="tab-count-pill">{{ metrics.in_fitting }}</span>
+            </a>
+            <a href="{{ url_for('orders.list_orders', status='COMPLETED') }}" class="tracking-tab-btn {% if status_filter in ['COMPLETED', 'CLOSED'] %}active{% endif %}">
+                <span>✓ Completed</span>
+                <span class="tab-count-pill">{{ metrics.completed }}</span>
+            </a>
+            <a href="{{ url_for('orders.list_orders', scope='draft') }}" class="tracking-tab-btn {% if scope == 'draft' or status_filter == 'DRAFT' %}active{% endif %}" style="margin-left:auto;">
+                <span>📝 Draft Orders</span>
+                <span class="tab-count-pill">{{ metrics.draft_orders }}</span>
+            </a>
+        </div>
+
+        <!-- Multi-Filter Control Console -->
+        <div class="filter-console-panel">
+            <form method="GET" action="{{ url_for('orders.list_orders') }}" id="filterConsoleForm">
+                {% if scope %}<input type="hidden" name="scope" value="{{ scope }}">{% endif %}
+
+                <!-- Top Row: Omni-Search Bar -->
+                <div class="filter-row-top">
+                    <div class="omni-search-wrap">
+                        <span class="omni-search-icon">🔍</span>
+                        <input type="text" name="q" class="omni-search-input" placeholder="Search by Order #, Customer, Project, Lead ID, Phone, City..." value="{{ search_query }}" onkeydown="if(event.key==='Enter') document.getElementById('filterConsoleForm').submit();">
+                    </div>
+                    <button type="submit" class="btn-luxury outline" style="padding:0.75rem 1.4rem;">Search Orders</button>
                 </div>
-                <div class="filter-group" style="display:flex; gap:12px; align-items:center; flex:1; flex-wrap:wrap;">
-                    {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
 
-                    <div style="position:relative; min-width:170px;">
-                        <select name="status" class="form-control" style="padding:0.7rem 1rem; height:auto; font-size:0.9rem; border-radius:8px; border:1px solid rgba(13,27,42,0.15); background:#f8fafc; cursor:pointer; width:100%;" onchange="document.getElementById('filterForm').submit()">
-                            <option value="">All Statuses</option>
-                            {% for st in master_statuses %}
-                            <option value="{{ st }}" {% if status_filter == st %}selected{% endif %}>{{ st }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                <!-- Bottom Row: Multi-Criteria Selectors -->
+                <div class="filter-row-bottom">
+                    <!-- Status Filter -->
+                    <select name="status" class="filter-select" onchange="document.getElementById('filterConsoleForm').submit()">
+                        <option value="">All Statuses</option>
+                        {% for st in master_statuses %}
+                        <option value="{{ st }}" {% if status_filter == st %}selected{% endif %}>{{ st.replace('_', ' ').title() }}</option>
+                        {% endfor %}
+                    </select>
 
-                    <div style="position:relative; min-width:190px;">
-                        <select name="procurement_status" class="form-control" style="padding:0.7rem 1rem; height:auto; font-size:0.9rem; border-radius:8px; border:1px solid rgba(13,27,42,0.15); background:#f8fafc; cursor:pointer; width:100%;" onchange="document.getElementById('filterForm').submit()">
-                            <option value="">Procurement Status</option>
-                            <option value="DRAFT" {% if procurement_filter == 'DRAFT' %}selected{% endif %}>Draft</option>
-                            <option value="PO_ISSUED" {% if procurement_filter == 'PO_ISSUED' %}selected{% endif %}>In Procurement / Ordered</option>
-                            <option value="IN_TRANSIT" {% if procurement_filter == 'IN_TRANSIT' %}selected{% endif %}>In Transit</option>
-                            <option value="RECEIVED" {% if procurement_filter == 'RECEIVED' %}selected{% endif %}>Received</option>
-                        </select>
-                    </div>
+                    <!-- Vendor Filter -->
+                    <select name="vendor_id" class="filter-select" onchange="document.getElementById('filterConsoleForm').submit()">
+                        <option value="">All Fabricators / Vendors</option>
+                        {% for v in vendors %}
+                        <option value="{{ v.id }}" {% if vendor_filter == v.id %}selected{% endif %}>{{ v.company_name }}</option>
+                        {% endfor %}
+                    </select>
 
-                    <div style="position:relative; min-width:180px;">
-                        <select name="delivery_status" class="form-control" style="padding:0.7rem 1rem; height:auto; font-size:0.9rem; border-radius:8px; border:1px solid rgba(13,27,42,0.15); background:#f8fafc; cursor:pointer; width:100%;" onchange="document.getElementById('filterForm').submit()">
-                            <option value="">Delivery Status</option>
-                            <option value="SCHEDULED" {% if delivery_filter == 'SCHEDULED' %}selected{% endif %}>Scheduled</option>
-                            <option value="OUT_FOR_DELIVERY" {% if delivery_filter == 'OUT_FOR_DELIVERY' %}selected{% endif %}>Out for Delivery</option>
-                            <option value="DELIVERED" {% if delivery_filter == 'DELIVERED' %}selected{% endif %}>Delivered</option>
-                        </select>
-                    </div>
+                    <!-- Project Manager Filter -->
+                    <select name="pm_id" class="filter-select" onchange="document.getElementById('filterConsoleForm').submit()">
+                        <option value="">All Project Managers</option>
+                        {% for pm in project_managers %}
+                        <option value="{{ pm.id }}" {% if pm_filter == pm.id %}selected{% endif %}>{{ pm.name }}</option>
+                        {% endfor %}
+                    </select>
 
-                    <div style="position:relative; min-width:190px;">
-                        <select name="customer_payment_status" class="form-control" style="padding:0.7rem 1rem; height:auto; font-size:0.9rem; border-radius:8px; border:1px solid rgba(13,27,42,0.15); background:#f8fafc; cursor:pointer; width:100%;" onchange="document.getElementById('filterForm').submit()">
-                            <option value="">Customer Payment</option>
-                            <option value="UNPAID" {% if payment_filter == 'UNPAID' %}selected{% endif %}>Unpaid</option>
-                            <option value="PARTIALLY_PAID" {% if payment_filter == 'PARTIALLY_PAID' %}selected{% endif %}>Partially Paid</option>
-                            <option value="PAID" {% if payment_filter == 'PAID' %}selected{% endif %}>Paid</option>
-                        </select>
-                    </div>
+                    <!-- Delivery Status Filter -->
+                    <select name="delivery_status" class="filter-select" onchange="document.getElementById('filterConsoleForm').submit()">
+                        <option value="">Delivery Status</option>
+                        <option value="SCHEDULED" {% if delivery_filter == 'SCHEDULED' %}selected{% endif %}>Scheduled</option>
+                        <option value="OUT_FOR_DELIVERY" {% if delivery_filter == 'OUT_FOR_DELIVERY' %}selected{% endif %}>Out for Delivery</option>
+                        <option value="PARTIALLY_DELIVERED" {% if delivery_filter == 'PARTIALLY_DELIVERED' %}selected{% endif %}>Partially Delivered</option>
+                        <option value="DELIVERED" {% if delivery_filter == 'DELIVERED' %}selected{% endif %}>Delivered</option>
+                    </select>
+
+                    <!-- Payment Status Filter -->
+                    <select name="customer_payment_status" class="filter-select" onchange="document.getElementById('filterConsoleForm').submit()">
+                        <option value="">Payment Status</option>
+                        <option value="UNPAID" {% if payment_filter == 'UNPAID' %}selected{% endif %}>Unpaid / Advance Pending</option>
+                        <option value="PARTIALLY_PAID" {% if payment_filter == 'PARTIALLY_PAID' %}selected{% endif %}>Partially Paid</option>
+                        <option value="PAID" {% if payment_filter == 'PAID' %}selected{% endif %}>Fully Paid</option>
+                    </select>
+
+                    <!-- Due Date Filter -->
+                    <select name="due_date" class="filter-select" onchange="document.getElementById('filterConsoleForm').submit()">
+                        <option value="">All Due Dates</option>
+                        <option value="overdue" {% if due_date_filter == 'overdue' %}selected{% endif %}>⚠ Overdue Only</option>
+                        <option value="today" {% if due_date_filter == 'today' %}selected{% endif %}>Due Today</option>
+                        <option value="upcoming" {% if due_date_filter == 'upcoming' %}selected{% endif %}>Upcoming</option>
+                    </select>
+
+                    <!-- Sort Filter -->
+                    <select name="sort_by" class="filter-select" onchange="document.getElementById('filterConsoleForm').submit()">
+                        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest First</option>
+                        <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest First</option>
+                        <option value="due_date_asc" {% if sort_by == 'due_date_asc' %}selected{% endif %}>Due Date (Earliest)</option>
+                        <option value="due_date_desc" {% if sort_by == 'due_date_desc' %}selected{% endif %}>Due Date (Latest)</option>
+                        <option value="value_desc" {% if sort_by == 'value_desc' %}selected{% endif %}>Order Value (High to Low)</option>
+                        <option value="value_asc" {% if sort_by == 'value_asc' %}selected{% endif %}>Order Value (Low to High)</option>
+                    </select>
+
+                    <a href="{{ url_for('orders.list_orders', scope=scope) }}" class="btn-filter-reset" title="Reset all search filters">
+                        <span>🔄</span> Reset Filters
+                    </a>
                 </div>
-                <a href="{{ url_for('orders.list_orders') }}" class="action-pill edit-pill" style="padding:0.6rem 1.2rem; display:flex; align-items:center; gap:6px; background:#fff; text-decoration:none; border-radius:20px;">
-                    <span>🔄</span> Reset
-                </a>
-            </div>
-        </form>
+            </form>
+        </div>
 
-        <!-- Orders Table -->
-        <div class="panel">
-            <div class="table-responsive" style="overflow-x:auto;">
-                <table class="customer-table" style="width:100%;">
-                    <thead>
-                        <tr>
-                            <th>Order ID</th>
-                            <th>Title &amp; Customer</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                            <th>Procurement</th>
-                            <th>Delivery</th>
-                            <th>Fitting</th>
-                            <th>Net Amount</th>
-                            <th>Payment</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if orders %}
-                        {% for ord in orders %}
-                        <tr>
-                            <td>
-                                <a href="{{ url_for('orders.detail_order', order_id=ord.id) }}" class="oms-table-link">
+        <!-- Order Tracking Cards Listing -->
+        <div class="orders-tracking-list-wrapper">
+            {% if orders %}
+                {% for ord in orders %}
+                {% set card = ord.tracking_card %}
+                <div class="order-tracking-card" id="order-card-{{ ord.id }}">
+                    <!-- Section A: Identity Header -->
+                    <div class="card-header-section">
+                        <div class="card-header-left">
+                            <div class="identity-badge-row">
+                                <a href="{{ url_for('orders.detail_order', order_id=ord.id) }}" class="order-id-title" title="Open 360° Order Details">
                                     {{ ord.master_order_number }}
                                 </a>
-                            </td>
-                            <td>
-                                <strong style="color:var(--primary-color);">{{ ord.order_title }}</strong><br>
-                                <small style="color:var(--text-muted);">{{ ord.customer.name if ord.customer else 'No Customer' }}</small>
-                            </td>
-                            <td style="font-size:0.88rem; color:var(--text-muted);">{{ ord.order_date.strftime('%d %b %Y') if (ord.order_date and ord.order_date.strftime is defined) else (ord.order_date or '—') }}</td>
-                            <td>
-                                {% set st = ord.status %}
-                                <span class="oms-badge
-                                    {% if st == 'CONFIRMED' %}ob-confirmed
-                                    {% elif 'PROCUREMENT' in st or 'RECEIVED' in st %}ob-proc
-                                    {% elif 'DELIVER' in st %}ob-delivery
-                                    {% elif 'FITTING' in st %}ob-fitting
-                                    {% elif st in ['COMPLETED', 'CLOSED'] %}ob-completed
-                                    {% elif st == 'CANCELLED' %}ob-cancelled
-                                    {% else %}ob-draft{% endif %}">{{ st }}</span>
-                            </td>
-                            <td><span class="oms-badge ob-draft">{{ ord.procurement_status }}</span></td>
-                            <td><span class="oms-badge ob-draft">{{ ord.delivery_status }}</span></td>
-                            <td><span class="oms-badge ob-draft">{{ ord.fitting_status }}</span></td>
-                            <td><strong style="color:var(--primary-color);">₹{{ "{:,.2f}".format(ord.net_order_amount) }}</strong></td>
-                            <td>
-                                {% set pst = ord.customer_payment_status %}
-                                <span class="oms-badge {% if pst == 'PAID' %}ob-paid{% elif pst == 'PARTIALLY_PAID' %}ob-partial{% else %}ob-unpaid{% endif %}">{{ pst }}</span>
-                            </td>
-                            <td>
-                                <div class="table-actions-dropdown">
-                                    <button class="action-trigger" title="Actions">⋮</button>
-                                    <div class="action-menu">
-                                        <a href="{{ url_for('orders.detail_order', order_id=ord.id) }}">
-                                            <span class="icon">📋</span> Open Cockpit
-                                        </a>
-                                        <a href="{{ url_for('orders.export_order_pdf', order_id=ord.id) }}">
-                                            <span class="icon">📄</span> Export PDF
-                                        </a>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
-                        <tr>
-                            <td colspan="10" style="text-align:center; padding:5rem 2.5rem; color:var(--text-muted);">
-                                <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-                                    <div style="font-size:3.5rem; opacity:0.15; filter:grayscale(1);">📋</div>
-                                    <h3 style="font-weight:700; font-size:1.25rem; color:var(--primary-color); margin:0;">No Orders Found</h3>
-                                    <p style="margin:0; opacity:0.7; max-width:320px;">No orders match the current filters. Create your first order or adjust the search criteria.</p>
-                                    <a href="{{ url_for('orders.new_order') }}" class="btn-action gold" style="text-decoration:none; margin-top:10px; padding:0.8rem 2rem;">Create First Order →</a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
 
-            <!-- Pagination -->
-            {% if pagination and pagination.pages > 1 %}
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1.5rem; flex-wrap:wrap; gap:1rem;">
-                <span style="font-size:0.9rem; color:var(--text-muted); font-weight:500;">
-                    Page {{ pagination.page }} of {{ pagination.pages }} &nbsp;·&nbsp; {{ pagination.total }} total orders
-                </span>
-                <div class="pagination" style="display:flex; gap:5px;">
-                    {% if pagination.page > 1 %}
-                    <a href="{{ url_for('orders.list_orders', page=pagination.page-1, q=search_query, status=status_filter) }}" class="btn-action outline" style="padding:0.4rem 0.8rem; font-size:0.85rem;">← Prev</a>
-                    {% endif %}
-                    {% if pagination.page < pagination.pages %}
-                    <a href="{{ url_for('orders.list_orders', page=pagination.page+1, q=search_query, status=status_filter) }}" class="btn-action outline" style="padding:0.4rem 0.8rem; font-size:0.85rem;">Next →</a>
-                    {% endif %}
+                                {% set st = ord.status %}
+                                <span class="badge-status
+                                    {% if st == 'CONFIRMED' %}st-confirmed
+                                    {% elif 'PROCUREMENT' in st or 'RECEIVED' in st %}st-proc
+                                    {% elif 'DELIVER' in st %}st-delivery
+                                    {% elif 'FITTING' in st %}st-fitting
+                                    {% elif st in ['COMPLETED', 'CLOSED'] %}st-completed
+                                    {% elif st == 'CANCELLED' %}st-cancelled
+                                    {% else %}st-draft{% endif %}">
+                                    {{ st.replace('_', ' ') }}
+                                </span>
+
+                                {% if card.lead_ref %}
+                                <a href="#" class="lead-reference-pill" title="Linked CRM Lead (Integration-ready reference)" onclick="return false;">
+                                    <span>🎯</span> {{ card.lead_ref }}
+                                </a>
+                                {% endif %}
+                            </div>
+
+                            <div class="project-headline">
+                                <span>🏢</span> {{ card.project_title or 'Architectural Glazing Order' }}
+                            </div>
+
+                            <div class="project-meta-row">
+                                <span>👤 <strong>{{ card.customer_name }}</strong></span>
+                                <span>📍 {{ card.project_location }}</span>
+                                <span>👷 PM: <strong>{{ card.assigned_pm }}</strong></span>
+                                <span>📅 Due: <strong>{{ card.expected_delivery_formatted }}</strong>
+                                    {% if card.is_overdue %}<strong class="overdue-tag">⚠ Overdue</strong>{% endif %}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="card-header-right">
+                            <div class="order-value-display">
+                                <span class="order-value-label">Order Value</span>
+                                <span class="order-value-amount">{{ card.order_value_formatted }}</span>
+                            </div>
+                            <a href="{{ url_for('orders.detail_order', order_id=ord.id) }}" class="btn-inspect-360" title="Inspect complete 360° Order Details">
+                                Inspect 360° <span>→</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Section B: Horizontal Workflow Progress Indicator -->
+                    <div class="card-workflow-section">
+                        <div class="workflow-track-wrapper">
+                            <!-- Stage 1: Vendor & QC -->
+                            {% set s1 = card.workflow.stage1 %}
+                            <div class="workflow-stage-node {{ s1.state }}">
+                                <div class="stage-icon-circle">{{ s1.icon }}</div>
+                                <div class="stage-content-box">
+                                    <h4 class="stage-title">1. {{ s1.label }}</h4>
+                                    <span class="stage-detail">{{ s1.detail }}</span>
+                                </div>
+                            </div>
+
+                            <div class="workflow-track-arrow">▶</div>
+
+                            <!-- Stage 2: Transport -->
+                            {% set s2 = card.workflow.stage2 %}
+                            <div class="workflow-stage-node {{ s2.state }}">
+                                <div class="stage-icon-circle">{{ s2.icon }}</div>
+                                <div class="stage-content-box">
+                                    <h4 class="stage-title">2. {{ s2.label }}</h4>
+                                    <span class="stage-detail">{{ s2.detail }}</span>
+                                </div>
+                            </div>
+
+                            <div class="workflow-track-arrow">▶</div>
+
+                            <!-- Stage 3: Unloading & Fitting -->
+                            {% set s3 = card.workflow.stage3 %}
+                            <div class="workflow-stage-node {{ s3.state }}">
+                                <div class="stage-icon-circle">{{ s3.icon }}</div>
+                                <div class="stage-content-box">
+                                    <h4 class="stage-title">3. {{ s3.label }}</h4>
+                                    <span class="stage-detail">{{ s3.detail }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section C: Operational Summary Grid -->
+                    <div class="card-ops-section">
+                        <!-- 1. Vendor / Fabricator -->
+                        <div class="ops-cell">
+                            <span class="ops-label">Vendor / Fabricator</span>
+                            <span class="ops-value" title="{{ card.vendor_display }}">{{ card.vendor_display }}</span>
+                        </div>
+
+                        <!-- 2. Pre-Dispatch QC -->
+                        <div class="ops-cell">
+                            <span class="ops-label">Pre-Dispatch QC</span>
+                            <span class="ops-badge {{ card.qc_badge_class }}">
+                                {% if card.qc_badge_class == 'qc-passed' %}✓{% elif card.qc_badge_class == 'qc-failed' %}✕{% else %}○{% endif %}
+                                {{ card.qc_status_label }}
+                            </span>
+                        </div>
+
+                        <!-- 3. Delivery / Transit -->
+                        <div class="ops-cell">
+                            <span class="ops-label">Delivery / Transit</span>
+                            <span class="ops-value">
+                                {{ card.delivery_status_label }}
+                                {% if card.transporter_name %}<small style="color:var(--text-muted); display:block; font-size:0.75rem;">via {{ card.transporter_name }}</small>{% endif %}
+                            </span>
+                        </div>
+
+                        <!-- 4. Advance Paid -->
+                        <div class="ops-cell">
+                            <span class="ops-label">Advance Paid</span>
+                            <span class="ops-value" style="color:#047857; font-weight:700;">{{ card.advance_display }}</span>
+                        </div>
+
+                        <!-- 5. Balance Due -->
+                        <div class="ops-cell">
+                            <span class="ops-label">Balance Due</span>
+                            <span class="ops-value" style="color:#b45309; font-weight:700;">{{ card.balance_due_display }}</span>
+                        </div>
+
+                        <!-- 6. Payment Status -->
+                        <div class="ops-cell">
+                            <span class="ops-label">Payment Status</span>
+                            <span class="ops-badge {{ card.payment_status_class }}">
+                                {{ card.payment_status_label }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Section D: Latest Milestone -->
+                    <div class="card-milestone-footer">
+                        <div class="milestone-left">
+                            <span class="milestone-icon">📌</span>
+                            <span class="milestone-text">
+                                <strong>Latest Milestone:</strong> {{ card.latest_milestone }}
+                            </span>
+                        </div>
+                        {% if card.latest_milestone_time %}
+                        <span class="milestone-time">🕒 {{ card.latest_milestone_time }}</span>
+                        {% endif %}
+                    </div>
                 </div>
-            </div>
+                {% endfor %}
+            {% else %}
+                <!-- Empty State -->
+                <div class="order-tracking-card" style="padding: 4.5rem 2rem; text-align: center;">
+                    <div style="max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 14px;">
+                        <div style="font-size: 3.5rem; opacity: 0.25;">📋</div>
+                        <h2 style="font-family:'Playfair Display', Georgia, serif; font-size:1.45rem; color:var(--primary-navy); margin:0;">
+                            No Orders Found
+                        </h2>
+                        <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0;">
+                            No orders match the current filter or search criteria. Adjust your search parameters or initialize a new master order.
+                        </p>
+                        <div style="display:flex; gap:10px; margin-top:8px;">
+                            <a href="{{ url_for('orders.list_orders') }}" class="btn-luxury outline">Reset Filters</a>
+                            <a href="{{ url_for('orders.new_order') }}" class="btn-luxury gold">➕ Create Master Order</a>
+                        </div>
+                    </div>
+                </div>
             {% endif %}
         </div>
+
+        <!-- Pagination Controls -->
+        {% if pagination and pagination.pages > 1 %}
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2rem; flex-wrap:wrap; gap:1rem; padding: 0.5rem 0;">
+            <span style="font-size:0.86rem; color:var(--text-muted); font-weight:600;">
+                Showing Page {{ pagination.page }} of {{ pagination.pages }} &nbsp;·&nbsp; {{ pagination.total }} Total Orders
+            </span>
+            <div style="display:flex; gap:8px;">
+                {% if pagination.page > 1 %}
+                <a href="{{ url_for('orders.list_orders', page=pagination.page-1, q=search_query, status=status_filter, procurement_status=procurement_filter, delivery_status=delivery_filter, customer_payment_status=payment_filter, vendor_id=vendor_filter, pm_id=pm_filter, due_date=due_date_filter, sort_by=sort_by, scope=scope) }}" class="btn-luxury outline" style="padding:0.45rem 1rem;">
+                    ← Previous
+                </a>
+                {% endif %}
+                {% if pagination.page < pagination.pages %}
+                <a href="{{ url_for('orders.list_orders', page=pagination.page+1, q=search_query, status=status_filter, procurement_status=procurement_filter, delivery_status=delivery_filter, customer_payment_status=payment_filter, vendor_id=vendor_filter, pm_id=pm_filter, due_date=due_date_filter, sort_by=sort_by, scope=scope) }}" class="btn-luxury outline" style="padding:0.45rem 1rem;">
+                    Next →
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
 
     </main>
 
     <script>
-        // Export dropdown toggle
+        // Export dropdown menu interactions
         document.querySelectorAll('.export-trigger').forEach(btn => {
             btn.addEventListener('click', e => {
                 e.stopPropagation();

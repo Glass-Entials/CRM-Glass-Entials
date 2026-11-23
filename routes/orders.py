@@ -89,17 +89,23 @@ def _get_actor_id() -> Optional[int]:
 @login_required
 def list_orders():
     """
-    Unified Order Cockpit list view.
-    Filters by search query, status, procurement_status, delivery_status, payment_status.
+    Premium Order Tracking Dashboard view.
+    Information-rich order tracking with horizontal workflow indicators,
+    multi-supplier allocations, QC tracking, financial summaries, and latest milestones.
     """
     org_id = _get_org_id()
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 20, type=int)
+    per_page = request.args.get("per_page", 15, type=int)
     search_query = request.args.get("q", "").strip()
     status_filter = request.args.get("status")
     procurement_filter = request.args.get("procurement_status")
     delivery_filter = request.args.get("delivery_status")
     payment_filter = request.args.get("customer_payment_status")
+    vendor_filter = request.args.get("vendor_id", type=int)
+    pm_filter = request.args.get("pm_id", type=int)
+    due_date_filter = request.args.get("due_date")
+    sort_by = request.args.get("sort_by", "newest")
+    scope = request.args.get("scope", "active")
 
     res = OrderMasterService.list_orders(
         org_id=org_id,
@@ -110,11 +116,37 @@ def list_orders():
         procurement_status_filter=procurement_filter if procurement_filter else None,
         delivery_status_filter=delivery_filter if delivery_filter else None,
         customer_payment_status_filter=payment_filter if payment_filter else None,
+        vendor_id=vendor_filter,
+        assigned_to_id=pm_filter,
+        due_date_filter=due_date_filter,
+        sort_by=sort_by,
+        scope=scope,
     )
 
     # Aggregated metrics for cockpit header cards
+    total_rev = float(
+        db.session.query(func.coalesce(func.sum(OrderMaster.net_order_amount), Decimal("0.00")))
+        .filter(OrderMaster.organization_id == org_id, OrderMaster.is_deleted == False)
+        .scalar()
+    )
+    total_paid = float(
+        db.session.query(func.coalesce(func.sum(OrderMaster.total_customer_paid), Decimal("0.00")))
+        .filter(OrderMaster.organization_id == org_id, OrderMaster.is_deleted == False)
+        .scalar()
+    )
+
     metrics = {
+        "total_active_orders": OrderMaster.query.filter(
+            OrderMaster.organization_id == org_id,
+            OrderMaster.is_deleted == False,
+            ~OrderMaster.status.in_([MasterOrderStatus.DRAFT.value, MasterOrderStatus.CANCELLED.value])
+        ).count(),
         "total_orders": OrderMaster.query.filter_by(organization_id=org_id, is_deleted=False).count(),
+        "draft_orders": OrderMaster.query.filter_by(
+            organization_id=org_id,
+            status=MasterOrderStatus.DRAFT.value,
+            is_deleted=False
+        ).count(),
         "in_procurement": OrderMaster.query.filter(
             OrderMaster.organization_id == org_id,
             OrderMaster.is_deleted == False,
@@ -135,17 +167,14 @@ def list_orders():
             OrderMaster.is_deleted == False,
             OrderMaster.status.in_([MasterOrderStatus.COMPLETED.value, MasterOrderStatus.CLOSED.value])
         ).count(),
-        "total_revenue": float(
-            db.session.query(func.coalesce(func.sum(OrderMaster.net_order_amount), Decimal("0.00")))
-            .filter(OrderMaster.organization_id == org_id, OrderMaster.is_deleted == False)
-            .scalar()
-        ),
-        "total_collected": float(
-            db.session.query(func.coalesce(func.sum(OrderMaster.total_customer_paid), Decimal("0.00")))
-            .filter(OrderMaster.organization_id == org_id, OrderMaster.is_deleted == False)
-            .scalar()
-        ),
+        "total_revenue": total_rev,
+        "total_collected": total_paid,
+        "total_outstanding": max(0.0, total_rev - total_paid),
     }
+
+    # Fetch lookup data for dashboard filters
+    vendors = Vendor.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Vendor.company_name.asc()).all()
+    project_managers = Employee.query.filter_by(organization_id=org_id).order_by(Employee.name.asc()).all()
 
     if request.is_json or request.headers.get("Accept") == "application/json":
         serialized_orders = [
@@ -153,6 +182,8 @@ def list_orders():
                 "id": o.id,
                 "master_order_number": o.master_order_number,
                 "customer_name": o.customer.name if o.customer else None,
+                "lead_id": o.lead_id,
+                "lead_ref": getattr(o, "tracking_card", {}).get("lead_ref"),
                 "status": o.status,
                 "procurement_status": o.procurement_status,
                 "delivery_status": o.delivery_status,
@@ -161,6 +192,7 @@ def list_orders():
                 "net_order_amount": float(o.net_order_amount),
                 "total_customer_paid": float(o.total_customer_paid),
                 "order_date": o.order_date.strftime("%Y-%m-%d") if o.order_date else None,
+                "tracking_card": getattr(o, "tracking_card", {}),
             }
             for o in res.items
         ]
@@ -186,8 +218,55 @@ def list_orders():
         procurement_filter=procurement_filter,
         delivery_filter=delivery_filter,
         payment_filter=payment_filter,
+        vendor_filter=vendor_filter,
+        pm_filter=pm_filter,
+        due_date_filter=due_date_filter,
+        sort_by=sort_by,
+        scope=scope,
+        vendors=vendors,
+        project_managers=project_managers,
         master_statuses=[s.value for s in MasterOrderStatus],
     )
+
+
+@orders_bp.route("/api/leads/<int:lead_id>/confirm-to-order", methods=["POST"])
+@login_required
+def confirm_lead_to_order(lead_id: int):
+    """
+    Idempotent integration endpoint: Converts confirmed Lead into an OMS Master Order.
+    Can be invoked by Lead Management upon reaching 'Order Confirmed'.
+    """
+    org_id = _get_org_id()
+    actor_id = _get_employee_id()
+    data = request.get_json(silent=True) or {}
+
+    try:
+        order = OrderMasterService.create_order_from_confirmed_lead(
+            org_id=org_id,
+            lead_id=lead_id,
+            actor_id=actor_id,
+            quotation_id=data.get("quotation_id"),
+            project_id=data.get("project_id"),
+            order_title=data.get("order_title"),
+            notes=data.get("notes"),
+            items_data=data.get("items"),
+            selected_vendor_ids=data.get("selected_vendor_ids"),
+            is_explicit_confirmation=data.get("is_explicit_confirmation", True),
+        )
+        return jsonify({
+            "success": True,
+            "order_id": order.id,
+            "master_order_number": order.master_order_number,
+            "status": order.status,
+            "lead_id": order.lead_id,
+            "customer_id": order.customer_id,
+            "message": f"Master Order {order.master_order_number} successfully initialized from Lead #{lead_id}.",
+        }), 200
+    except (OMSValidationError, OMSTenantIsolationError) as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        logger.exception(f"Unexpected error in confirm_lead_to_order for lead #{lead_id}: {e}")
+        return jsonify({"success": False, "error": "Internal server error."}), 500
 
 
 
