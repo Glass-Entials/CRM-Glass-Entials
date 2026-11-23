@@ -117,19 +117,20 @@
         /* ── Executive Metric KPI Strip ── */
         .oms-kpi-strip {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 1.1rem;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.75rem;
             margin-bottom: 1.8rem;
         }
 
         .oms-kpi-card {
             background: #ffffff;
-            padding: 1.25rem 1.4rem;
-            border-radius: 12px;
+            padding: 0.95rem 1rem;
+            border-radius: 10px;
             border: 1px solid var(--card-border);
             box-shadow: 0 2px 8px rgba(13, 27, 42, 0.02);
             border-top: 3.5px solid var(--accent-gold);
             transition: transform 0.2s, box-shadow 0.2s;
+            min-width: 0;
         }
 
         .oms-kpi-card:hover {
@@ -144,22 +145,28 @@
         .oms-kpi-card.green { border-top-color: #10b981; }
 
         .oms-kpi-card .kpi-val {
-            font-size: 1.65rem;
+            font-size: 1.35rem;
             font-weight: 800;
             color: var(--primary-navy);
             margin: 0;
             font-family: 'Playfair Display', Georgia, serif;
             line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .oms-kpi-card .kpi-label {
-            font-size: 0.72rem;
+            font-size: 0.67rem;
             color: var(--text-muted);
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.04em;
             display: block;
-            margin-top: 6px;
+            margin-top: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* ── Scope Tabs Strip ── */
@@ -705,6 +712,12 @@
         }
 
         /* ── Responsive adjustments ── */
+        @media (max-width: 1200px) {
+            .oms-kpi-strip {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
         @media (max-width: 1080px) {
             .card-ops-section {
                 grid-template-columns: repeat(3, 1fr);
@@ -719,6 +732,9 @@
         }
 
         @media (max-width: 768px) {
+            .oms-kpi-strip {
+                grid-template-columns: repeat(2, 1fr);
+            }
             .main-tracking-container {
                 padding: 1rem;
             }
@@ -800,12 +816,12 @@
                 <span class="kpi-label">Completed &amp; Handover</span>
             </div>
             <div class="oms-kpi-card">
-                <div class="kpi-val" style="font-size:1.45rem;">₹{{ "{:,.0f}".format(metrics.total_revenue) }}</div>
-                <span class="kpi-label">Total Booked Value</span>
+                <div class="kpi-val" style="font-size:1.25rem;">₹{{ "{:,.0f}".format(metrics.total_revenue) }}</div>
+                <span class="kpi-label" title="Total Booked Value">Total Booked Value</span>
             </div>
             <div class="oms-kpi-card">
-                <div class="kpi-val" style="font-size:1.45rem; color:#b45309;">₹{{ "{:,.0f}".format(metrics.total_outstanding) }}</div>
-                <span class="kpi-label">Balance Outstanding</span>
+                <div class="kpi-val" style="font-size:1.25rem; color:#b45309;">₹{{ "{:,.0f}".format(metrics.total_outstanding) }}</div>
+                <span class="kpi-label" title="Balance Outstanding">Balance Outstanding</span>
             </div>
         </div>
 
