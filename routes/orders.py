@@ -1535,6 +1535,7 @@ def allocate_payment(order_id: int):
 
 
 @orders_bp.route("/<int:order_id>/vendor-bills", methods=["POST"])
+@orders_bp.route("/<int:order_id>/vendor-bills", methods=["POST"], endpoint="record_vendor_bill")
 @login_required
 @require_roles("admin", "manager", "employee")
 def create_vendor_bill(order_id: int):

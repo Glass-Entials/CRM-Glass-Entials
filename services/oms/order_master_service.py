@@ -660,19 +660,29 @@ class OrderMasterService:
             except Exception:
                 initial_snapshot = {}
 
+        # Derive human-friendly order title
+        order_title = (
+            initial_snapshot.get("order_title")
+            or order.order_title
+            or f"Order #{order.master_order_number}"
+        )
+
         # Serialize order header and child collections
         return {
             "order": {
                 "id": order.id,
                 "master_order_number": order.master_order_number,
+                "order_title": order_title,
                 "status": order.status,
                 "procurement_status": order.procurement_status,
                 "delivery_status": order.delivery_status,
                 "fitting_status": order.fitting_status,
                 "customer_payment_status": order.customer_payment_status,
                 "vendor_payment_status": order.vendor_payment_status,
-                "order_date": order.order_date.strftime("%Y-%m-%d %H:%M") if order.order_date else None,
-                "expected_delivery_date": order.expected_delivery_date.strftime("%Y-%m-%d") if order.expected_delivery_date else None,
+                "order_date": order.order_date.strftime("%d %b %Y") if order.order_date else "—",
+                "order_date_iso": order.order_date.strftime("%Y-%m-%d %H:%M") if order.order_date else None,
+                "expected_delivery_date": order.expected_delivery_date.strftime("%d %b %Y") if order.expected_delivery_date else None,
+                "expected_delivery_date_iso": order.expected_delivery_date.strftime("%Y-%m-%d") if order.expected_delivery_date else None,
                 "shipping_address": order.shipping_address,
                 "site_address": order.site_address,
                 "notes": order.notes,
@@ -690,7 +700,12 @@ class OrderMasterService:
                     "name": order.customer.name if order.customer else "Unknown",
                     "email": order.customer.email if order.customer else "",
                     "phone": order.customer.phone_number if order.customer else "",
+                    "mobile": order.customer.phone_number if order.customer else "",
                 },
+                "assigned_to": {
+                    "id": order.assigned_to.id,
+                    "name": order.assigned_to.name,
+                } if order.assigned_to else None,
                 "quotation": {
                     "id": order.quotation.id if order.quotation else None,
                     "quotation_number": order.quotation.quotation_number if order.quotation else None,
@@ -886,16 +901,21 @@ class OrderMasterService:
             "delivery_details": initial_snapshot.get("delivery_details", {}),
             "installation_details": initial_snapshot.get("installation_details", {}),
             "financials": {
-                "net_order_amount": float(order.net_order_amount),
-                "total_procurement_cost": float(order.total_procurement_cost),
-                "gross_profit": float(order.net_order_amount - order.total_procurement_cost),
-                "gross_margin_percentage": round(float((order.net_order_amount - order.total_procurement_cost) / order.net_order_amount * 100), 2) if order.net_order_amount > Decimal("0.00") else 0.0,
-                "total_customer_paid": float(order.total_customer_paid),
+                "net_order_amount": float(order.net_order_amount or Decimal("0.00")),
+                "total_tax_amount": float(order.total_tax_amount or Decimal("0.00")),
+                "total_ordered_amount": float(order.total_ordered_amount or Decimal("0.00")),
+                "total_discount_amount": float(order.total_discount_amount or Decimal("0.00")),
+                "total_procurement_cost": float(order.total_procurement_cost or Decimal("0.00")),
+                "gross_profit": float((order.net_order_amount or Decimal("0.00")) - (order.total_procurement_cost or Decimal("0.00"))),
+                "gross_margin_percentage": round(float(((order.net_order_amount or Decimal("0.00")) - (order.total_procurement_cost or Decimal("0.00"))) / order.net_order_amount * 100), 2) if (order.net_order_amount or Decimal("0.00")) > Decimal("0.00") else 0.0,
+                "total_customer_paid": float(order.total_customer_paid or Decimal("0.00")),
+                "customer_outstanding": float(max(Decimal("0.00"), ((order.net_order_amount or Decimal("0.00")) + (order.total_tax_amount or Decimal("0.00"))) - (order.total_customer_paid or Decimal("0.00")))),
                 "customer_payment_status": order.customer_payment_status,
-                "total_vendor_billed": float(order.total_vendor_billed),
-                "total_vendor_paid": float(order.total_vendor_paid),
+                "total_vendor_billed": float(order.total_vendor_billed or Decimal("0.00")),
+                "total_vendor_paid": float(order.total_vendor_paid or Decimal("0.00")),
+                "vendor_outstanding": float(max(Decimal("0.00"), (order.total_vendor_billed or Decimal("0.00")) - (order.total_vendor_paid or Decimal("0.00")))),
                 "vendor_payment_status": order.vendor_payment_status,
-                "operating_cash_margin": float(order.total_customer_paid - order.total_vendor_paid),
+                "operating_cash_margin": float((order.total_customer_paid or Decimal("0.00")) - (order.total_vendor_paid or Decimal("0.00"))),
             },
         }
 

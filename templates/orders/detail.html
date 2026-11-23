@@ -230,12 +230,12 @@
                             <span class="oms-badge {% if st == 'CONFIRMED' %}ob-confirmed{% elif 'PROCUREMENT' in st or 'RECEIVED' in st %}ob-proc{% elif 'DELIVER' in st %}ob-delivery{% elif 'FITTING' in st %}ob-fitting{% elif st in ['COMPLETED','CLOSED'] %}ob-completed{% elif st == 'CANCELLED' %}ob-cancelled{% else %}ob-draft{% endif %}">{{ st }}</span>
                         </h1>
                         <p>
-                            <strong>{{ ord.order_title }}</strong> &nbsp;·&nbsp;
+                            <strong>{{ ord.order_title or ('Order #' ~ ord.master_order_number) }}</strong> &nbsp;·&nbsp;
                             Customer: <strong>{{ ord.customer.name if ord.customer else 'Unassigned' }}</strong>
-                            {% if ord.customer and ord.customer.mobile %}&nbsp;({{ ord.customer.mobile }}){% endif %}
+                            {% if ord.customer and (ord.customer.mobile or ord.customer.phone) %}&nbsp;({{ ord.customer.mobile or ord.customer.phone }}){% endif %}
                         </p>
                         <p style="margin-top:4px;">
-                            Ordered: <strong>{{ ord.order_date.strftime('%d %b %Y') if ord.order_date else '—' }}</strong>
+                            Ordered: <strong>{{ ord.order_date.strftime('%d %b %Y') if (ord.order_date and ord.order_date.strftime is defined) else (ord.order_date or '—') }}</strong>
                             &nbsp;·&nbsp; Assigned: <strong>{{ ord.assigned_to.name if ord.assigned_to else 'Unassigned' }}</strong>
                         </p>
                     </div>
@@ -282,12 +282,12 @@
                     <span class="ps-val">{{ ord.fitting_status }}</span>
                 </div>
                 <div class="p-step {% if fin.customer_payment_status == 'PAID' %}done{% elif fin.customer_payment_status == 'PARTIALLY_PAID' %}active{% endif %}">
-                    <span class="ps-label">Customer Cash (₹{{ "{:,.0f}".format(fin.total_customer_paid) }})</span>
-                    <span class="ps-val">{{ fin.customer_payment_status }}</span>
+                    <span class="ps-label">Customer Cash (₹{{ "{:,.0f}".format(fin.total_customer_paid or 0) }})</span>
+                    <span class="ps-val">{{ fin.customer_payment_status or 'UNPAID' }}</span>
                 </div>
                 <div class="p-step active">
                     <span class="ps-label">Gross Profit</span>
-                    <span class="ps-val" style="color:var(--accent-gold);">₹{{ "{:,.0f}".format(fin.gross_profit) }} ({{ fin.gross_margin_percentage }}%)</span>
+                    <span class="ps-val" style="color:var(--accent-gold);">₹{{ "{:,.0f}".format(fin.gross_profit or 0) }} ({{ fin.gross_margin_percentage or 0 }}%)</span>
                 </div>
             </div>
         </div>
@@ -546,27 +546,27 @@
                     <div class="oms-card-header"><h3>💰 Order Financial Summary</h3></div>
                     <div class="fin-summ-row">
                         <span>Net Order Amount (excl. tax)</span>
-                        <strong>₹{{ "{:,.2f}".format(fin.net_order_amount) }}</strong>
+                        <strong>₹{{ "{:,.2f}".format(fin.net_order_amount or 0) }}</strong>
                     </div>
                     <div class="fin-summ-row">
                         <span>Total Tax Amount</span>
-                        <span>₹{{ "{:,.2f}".format(fin.total_tax_amount) }}</span>
+                        <span>₹{{ "{:,.2f}".format(fin.total_tax_amount or 0) }}</span>
                     </div>
                     <div class="fin-summ-row">
                         <span>Total Procurement Cost</span>
-                        <strong style="color:#dc2626;">₹{{ "{:,.2f}".format(fin.total_procurement_cost) }}</strong>
+                        <strong style="color:#dc2626;">₹{{ "{:,.2f}".format(fin.total_procurement_cost or 0) }}</strong>
                     </div>
                     <div class="fin-summ-row fin-highlight">
-                        <strong>Gross Commercial Profit ({{ fin.gross_margin_percentage }}%)</strong>
-                        <strong style="color:#15803d;">₹{{ "{:,.2f}".format(fin.gross_profit) }}</strong>
+                        <strong>Gross Commercial Profit ({{ fin.gross_margin_percentage or 0 }}%)</strong>
+                        <strong style="color:#15803d;">₹{{ "{:,.2f}".format(fin.gross_profit or 0) }}</strong>
                     </div>
                     <div class="fin-summ-row">
                         <span>Customer Total Paid</span>
-                        <strong style="color:#15803d;">₹{{ "{:,.2f}".format(fin.total_customer_paid) }}</strong>
+                        <strong style="color:#15803d;">₹{{ "{:,.2f}".format(fin.total_customer_paid or 0) }}</strong>
                     </div>
                     <div class="fin-summ-row">
                         <span>Customer Outstanding</span>
-                        <strong style="color:#f59e0b;">₹{{ "{:,.2f}".format(fin.customer_outstanding) }}</strong>
+                        <strong style="color:#f59e0b;">₹{{ "{:,.2f}".format(fin.customer_outstanding or 0) }}</strong>
                     </div>
                     <div class="fin-summ-row fin-highlight-blue">
                         <strong>Customer Payment Status</strong>
@@ -897,7 +897,7 @@
                 </div>
                 <div class="oms-fg">
                     <label for="d_phone">Recipient Phone</label>
-                    <input type="text" name="recipient_phone" id="d_phone" value="{{ ord.customer.mobile if ord.customer else '' }}">
+                    <input type="text" name="recipient_phone" id="d_phone" value="{{ (ord.customer.mobile or ord.customer.phone) if ord.customer else '' }}">
                 </div>
                 <div class="oms-fg">
                     <label for="d_address">Delivery Address</label>
@@ -991,7 +991,7 @@
     <div id="vendorBillModal" class="modal-overlay">
         <div class="modal-box">
             <h3>Record Vendor Bill</h3>
-            <form method="POST" action="{{ url_for('orders.record_vendor_bill', order_id=ord.id) }}">
+            <form method="POST" action="{{ url_for('orders.create_vendor_bill', order_id=ord.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="oms-fg">
                     <label for="vb_vendor">Vendor <span style="color:#ef4444;">*</span></label>
