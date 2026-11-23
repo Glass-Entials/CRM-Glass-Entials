@@ -84,11 +84,28 @@
             border: 1px solid var(--card-border);
             box-shadow: 0 3px 14px rgba(0, 0, 0, 0.03);
             margin-bottom: 1.8rem;
-            overflow: hidden;
+            position: relative;
+            overflow: visible;
             transition: box-shadow 0.2s ease;
         }
         .form-section-card:hover {
             box-shadow: 0 6px 22px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Stacking contexts so earlier section dropdowns float cleanly over subsequent cards */
+        #cardCustomer { z-index: 70; }
+        #cardVendor { z-index: 60; }
+        #cardOrderInfo { z-index: 50; }
+        #cardItems { z-index: 40; }
+        #cardCommercial { z-index: 30; }
+        #cardDelivery { z-index: 20; }
+        #cardDocuments { z-index: 10; }
+
+        .form-section-card:focus-within {
+            z-index: 120 !important;
+        }
+        .autocomplete-wrap:focus-within {
+            z-index: 200 !important;
         }
 
         /* Section Header */
@@ -96,6 +113,7 @@
             padding: 1.25rem 1.75rem;
             background: #ffffff;
             border-bottom: 1px solid rgba(13, 27, 42, 0.06);
+            border-radius: 14px 14px 0 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -163,6 +181,10 @@
         }
         .form-section-card.collapsed .collapse-icon {
             transform: rotate(-90deg);
+        }
+        .form-section-card.collapsed .section-header {
+            border-radius: 14px;
+            border-bottom: none;
         }
         .form-section-card.collapsed .section-body {
             display: none;
@@ -308,43 +330,48 @@
         }
         .autocomplete-results {
             position: absolute;
-            top: 100%;
+            top: calc(100% + 6px);
             left: 0;
             right: 0;
             background: #ffffff;
-            border: 1px solid rgba(13, 27, 42, 0.12);
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
-            max-height: 280px;
+            border: 1px solid rgba(13, 27, 42, 0.15);
+            border-radius: 12px;
+            box-shadow: 0 16px 40px rgba(13, 27, 42, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
+            max-height: 320px;
             overflow-y: auto;
             z-index: 1000;
-            margin-top: 4px;
             display: none;
         }
         .autocomplete-item {
-            padding: 0.75rem 1rem;
+            padding: 0.85rem 1.15rem;
             cursor: pointer;
-            border-bottom: 1px solid rgba(13, 27, 42, 0.04);
+            border-bottom: 1px solid rgba(13, 27, 42, 0.06);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
             transition: background 0.15s ease;
         }
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
         .autocomplete-item:hover, .autocomplete-item.selected {
-            background: rgba(212, 175, 55, 0.08);
+            background: rgba(212, 175, 55, 0.1);
         }
         .autocomplete-item-name {
             font-weight: 700;
             color: var(--primary-navy);
-            font-size: 0.92rem;
+            font-size: 0.95rem;
+            line-height: 1.3;
         }
         .autocomplete-item-sub {
-            font-size: 0.8rem;
+            font-size: 0.82rem;
             color: var(--text-muted);
-            margin-top: 2px;
+            margin-top: 4px;
+            line-height: 1.35;
         }
         .autocomplete-empty {
-            padding: 1rem;
+            padding: 1.25rem;
             text-align: center;
             color: var(--text-muted);
             font-size: 0.88rem;
@@ -724,7 +751,7 @@
                     <!-- Search & Creation Bar -->
                     <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap;">
                         <div class="autocomplete-wrap" style="flex: 1; min-width: 280px;">
-                            <input type="text" id="customerSearchInput" class="form-control-custom" placeholder="🔍 Search existing customer by Name, Company, Phone, Email, GSTIN..." autocomplete="off">
+                            <input type="text" id="customerSearchInput" class="form-control-custom" placeholder="🔍 Search existing customer by Name, Company, Phone, Email, GSTIN..." autocomplete="off" spellcheck="false">
                             <div id="customerSearchResults" class="autocomplete-results"></div>
                         </div>
                         <button type="button" class="btn-custom gold" onclick="openNewCustomerModal()">
@@ -815,7 +842,7 @@
                     <!-- Search & Creation Bar -->
                     <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap;">
                         <div class="autocomplete-wrap" style="flex: 1; min-width: 280px;">
-                            <input type="text" id="vendorSearchInput" class="form-control-custom" placeholder="🔍 Search existing vendor by Company, Code, Contact, Phone, GSTIN..." autocomplete="off">
+                            <input type="text" id="vendorSearchInput" class="form-control-custom" placeholder="🔍 Search existing vendor by Company, Code, Contact, Phone, GSTIN..." autocomplete="off" spellcheck="false">
                             <div id="vendorSearchResults" class="autocomplete-results"></div>
                         </div>
                         <button type="button" class="btn-custom gold" onclick="openNewVendorModal()">
@@ -1556,11 +1583,11 @@
                                     const item = document.createElement('div');
                                     item.className = 'autocomplete-item';
                                     item.innerHTML = `
-                                        <div>
-                                            <div class="autocomplete-item-name">${escapeHtml(c.name)} ${c.company ? '<small>(' + escapeHtml(c.company) + ')</small>' : ''}</div>
-                                            <div class="autocomplete-item-sub">📞 ${escapeHtml(c.phone_number)} &nbsp;·&nbsp; ✉️ ${escapeHtml(c.email)} &nbsp;·&nbsp; 📍 ${escapeHtml(c.city || '—')}</div>
+                                        <div style="flex: 1; min-width: 0;">
+                                            <div class="autocomplete-item-name">${escapeHtml(c.name)} ${c.company ? '<small style="color:var(--text-muted); font-weight:normal;">(' + escapeHtml(c.company) + ')</small>' : ''}</div>
+                                            <div class="autocomplete-item-sub">📞 ${escapeHtml(c.phone_number)} &nbsp;·&nbsp; ✉️ ${escapeHtml(c.email || '—')} &nbsp;·&nbsp; 📍 ${escapeHtml(c.city || '—')}</div>
                                         </div>
-                                        <button type="button" class="btn-custom sm gold">Select</button>
+                                        <button type="button" class="btn-custom sm gold" style="flex-shrink: 0; margin-left: 12px;">Select</button>
                                     `;
                                     item.addEventListener('click', () => { selectCustomerById(c.id); });
                                     results.appendChild(item);
@@ -1742,11 +1769,11 @@
                                     const item = document.createElement('div');
                                     item.className = 'autocomplete-item';
                                     item.innerHTML = `
-                                        <div>
-                                            <div class="autocomplete-item-name">${escapeHtml(v.company_name)} <small style="color:var(--accent-gold);">(${escapeHtml(v.code)})</small></div>
+                                        <div style="flex: 1; min-width: 0;">
+                                            <div class="autocomplete-item-name">${escapeHtml(v.company_name)} <small style="color:var(--accent-gold); font-weight:600;">(${escapeHtml(v.code)})</small></div>
                                             <div class="autocomplete-item-sub">Category: ${escapeHtml(v.category || 'General')} &nbsp;·&nbsp; 📞 ${escapeHtml(v.phone || '—')} &nbsp;·&nbsp; 📍 ${escapeHtml(v.city || '—')}</div>
                                         </div>
-                                        <button type="button" class="btn-custom sm gold">Add to Order</button>
+                                        <button type="button" class="btn-custom sm gold" style="flex-shrink: 0; margin-left: 12px;">Add to Order</button>
                                     `;
                                     item.addEventListener('click', () => { addVendorToOrder(v); });
                                     results.appendChild(item);
