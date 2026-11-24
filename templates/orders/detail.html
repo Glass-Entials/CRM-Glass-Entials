@@ -855,15 +855,15 @@
             <div class="lifecycle-header-bar">
                 <span class="lifecycle-title">End-to-End Lifecycle Stage</span>
                 <span class="lifecycle-stages-summary">
-                    Lead Stage: <strong>0{{ lc.lead_stage.stage_number if lc and lc.lead_stage else '7' }} {{ lc.lead_stage.label if lc else 'Order Confirmed' }}</strong>
-                    • Order Stage: <strong>0{{ lc.order_stage.stage_number if lc and lc.order_stage else '2' }} {{ lc.order_stage.label if lc else 'Glass Processing' }}</strong>
+                    Lead Stage: <strong>0{{ lc.lead_stage.stage_number if lc and lc.lead_stage and lc.lead_stage.stage_number else '4' }} {{ lc.lead_stage.label if lc and lc.lead_stage and lc.lead_stage.label else 'Order Confirmed' }}</strong>
+                    • Order Stage: <strong>0{{ lc.order_stage.stage_number if lc and lc.order_stage and lc.order_stage.stage_number else '4' }} {{ lc.order_stage.label if lc and lc.order_stage and lc.order_stage.label else 'Order Confirmed' }}</strong>
                 </span>
             </div>
 
             {% set cur_stage = lc.order_stage.stage_number if lc and lc.order_stage else 4 %}
             <div class="lifecycle-grid">
                 <!-- 01 Lead & Qualify -->
-                <div class="stage-step-card {% if cur_stage > 1 %}done{% elif cur_stage == 1 %}active{% else %}pending{% endif %}">
+                <div class="stage-step-card {% if cur_stage > 1 %}done{% elif cur_stage == 1 %}active{% else %}pending{% endif %}" title="Lead Qualification & Customer Requirement (Completed in Lead Management)">
                     <div class="stage-step-info">
                         <span class="stage-num">01</span>
                         <span class="stage-name">Lead &amp; Qualify</span>
@@ -872,7 +872,7 @@
                 </div>
 
                 <!-- 02 Measurement -->
-                <div class="stage-step-card {% if cur_stage > 2 %}done{% elif cur_stage == 2 %}active{% else %}pending{% endif %}">
+                <div class="stage-step-card {% if cur_stage > 2 %}done{% elif cur_stage == 2 %}active{% else %}pending{% endif %}" title="Site Measurement & Technical Survey (Completed in Lead Management)">
                     <div class="stage-step-info">
                         <span class="stage-num">02</span>
                         <span class="stage-name">Measurement</span>
@@ -881,7 +881,7 @@
                 </div>
 
                 <!-- 03 Quotation -->
-                <div class="stage-step-card {% if cur_stage > 3 %}done{% elif cur_stage == 3 %}active{% else %}pending{% endif %}">
+                <div class="stage-step-card {% if cur_stage > 3 %}done{% elif cur_stage == 3 %}active{% else %}pending{% endif %}" title="Quotation Estimation & Commercial Proposal (Completed in Lead Management)">
                     <div class="stage-step-info">
                         <span class="stage-num">03</span>
                         <span class="stage-name">Quotation</span>
@@ -890,7 +890,7 @@
                 </div>
 
                 <!-- 04 Order Confirmed -->
-                <div class="stage-step-card {% if cur_stage > 4 %}done{% elif cur_stage == 4 %}active{% else %}pending{% endif %}">
+                <div class="stage-step-card {% if cur_stage > 4 %}done{% elif cur_stage == 4 %}active{% else %}pending{% endif %}" style="cursor:pointer;" onclick="openModal('statusModal')" title="Stage 04: Order Confirmed &amp; Master Order Created. Click to update lifecycle status.">
                     <div class="stage-step-info">
                         <span class="stage-num">04</span>
                         <span class="stage-name">Order Confirmed</span>
@@ -899,7 +899,7 @@
                 </div>
 
                 <!-- 05 Vendor & QC -->
-                <div class="stage-step-card {% if cur_stage > 5 %}done{% elif cur_stage == 5 %}active{% else %}pending{% endif %}">
+                <div class="stage-step-card {% if cur_stage > 5 %}done{% elif cur_stage == 5 %}active{% else %}pending{% endif %}" style="cursor:pointer;" onclick="openModal('statusModal')" title="Stage 05: Vendor Procurement, Glass Processing &amp; Pre-Dispatch QC. Advances automatically when PO is issued, or click to update.">
                     <div class="stage-step-info">
                         <span class="stage-num">05</span>
                         <span class="stage-name">Vendor &amp; QC</span>
@@ -908,7 +908,7 @@
                 </div>
 
                 <!-- 06 Transport -->
-                <div class="stage-step-card {% if cur_stage > 6 %}done{% elif cur_stage == 6 %}active{% else %}pending{% endif %}">
+                <div class="stage-step-card {% if cur_stage > 6 %}done{% elif cur_stage == 6 %}active{% else %}pending{% endif %}" style="cursor:pointer;" onclick="openModal('statusModal')" title="Stage 06: Logistics, Transporter &amp; Delivery Challan. Advances automatically when consignment is dispatched, or click to update.">
                     <div class="stage-step-info">
                         <span class="stage-num">06</span>
                         <span class="stage-name">Transport</span>
@@ -917,7 +917,7 @@
                 </div>
 
                 <!-- 07 Unloading & Fitting -->
-                <div class="stage-step-card {% if cur_stage >= 7 and ord.status in ['COMPLETED', 'CLOSED'] %}done{% elif cur_stage >= 7 %}active{% else %}pending{% endif %}">
+                <div class="stage-step-card {% if cur_stage >= 7 and ord.status in ['COMPLETED', 'CLOSED'] %}done{% elif cur_stage >= 7 %}active{% else %}pending{% endif %}" style="cursor:pointer;" onclick="openModal('statusModal')" title="Stage 07: Site Unloading, Fitting &amp; Handover. Advances when site delivery is confirmed and fitting is signed off.">
                     <div class="stage-step-info">
                         <span class="stage-num">07</span>
                         <span class="stage-name">Unloading &amp; Fitting</span>
