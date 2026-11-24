@@ -25,7 +25,7 @@
             --text-dark: #0f172a;
             --text-muted: #64748b;
             --text-light: #94a3b8;
-            --font-heading: 'Playfair Display', Georgia, serif;
+            --font-heading: 'Montserrat', sans-serif;
             --font-body: 'Montserrat', sans-serif;
             --success-green: #10b981;
             --success-bg: rgba(16, 185, 129, 0.08);
@@ -43,6 +43,7 @@
             color: var(--text-dark);
             margin: 0;
             padding: 0;
+            font-variant-numeric: tabular-nums lining-nums;
         }
 
         .order-360-container {
@@ -147,8 +148,8 @@
             font-size: 1.75rem;
             color: var(--primary-navy);
             margin: 0 0 0.45rem 0;
-            font-weight: 700;
-            letter-spacing: -0.01em;
+            font-weight: 800;
+            letter-spacing: -0.02em;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -192,11 +193,13 @@
         }
         .order-value-box .val-amount {
             display: block;
-            font-family: var(--font-heading);
+            font-family: var(--font-body);
             font-size: 1.6rem;
-            font-weight: 700;
+            font-weight: 800;
             color: var(--primary-navy);
             line-height: 1.1;
+            font-variant-numeric: tabular-nums lining-nums;
+            letter-spacing: -0.02em;
         }
         .header-actions-group {
             display: flex;
