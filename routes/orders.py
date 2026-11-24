@@ -1230,6 +1230,10 @@ def detail_order(order_id: int):
     order_customer_id = cockpit_data["order"]["customer"]["id"] if cockpit_data["order"]["customer"] else None
     available_payments = Payment.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Payment.id.desc()).limit(50).all()
 
+    from services.oms.order_master_service import VALID_MASTER_TRANSITIONS
+    current_status = cockpit_data["order"]["status"]
+    valid_transitions = sorted(list(VALID_MASTER_TRANSITIONS.get(current_status, set())))
+
     return render_template(
         "orders/detail.html",
         cockpit=cockpit_data,
@@ -1237,6 +1241,7 @@ def detail_order(order_id: int):
         employees=employees,
         available_payments=available_payments,
         master_statuses=[s.value for s in MasterOrderStatus],
+        valid_transitions=valid_transitions,
     )
 
 

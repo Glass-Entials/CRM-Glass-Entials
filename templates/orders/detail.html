@@ -797,7 +797,7 @@
                         {% elif ord.status in ['COMPLETED', 'CONFIRMED', 'DELIVERED'] %}
                         <span class="ref-badge decision-won">Won</span>
                         {% else %}
-                        <span class="ref-badge priority-medium">{{ ord.status }}</span>
+                        <span class="ref-badge priority-medium" style="cursor:pointer;" onclick="openModal('statusModal')" title="Click to update lifecycle status">{{ ord.status }} ▾</span>
                         {% endif %}
                     </div>
 
@@ -827,7 +827,12 @@
 
                     <!-- Action Buttons -->
                     <div class="header-actions-group">
-                        <button type="button" class="btn-action gold" onclick="openModal('revisionModal')" title="Create Revision Snapshot">
+                        {% if ord.status not in ['COMPLETED', 'CANCELLED', 'CLOSED'] %}
+                        <button type="button" class="btn-action gold" onclick="openModal('statusModal')" title="Update Lifecycle Status">
+                            ⚡ Update Status
+                        </button>
+                        {% endif %}
+                        <button type="button" class="btn-action outline" onclick="openModal('revisionModal')" title="Create Revision Snapshot">
                             📸 Snapshot
                         </button>
                         <button type="button" class="btn-action outline" onclick="window.print()" title="Print Order Profile">
@@ -1770,20 +1775,40 @@
     <!-- Status Transition Modal -->
     <div id="statusModal" class="modal-overlay">
         <div class="modal-box">
-            <h3>Update Master Order Status</h3>
+            <h3>⚡ Update Master Order Status</h3>
+            <div style="background:#f8fafc; border:1px solid rgba(13,27,42,0.08); border-radius:8px; padding:0.85rem 1rem; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:0.82rem; color:var(--text-muted); font-weight:600;">CURRENT LIFECYCLE STATUS</span>
+                <span class="p-badge pb-blue" style="font-size:0.85rem; font-weight:700;">{{ ord.status }}</span>
+            </div>
             <form method="POST" action="{{ url_for('orders.transition_status', order_id=ord.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="oms-fg">
-                    <label for="to_status">Target Lifecycle Status <span style="color:#ef4444;">*</span></label>
-                    <select name="to_status" id="to_status" required>
-                        {% for s in master_statuses %}
-                        <option value="{{ s }}" {% if s == ord.status %}selected{% endif %}>{{ s }}</option>
-                        {% endfor %}
+                    <label for="to_status">Next Target Lifecycle Status <span style="color:#ef4444;">*</span></label>
+                    <select name="to_status" id="to_status" required style="font-weight:600;">
+                        <option value="">— Select Target Status —</option>
+                        {% if valid_transitions and valid_transitions|length > 0 %}
+                            {% for s in valid_transitions %}
+                            <option value="{{ s }}">→ {{ s }}</option>
+                            {% endfor %}
+                        {% else %}
+                            {% for s in master_statuses %}
+                            {% if s != ord.status %}
+                            <option value="{{ s }}">→ {{ s }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        {% endif %}
                     </select>
+                    <small style="color:var(--text-muted); font-size:0.75rem; margin-top:4px; display:block;">
+                        {% if valid_transitions and valid_transitions|length > 0 %}
+                        Allowed transitions from current status: {{ valid_transitions|join(', ') }}
+                        {% else %}
+                        Select the new lifecycle milestone to advance the order.
+                        {% endif %}
+                    </small>
                 </div>
                 <div class="oms-fg">
-                    <label for="status_remarks">Transition Remarks / Progress Notes <span style="color:#ef4444;">*</span></label>
-                    <textarea name="remarks" id="status_remarks" placeholder="Enter reason for status change, milestone reached, or client approval details" required style="min-height:90px;"></textarea>
+                    <label for="status_remarks">Transition Remarks / Milestone Notes <span style="color:#ef4444;">*</span></label>
+                    <textarea name="remarks" id="status_remarks" placeholder="e.g. Glass fabrication commenced; raw float glass cut and arrised post client advance confirmation." required style="min-height:90px;"></textarea>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-action outline" onclick="closeModal('statusModal')">Cancel</button>
