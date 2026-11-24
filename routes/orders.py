@@ -1240,7 +1240,29 @@ def detail_order(order_id: int):
         current_status = current_status.value
     else:
         current_status = str(current_status or "")
-    valid_transitions = sorted(list(VALID_MASTER_TRANSITIONS.get(current_status, set())))
+
+    LIFECYCLE_ORDER = [
+        "CONFIRMED",
+        "IN_PROCUREMENT",
+        "PARTIALLY_RECEIVED",
+        "RECEIVED",
+        "IN_DELIVERY",
+        "PARTIALLY_DELIVERED",
+        "DELIVERED",
+        "IN_FITTING",
+        "COMPLETED",
+        "CLOSED",
+        "ON_HOLD",
+        "CANCELLED",
+        "DRAFT",
+    ]
+    raw_valid = VALID_MASTER_TRANSITIONS.get(current_status, set())
+    valid_transitions = [s for s in LIFECYCLE_ORDER if s in raw_valid]
+    for s in raw_valid:
+        if s not in valid_transitions:
+            valid_transitions.append(s)
+
+    master_statuses = [s for s in LIFECYCLE_ORDER if s in [m.value for m in MasterOrderStatus]]
 
     status_labels_map = {
         "DRAFT": "Stage 04: Order Drafted (Pending Confirmation)",
@@ -1252,7 +1274,7 @@ def detail_order(order_id: int):
         "PARTIALLY_DELIVERED": "Stage 06: Transport (Partially Delivered to Site)",
         "DELIVERED": "Stage 07: Unloading & Fitting (Site Delivered / POD Signed)",
         "IN_FITTING": "Stage 07: Unloading & Fitting (Installation Active)",
-        "COMPLETED": "Stage 07: Project Completed & Handover",
+        "COMPLETED": "Stage 07: Unloading & Fitting (Project Completed & Handover)",
         "CLOSED": "Stage 07: Closed & Reconciled",
         "ON_HOLD": "⏸ Put On Hold (Site / Client Delay)",
         "CANCELLED": "⛔ Cancel Order",

@@ -207,8 +207,8 @@ def _get_order_stage_label(status: str) -> str:
         "DELIVERED": "Unloading & Fitting",
         "IN_FITTING": "Unloading & Fitting",
         "FITTING": "Unloading & Fitting",
-        "COMPLETED": "Completed & Handover",
-        "CLOSED": "Completed & Handover",
+        "COMPLETED": "Unloading & Fitting",
+        "CLOSED": "Unloading & Fitting",
         "CANCELLED": "Order Confirmed",
     }
     return _map.get(str(status or "").upper(), "Order Confirmed")

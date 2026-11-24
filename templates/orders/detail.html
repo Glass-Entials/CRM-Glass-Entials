@@ -1935,17 +1935,38 @@
                 <div style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Stage 05 Actions</div>
                 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                    <button type="button" class="btn-action gold" onclick="closeModal('vendorQcModal'); openQuickTransitionModal('IN_DELIVERY', 'Glass fabrication &amp; Pre-Dispatch QC complete. Moving to Stage 06 Transport.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
-                        ⚡ Advance to Transport (Stage 06)
+                    {% if ord.status in ['DRAFT', 'CONFIRMED'] %}
+                    <button type="button" class="btn-action gold" onclick="closeModal('vendorQcModal'); openQuickTransitionModal('IN_PROCUREMENT', 'Initiating Stage 05: Vendor Procurement and PO issuance.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        ⚡ Start Stage 05: In Procurement
                     </button>
                     <button type="button" class="btn-action outline" onclick="closeModal('vendorQcModal'); switchDetailTab('tabOperations', document.querySelectorAll('.segmented-tab-btn')[2]);" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
                         📦 Manage Allocations &amp; POs
                     </button>
+                    {% elif ord.status in ['IN_PROCUREMENT', 'PARTIALLY_RECEIVED'] %}
+                    <button type="button" class="btn-action gold" onclick="closeModal('vendorQcModal'); openQuickTransitionModal('RECEIVED', 'Glass fabrication complete &amp; Pre-Dispatch QC inspection verified.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        ✓ Mark QC Passed (Stage 05 Complete)
+                    </button>
+                    <button type="button" class="btn-action outline" onclick="closeModal('vendorQcModal'); openQuickTransitionModal('IN_DELIVERY', 'Glass fabrication &amp; Pre-Dispatch QC complete. Moving to Stage 06 Transport.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        🚚 Advance to Transport (Stage 06)
+                    </button>
+                    {% else %}
+                    <button type="button" class="btn-action gold" onclick="closeModal('vendorQcModal'); openQuickTransitionModal('IN_DELIVERY', 'Glass fabrication &amp; Pre-Dispatch QC complete. Moving to Stage 06 Transport.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        ⚡ Advance to Transport (Stage 06)
+                    </button>
+                    <button type="button" class="btn-action outline" onclick="closeModal('vendorQcModal'); switchDetailTab('tabOperations', document.querySelectorAll('.segmented-tab-btn')[2]);" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        📦 View Allocations &amp; POs
+                    </button>
+                    {% endif %}
                 </div>
 
-                <button type="button" class="btn-action outline" onclick="closeModal('vendorQcModal'); openModal('statusModal');" style="justify-content:center; font-size:0.8rem; margin-top:4px;">
-                    ✏️ Change Lifecycle Status Manually
-                </button>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                    <button type="button" class="btn-action outline" onclick="closeModal('vendorQcModal'); switchDetailTab('tabOperations', document.querySelectorAll('.segmented-tab-btn')[2]);" style="font-size:0.8rem;">
+                        📦 View Allocations &amp; POs
+                    </button>
+                    <button type="button" class="btn-action outline" onclick="closeModal('vendorQcModal'); openModal('statusModal');" style="font-size:0.8rem;">
+                        ✏️ Change Lifecycle Status Manually
+                    </button>
+                </div>
             </div>
 
             <div class="modal-footer" style="margin-top:1.25rem;">
@@ -2006,9 +2027,15 @@
                 <div style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Stage 06 Actions</div>
                 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    {% if ord.status in ['IN_PROCUREMENT', 'RECEIVED', 'CONFIRMED'] %}
+                    <button type="button" class="btn-action gold" onclick="closeModal('transportStageModal'); openQuickTransitionModal('IN_DELIVERY', 'Consignment dispatched via transporter. Moving to Stage 06 Transport.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        ⚡ Dispatch: Move to Stage 06 (Transport)
+                    </button>
+                    {% else %}
                     <button type="button" class="btn-action gold" onclick="closeModal('transportStageModal'); openQuickTransitionModal('DELIVERED', 'Consignment delivered to site. Moving to Stage 07 Unloading &amp; Fitting.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
                         ⚡ Mark Delivered to Site (Stage 07)
                     </button>
+                    {% endif %}
                     <button type="button" class="btn-action outline" onclick="closeModal('transportStageModal'); openModal('consignmentModal');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
                         🚚 Record Consignment / Dispatch
                     </button>
@@ -2066,13 +2093,25 @@
                 <div style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Stage 07 Actions</div>
                 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    {% if ord.status in ['IN_DELIVERY', 'DELIVERED'] %}
+                    <button type="button" class="btn-action gold" onclick="closeModal('fittingStageModal'); openQuickTransitionModal('IN_FITTING', 'Installation technicians mobilized on site. Fitting in progress.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        🔧 Start Installation (In Fitting)
+                    </button>
+                    {% else %}
                     <button type="button" class="btn-action gold" onclick="closeModal('fittingStageModal'); openQuickTransitionModal('COMPLETED', 'Installation verified and signed off by client. Project completed.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
                         🎉 Mark Completed &amp; Handover
                     </button>
+                    {% endif %}
                     <button type="button" class="btn-action outline" onclick="closeModal('fittingStageModal'); openModal('fittingModal');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
                         🔧 Schedule Fitting Visit
                     </button>
                 </div>
+
+                {% if ord.status == 'IN_FITTING' %}
+                <button type="button" class="btn-action gold" onclick="closeModal('fittingStageModal'); openQuickTransitionModal('COMPLETED', 'Installation verified and signed off by client. Project completed.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem; margin-top:4px;">
+                    🎉 Final Signoff: Complete Order &amp; Handover
+                </button>
+                {% endif %}
 
                 <button type="button" class="btn-action outline" onclick="closeModal('fittingStageModal'); openModal('statusModal');" style="justify-content:center; font-size:0.8rem; margin-top:4px;">
                     ✏️ Change Lifecycle Status Manually
@@ -2503,17 +2542,69 @@
                 <div class="oms-fg">
                     <label for="to_status">Next Target Lifecycle Status <span style="color:#ef4444;">*</span></label>
                     <select name="to_status" id="to_status" required style="font-weight:600;">
-                        <option value="">— Select Target Status —</option>
-                        {% if valid_transitions and valid_transitions|length > 0 %}
-                            {% for s in valid_transitions %}
-                            <option value="{{ s }}">→ {{ status_labels_map.get(s, s) if status_labels_map else s }}</option>
-                            {% endfor %}
-                        {% else %}
-                            {% for s in master_statuses %}
+                        <option value="">— Select Target Lifecycle Stage —</option>
+                        {% set candidate_list = valid_transitions if (valid_transitions and valid_transitions|length > 0) else master_statuses %}
+
+                        {% set stage4_opts = [] %}
+                        {% set stage5_opts = [] %}
+                        {% set stage6_opts = [] %}
+                        {% set stage7_opts = [] %}
+                        {% set admin_opts = [] %}
+
+                        {% for s in candidate_list %}
                             {% if s != ord.status %}
-                            <option value="{{ s }}">→ {{ status_labels_map.get(s, s) if status_labels_map else s }}</option>
+                                {% if s in ['DRAFT', 'CONFIRMED'] %}
+                                    {% set _ = stage4_opts.append(s) %}
+                                {% elif s in ['IN_PROCUREMENT', 'PARTIALLY_RECEIVED', 'RECEIVED'] %}
+                                    {% set _ = stage5_opts.append(s) %}
+                                {% elif s in ['IN_DELIVERY', 'PARTIALLY_DELIVERED'] %}
+                                    {% set _ = stage6_opts.append(s) %}
+                                {% elif s in ['DELIVERED', 'IN_FITTING', 'COMPLETED', 'CLOSED'] %}
+                                    {% set _ = stage7_opts.append(s) %}
+                                {% else %}
+                                    {% set _ = admin_opts.append(s) %}
+                                {% endif %}
                             {% endif %}
+                        {% endfor %}
+
+                        {% if stage4_opts|length > 0 %}
+                        <optgroup label="Stage 04: Order Confirmed">
+                            {% for s in stage4_opts %}
+                            <option value="{{ s }}">→ {{ status_labels_map.get(s, s) if status_labels_map else s }}</option>
                             {% endfor %}
+                        </optgroup>
+                        {% endif %}
+
+                        {% if stage5_opts|length > 0 %}
+                        <optgroup label="Stage 05: Vendor &amp; QC">
+                            {% for s in stage5_opts %}
+                            <option value="{{ s }}">→ {{ status_labels_map.get(s, s) if status_labels_map else s }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+
+                        {% if stage6_opts|length > 0 %}
+                        <optgroup label="Stage 06: Transport">
+                            {% for s in stage6_opts %}
+                            <option value="{{ s }}">→ {{ status_labels_map.get(s, s) if status_labels_map else s }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+
+                        {% if stage7_opts|length > 0 %}
+                        <optgroup label="Stage 07: Unloading &amp; Fitting">
+                            {% for s in stage7_opts %}
+                            <option value="{{ s }}">→ {{ status_labels_map.get(s, s) if status_labels_map else s }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+
+                        {% if admin_opts|length > 0 %}
+                        <optgroup label="Administrative Actions / Pauses">
+                            {% for s in admin_opts %}
+                            <option value="{{ s }}">→ {{ status_labels_map.get(s, s) if status_labels_map else s }}</option>
+                            {% endfor %}
+                        </optgroup>
                         {% endif %}
                     </select>
                     <small style="color:var(--text-muted); font-size:0.75rem; margin-top:4px; display:block;">
@@ -2881,12 +2972,20 @@
         function openQuickTransitionModal(targetStatus, defaultRemarks) {
             const sel = document.getElementById('to_status');
             if (sel) {
-                // If target option exists, select it
+                let found = false;
                 for (let i = 0; i < sel.options.length; i++) {
                     if (sel.options[i].value === targetStatus) {
                         sel.selectedIndex = i;
+                        found = true;
                         break;
                     }
+                }
+                if (!found && targetStatus) {
+                    const opt = document.createElement('option');
+                    opt.value = targetStatus;
+                    opt.textContent = '→ ' + targetStatus;
+                    sel.appendChild(opt);
+                    sel.value = targetStatus;
                 }
             }
             const rem = document.getElementById('status_remarks');
