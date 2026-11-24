@@ -330,51 +330,10 @@ class DeliveryService:
             is_deleted=False
         ).all()
 
-        all_fully_delivered = all(
-            it.delivered_quantity >= it.quantity for it in all_order_items
-        )
-        any_delivered = any(
-            it.delivered_quantity > Decimal("0.000") for it in all_order_items
-        )
-
-        if all_fully_delivered:
-            order.delivery_status = OrderDeliveryStatus.DELIVERED.value
-            # Master order status progression
-            if order.status in (
-                MasterOrderStatus.IN_DELIVERY.value,
-                MasterOrderStatus.PARTIALLY_DELIVERED.value,
-                MasterOrderStatus.CONFIRMED.value,
-                MasterOrderStatus.RECEIVED.value
-            ):
-                order.status = MasterOrderStatus.DELIVERED.value
-                hist = OrderStatusHistory(
-                    order_id=order.id,
-                    organization_id=org_id,
-                    status_type="MASTER",
-                    from_status=order.status,
-                    to_status=MasterOrderStatus.DELIVERED.value,
-                    remarks=f"Order fully delivered via challan {delivery.delivery_number}",
-                    changed_by_id=actor_id or order.created_by_id
-                )
-                db.session.add(hist)
-        elif any_delivered:
-            order.delivery_status = OrderDeliveryStatus.OUT_FOR_DELIVERY.value
-            if order.status in (
-                MasterOrderStatus.CONFIRMED.value,
-                MasterOrderStatus.IN_DELIVERY.value,
-                MasterOrderStatus.RECEIVED.value
-            ):
-                order.status = MasterOrderStatus.PARTIALLY_DELIVERED.value
-                hist = OrderStatusHistory(
-                    order_id=order.id,
-                    organization_id=org_id,
-                    status_type="MASTER",
-                    from_status=order.status,
-                    to_status=MasterOrderStatus.PARTIALLY_DELIVERED.value,
-                    remarks=f"Order partially delivered via challan {delivery.delivery_number}",
-                    changed_by_id=actor_id or order.created_by_id
-                )
-                db.session.add(hist)
+        # Authoritative delivery status recalculation & lifecycle sync
+        from services.oms.status_engine import OMSStatusEngine
+        OMSStatusEngine.recalculate_delivery_status(order, actor_id=actor_id)
+        OMSStatusEngine.synchronize_order_master_status(order, actor_id=actor_id)
 
         # Record Delivery Status History
         hist_del = OrderStatusHistory(
@@ -600,37 +559,10 @@ class DeliveryService:
             is_deleted=False
         ).all()
 
-        all_fully_fitted = all(
-            it.installed_quantity >= it.quantity for it in all_order_items
-        )
-        any_fitted = any(
-            it.installed_quantity > Decimal("0.000") for it in all_order_items
-        )
-
-        if all_fully_fitted:
-            order.fitting_status = OrderFittingStatus.COMPLETED.value
-            order.actual_fitting_date = datetime.utcnow()
-
-            # Auto-advance Master Order to COMPLETED if fully delivered and fitted
-            if order.delivery_status == OrderDeliveryStatus.DELIVERED.value and order.status in (
-                MasterOrderStatus.IN_FITTING.value,
-                MasterOrderStatus.DELIVERED.value,
-                MasterOrderStatus.PARTIALLY_DELIVERED.value
-            ):
-                order.status = MasterOrderStatus.COMPLETED.value
-                order.completed_at = datetime.utcnow()
-                hist_m = OrderStatusHistory(
-                    order_id=order.id,
-                    organization_id=org_id,
-                    status_type="MASTER",
-                    from_status=order.status,
-                    to_status=MasterOrderStatus.COMPLETED.value,
-                    remarks=f"Order completed: fully delivered and installation signed off via visit {visit.visit_number}",
-                    changed_by_id=actor_id or order.created_by_id
-                )
-                db.session.add(hist_m)
-        elif any_fitted:
-            order.fitting_status = OrderFittingStatus.PARTIALLY_FITTED.value
+        # Authoritative fitting status recalculation & lifecycle sync
+        from services.oms.status_engine import OMSStatusEngine
+        OMSStatusEngine.recalculate_fitting_status(order, actor_id=actor_id)
+        OMSStatusEngine.synchronize_order_master_status(order, actor_id=actor_id)
 
         # Record Fitting Status History
         hist_fit = OrderStatusHistory(

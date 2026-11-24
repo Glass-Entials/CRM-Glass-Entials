@@ -809,40 +809,20 @@ class OrderMasterService:
     ) -> OrderMaster:
         """
         Validate and execute a lifecycle state transition.
-        Records an immutable OrderStatusHistory entry.
+        Delegates to centralized OMSStatusEngine and records immutable OrderStatusHistory.
         """
         actual_target = to_status or target_status
         if not actual_target:
             raise OMSValidationError("Target status must be provided.")
 
-        order = cls.lock_order(org_id, order_id)
-        current_status = order.status
-
-        allowed = VALID_MASTER_TRANSITIONS.get(current_status, set())
-        if actual_target not in allowed:
-            raise OMSTransitionError(
-                f"Illegal order transition from '{current_status}' to '{actual_target}'. "
-                f"Allowed transitions: {list(allowed)}"
-            )
-
-        order.status = actual_target
-        now = datetime.utcnow()
-
-        if actual_target == MasterOrderStatus.COMPLETED.value:
-            order.completed_at = now
-        elif actual_target == MasterOrderStatus.CANCELLED.value:
-            order.cancelled_at = now
-
-        hist = OrderStatusHistory(
-            order_id=order.id,
-            organization_id=org_id,
-            status_type="MASTER",
-            from_status=current_status,
+        from services.oms.status_engine import OMSStatusEngine
+        order = OMSStatusEngine.transition_master_status(
+            org_id=org_id,
+            order_id=order_id,
             to_status=actual_target,
-            remarks=remarks or f"Transitioned from {current_status} to {actual_target}.",
-            changed_by_id=actor_id or order.created_by_id,
+            remarks=remarks,
+            actor_id=actor_id,
         )
-        db.session.add(hist)
         db.session.commit()
         return order
 
@@ -1676,13 +1656,16 @@ class OrderMasterService:
         actual_status = status_filter or status
         if scope == "draft" or actual_status == MasterOrderStatus.DRAFT.value:
             q = q.filter(OrderMaster.status == MasterOrderStatus.DRAFT.value)
+        elif actual_status in [MasterOrderStatus.COMPLETED.value, MasterOrderStatus.CLOSED.value]:
+            q = q.filter(OrderMaster.status.in_([MasterOrderStatus.COMPLETED.value, MasterOrderStatus.CLOSED.value]))
         elif actual_status:
             q = q.filter(OrderMaster.status == actual_status)
         elif scope == "all":
             pass
         else:
-            # Default active operational view: exclude unconfirmed/draft orders
-            q = q.filter(~OrderMaster.status.in_([MasterOrderStatus.DRAFT.value, MasterOrderStatus.CANCELLED.value]))
+            # Default active operational view: strictly active operational orders (excludes draft, completed, closed, cancelled)
+            from services.oms.status_engine import ACTIVE_MASTER_STATUSES
+            q = q.filter(OrderMaster.status.in_(ACTIVE_MASTER_STATUSES))
 
         if procurement_status_filter:
             q = q.filter(OrderMaster.procurement_status == procurement_status_filter)

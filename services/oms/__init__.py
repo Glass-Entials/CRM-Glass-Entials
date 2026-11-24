@@ -30,6 +30,7 @@ class OMSTenantIsolationError(OMSError):
 
 
 from .order_master_service import OrderMasterService
+from .status_engine import OMSStatusEngine, STATUS_METADATA, VALID_MASTER_TRANSITIONS
 from .procurement_service import ProcurementService
 from .delivery_service import DeliveryService
 from .financial_reconciliation_service import FinancialReconciliationService
@@ -45,6 +46,9 @@ __all__ = [
     "OMSInvariantError",
     "OMSTenantIsolationError",
     "OrderMasterService",
+    "OMSStatusEngine",
+    "STATUS_METADATA",
+    "VALID_MASTER_TRANSITIONS",
     "ProcurementService",
     "DeliveryService",
     "FinancialReconciliationService",

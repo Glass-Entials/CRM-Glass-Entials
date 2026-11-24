@@ -135,11 +135,13 @@ def list_orders():
         .scalar()
     )
 
+    from services.oms.status_engine import ACTIVE_MASTER_STATUSES
+
     metrics = {
         "total_active_orders": OrderMaster.query.filter(
             OrderMaster.organization_id == org_id,
             OrderMaster.is_deleted == False,
-            ~OrderMaster.status.in_([MasterOrderStatus.DRAFT.value, MasterOrderStatus.CANCELLED.value])
+            OrderMaster.status.in_(ACTIVE_MASTER_STATUSES),
         ).count(),
         "total_orders": OrderMaster.query.filter_by(organization_id=org_id, is_deleted=False).count(),
         "draft_orders": OrderMaster.query.filter_by(
@@ -1921,12 +1923,13 @@ def upload_delivery_challan(order_id: int):
         db.session.add(delv)
 
         if status_val == OrderDeliveryStatus.DELIVERED.value:
-            order.delivery_status = OrderDeliveryStatus.DELIVERED.value
             for it in order.items:
                 if not it.is_deleted:
                     it.delivered_quantity = it.quantity
-        elif order.delivery_status == OrderDeliveryStatus.SCHEDULED.value:
-            order.delivery_status = OrderDeliveryStatus.OUT_FOR_DELIVERY.value
+
+        from services.oms.status_engine import OMSStatusEngine
+        OMSStatusEngine.recalculate_delivery_status(order, actor_id=actor_id)
+        OMSStatusEngine.synchronize_order_master_status(order, actor_id=actor_id)
 
         try:
             OMSNotificationService.notify_delivery_dispatched(
@@ -2241,7 +2244,7 @@ def exceptional_close(order_id: int):
     impact = data.get("financial_impact_notes")
 
     try:
-        order = OrderMasterService.exceptional_close_order(
+        closure = OrderMasterService.exceptional_close_order(
             org_id=org_id,
             order_id=order_id,
             closure_type=closure_type,
@@ -2251,7 +2254,7 @@ def exceptional_close(order_id: int):
         )
         db.session.commit()
         if request.is_json:
-            return jsonify({"success": True, "status": order.status, "message": f"Order closed as {closure_type}."})
+            return jsonify({"success": True, "closure_type": closure.closure_type, "message": f"Order closed as {closure_type}."})
         flash(f"Order closed as {closure_type}.", "order_warning")
     except OMSError as e:
         db.session.rollback()

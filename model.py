@@ -3753,6 +3753,7 @@ class OrderProcurementStatus(Enum):
 class OrderDeliveryStatus(Enum):
     SCHEDULED = "SCHEDULED"
     OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY"
+    PARTIALLY_DELIVERED = "PARTIALLY_DELIVERED"
     DELIVERED = "DELIVERED"
     FAILED = "FAILED"
     RETURNED = "RETURNED"

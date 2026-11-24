@@ -392,6 +392,7 @@
         .badge-status.st-fitting   { background: rgba(139, 92, 246, 0.12); color: #6d28d9; }
         .badge-status.st-completed { background: rgba(16, 185, 129, 0.12); color: #059669; }
         .badge-status.st-draft     { background: rgba(100, 116, 139, 0.1); color: #475569; }
+        .badge-status.st-on-hold   { background: rgba(245, 158, 11, 0.12); color: #d97706; }
         .badge-status.st-cancelled { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
 
         .lead-reference-pill {
@@ -960,6 +961,7 @@
                                     {% elif 'DELIVER' in st %}st-delivery
                                     {% elif 'FITTING' in st %}st-fitting
                                     {% elif st in ['COMPLETED', 'CLOSED'] %}st-completed
+                                    {% elif st == 'ON_HOLD' %}st-on-hold
                                     {% elif st == 'CANCELLED' %}st-cancelled
                                     {% else %}st-draft{% endif %}">
                                     {{ st.replace('_', ' ') }}

@@ -222,21 +222,10 @@ class ProcurementService:
         # Update order procurement financial rollup
         all_pos = OrderVendorProcurement.query.filter_by(order_id=order_id, organization_id=org_id).all()
         order.total_procurement_cost = sum(p.net_procurement_amount for p in all_pos if not p.is_deleted)
-        order.procurement_status = OrderProcurementStatus.PO_ISSUED.value
 
-        # Auto-advance master order status to IN_PROCUREMENT if currently CONFIRMED
-        if order.status == MasterOrderStatus.CONFIRMED.value:
-            order.status = MasterOrderStatus.IN_PROCUREMENT.value
-            hist = OrderStatusHistory(
-                order_id=order.id,
-                organization_id=org_id,
-                status_type="MASTER",
-                from_status=MasterOrderStatus.CONFIRMED.value,
-                to_status=MasterOrderStatus.IN_PROCUREMENT.value,
-                remarks=f"Purchase Order {po.po_number} issued to Vendor {vendor.company_name}.",
-                changed_by_id=actor,
-            )
-            db.session.add(hist)
+        from services.oms.status_engine import OMSStatusEngine
+        OMSStatusEngine.recalculate_procurement_status(order, actor_id=actor)
+        OMSStatusEngine.synchronize_order_master_status(order, actor_id=actor)
 
         db.session.commit()
         return po
@@ -417,14 +406,10 @@ class ProcurementService:
                 else:
                     po.status = OrderProcurementStatus.PARTIALLY_RECEIVED.value
 
-        # Recompute OrderMaster procurement status
-        all_order_pos = OrderVendorProcurement.query.filter_by(order_id=order.id, is_deleted=False).all()
-        if all_order_pos and all(p.status == OrderProcurementStatus.RECEIVED.value for p in all_order_pos):
-            order.procurement_status = OrderProcurementStatus.RECEIVED.value
-            if order.status == MasterOrderStatus.IN_PROCUREMENT.value:
-                order.status = MasterOrderStatus.RECEIVED.value
-        else:
-            order.procurement_status = OrderProcurementStatus.PARTIALLY_RECEIVED.value
+        # Authoritative multi-vendor procurement status recalculation & lifecycle sync
+        from services.oms.status_engine import OMSStatusEngine
+        OMSStatusEngine.recalculate_procurement_status(order, actor_id=actor_id)
+        OMSStatusEngine.synchronize_order_master_status(order, actor_id=actor_id)
 
         db.session.commit()
         return cons
