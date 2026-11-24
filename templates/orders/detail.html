@@ -2093,7 +2093,7 @@
     <div id="editIdentityModal" class="modal-overlay">
         <div class="modal-box" style="max-width: 650px;">
             <h3>✏️ Update Order Identity &amp; Core Details</h3>
-            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+            <form method="POST" action="/orders/{{ ord.id }}/update-box">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="box_name" value="identity">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
@@ -2155,7 +2155,7 @@
     <div id="editCustomerModal" class="modal-overlay">
         <div class="modal-box" style="max-width: 620px;">
             <h3>👤 Update Customer &amp; Lead Details</h3>
-            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+            <form method="POST" action="/orders/{{ ord.id }}/update-box">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="box_name" value="customer">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
@@ -2213,7 +2213,7 @@
                 <span style="font-size:0.82rem; color:var(--text-muted); font-weight:600;">CURRENT LIFECYCLE STATUS</span>
                 <span class="p-badge pb-blue" style="font-size:0.85rem; font-weight:700;">{{ ord.status }}</span>
             </div>
-            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+            <form method="POST" action="/orders/{{ ord.id }}/update-box">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="box_name" value="next_action">
                 <div class="oms-fg">
@@ -2251,7 +2251,7 @@
     <div id="editRequirementModal" class="modal-overlay">
         <div class="modal-box" style="max-width: 620px;">
             <h3>📄 Update Requirement &amp; Quotation</h3>
-            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+            <form method="POST" action="/orders/{{ ord.id }}/update-box">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="box_name" value="requirement">
                 <div class="oms-fg">
@@ -2302,7 +2302,7 @@
     <div id="editFinancialsModal" class="modal-overlay">
         <div class="modal-box" style="max-width: 620px;">
             <h3>₹ Update Order &amp; Financials</h3>
-            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+            <form method="POST" action="/orders/{{ ord.id }}/update-box">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="box_name" value="financials">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
@@ -2356,7 +2356,7 @@
     <div id="editVendorProgressModal" class="modal-overlay">
         <div class="modal-box" style="max-width: 620px;">
             <h3>🔧 Update Vendor &amp; Site Progress</h3>
-            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+            <form method="POST" action="/orders/{{ ord.id }}/update-box">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="box_name" value="vendor_progress">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
@@ -2407,7 +2407,7 @@
     <div id="editTransportModal" class="modal-overlay">
         <div class="modal-box" style="max-width: 650px;">
             <h3>🚚 Update Transport &amp; Delivery</h3>
-            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+            <form method="POST" action="/orders/{{ ord.id }}/update-box">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="box_name" value="transport">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
