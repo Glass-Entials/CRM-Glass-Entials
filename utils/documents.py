@@ -30,9 +30,13 @@ def handle_file_upload(
         original_name, extension, file_size = validate_upload(file, ALLOWED_EXTENSIONS)
         unique_filename = f"{uuid.uuid4().hex}.{extension}"
 
-        upload_path = os.path.join(current_app.config["UPLOAD_FOLDER"], "crm_docs")
-        if not os.path.exists(upload_path):
-            os.makedirs(upload_path)
+        upload_root = (
+            current_app.config.get("PRIVATE_UPLOAD_FOLDER")
+            or current_app.config.get("UPLOAD_FOLDER")
+            or os.path.join(current_app.root_path, "var", "uploads")
+        )
+        upload_path = os.path.join(upload_root, "crm_docs")
+        os.makedirs(upload_path, exist_ok=True)
 
         file.save(os.path.join(upload_path, unique_filename))
 

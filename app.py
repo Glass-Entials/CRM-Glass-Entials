@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Flask, render_template, request, flash, redirect, url_for, send_file
 from model import db, User, Customer, Employee, Lead, Project, Expense
 from config import Config, validate_production_config, is_production_mode
-from flask_wtf.csrf import CSRFProtect
+from utils.extensions import limiter, socketio, csrf
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_talisman import Talisman
 from flask_limiter import Limiter
@@ -65,7 +65,7 @@ if is_prod:
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Add CSRF Protection
-csrf = CSRFProtect(app)
+csrf.init_app(app)
 
 # Add Talisman for Security Headers
 # Only enforce HTTPS in production
@@ -87,8 +87,6 @@ Talisman(app, content_security_policy=csp, force_https=force_https_enabled, stri
 
 if force_https_enabled:
     app.config['PREFERRED_URL_SCHEME'] = 'https'
-
-from utils.extensions import limiter, socketio
 
 # Initialize Limiter
 limiter.init_app(app)
@@ -348,8 +346,8 @@ app.register_blueprint(messages_bp)
 app.register_blueprint(orders_bp)
 # Exempt the Android device API from CSRF (uses Bearer token auth instead)
 csrf.exempt(call_logger_api_bp)
-# Exempt SaaS billing & PhonePe AutoPay webhooks / callbacks from CSRF (verified by signature)
-csrf.exempt(saas_bp)
+# Specific external webhook/callback endpoints in saas_bp are exempted individually via @csrf.exempt.
+# Browser-facing subscription and account management endpoints remain fully CSRF-protected.
 # Exempt AI chat API (JSON endpoint — CSRF token sent via X-CSRFToken header by JS)
 csrf.exempt(ai_chat_bp)
 

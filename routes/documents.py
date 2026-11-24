@@ -1,5 +1,6 @@
 import os
 import uuid
+from typing import Optional
 from flask import (
     Blueprint,
     request,
@@ -104,6 +105,43 @@ def upload_document():
 from flask import send_file
 
 
+def _resolve_document_file_path(filename: str) -> Optional[str]:
+    """
+    Resolve document path with path traversal protection and backward-compatible fallback.
+    Checks private storage outside web root first; falls back to legacy static/uploads.
+    """
+    if not filename or ".." in filename:
+        return None
+
+    safe_name = secure_filename(filename)
+    if not safe_name:
+        return None
+
+    private_root = (
+        current_app.config.get("PRIVATE_UPLOAD_FOLDER")
+        or current_app.config.get("UPLOAD_FOLDER")
+        or os.path.join(current_app.root_path, "var", "uploads")
+    )
+    legacy_root = (
+        current_app.config.get("LEGACY_UPLOAD_FOLDER")
+        or os.path.join(current_app.root_path, "static", "uploads")
+    )
+
+    candidate = os.path.normpath(os.path.join(private_root, "crm_docs", safe_name))
+    if os.path.isfile(candidate):
+        real_path = os.path.realpath(candidate)
+        if real_path.startswith(os.path.realpath(private_root)):
+            return real_path
+
+    legacy_candidate = os.path.normpath(os.path.join(legacy_root, "crm_docs", safe_name))
+    if os.path.isfile(legacy_candidate):
+        real_legacy = os.path.realpath(legacy_candidate)
+        if real_legacy.startswith(os.path.realpath(legacy_root)):
+            return real_legacy
+
+    return None
+
+
 @documents_bp.route("/download-document/<int:doc_id>")
 @login_required
 def download_document(doc_id):
@@ -113,15 +151,8 @@ def download_document(doc_id):
             id=doc_id, organization_id=current_user.organization_id
         ).first_or_404()
 
-        # Build absolute path
-        upload_folder = current_app.config.get("UPLOAD_FOLDER")
-        if not upload_folder:
-            upload_folder = os.path.join(current_app.root_path, "static", "uploads")
-
-        file_path = os.path.join(upload_folder, "crm_docs", doc.filename)
-        file_path = os.path.normpath(file_path)
-
-        if not os.path.exists(file_path):
+        file_path = _resolve_document_file_path(doc.filename)
+        if not file_path or not os.path.exists(file_path):
             current_app.logger.warning(f"File missing on disk: doc_id={doc_id}")
             flash("File not found on server storage.", "error")
             return redirect(safe_redirect_target(request.referrer, url_for("tasks.daily_tasks_list")))
@@ -155,12 +186,9 @@ def view_document(doc_id, filename):
             id=doc_id, organization_id=current_user.organization_id
         ).first_or_404()
         
-        upload_folder = current_app.config.get("UPLOAD_FOLDER")
-        if not upload_folder:
-            upload_folder = os.path.join(current_app.root_path, "static", "uploads")
-            
-        file_path = os.path.join(upload_folder, "crm_docs", doc.filename)
-        file_path = os.path.normpath(file_path)
+        file_path = _resolve_document_file_path(doc.filename)
+        if not file_path or not os.path.exists(file_path):
+            abort(404)
         
         import mimetypes
         mime_type, _ = mimetypes.guess_type(doc.original_name)

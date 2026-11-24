@@ -37,24 +37,13 @@ from model import (
 )
 
 
-class OMSTransitionError(Exception):
-    """Raised when an illegal status transition is requested."""
-    pass
-
-
-class OMSValidationError(Exception):
-    """Raised when status transition preconditions or inputs fail validation."""
-    pass
-
-
-class OMSTenantIsolationError(Exception):
-    """Raised when cross-tenant access is attempted during a status operation."""
-    pass
-
-
-class OMSInvariantError(Exception):
-    """Raised when an internal OMS invariant is violated."""
-    pass
+from .exceptions import (
+    OMSError,
+    OMSValidationError,
+    OMSTransitionError,
+    OMSInvariantError,
+    OMSTenantIsolationError,
+)
 
 
 # ============================================================================
@@ -453,7 +442,7 @@ class OMSStatusEngine:
             .first()
         )
         if not order:
-            raise OMSValidationError(f"Order #{order_id} not found in organization #{org_id}.")
+            raise OMSTenantIsolationError(f"Order #{order_id} not found in organization #{org_id}.")
 
         current_status = str(order.status or "").upper()
         actual_target = str(to_status or "").upper()

@@ -4,29 +4,13 @@ Provides centralized services for complete order lifecycle management,
 multi-vendor procurement, dispatch & delivery, installation visits, and financial reconciliation.
 """
 
-class OMSError(Exception):
-    """Base exception for Order Management System operations."""
-    pass
-
-
-class OMSValidationError(OMSError):
-    """Raised when validation fails for an OMS entity or payload."""
-    pass
-
-
-class OMSTransitionError(OMSError):
-    """Raised when an illegal status transition is requested."""
-    pass
-
-
-class OMSInvariantError(OMSError):
-    """Raised when a business invariant (quantity, allocation, finance) is violated."""
-    pass
-
-
-class OMSTenantIsolationError(OMSError):
-    """Raised when an entity from another organization/tenant is referenced."""
-    pass
+from .exceptions import (
+    OMSError,
+    OMSValidationError,
+    OMSTransitionError,
+    OMSInvariantError,
+    OMSTenantIsolationError,
+)
 
 
 from .order_master_service import OrderMasterService

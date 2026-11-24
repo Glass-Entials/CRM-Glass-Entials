@@ -37,8 +37,9 @@ class OMSDocumentService:
     @classmethod
     def get_upload_dir(cls, org_id: int) -> str:
         upload_root = (
-            current_app.config.get("UPLOAD_FOLDER")
-            or os.path.join(current_app.root_path, "uploads")
+            current_app.config.get("PRIVATE_UPLOAD_FOLDER")
+            or current_app.config.get("UPLOAD_FOLDER")
+            or os.path.join(current_app.root_path, "var", "uploads")
         )
         target_dir = os.path.abspath(
             os.path.join(upload_root, "order_docs", f"org_{org_id}")
@@ -172,10 +173,41 @@ class OMSDocumentService:
                 f"Document #{doc_id} not found for Order #{order_id} in organization #{org_id}."
             )
 
-        if not os.path.exists(doc.file_path):
-            raise OMSInvariantError("Document file missing from server storage.")
+        actual_path = doc.file_path
+        if not os.path.exists(actual_path):
+            filename = os.path.basename(doc.file_path)
+            private_root = (
+                current_app.config.get("PRIVATE_UPLOAD_FOLDER")
+                or os.path.join(current_app.root_path, "var", "uploads")
+            )
+            legacy_root = (
+                current_app.config.get("LEGACY_UPLOAD_FOLDER")
+                or os.path.join(current_app.root_path, "static", "uploads")
+            )
+            candidates = [
+                os.path.join(private_root, "order_docs", f"org_{org_id}", filename),
+                os.path.join(legacy_root, "order_docs", f"org_{org_id}", filename),
+            ]
+            found = False
+            for c in candidates:
+                if os.path.exists(c):
+                    actual_path = c
+                    found = True
+                    break
+            if not found:
+                raise OMSInvariantError("Document file missing from server storage.")
 
-        return doc, doc.file_path
+        # Path traversal guard
+        real_path = os.path.realpath(actual_path)
+        allowed_roots = [
+            os.path.realpath(current_app.config.get("PRIVATE_UPLOAD_FOLDER") or os.path.join(current_app.root_path, "var", "uploads")),
+            os.path.realpath(current_app.config.get("UPLOAD_FOLDER") or os.path.join(current_app.root_path, "var", "uploads")),
+            os.path.realpath(current_app.config.get("LEGACY_UPLOAD_FOLDER") or os.path.join(current_app.root_path, "static", "uploads")),
+        ]
+        if not any(real_path.startswith(r) for r in allowed_roots):
+            raise OMSInvariantError("Security violation: path traversal detected.")
+
+        return doc, actual_path
 
     @classmethod
     def soft_delete_document(

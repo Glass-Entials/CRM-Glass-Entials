@@ -44,6 +44,7 @@ from services.billing import (
     TransactionService,
     RenewalService,
 )
+from utils.extensions import csrf
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +166,7 @@ def create_subscription():
 
 
 @saas_bp.route("/phonepe-callback", methods=["GET", "POST"])
+@csrf.exempt
 def phonepe_callback():
     """
     User return URL redirected from PhonePe after authorizing mandate.
@@ -1459,6 +1461,7 @@ def _handle_v3_webhook(payload_bytes: bytes, headers: dict):
 
 @saas_bp.route("/phonepe-webhook", methods=["POST"])
 @saas_bp.route("/webhook", methods=["POST"])
+@csrf.exempt
 def phonepe_webhook():
     """
     Handles server-to-server (S2S) webhooks for PhonePe AutoPay.
@@ -1488,6 +1491,7 @@ def phonepe_webhook():
 
 
 @saas_bp.route("/api/process-renewals", methods=["POST"])
+@csrf.exempt
 def process_renewals():
     """
     Automated job / cron endpoint to process Pre-Debit Notifications (24h prior)
@@ -1632,6 +1636,7 @@ def process_renewals():
 
 
 @saas_bp.route("/api/reconcile-notifications", methods=["POST"])
+@csrf.exempt
 def reconcile_notifications():
     """
     Dedicated, idempotent automated job endpoint to reconcile unresolved PhonePe V2

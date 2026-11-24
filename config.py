@@ -120,7 +120,15 @@ class Config:
         raise RuntimeError("Set DATABASE_URL in the environment before startup.")
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(basedir, "static", "uploads"))
+    # Private storage directory outside public web root for business documents
+    PRIVATE_UPLOAD_FOLDER = os.environ.get(
+        "PRIVATE_UPLOAD_FOLDER",
+        os.path.join(basedir, "var", "uploads")
+    )
+    # Default upload folder points to private storage directory
+    UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", PRIVATE_UPLOAD_FOLDER)
+    # Legacy upload folder preserved for backward-compatible fallback access to existing documents
+    LEGACY_UPLOAD_FOLDER = os.path.join(basedir, "static", "uploads")
     MAX_CONTENT_LENGTH = int(os.environ.get("MAX_CONTENT_LENGTH", 5 * 1024 * 1024))
 
     SESSION_COOKIE_HTTPONLY = True
@@ -345,6 +353,24 @@ def validate_production_config(cfg=None, force: bool = False):
         if not aws_secret_name:
             raise RuntimeError(
                 "Production configuration error: AWS_SECRET_NAME is required when USE_AWS_SECRETS=true."
+            )
+
+    # 10. Core SECRET_KEY validation
+    secret_key = str(_get("SECRET_KEY", "")).strip()
+    if not secret_key or secret_key.lower() in {"dev", "secret", "changeme", "default"}:
+        raise RuntimeError(
+            "Production configuration error: Strong SECRET_KEY is required in production."
+        )
+
+    # 11. Production Database URL validation
+    db_url_val = _get("SQLALCHEMY_DATABASE_URI", None)
+    if db_url_val is None:
+        db_url_val = _get("DATABASE_URL", None)
+    if db_url_val is not None:
+        db_url = str(db_url_val).strip()
+        if not db_url or db_url.startswith("sqlite"):
+            raise RuntimeError(
+                "Production configuration error: Production database URL (MySQL/PostgreSQL) is required in production; SQLite cannot be used."
             )
 
 

@@ -705,7 +705,7 @@ class OMSPhase2ServicesTests(unittest.TestCase):
         )
         db.session.commit()
 
-        resp = self.client.get("/orders/", headers={"Accept": "application/json"})
+        resp = self.client.get("/orders/?scope=all", headers={"Accept": "application/json"})
         self.assertEqual(resp.status_code, 200)
         data = resp.get_json()
         self.assertTrue(data["success"])
