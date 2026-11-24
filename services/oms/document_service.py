@@ -128,8 +128,13 @@ class OMSDocumentService:
         safe_disk_filename = f"{unique_prefix}_{raw_filename}"
         target_path = os.path.abspath(os.path.join(upload_dir, safe_disk_filename))
 
-        # Guarantee stored file stays inside upload_dir
-        if not target_path.startswith(upload_dir):
+        # Guarantee stored file stays inside upload_dir using commonpath
+        real_target = os.path.realpath(target_path)
+        real_upload = os.path.realpath(upload_dir)
+        try:
+            if os.path.commonpath([real_target, real_upload]) != real_upload:
+                raise OMSInvariantError("Invalid file destination path (path traversal attempt).")
+        except (ValueError, Exception):
             raise OMSInvariantError("Invalid file destination path (path traversal attempt).")
 
         with open(target_path, "wb") as f:
@@ -204,7 +209,15 @@ class OMSDocumentService:
             os.path.realpath(current_app.config.get("UPLOAD_FOLDER") or os.path.join(current_app.root_path, "var", "uploads")),
             os.path.realpath(current_app.config.get("LEGACY_UPLOAD_FOLDER") or os.path.join(current_app.root_path, "static", "uploads")),
         ]
-        if not any(real_path.startswith(r) for r in allowed_roots):
+        contained = False
+        for r in allowed_roots:
+            try:
+                if os.path.commonpath([real_path, r]) == r:
+                    contained = True
+                    break
+            except (ValueError, Exception):
+                continue
+        if not contained:
             raise OMSInvariantError("Security violation: path traversal detected.")
 
         return doc, actual_path

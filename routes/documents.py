@@ -130,14 +130,22 @@ def _resolve_document_file_path(filename: str) -> Optional[str]:
     candidate = os.path.normpath(os.path.join(private_root, "crm_docs", safe_name))
     if os.path.isfile(candidate):
         real_path = os.path.realpath(candidate)
-        if real_path.startswith(os.path.realpath(private_root)):
-            return real_path
+        real_private = os.path.realpath(private_root)
+        try:
+            if os.path.commonpath([real_path, real_private]) == real_private:
+                return real_path
+        except (ValueError, Exception):
+            pass
 
     legacy_candidate = os.path.normpath(os.path.join(legacy_root, "crm_docs", safe_name))
     if os.path.isfile(legacy_candidate):
         real_legacy = os.path.realpath(legacy_candidate)
-        if real_legacy.startswith(os.path.realpath(legacy_root)):
-            return real_legacy
+        real_legacy_root = os.path.realpath(legacy_root)
+        try:
+            if os.path.commonpath([real_legacy, real_legacy_root]) == real_legacy_root:
+                return real_legacy
+        except (ValueError, Exception):
+            pass
 
     return None
 

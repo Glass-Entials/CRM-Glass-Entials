@@ -14,9 +14,17 @@ import os
 import shutil
 import sys
 import logging
+import hashlib
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("upload_migration")
+
+def compute_sha256(filepath: str) -> str:
+    h = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        while chunk := f.read(65536):
+            h.update(chunk)
+    return h.hexdigest()
 
 def migrate_uploads(source_dir: str, target_dir: str, dry_run: bool = False) -> dict:
     source_dir = os.path.abspath(source_dir)
@@ -42,17 +50,20 @@ def migrate_uploads(source_dir: str, target_dir: str, dry_run: bool = False) -> 
             try:
                 if os.path.exists(dst_file):
                     if os.path.getsize(src_file) == os.path.getsize(dst_file):
-                        logger.debug(f"Skipping already migrated: {rel_path}")
-                        stats["skipped"] += 1
-                        continue
+                        if compute_sha256(src_file) == compute_sha256(dst_file):
+                            logger.debug(f"Skipping already migrated (hash match): {rel_path}")
+                            stats["skipped"] += 1
+                            continue
 
                 dst_dir = os.path.dirname(dst_file)
                 if not dry_run:
                     os.makedirs(dst_dir, exist_ok=True)
                     shutil.copy2(src_file, dst_file)
-                    # Verify copy
+                    # Verify copy size and SHA-256 checksum
                     if os.path.getsize(src_file) != os.path.getsize(dst_file):
                         raise IOError(f"File size mismatch after copying {rel_path}")
+                    if compute_sha256(src_file) != compute_sha256(dst_file):
+                        raise IOError(f"SHA-256 hash mismatch after copying {rel_path}")
 
                 logger.info(f"Copied: {rel_path}")
                 stats["copied"] += 1
