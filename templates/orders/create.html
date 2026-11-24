@@ -1088,12 +1088,47 @@
         </div>
 
         <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(category_filter=["order_error"]) %}
-        {% if messages %}{% for msg in messages %}
-        <div style="padding:14px; background:rgba(239,68,68,0.08); border-left:4px solid #ef4444; border-radius:6px; color:#991b1b; margin-bottom:1.5rem; font-size:0.92rem; display:flex; gap:10px; align-items:center;">
-            <span>⚠️</span> {{ msg }}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages-wrapper" style="margin-bottom:1.5rem;">
+            {% for category, msg in messages %}
+                {% if category in ['order_error', 'error', 'danger'] %}
+                <div class="flash-message flash-error" style="padding:14px 18px; background-color:rgba(239,68,68,0.08); border-left:4px solid #ef4444; color:#991b1b; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:0.75rem; border-radius:8px; font-weight:600; font-size:0.92rem; box-shadow:0 2px 8px rgba(239,68,68,0.08);">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:1.3rem; line-height:1; color:#ef4444;">⚠</span>
+                        <span>{{ msg }}</span>
+                    </div>
+                    <button type="button" onclick="this.closest('.flash-message').remove()" style="background:none; border:none; color:#991b1b; font-size:1.3rem; cursor:pointer; line-height:1; padding:0 4px;" title="Dismiss">&times;</button>
+                </div>
+                {% elif category in ['order_success', 'success'] %}
+                <div class="flash-message flash-success" style="padding:14px 18px; background-color:rgba(16,185,129,0.08); border-left:4px solid #10b981; color:#065f46; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:0.75rem; border-radius:8px; font-weight:600; font-size:0.92rem; box-shadow:0 2px 8px rgba(16,185,129,0.08);">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="color:#10b981; font-size:1.3rem; line-height:1;">✓</span>
+                        <span>{{ msg }}</span>
+                    </div>
+                    <button type="button" onclick="this.closest('.flash-message').remove()" style="background:none; border:none; color:#065f46; font-size:1.3rem; cursor:pointer; line-height:1; padding:0 4px;" title="Dismiss">&times;</button>
+                </div>
+                {% elif category in ['order_warning', 'warning'] %}
+                <div class="flash-message flash-warning" style="padding:14px 18px; background-color:rgba(245,158,11,0.09); border-left:4px solid #f59e0b; color:#92400e; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:0.75rem; border-radius:8px; font-weight:600; font-size:0.92rem; box-shadow:0 2px 8px rgba(245,158,11,0.08);">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="color:#f59e0b; font-size:1.3rem; line-height:1;">⚡</span>
+                        <span>{{ msg }}</span>
+                    </div>
+                    <button type="button" onclick="this.closest('.flash-message').remove()" style="background:none; border:none; color:#92400e; font-size:1.3rem; cursor:pointer; line-height:1; padding:0 4px;" title="Dismiss">&times;</button>
+                </div>
+                {% else %}
+                <div class="flash-message flash-info" style="padding:14px 18px; background-color:rgba(2,132,199,0.08); border-left:4px solid #0284c7; color:#075985; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:0.75rem; border-radius:8px; font-weight:600; font-size:0.92rem; box-shadow:0 2px 8px rgba(2,132,199,0.08);">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="color:#0284c7; font-size:1.3rem; line-height:1;">ℹ</span>
+                        <span>{{ msg }}</span>
+                    </div>
+                    <button type="button" onclick="this.closest('.flash-message').remove()" style="background:none; border:none; color:#075985; font-size:1.3rem; cursor:pointer; line-height:1; padding:0 4px;" title="Dismiss">&times;</button>
+                </div>
+                {% endif %}
+            {% endfor %}
         </div>
-        {% endfor %}{% endif %}{% endwith %}
+        {% endif %}
+        {% endwith %}
 
         <form id="masterOrderForm" method="POST" action="{{ url_for('orders.create_order') }}" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" id="formCsrfToken" value="{{ csrf_token() }}">

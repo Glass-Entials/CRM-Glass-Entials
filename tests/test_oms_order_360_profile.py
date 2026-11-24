@@ -638,6 +638,22 @@ class OMSOrder360ProfileTests(unittest.TestCase):
         # Should redirect to orders list with flash error
         self.assertIn(resp.status_code, [302, 403, 404])
 
+    def test_26_flash_messages_rendered_on_detail_page(self):
+        """26. Flashed error and success messages render directly on the order detail page."""
+        self._login_as(self.admin1)
+        with self.client.session_transaction() as sess:
+            sess['_flashes'] = [
+                ('order_error', 'Status transition prerequisite failed: undelivered items.'),
+                ('order_success', 'Purchase order created successfully.')
+            ]
+        resp = self.client.get("/orders/1")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+        self.assertIn("Status transition prerequisite failed: undelivered items.", html)
+        self.assertIn("Purchase order created successfully.", html)
+        self.assertIn("flash-error", html)
+        self.assertIn("flash-success", html)
+
 
 if __name__ == "__main__":
     unittest.main()
