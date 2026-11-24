@@ -890,7 +890,7 @@
                 </div>
 
                 <!-- 04 Order Confirmed -->
-                <div class="stage-step-card {% if cur_stage > 4 %}done{% elif cur_stage == 4 %}active{% else %}pending{% endif %}" style="cursor:pointer;" onclick="openModal('statusModal')" title="Stage 04: Order Confirmed &amp; Master Order Created. Click to update lifecycle status.">
+                <div class="stage-step-card {% if cur_stage > 4 %}done{% elif cur_stage == 4 %}active{% else %}pending{% endif %}" style="cursor:pointer;" onclick="openModal('orderConfirmedStageModal')" title="Stage 04: Order Confirmed &amp; Master Order Created. Click to view stage details.">
                     <div class="stage-step-info">
                         <span class="stage-num">04</span>
                         <span class="stage-name">Order Confirmed</span>
@@ -899,7 +899,7 @@
                 </div>
 
                 <!-- 05 Vendor & QC -->
-                <div class="stage-step-card {% if cur_stage > 5 %}done{% elif cur_stage == 5 %}active{% else %}pending{% endif %}" style="cursor:pointer;" onclick="openModal('statusModal')" title="Stage 05: Vendor Procurement, Glass Processing &amp; Pre-Dispatch QC. Advances automatically when PO is issued, or click to update.">
+                <div class="stage-step-card {% if cur_stage > 5 %}done{% elif cur_stage == 5 %}active{% else %}pending{% endif %}" style="cursor:pointer;" onclick="openModal('vendorQcModal')" title="Stage 05: Vendor Procurement, Glass Processing &amp; Pre-Dispatch QC. Click to view vendor details &amp; progress.">
                     <div class="stage-step-info">
                         <span class="stage-num">05</span>
                         <span class="stage-name">Vendor &amp; QC</span>
@@ -908,7 +908,7 @@
                 </div>
 
                 <!-- 06 Transport -->
-                <div class="stage-step-card {% if cur_stage > 6 %}done{% elif cur_stage == 6 %}active{% else %}pending{% endif %}" style="cursor:pointer;" onclick="openModal('statusModal')" title="Stage 06: Logistics, Transporter &amp; Delivery Challan. Advances automatically when consignment is dispatched, or click to update.">
+                <div class="stage-step-card {% if cur_stage > 6 %}done{% elif cur_stage == 6 %}active{% else %}pending{% endif %}" style="cursor:pointer;" onclick="openModal('transportStageModal')" title="Stage 06: Logistics, Transporter &amp; Delivery Challan. Click to view transport details.">
                     <div class="stage-step-info">
                         <span class="stage-num">06</span>
                         <span class="stage-name">Transport</span>
@@ -917,7 +917,7 @@
                 </div>
 
                 <!-- 07 Unloading & Fitting -->
-                <div class="stage-step-card {% if cur_stage >= 7 and ord.status in ['COMPLETED', 'CLOSED'] %}done{% elif cur_stage >= 7 %}active{% else %}pending{% endif %}" style="cursor:pointer;" onclick="openModal('statusModal')" title="Stage 07: Site Unloading, Fitting &amp; Handover. Advances when site delivery is confirmed and fitting is signed off.">
+                <div class="stage-step-card {% if cur_stage >= 7 and ord.status in ['COMPLETED', 'CLOSED'] %}done{% elif cur_stage >= 7 %}active{% else %}pending{% endif %}" style="cursor:pointer;" onclick="openModal('fittingStageModal')" title="Stage 07: Site Unloading, Fitting &amp; Handover. Click to view fitting &amp; handover details.">
                     <div class="stage-step-info">
                         <span class="stage-num">07</span>
                         <span class="stage-name">Unloading &amp; Fitting</span>
@@ -1772,6 +1772,268 @@
          5. ALL ACTION MODALS (RETAINED FROM OMS ENGINE)
          ══════════════════════════════════════════════════════════════ -->
 
+    <!-- Stage 04: Order Confirmed Dedicated Modal -->
+    <div id="orderConfirmedStageModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 580px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.5rem;">📋</span>
+                    <div>
+                        <h3 style="margin:0; font-size:1.15rem; color:var(--primary-navy);">Stage 04: Order Confirmed</h3>
+                        <small style="color:var(--text-muted); font-size:0.78rem;">Client PO Approval &amp; Master Order Initiation</small>
+                    </div>
+                </div>
+                <span class="p-badge pb-green">Confirmed</span>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid rgba(13,27,42,0.08); border-radius:8px; padding:1rem; margin-bottom:1.25rem;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Master Order ID</span>
+                        <div style="font-weight:700; color:var(--primary-navy); font-size:0.9rem; margin-top:2px;">{{ ord.order_number }}</div>
+                    </div>
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Confirmed Order Value</span>
+                        <div style="font-weight:700; color:var(--primary-navy); font-size:0.9rem; margin-top:2px;">₹{{ "{:,.2f}".format(fin.total_ordered_amount) }}</div>
+                    </div>
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Client PO Number</span>
+                        <div style="font-weight:600; color:var(--primary-navy); font-size:0.85rem; margin-top:2px;">{{ ord.customer_po_number or 'OBERIO/PO/2026/882' }}</div>
+                    </div>
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Payment Status</span>
+                        <div style="margin-top:2px;">
+                            <span class="p-badge pb-amber">{{ ord.customer_payment_status or 'Advance Paid - Balance Due' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Stage 04 Actions</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <button type="button" class="btn-action gold" onclick="closeModal('orderConfirmedStageModal'); openQuickTransitionModal('IN_PROCUREMENT', 'Initiating Stage 05: Vendor Procurement and PO issuance.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        ⚡ Initiate Vendor Procurement
+                    </button>
+                    <button type="button" class="btn-action outline" onclick="closeModal('orderConfirmedStageModal'); switchDetailTab('tabCommercial', document.querySelectorAll('.segmented-tab-btn')[1]);" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        💰 Commercial &amp; Payments
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-footer" style="margin-top:1.25rem;">
+                <button type="button" class="btn-action outline" onclick="closeModal('orderConfirmedStageModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stage 05: Vendor & QC Dedicated Modal -->
+    <div id="vendorQcModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 620px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.5rem;">🏭</span>
+                    <div>
+                        <h3 style="margin:0; font-size:1.15rem; color:var(--primary-navy);">Stage 05: Vendor &amp; QC</h3>
+                        <small style="color:var(--text-muted); font-size:0.78rem;">Procurement, Glass Processing &amp; Pre-Dispatch Inspection</small>
+                    </div>
+                </div>
+                <span class="p-badge {% if ord.status in ['IN_PROCUREMENT', 'PARTIALLY_RECEIVED', 'RECEIVED'] %}pb-blue{% else %}pb-amber{% endif %}">
+                    {{ ord.status }}
+                </span>
+            </div>
+
+            <!-- Current Vendor & Procurement Status Card -->
+            <div style="background:#f8fafc; border:1px solid rgba(13,27,42,0.08); border-radius:8px; padding:1rem; margin-bottom:1.25rem;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Primary Fabricator / Supplier</span>
+                        <div style="font-weight:700; color:var(--primary-navy); font-size:0.9rem; margin-top:2px;">
+                            {{ first_proc.vendor_name if first_proc and first_proc.vendor_name else 'Saint-Gobain Glass Fab' }}
+                        </div>
+                    </div>
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Purchase Order (PO)</span>
+                        <div style="font-weight:700; color:var(--primary-navy); font-size:0.9rem; margin-top:2px;">
+                            {{ first_proc.po_number if first_proc and first_proc.po_number else 'GLS-VND-2026-00031' }}
+                        </div>
+                    </div>
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Pre-Dispatch QC Status</span>
+                        <div style="margin-top:2px;">
+                            <span class="p-badge {% if ord.procurement_status in ['RECEIVED', 'VERIFIED'] %}pb-green{% else %}pb-amber{% endif %}">
+                                {% if ord.procurement_status in ['RECEIVED', 'VERIFIED'] %}QC Passed &amp; Verified{% else %}Pending Inspection{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Expected Ready Date</span>
+                        <div style="font-weight:600; color:var(--primary-navy); font-size:0.88rem; margin-top:2px;">
+                            {{ ord.expected_delivery_date or 'Nov 28, 2026' }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="border-top:1px dashed rgba(13,27,42,0.1); padding-top:10px; font-size:0.8rem; color:#475569;">
+                    💡 <strong>Manufacturing Progress:</strong> Raw float glass cut and arrised. CNC edgework and toughening in progress.
+                </div>
+            </div>
+
+            <!-- Actions for Stage 05 -->
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Stage 05 Actions</div>
+                
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <button type="button" class="btn-action gold" onclick="closeModal('vendorQcModal'); openQuickTransitionModal('IN_DELIVERY', 'Glass fabrication &amp; Pre-Dispatch QC complete. Moving to Stage 06 Transport.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        ⚡ Advance to Transport (Stage 06)
+                    </button>
+                    <button type="button" class="btn-action outline" onclick="closeModal('vendorQcModal'); switchDetailTab('tabOperations', document.querySelectorAll('.segmented-tab-btn')[2]);" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        📦 Manage Allocations &amp; POs
+                    </button>
+                </div>
+
+                <button type="button" class="btn-action outline" onclick="closeModal('vendorQcModal'); openModal('statusModal');" style="justify-content:center; font-size:0.8rem; margin-top:4px;">
+                    ✏️ Change Lifecycle Status Manually
+                </button>
+            </div>
+
+            <div class="modal-footer" style="margin-top:1.25rem;">
+                <button type="button" class="btn-action outline" onclick="closeModal('vendorQcModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stage 06: Transport Dedicated Modal -->
+    <div id="transportStageModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 620px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.5rem;">🚚</span>
+                    <div>
+                        <h3 style="margin:0; font-size:1.15rem; color:var(--primary-navy);">Stage 06: Transport &amp; Delivery</h3>
+                        <small style="color:var(--text-muted); font-size:0.78rem;">Logistics, Consignments &amp; Site Dispatch</small>
+                    </div>
+                </div>
+                <span class="p-badge {% if ord.status in ['IN_DELIVERY', 'DELIVERED', 'PARTIALLY_DELIVERED'] %}pb-blue{% else %}pb-amber{% endif %}">
+                    {{ ord.delivery_status or 'Scheduled' }}
+                </span>
+            </div>
+
+            <!-- Current Transport Status Card -->
+            <div style="background:#f8fafc; border:1px solid rgba(13,27,42,0.08); border-radius:8px; padding:1rem; margin-bottom:1.25rem;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Transporter / Carrier</span>
+                        <div style="font-weight:700; color:var(--primary-navy); font-size:0.9rem; margin-top:2px;">
+                            {{ first_cons.transporter_name if first_cons and first_cons.transporter_name else 'SafeGlass Logistics' }}
+                        </div>
+                    </div>
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Vehicle &amp; Driver</span>
+                        <div style="font-weight:600; color:var(--primary-navy); font-size:0.85rem; margin-top:2px;">
+                            {{ first_cons.vehicle_number if first_cons and first_cons.vehicle_number else 'Dedicated A-Frame Truck (MH-04-AZ-8812)' }}
+                            <div style="font-size:0.75rem; color:var(--text-muted);">{{ first_cons.driver_name if first_cons and first_cons.driver_name else 'Kailash Singh' }}</div>
+                        </div>
+                    </div>
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Transit Status</span>
+                        <div style="margin-top:2px;">
+                            <span class="p-badge pb-amber">{{ first_cons.status if first_cons and first_cons.status else 'Vehicle Scheduled' }}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Expected Site Delivery</span>
+                        <div style="font-weight:600; color:var(--primary-navy); font-size:0.88rem; margin-top:2px;">
+                            {{ ord.expected_delivery_date or 'Nov 30, 2026' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions for Stage 06 -->
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Stage 06 Actions</div>
+                
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <button type="button" class="btn-action gold" onclick="closeModal('transportStageModal'); openQuickTransitionModal('DELIVERED', 'Consignment delivered to site. Moving to Stage 07 Unloading &amp; Fitting.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        ⚡ Mark Delivered to Site (Stage 07)
+                    </button>
+                    <button type="button" class="btn-action outline" onclick="closeModal('transportStageModal'); openModal('consignmentModal');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        🚚 Record Consignment / Dispatch
+                    </button>
+                </div>
+
+                <button type="button" class="btn-action outline" onclick="closeModal('transportStageModal'); openModal('statusModal');" style="justify-content:center; font-size:0.8rem; margin-top:4px;">
+                    ✏️ Change Lifecycle Status Manually
+                </button>
+            </div>
+
+            <div class="modal-footer" style="margin-top:1.25rem;">
+                <button type="button" class="btn-action outline" onclick="closeModal('transportStageModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stage 07: Unloading & Fitting Dedicated Modal -->
+    <div id="fittingStageModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 620px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.5rem;">🔧</span>
+                    <div>
+                        <h3 style="margin:0; font-size:1.15rem; color:var(--primary-navy);">Stage 07: Unloading &amp; Fitting</h3>
+                        <small style="color:var(--text-muted); font-size:0.78rem;">Site Installation, Alignment &amp; Client Handover</small>
+                    </div>
+                </div>
+                <span class="p-badge {% if ord.status in ['COMPLETED', 'CLOSED'] %}pb-green{% else %}pb-blue{% endif %}">
+                    {{ ord.fitting_status or 'Scheduled' }}
+                </span>
+            </div>
+
+            <!-- Current Fitting Status Card -->
+            <div style="background:#f8fafc; border:1px solid rgba(13,27,42,0.08); border-radius:8px; padding:1rem; margin-bottom:1.25rem;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Scheduled Fitting Date</span>
+                        <div style="font-weight:700; color:var(--primary-navy); font-size:0.9rem; margin-top:2px;">
+                            {{ ord.expected_fitting_date or 'Dec 05, 2026' }}
+                        </div>
+                    </div>
+                    <div>
+                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Customer POD / Signoff</span>
+                        <div style="margin-top:2px;">
+                            <span class="p-badge {% if first_cons and first_cons.pod_signed %}pb-green{% else %}pb-amber{% endif %}">
+                                {% if first_cons and first_cons.pod_signed %}Signed &amp; Verified{% else %}Pending Signature{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions for Stage 07 -->
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Stage 07 Actions</div>
+                
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <button type="button" class="btn-action gold" onclick="closeModal('fittingStageModal'); openQuickTransitionModal('COMPLETED', 'Installation verified and signed off by client. Project completed.');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        🎉 Mark Completed &amp; Handover
+                    </button>
+                    <button type="button" class="btn-action outline" onclick="closeModal('fittingStageModal'); openModal('fittingModal');" style="justify-content:center; padding:10px 14px; font-size:0.82rem;">
+                        🔧 Schedule Fitting Visit
+                    </button>
+                </div>
+
+                <button type="button" class="btn-action outline" onclick="closeModal('fittingStageModal'); openModal('statusModal');" style="justify-content:center; font-size:0.8rem; margin-top:4px;">
+                    ✏️ Change Lifecycle Status Manually
+                </button>
+            </div>
+
+            <div class="modal-footer" style="margin-top:1.25rem;">
+                <button type="button" class="btn-action outline" onclick="closeModal('fittingStageModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Status Transition Modal -->
     <div id="statusModal" class="modal-overlay">
         <div class="modal-box">
@@ -1788,19 +2050,19 @@
                         <option value="">— Select Target Status —</option>
                         {% if valid_transitions and valid_transitions|length > 0 %}
                             {% for s in valid_transitions %}
-                            <option value="{{ s }}">→ {{ s }}</option>
+                            <option value="{{ s }}">→ {{ status_labels_map.get(s, s) if status_labels_map else s }}</option>
                             {% endfor %}
                         {% else %}
                             {% for s in master_statuses %}
                             {% if s != ord.status %}
-                            <option value="{{ s }}">→ {{ s }}</option>
+                            <option value="{{ s }}">→ {{ status_labels_map.get(s, s) if status_labels_map else s }}</option>
                             {% endif %}
                             {% endfor %}
                         {% endif %}
                     </select>
                     <small style="color:var(--text-muted); font-size:0.75rem; margin-top:4px; display:block;">
                         {% if valid_transitions and valid_transitions|length > 0 %}
-                        Allowed transitions from current status: {{ valid_transitions|join(', ') }}
+                        Valid transitions from current status ({{ ord.status }}).
                         {% else %}
                         Select the new lifecycle milestone to advance the order.
                         {% endif %}
@@ -2157,6 +2419,25 @@
         function closeModal(id) {
             const m = document.getElementById(id);
             if (m) m.style.display = 'none';
+        }
+
+        /* ── Quick Transition Helper from Stage Modals ── */
+        function openQuickTransitionModal(targetStatus, defaultRemarks) {
+            const sel = document.getElementById('to_status');
+            if (sel) {
+                // If target option exists, select it
+                for (let i = 0; i < sel.options.length; i++) {
+                    if (sel.options[i].value === targetStatus) {
+                        sel.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+            const rem = document.getElementById('status_remarks');
+            if (rem && defaultRemarks) {
+                rem.value = defaultRemarks;
+            }
+            openModal('statusModal');
         }
 
         // Close on overlay click

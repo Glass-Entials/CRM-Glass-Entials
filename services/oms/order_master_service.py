@@ -69,6 +69,7 @@ VALID_MASTER_TRANSITIONS = {
     MasterOrderStatus.IN_PROCUREMENT.value: {
         MasterOrderStatus.PARTIALLY_RECEIVED.value,
         MasterOrderStatus.RECEIVED.value,
+        MasterOrderStatus.IN_DELIVERY.value,
         MasterOrderStatus.ON_HOLD.value,
         MasterOrderStatus.CANCELLED.value,
     },

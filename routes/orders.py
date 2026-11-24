@@ -1232,7 +1232,27 @@ def detail_order(order_id: int):
 
     from services.oms.order_master_service import VALID_MASTER_TRANSITIONS
     current_status = cockpit_data["order"]["status"]
+    if hasattr(current_status, "value"):
+        current_status = current_status.value
+    else:
+        current_status = str(current_status or "")
     valid_transitions = sorted(list(VALID_MASTER_TRANSITIONS.get(current_status, set())))
+
+    status_labels_map = {
+        "DRAFT": "Stage 04: Order Drafted (Pending Confirmation)",
+        "CONFIRMED": "Stage 04: Order Confirmed (Ready for Procurement)",
+        "IN_PROCUREMENT": "Stage 05: Vendor & QC (In Procurement / PO Issued)",
+        "PARTIALLY_RECEIVED": "Stage 05: Vendor & QC (Partially Received from Fabricator)",
+        "RECEIVED": "Stage 05: Vendor & QC (Fabrication Complete / QC Passed)",
+        "IN_DELIVERY": "Stage 06: Transport (Out for Delivery / In Transit)",
+        "PARTIALLY_DELIVERED": "Stage 06: Transport (Partially Delivered to Site)",
+        "DELIVERED": "Stage 07: Unloading & Fitting (Site Delivered / POD Signed)",
+        "IN_FITTING": "Stage 07: Unloading & Fitting (Installation Active)",
+        "COMPLETED": "Stage 07: Project Completed & Handover",
+        "CLOSED": "Stage 07: Closed & Reconciled",
+        "ON_HOLD": "⏸ Put On Hold (Site / Client Delay)",
+        "CANCELLED": "⛔ Cancel Order",
+    }
 
     return render_template(
         "orders/detail.html",
@@ -1242,6 +1262,7 @@ def detail_order(order_id: int):
         available_payments=available_payments,
         master_statuses=[s.value for s in MasterOrderStatus],
         valid_transitions=valid_transitions,
+        status_labels_map=status_labels_map,
     )
 
 
