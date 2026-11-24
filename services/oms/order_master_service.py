@@ -175,6 +175,61 @@ def detect_lead_customer(org_id: int, lead: Lead) -> Optional[Customer]:
     return None
 
 
+def _get_lead_stage_label(status: str) -> str:
+    _map = {
+        "NEW": "Lead & Qualify",
+        "ACTIVE": "Lead & Qualify",
+        "PROSPECT": "Measurement",
+        "INACTIVE": "Quotation",
+        "CLOSED": "Order Confirmed",
+    }
+    return _map.get(str(status or "").upper(), "Lead & Qualify")
+
+
+def _get_lead_stage_number(status: str) -> int:
+    _map = {"NEW": 1, "ACTIVE": 1, "PROSPECT": 2, "INACTIVE": 3, "CLOSED": 4}
+    return _map.get(str(status or "").upper(), 1)
+
+
+def _get_order_stage_label(status: str) -> str:
+    _map = {
+        "DRAFT": "Order Confirmed",
+        "CONFIRMED": "Order Confirmed",
+        "IN_PROCUREMENT": "Vendor & QC",
+        "PROCUREMENT": "Vendor & QC",
+        "PARTIALLY_RECEIVED": "Vendor & QC",
+        "RECEIVED": "Vendor & QC",
+        "IN_DELIVERY": "Transport",
+        "DELIVERY": "Transport",
+        "IN_TRANSIT": "Transport",
+        "DELIVERED": "Unloading & Fitting",
+        "FITTING": "Unloading & Fitting",
+        "COMPLETED": "Unloading & Fitting",
+        "CLOSED": "Unloading & Fitting",
+        "CANCELLED": "Order Confirmed",
+    }
+    return _map.get(str(status or "").upper(), "Order Confirmed")
+
+
+def _get_order_stage_number(status: str) -> int:
+    _map = {
+        "DRAFT": 4,
+        "CONFIRMED": 4,
+        "IN_PROCUREMENT": 5,
+        "PROCUREMENT": 5,
+        "PARTIALLY_RECEIVED": 5,
+        "RECEIVED": 5,
+        "IN_DELIVERY": 6,
+        "DELIVERY": 6,
+        "IN_TRANSIT": 6,
+        "DELIVERED": 7,
+        "FITTING": 7,
+        "COMPLETED": 7,
+        "CLOSED": 7,
+    }
+    return _map.get(str(status or "").upper(), 4)
+
+
 class OrderMasterService:
     """Service handling high-level customer orders and allocation state."""
 
@@ -1018,9 +1073,16 @@ class OrderMasterService:
                 "order_date_iso": order.order_date.strftime("%Y-%m-%d %H:%M") if order.order_date else None,
                 "expected_delivery_date": order.expected_delivery_date.strftime("%d %b %Y") if order.expected_delivery_date else None,
                 "expected_delivery_date_iso": order.expected_delivery_date.strftime("%Y-%m-%d") if order.expected_delivery_date else None,
+                "actual_delivery_date": order.actual_delivery_date.strftime("%d %b %Y") if order.actual_delivery_date else None,
+                "expected_fitting_date": order.expected_fitting_date.strftime("%d %b %Y") if order.expected_fitting_date else None,
+                "actual_fitting_date": order.actual_fitting_date.strftime("%d %b %Y") if order.actual_fitting_date else None,
                 "shipping_address": order.shipping_address,
+                "billing_address": order.billing_address,
                 "site_address": order.site_address,
                 "notes": order.notes,
+                "priority": getattr(order, 'priority', 'MEDIUM') or 'MEDIUM',
+                "customer_po_number": getattr(order, 'customer_po_number', None),
+                "customer_po_date": order.customer_po_date.strftime("%d %b %Y") if getattr(order, 'customer_po_date', None) else None,
                 "version_id": order.version_id,
                 "total_ordered_amount": float(order.total_ordered_amount),
                 "total_tax_amount": float(order.total_tax_amount),
@@ -1039,6 +1101,9 @@ class OrderMasterService:
                     "email": order.customer.email if order.customer else (order.lead.email if order.lead else ""),
                     "phone": (order.customer.phone_number if order.customer else (order.lead.phone_number if order.lead else "")),
                     "mobile": (order.customer.phone_number if order.customer else (order.lead.phone_number if order.lead else "")),
+                    "company": order.customer.company if order.customer else (order.lead.company if order.lead else None),
+                    "gst_number": getattr(order.customer, 'gst_number', None) if order.customer else None,
+                    "address": getattr(order.customer, 'address', None) if order.customer else None,
                     "is_lead": bool(order.lead_id and not order.customer_id),
                     "lead_id": order.lead_id,
                     "customer_id": order.customer_id,
@@ -1050,6 +1115,11 @@ class OrderMasterService:
                     "phone_number": order.lead.phone_number,
                     "email": order.lead.email,
                     "status": order.lead.status.value if hasattr(order.lead.status, 'value') else str(order.lead.status or ''),
+                    "source": order.lead.source.value if (order.lead.source and hasattr(order.lead.source, 'value')) else str(order.lead.source or ''),
+                    "city": getattr(order.lead, 'city', None),
+                    "address": getattr(order.lead, 'address', None),
+                    "created_at": order.lead.created_at.strftime("%d %b %Y") if order.lead.created_at else None,
+                    "lead_number": getattr(order.lead, 'lead_number', None) or f"GLS-LEAD-{order.lead.id:04d}",
                 } if order.lead else None,
                 "assigned_to": {
                     "id": order.assigned_to.id,
@@ -1058,6 +1128,10 @@ class OrderMasterService:
                 "quotation": {
                     "id": order.quotation.id if order.quotation else None,
                     "quotation_number": order.quotation.quotation_number if order.quotation else None,
+                    "status": order.quotation.status.value if (order.quotation and hasattr(order.quotation.status, 'value')) else (str(order.quotation.status) if order.quotation else None),
+                    "total_amount": float(order.quotation.total_amount) if (order.quotation and hasattr(order.quotation, 'total_amount') and order.quotation.total_amount is not None) else None,
+                    "quotation_date": order.quotation.created_at.strftime("%d %b %Y") if (order.quotation and order.quotation.created_at) else None,
+                    "customer_decision": getattr(order.quotation, 'customer_decision', None) if order.quotation else None,
                 } if order.quotation else None,
             },
             "items": [
@@ -1120,7 +1194,21 @@ class OrderMasterService:
                     "lr_number": c.lr_number,
                     "tracking_number": c.lr_number or getattr(c, 'tracking_reference', None) or '',
                     "status": c.status,
-                    "dispatch_date": c.dispatch_date.strftime("%Y-%m-%d") if c.dispatch_date else None,
+                    "dispatch_date": c.dispatch_date.strftime("%d %b %Y") if c.dispatch_date else None,
+                    "dispatch_date_iso": c.dispatch_date.strftime("%Y-%m-%d") if c.dispatch_date else None,
+                    "expected_arrival_date": c.expected_arrival_date.strftime("%d %b %Y") if c.expected_arrival_date else None,
+                    "actual_arrival_date": c.actual_arrival_date.strftime("%d %b %Y") if c.actual_arrival_date else None,
+                    "shipping_cost": float(c.shipping_cost or Decimal("0.00")),
+                    "driver_name": getattr(c, 'driver_name', None),
+                    "driver_contact": getattr(c, 'driver_contact', None),
+                    "pickup_location": getattr(c, 'pickup_location', None),
+                    "packing_verified": getattr(c, 'packing_verified', False),
+                    "site_receiver_name": getattr(c, 'site_receiver_name', None),
+                    "site_receiver_contact": getattr(c, 'site_receiver_contact', None),
+                    "pod_signed": getattr(c, 'pod_signed', False),
+                    "pod_signed_at": c.pod_signed_at.strftime("%d %b %Y") if getattr(c, 'pod_signed_at', None) else None,
+                    "failure_reason": getattr(c, 'failure_reason', None),
+                    "notes": c.notes,
                     "vendor_name": (
                         c.procurement.vendor.name if (c.procurement and c.procurement.vendor)
                         else (
@@ -1261,6 +1349,18 @@ class OrderMasterService:
                 "vendor_outstanding": float(max(Decimal("0.00"), (order.total_vendor_billed or Decimal("0.00")) - (order.total_vendor_paid or Decimal("0.00")))),
                 "vendor_payment_status": order.vendor_payment_status,
                 "operating_cash_margin": float((order.total_customer_paid or Decimal("0.00")) - (order.total_vendor_paid or Decimal("0.00"))),
+            },
+            "lifecycle": {
+                "lead_stage": {
+                    "status": (order.lead.status.value if hasattr(order.lead.status, 'value') else str(order.lead.status)) if order.lead else None,
+                    "label": _get_lead_stage_label((order.lead.status.value if hasattr(order.lead.status, 'value') else str(order.lead.status)) if order.lead else None),
+                    "stage_number": _get_lead_stage_number((order.lead.status.value if hasattr(order.lead.status, 'value') else str(order.lead.status)) if order.lead else None),
+                },
+                "order_stage": {
+                    "status": order.status,
+                    "label": _get_order_stage_label(order.status),
+                    "stage_number": _get_order_stage_number(order.status),
+                },
             },
         }
 

@@ -3914,6 +3914,11 @@ class OrderMaster(db.Model):
     site_address = db.Column(db.Text, nullable=True)
     notes = db.Column(db.Text, nullable=True)
 
+    # Client PO & Priority
+    priority = db.Column(db.String(20), nullable=False, server_default="MEDIUM")
+    customer_po_number = db.Column(db.String(100), nullable=True)
+    customer_po_date = db.Column(db.DateTime, nullable=True)
+
     # Concurrency, Auditing & Ownership
     version_id = db.Column(db.Integer, nullable=False, default=1)
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
@@ -4260,6 +4265,18 @@ class OrderConsignment(db.Model):
         db.Integer, db.ForeignKey("employee.id", ondelete="RESTRICT"), nullable=True, index=True
     )
     notes = db.Column(db.Text, nullable=True)
+
+    # Extended transport fields
+    driver_name = db.Column(db.String(100), nullable=True)
+    driver_contact = db.Column(db.String(20), nullable=True)
+    pickup_location = db.Column(db.String(200), nullable=True)
+    packing_verified = db.Column(db.Boolean, default=False, nullable=False, server_default="0")
+    site_receiver_name = db.Column(db.String(100), nullable=True)
+    site_receiver_contact = db.Column(db.String(20), nullable=True)
+    pod_signed = db.Column(db.Boolean, default=False, nullable=False, server_default="0")
+    pod_signed_at = db.Column(db.DateTime, nullable=True)
+    failure_reason = db.Column(db.Text, nullable=True)
+
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
