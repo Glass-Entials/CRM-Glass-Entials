@@ -654,6 +654,59 @@ class OMSOrder360ProfileTests(unittest.TestCase):
         self.assertIn("flash-error", html)
         self.assertIn("flash-success", html)
 
+    def test_27_update_order_box_identity_and_cards(self):
+        """27. Test updating individual boxes directly from the order 360 profile."""
+        self._login_as(self.admin1)
+
+        # 1. Update Identity Header
+        resp = self.client.post("/orders/1/update-box", data={
+            "box_name": "identity",
+            "priority": "CRITICAL",
+            "site_address": "Oberoi Sky City Penthouse Tower B Floor 42",
+            "net_order_amount": "450000.00",
+        }, follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+        self.assertIn("CRITICAL", html)
+        self.assertIn("Oberoi Sky City Penthouse Tower B Floor 42", html)
+
+        # 2. Update Customer Box
+        resp2 = self.client.post("/orders/1/update-box", data={
+            "box_name": "customer",
+            "customer_name": "Rajesh Singhania (Director)",
+            "customer_phone": "+91 99999 88888",
+            "customer_company": "Oberoi Luxury Living",
+        }, follow_redirects=True)
+        self.assertEqual(resp2.status_code, 200)
+        html2 = resp2.get_data(as_text=True)
+        self.assertIn("Rajesh Singhania (Director)", html2)
+        self.assertIn("Oberoi Luxury Living", html2)
+
+        # 3. Update Financials Box
+        resp3 = self.client.post("/orders/1/update-box", data={
+            "box_name": "financials",
+            "customer_po_number": "PO-OBEROI-2026-X99",
+            "customer_payment_status": "PARTIALLY_PAID",
+            "net_order_amount": "450000.00",
+        }, follow_redirects=True)
+        self.assertEqual(resp3.status_code, 200)
+        html3 = resp3.get_data(as_text=True)
+        self.assertIn("PO-OBEROI-2026-X99", html3)
+
+        # 4. Update Transport Box
+        resp4 = self.client.post("/orders/1/update-box", data={
+            "box_name": "transport",
+            "transporter_name": "Apex Express Cargo",
+            "vehicle_number": "MH-02-ZZ-9999",
+            "driver_name": "Ramesh Kumar",
+            "driver_contact": "+91 98765 00000",
+            "shipping_cost": "25000",
+        }, follow_redirects=True)
+        self.assertEqual(resp4.status_code, 200)
+        html4 = resp4.get_data(as_text=True)
+        self.assertIn("Apex Express Cargo", html4)
+        self.assertIn("MH-02-ZZ-9999", html4)
+
 
 if __name__ == "__main__":
     unittest.main()

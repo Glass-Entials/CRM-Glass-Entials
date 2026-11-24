@@ -41,6 +41,8 @@ from model import (
     Payment,
     Invoice,
     OrderDelivery,
+    OrderConsignment,
+    OrderConsignmentStatus,
     OrderDocument,
     MasterOrderStatus,
     OrderProcurementStatus,
@@ -1321,6 +1323,276 @@ def transition_status(order_id: int):
 
     return redirect(url_for("orders.detail_order", order_id=order_id))
 
+
+@orders_bp.route("/<int:order_id>/update-box", methods=["POST"])
+@login_required
+@require_roles("admin", "manager", "employee")
+def update_order_box(order_id: int):
+    """
+    Update information from individual boxes on the Order 360° Profile page.
+    Supports: identity, customer, next_action, requirement, financials, vendor_progress, transport.
+    """
+    org_id = _get_org_id()
+    actor_id = _get_actor_id()
+    wants_json = request.is_json or request.headers.get("Accept") == "application/json"
+    data = request.get_json(silent=True) or request.form
+
+    order = OrderMaster.query.filter_by(id=order_id, organization_id=org_id, is_deleted=False).first()
+    if not order:
+        if wants_json:
+            return jsonify({"success": False, "error": f"Order #{order_id} not found."}), 404
+        flash("Order not found.", "order_error")
+        return redirect(url_for("orders.list_orders"))
+
+    box_name = data.get("box_name", "").strip()
+    section_label = "Order details"
+
+    try:
+        if box_name == "identity":
+            section_label = "Order Header Identity"
+            if "priority" in data and data["priority"]:
+                order.priority = str(data["priority"]).strip().upper()
+            if "shipping_address" in data:
+                order.shipping_address = data["shipping_address"].strip()
+            if "billing_address" in data:
+                order.billing_address = data["billing_address"].strip()
+            if "site_address" in data:
+                order.site_address = data["site_address"].strip()
+            if "notes" in data:
+                order.notes = data["notes"].strip()
+            if "expected_delivery_date" in data and data["expected_delivery_date"]:
+                try:
+                    order.expected_delivery_date = datetime.strptime(data["expected_delivery_date"].strip(), "%Y-%m-%d")
+                except ValueError:
+                    pass
+            if "net_order_amount" in data and data["net_order_amount"]:
+                try:
+                    val = Decimal(str(data["net_order_amount"]).replace(",", "").strip())
+                    order.net_order_amount = val
+                    order.total_ordered_amount = val
+                except Exception:
+                    pass
+            if "assigned_to_id" in data and data["assigned_to_id"]:
+                try:
+                    order.assigned_to_id = int(data["assigned_to_id"])
+                except (ValueError, TypeError):
+                    pass
+
+        elif box_name == "customer":
+            section_label = "Customer & Lead Details"
+            c_name = data.get("customer_name", "").strip()
+            c_phone = data.get("customer_phone", "").strip()
+            c_email = data.get("customer_email", "").strip()
+            c_company = data.get("customer_company", "").strip()
+            c_address = data.get("customer_address", "").strip()
+
+            if order.customer:
+                if c_name: order.customer.name = c_name
+                if c_phone: order.customer.phone_number = c_phone
+                if c_email: order.customer.email = c_email
+                if c_company: order.customer.company = c_company
+                if c_address: order.customer.address = c_address
+            if order.lead:
+                if c_name: order.lead.name = c_name
+                if c_phone: order.lead.phone_number = c_phone
+                if c_email: order.lead.email = c_email
+                if c_company: order.lead.company = c_company
+                if c_address: order.lead.address = c_address
+                if "lead_source" in data and data["lead_source"]:
+                    order.lead.source = data["lead_source"].strip()
+
+            if "assigned_to_id" in data and data["assigned_to_id"]:
+                try:
+                    order.assigned_to_id = int(data["assigned_to_id"])
+                except (ValueError, TypeError):
+                    pass
+
+        elif box_name == "next_action":
+            section_label = "Next Action & Follow-up"
+            if "next_action_notes" in data and data["next_action_notes"]:
+                note_text = data["next_action_notes"].strip()
+                if order.notes:
+                    order.notes = f"{order.notes}\n[Follow-up]: {note_text}"
+                else:
+                    order.notes = f"[Follow-up]: {note_text}"
+            if "expected_delivery_date" in data and data["expected_delivery_date"]:
+                try:
+                    order.expected_delivery_date = datetime.strptime(data["expected_delivery_date"].strip(), "%Y-%m-%d")
+                except ValueError:
+                    pass
+            to_status = data.get("to_status", "").strip()
+            if to_status and to_status != order.status:
+                remarks = data.get("status_remarks", f"Updated next action to {to_status}")
+                from services.oms.status_engine import OMSStatusEngine
+                OMSStatusEngine.transition_master_status(
+                    org_id=org_id,
+                    order_id=order.id,
+                    to_status=to_status,
+                    remarks=remarks,
+                    actor_id=actor_id,
+                )
+
+        elif box_name == "requirement":
+            section_label = "Requirement & Quotation"
+            glass_cat = data.get("glass_category", "").strip()
+            est_area = data.get("est_area", "").strip()
+            if (glass_cat or est_area) and order.items:
+                first_item = next((it for it in order.items if not it.is_deleted), None)
+                if first_item:
+                    if glass_cat:
+                        first_item.item_description = glass_cat
+                    if est_area:
+                        try:
+                            first_item.quantity = Decimal(est_area.replace(",", ""))
+                        except Exception:
+                            pass
+            if order.quotation:
+                if "customer_decision" in data and data["customer_decision"]:
+                    order.quotation.customer_decision = data["customer_decision"].strip()
+                if "quotation_value" in data and data["quotation_value"]:
+                    try:
+                        val = float(str(data["quotation_value"]).replace(",", "").strip())
+                        order.quotation.subtotal = val
+                        order.net_order_amount = Decimal(str(val))
+                        order.total_ordered_amount = Decimal(str(val))
+                    except Exception:
+                        pass
+                if "quotation_status" in data and data["quotation_status"]:
+                    order.quotation.status = data["quotation_status"].strip()
+
+            if "requirement_notes" in data and data["requirement_notes"]:
+                req_notes = data["requirement_notes"].strip()
+                order.notes = f"{order.notes}\n[Requirement]: {req_notes}" if order.notes else req_notes
+
+        elif box_name == "financials":
+            section_label = "Order & Financials"
+            if "customer_po_number" in data:
+                order.customer_po_number = data["customer_po_number"].strip() or None
+            if "customer_po_date" in data and data["customer_po_date"]:
+                try:
+                    order.customer_po_date = datetime.strptime(data["customer_po_date"].strip(), "%Y-%m-%d")
+                except ValueError:
+                    pass
+            if "expected_delivery_date" in data and data["expected_delivery_date"]:
+                try:
+                    order.expected_delivery_date = datetime.strptime(data["expected_delivery_date"].strip(), "%Y-%m-%d")
+                except ValueError:
+                    pass
+            if "net_order_amount" in data and data["net_order_amount"]:
+                try:
+                    val = Decimal(str(data["net_order_amount"]).replace(",", "").strip())
+                    order.net_order_amount = val
+                    order.total_ordered_amount = val
+                except Exception:
+                    pass
+            if "customer_payment_status" in data and data["customer_payment_status"]:
+                order.customer_payment_status = data["customer_payment_status"].strip()
+            if "assigned_to_id" in data and data["assigned_to_id"]:
+                try:
+                    order.assigned_to_id = int(data["assigned_to_id"])
+                except (ValueError, TypeError):
+                    pass
+
+        elif box_name == "vendor_progress":
+            section_label = "Vendor & Site Progress"
+            if "procurement_status" in data and data["procurement_status"]:
+                order.procurement_status = data["procurement_status"].strip()
+            if "delivery_status" in data and data["delivery_status"]:
+                order.delivery_status = data["delivery_status"].strip()
+            if "fitting_status" in data and data["fitting_status"]:
+                order.fitting_status = data["fitting_status"].strip()
+            if "milestones_notes" in data and data["milestones_notes"]:
+                m_notes = data["milestones_notes"].strip()
+                order.notes = f"{order.notes}\n[Milestone]: {m_notes}" if order.notes else m_notes
+            if "vendor_ready_date" in data and data["vendor_ready_date"]:
+                try:
+                    order.expected_delivery_date = datetime.strptime(data["vendor_ready_date"].strip(), "%Y-%m-%d")
+                except ValueError:
+                    pass
+
+            from services.oms.status_engine import OMSStatusEngine
+            OMSStatusEngine.synchronize_order_master_status(order, actor_id=actor_id)
+
+        elif box_name == "transport":
+            section_label = "Transport & Delivery"
+            cons = next((c for c in order.consignments if not c.is_deleted), None) if order.consignments else None
+            if not cons:
+                now_str = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+                cons = OrderConsignment(
+                    order_id=order.id,
+                    organization_id=org_id,
+                    consignment_number=f"GLS-TRP-{now_str}",
+                    status=OrderConsignmentStatus.DISPATCHED.value,
+                )
+                db.session.add(cons)
+                db.session.flush()
+
+            if "transporter_name" in data:
+                cons.transporter_name = data["transporter_name"].strip()
+            if "transit_status" in data and data["transit_status"]:
+                cons.status = data["transit_status"].strip()
+            if "vehicle_number" in data:
+                cons.vehicle_number = data["vehicle_number"].strip()
+            if "driver_name" in data:
+                cons.driver_name = data["driver_name"].strip()
+            if "driver_contact" in data:
+                cons.driver_contact = data["driver_contact"].strip()
+            if "pickup_location" in data:
+                cons.pickup_location = data["pickup_location"].strip()
+            if "shipping_cost" in data and data["shipping_cost"]:
+                try:
+                    cons.shipping_cost = Decimal(str(data["shipping_cost"]).replace(",", "").strip())
+                except Exception:
+                    pass
+            if "dispatch_date" in data and data["dispatch_date"]:
+                try:
+                    cons.dispatch_date = datetime.strptime(data["dispatch_date"].strip(), "%Y-%m-%d")
+                except ValueError:
+                    pass
+            if "expected_arrival_date" in data and data["expected_arrival_date"]:
+                try:
+                    cons.expected_arrival_date = datetime.strptime(data["expected_arrival_date"].strip(), "%Y-%m-%d")
+                except ValueError:
+                    pass
+            if "site_receiver_name" in data:
+                cons.site_receiver_name = data["site_receiver_name"].strip()
+            if "site_receiver_contact" in data:
+                cons.site_receiver_contact = data["site_receiver_contact"].strip()
+            if "packing_verified" in data:
+                cons.packing_verified = data["packing_verified"] in ("1", "true", "True", True, "on")
+            if "pod_signed" in data:
+                is_signed = data["pod_signed"] in ("1", "true", "True", True, "on")
+                cons.pod_signed = is_signed
+                if is_signed and not cons.pod_signed_at:
+                    cons.pod_signed_at = datetime.utcnow()
+            if "logistics_notes" in data and data["logistics_notes"]:
+                cons.notes = data["logistics_notes"].strip()
+
+            from services.oms.status_engine import OMSStatusEngine
+            OMSStatusEngine.recalculate_delivery_status(order, actor_id=actor_id)
+            OMSStatusEngine.synchronize_order_master_status(order, actor_id=actor_id)
+
+        else:
+            raise OMSError(f"Unknown box section: '{box_name}'")
+
+        db.session.commit()
+        if wants_json:
+            return jsonify({"success": True, "message": f"{section_label} updated successfully."})
+        flash(f"{section_label} updated successfully.", "order_success")
+
+    except OMSError as e:
+        db.session.rollback()
+        if wants_json:
+            return jsonify({"success": False, "error": str(e)}), 400
+        flash(f"Update failed: {str(e)}", "order_error")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"Error updating box '{box_name}' on order {order_id}")
+        if wants_json:
+            return jsonify({"success": False, "error": str(e)}), 500
+        flash(f"An unexpected error occurred: {str(e)}", "order_error")
+
+    return redirect(url_for("orders.detail_order", order_id=order_id))
 
 
 @orders_bp.route("/<int:order_id>/documents/<int:doc_id>/preview", methods=["GET"])

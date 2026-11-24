@@ -870,6 +870,9 @@
 
                     <!-- Action Buttons -->
                     <div class="header-actions-group">
+                        <button type="button" class="btn-action outline" onclick="openModal('editIdentityModal')" title="Edit Order Identity Header">
+                            ✏️ Edit Order
+                        </button>
                         {% if ord.status not in ['COMPLETED', 'CANCELLED', 'CLOSED'] %}
                         <button type="button" class="btn-action gold" onclick="openModal('statusModal')" title="Update Lifecycle Status">
                             ⚡ Update Status
@@ -1005,6 +1008,7 @@
                                 <span class="card-icon" style="color:#0284c7;">👤</span>
                                 <h3>Customer &amp; Lead Details</h3>
                             </div>
+                            <a class="card-action-link" onclick="openModal('editCustomerModal')">✏️ Update</a>
                         </div>
                         <div class="kv-pairs-grid">
                             <div class="kv-group">
@@ -1061,7 +1065,7 @@
                                 <span class="card-icon" style="color:#f59e0b;">📅</span>
                                 <h3>Next Action &amp; Follow-up</h3>
                             </div>
-                            <a class="card-action-link" onclick="openModal('statusModal')">✏️ Update</a>
+                            <a class="card-action-link" onclick="openModal('editNextActionModal')">✏️ Update</a>
                         </div>
 
                         <!-- Active Next Action Banner -->
@@ -1138,6 +1142,7 @@
                                 <span class="card-icon" style="color:#6366f1;">📄</span>
                                 <h3>Requirement &amp; Quotation</h3>
                             </div>
+                            <a class="card-action-link" onclick="openModal('editRequirementModal')">✏️ Update</a>
                         </div>
                         <div class="kv-pairs-grid">
                             <div class="kv-group">
@@ -1212,6 +1217,7 @@
                                 <span class="card-icon" style="color:#10b981;">₹</span>
                                 <h3>Order &amp; Financials</h3>
                             </div>
+                            <a class="card-action-link" onclick="openModal('editFinancialsModal')">✏️ Update</a>
                         </div>
                         <div class="kv-pairs-grid">
                             <div class="kv-group">
@@ -1279,6 +1285,7 @@
                                 <span class="card-icon" style="color:#f97316;">🔧</span>
                                 <h3>Vendor &amp; Site Progress</h3>
                             </div>
+                            <a class="card-action-link" onclick="openModal('editVendorProgressModal')">✏️ Update</a>
                         </div>
                         <div class="kv-pairs-grid">
                             <div class="kv-group">
@@ -1361,6 +1368,7 @@
                                 <span class="card-icon" style="color:#0ea5e9;">🚚</span>
                                 <h3>Transport &amp; Delivery</h3>
                             </div>
+                            <a class="card-action-link" onclick="openModal('editTransportModal')">✏️ Update</a>
                         </div>
                         <div class="kv-pairs-grid">
                             <div class="kv-group">
@@ -2074,6 +2082,411 @@
             <div class="modal-footer" style="margin-top:1.25rem;">
                 <button type="button" class="btn-action outline" onclick="closeModal('fittingStageModal')">Close</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         CARD UPDATE MODALS (BOXES 1 TO 6 & IDENTITY HEADER)
+         ══════════════════════════════════════════════════════════════ -->
+
+    <!-- 1. Edit Identity Modal -->
+    <div id="editIdentityModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 650px;">
+            <h3>✏️ Update Order Identity &amp; Core Details</h3>
+            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="box_name" value="identity">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Priority</label>
+                        <select name="priority" style="font-weight:600;">
+                            {% for p in ['LOW', 'MEDIUM', 'HIGH', 'URGENT', 'CRITICAL'] %}
+                            <option value="{{ p }}" {% if ord.priority == p %}selected{% endif %}>{{ p }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="oms-fg">
+                        <label>Expected Delivery Date</label>
+                        <input type="date" name="expected_delivery_date" value="{{ ord.expected_delivery_date_iso or '' }}">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Confirmed Order Value (₹)</label>
+                        <input type="number" step="0.01" name="net_order_amount" value="{{ ord.net_order_amount }}">
+                    </div>
+                    <div class="oms-fg">
+                        <label>Assigned Salesperson / PM</label>
+                        <select name="assigned_to_id">
+                            <option value="">— Select Employee —</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if ord.assigned_to and ord.assigned_to.id == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="oms-fg">
+                    <label>Site / Project Address</label>
+                    <textarea name="site_address" rows="2" placeholder="Site delivery address...">{{ ord.site_address or '' }}</textarea>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Billing Address</label>
+                        <textarea name="billing_address" rows="2" placeholder="Billing address...">{{ ord.billing_address or '' }}</textarea>
+                    </div>
+                    <div class="oms-fg">
+                        <label>Shipping Address</label>
+                        <textarea name="shipping_address" rows="2" placeholder="Shipping address...">{{ ord.shipping_address or '' }}</textarea>
+                    </div>
+                </div>
+                <div class="oms-fg">
+                    <label>General Order Notes</label>
+                    <textarea name="notes" rows="2" placeholder="Internal remarks, client preferences...">{{ ord.notes or '' }}</textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('editIdentityModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. Edit Customer Modal -->
+    <div id="editCustomerModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 620px;">
+            <h3>👤 Update Customer &amp; Lead Details</h3>
+            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="box_name" value="customer">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Contact Person Name</label>
+                        <input type="text" name="customer_name" value="{{ ord.customer.name or (ord.lead.name if ord.lead else '') }}" required>
+                    </div>
+                    <div class="oms-fg">
+                        <label>Mobile Number</label>
+                        <input type="text" name="customer_phone" value="{{ ord.customer.phone or (ord.lead.phone_number if ord.lead else '') }}" required>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Email Address</label>
+                        <input type="email" name="customer_email" value="{{ ord.customer.email or (ord.lead.email if ord.lead else '') }}">
+                    </div>
+                    <div class="oms-fg">
+                        <label>Company / Organization</label>
+                        <input type="text" name="customer_company" value="{{ ord.customer.company or (ord.lead.company if ord.lead else '') }}">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Lead / Referral Source</label>
+                        <input type="text" name="lead_source" value="{{ ord.lead.source if ord.lead and ord.lead.source else '' }}" placeholder="Architect, Referral, Direct...">
+                    </div>
+                    <div class="oms-fg">
+                        <label>Assigned Salesperson</label>
+                        <select name="assigned_to_id">
+                            <option value="">— Select Employee —</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if ord.assigned_to and ord.assigned_to.id == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="oms-fg">
+                    <label>Address</label>
+                    <textarea name="customer_address" rows="2">{{ ord.customer.address or (ord.lead.address if ord.lead else '') }}</textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('editCustomerModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Save Customer Details</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. Edit Next Action Modal -->
+    <div id="editNextActionModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 600px;">
+            <h3>📅 Update Next Action &amp; Follow-up</h3>
+            <div style="background:#f8fafc; border:1px solid rgba(13,27,42,0.08); border-radius:8px; padding:0.85rem 1rem; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:0.82rem; color:var(--text-muted); font-weight:600;">CURRENT LIFECYCLE STATUS</span>
+                <span class="p-badge pb-blue" style="font-size:0.85rem; font-weight:700;">{{ ord.status }}</span>
+            </div>
+            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="box_name" value="next_action">
+                <div class="oms-fg">
+                    <label>Next Action / Follow-up Notes</label>
+                    <textarea name="next_action_notes" rows="3" placeholder="e.g. Call client for site readiness confirmation; verify frame alignment with engineer."></textarea>
+                </div>
+                <div class="oms-fg">
+                    <label>Action Target Due Date</label>
+                    <input type="date" name="expected_delivery_date" value="{{ ord.expected_delivery_date_iso or '' }}">
+                </div>
+                <div class="oms-fg">
+                    <label>Advance Lifecycle Milestone (Optional)</label>
+                    <select name="to_status">
+                        <option value="">— Keep Current Status ({{ ord.status }}) —</option>
+                        {% if valid_transitions %}
+                            {% for s in valid_transitions %}
+                            <option value="{{ s }}">→ {{ status_labels_map.get(s, s) if status_labels_map else s }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="oms-fg">
+                    <label>Milestone Transition Remarks</label>
+                    <input type="text" name="status_remarks" placeholder="Optional notes for status progression...">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('editNextActionModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Save Follow-up</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. Edit Requirement Modal -->
+    <div id="editRequirementModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 620px;">
+            <h3>📄 Update Requirement &amp; Quotation</h3>
+            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="box_name" value="requirement">
+                <div class="oms-fg">
+                    <label>Glass Category / Specifications</label>
+                    <input type="text" name="glass_category" value="{% if order_items and order_items|length > 0 %}{{ order_items[0].description }}{% else %}Toughened / Architectural Glass{% endif %}" placeholder="e.g. 12mm Clear Toughened Glass">
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Est. Total Area (Sq.Ft)</label>
+                        <input type="number" step="0.1" name="est_area" value="{% if order_items and order_items|length > 0 %}{{ order_items|sum(attribute='quantity') }}{% endif %}" placeholder="e.g. 450">
+                    </div>
+                    <div class="oms-fg">
+                        <label>Quotation Value (₹)</label>
+                        <input type="number" step="0.01" name="quotation_value" value="{{ ord.net_order_amount }}">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Customer Commercial Decision</label>
+                        <select name="customer_decision">
+                            {% for dec in ['Won', 'Negotiating', 'Under Review', 'Approved', 'Lost'] %}
+                            <option value="{{ dec }}" {% if ord.quotation and ord.quotation.customer_decision == dec %}selected{% elif not ord.quotation and dec == 'Won' %}selected{% endif %}>{{ dec }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="oms-fg">
+                        <label>Quotation Status</label>
+                        <select name="quotation_status">
+                            {% for st in ['Sent to Customer', 'Approved', 'Under Review', 'Draft', 'Revised'] %}
+                            <option value="{{ st }}" {% if ord.quotation and ord.quotation.status == st %}selected{% elif not ord.quotation and st == 'Sent to Customer' %}selected{% endif %}>{{ st }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="oms-fg">
+                    <label>Measurement / Requirement Notes</label>
+                    <textarea name="requirement_notes" rows="2" placeholder="e.g. Site verified on Nov 08; glass thickness 12mm with spider fittings."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('editRequirementModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Save Requirement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 5. Edit Financials Modal -->
+    <div id="editFinancialsModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 620px;">
+            <h3>₹ Update Order &amp; Financials</h3>
+            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="box_name" value="financials">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Client Purchase Order (PO) Number</label>
+                        <input type="text" name="customer_po_number" value="{{ ord.customer_po_number or '' }}" placeholder="e.g. PO/2026/882">
+                    </div>
+                    <div class="oms-fg">
+                        <label>Client PO Date</label>
+                        <input type="date" name="customer_po_date" value="{{ ord.customer_po_date_iso or '' }}">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Total Confirmed Order Value (₹)</label>
+                        <input type="number" step="0.01" name="net_order_amount" value="{{ ord.net_order_amount }}" required>
+                    </div>
+                    <div class="oms-fg">
+                        <label>Committed Delivery Date</label>
+                        <input type="date" name="expected_delivery_date" value="{{ ord.expected_delivery_date_iso or '' }}">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Customer Payment Status</label>
+                        <select name="customer_payment_status">
+                            {% for ps in ['UNPAID', 'PARTIALLY_PAID', 'FULLY_PAID', 'OVERDUE', 'Advance Paid - Balance Due'] %}
+                            <option value="{{ ps }}" {% if ord.customer_payment_status == ps %}selected{% endif %}>{{ ps.replace('_', ' ') }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="oms-fg">
+                        <label>Project Manager / Assigned To</label>
+                        <select name="assigned_to_id">
+                            <option value="">— Select Employee —</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if ord.assigned_to and ord.assigned_to.id == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('editFinancialsModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Save Financials</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 6. Edit Vendor Progress Modal -->
+    <div id="editVendorProgressModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 620px;">
+            <h3>🔧 Update Vendor &amp; Site Progress</h3>
+            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="box_name" value="vendor_progress">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Pre-Dispatch QC Status</label>
+                        <select name="procurement_status">
+                            {% for st in ['DRAFT', 'PO_ISSUED', 'IN_PRODUCTION', 'PARTIALLY_RECEIVED', 'RECEIVED'] %}
+                            <option value="{{ st }}" {% if ord.procurement_status == st %}selected{% endif %}>{{ st.replace('_', ' ') }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="oms-fg">
+                        <label>Vendor Ready Date</label>
+                        <input type="date" name="vendor_ready_date" value="{{ ord.expected_delivery_date_iso or '' }}">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Delivery Status</label>
+                        <select name="delivery_status">
+                            {% for ds in ['SCHEDULED', 'OUT_FOR_DELIVERY', 'PARTIALLY_DELIVERED', 'DELIVERED', 'FAILED'] %}
+                            <option value="{{ ds }}" {% if ord.delivery_status == ds %}selected{% endif %}>{{ ds.replace('_', ' ') }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="oms-fg">
+                        <label>Unloading &amp; Fitting Status</label>
+                        <select name="fitting_status">
+                            {% for fs in ['NOT_REQUIRED', 'PENDING_SCHEDULE', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED'] %}
+                            <option value="{{ fs }}" {% if ord.fitting_status == fs %}selected{% endif %}>{{ fs.replace('_', ' ') }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="oms-fg">
+                    <label>Fabrication Milestones / Progress Remarks</label>
+                    <textarea name="milestones_notes" rows="3" placeholder="e.g. 50% advance booked. Raw float glass cut and CNC arrissing in progress."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('editVendorProgressModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Save Progress</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 7. Edit Transport Modal -->
+    <div id="editTransportModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 650px;">
+            <h3>🚚 Update Transport &amp; Delivery</h3>
+            <form method="POST" action="{{ url_for('orders.update_order_box', order_id=ord.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="box_name" value="transport">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Transporter Name</label>
+                        <input type="text" name="transporter_name" value="{{ (first_cons and first_cons.transporter_name) or 'SafeGlass Logistics' }}" placeholder="e.g. SafeGlass Logistics">
+                    </div>
+                    <div class="oms-fg">
+                        <label>Transit Status</label>
+                        <select name="transit_status">
+                            {% for ts in ['SCHEDULED', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED', 'RETURNED', 'FAILED'] %}
+                            <option value="{{ ts }}" {% if first_cons and first_cons.status == ts %}selected{% elif not first_cons and ts == 'SCHEDULED' %}selected{% endif %}>{{ ts.replace('_', ' ') }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Vehicle Number / Type</label>
+                        <input type="text" name="vehicle_number" value="{{ (first_cons and first_cons.vehicle_number) or 'Dedicated A-Frame Truck (MH-04-AZ-8812)' }}" placeholder="e.g. MH-04-AZ-8812">
+                    </div>
+                    <div class="oms-fg">
+                        <label>Freight Cost (₹)</label>
+                        <input type="number" step="0.01" name="shipping_cost" value="{{ (first_cons and first_cons.shipping_cost) or 18000 }}">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Driver Name</label>
+                        <input type="text" name="driver_name" value="{{ (first_cons and first_cons.driver_name) or 'Kailash Singh' }}" placeholder="Driver name">
+                    </div>
+                    <div class="oms-fg">
+                        <label>Driver Contact</label>
+                        <input type="text" name="driver_contact" value="{{ (first_cons and first_cons.driver_contact) or '+91 98211 44556' }}" placeholder="Phone number">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Planned Pickup Date</label>
+                        <input type="date" name="dispatch_date" value="{{ (first_cons and first_cons.dispatch_date_iso) or '' }}">
+                    </div>
+                    <div class="oms-fg">
+                        <label>Expected Delivery Date</label>
+                        <input type="date" name="expected_arrival_date" value="{{ (first_cons and first_cons.expected_arrival_date_iso) or '' }}">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="oms-fg">
+                        <label>Site Receiver Name</label>
+                        <input type="text" name="site_receiver_name" value="{{ (first_cons and first_cons.site_receiver_name) or 'Girish (Site Engg)' }}" placeholder="Receiver name">
+                    </div>
+                    <div class="oms-fg">
+                        <label>Site Receiver Contact</label>
+                        <input type="text" name="site_receiver_contact" value="{{ (first_cons and first_cons.site_receiver_contact) or '+91 98202 33441' }}" placeholder="Receiver contact">
+                    </div>
+                </div>
+                <div class="oms-fg">
+                    <label>Pickup Location</label>
+                    <input type="text" name="pickup_location" value="{{ (first_cons and first_cons.pickup_location) or 'Vendor Plant - Taloja' }}" placeholder="Vendor Plant / Warehouse">
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:1rem;">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:0.85rem;">
+                        <input type="checkbox" name="packing_verified" value="1" {% if first_cons and first_cons.packing_verified %}checked{% else %}checked{% endif %}>
+                        <span>Packing Verified (A-Frame Strapped)</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:0.85rem;">
+                        <input type="checkbox" name="pod_signed" value="1" {% if first_cons and first_cons.pod_signed %}checked{% endif %}>
+                        <span>Customer POD Signed</span>
+                    </label>
+                </div>
+                <div class="oms-fg">
+                    <label>Logistics Remarks</label>
+                    <textarea name="logistics_notes" rows="2" placeholder="e.g. A-Frame vehicle booked; scheduled post QC pass.">{{ (first_cons and first_cons.notes) or '' }}</textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-action outline" onclick="closeModal('editTransportModal')">Cancel</button>
+                    <button type="submit" class="btn-action gold">Save Transport Details</button>
+                </div>
+            </form>
         </div>
     </div>
 
