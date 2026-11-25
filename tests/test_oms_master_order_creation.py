@@ -40,6 +40,7 @@ from model import (
     OrderItem,
     OrderItemVendorAllocation,
     OrderRevision,
+    OrderDocument,
     MasterOrderStatus,
     OrderItemAllocationStatus,
 )
@@ -871,6 +872,76 @@ class OMSMasterOrderCreationTests(unittest.TestCase):
         saved = db.session.get(Lead, new_lead["id"])
         self.assertIsNotNone(saved)
         self.assertEqual(saved.company, "Verma Design House")
+
+    # --------------------------------------------------------------------------
+    # 16. Master Order Creation Without Items (Optional Line Items & Commercials)
+    # --------------------------------------------------------------------------
+    def test_16_order_creation_without_items(self):
+        """Verify that an order can be created with 0 line items as draft."""
+        self._login(1)
+
+        payload = {
+            "entity_mode": "customer",
+            "customer_id": self.cust1.id,
+            "order_title": "Draft Order Without Line Items",
+            "items": [],
+            "action_type": "save_draft",
+        }
+        res = self.client.post("/orders/", json=payload, headers={"Accept": "application/json"})
+        self.assertEqual(res.status_code, 201)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        order_id = data["order_id"]
+
+        order = db.session.get(OrderMaster, order_id)
+        self.assertIsNotNone(order)
+        self.assertEqual(order.status, MasterOrderStatus.DRAFT.value)
+        self.assertEqual(len(order.items), 0)
+        self.assertEqual(order.total_ordered_amount, Decimal("0.00"))
+        self.assertEqual(order.net_order_amount, Decimal("0.00"))
+
+    # --------------------------------------------------------------------------
+    # 17. Multi-Document Upload API
+    # --------------------------------------------------------------------------
+    def test_17_upload_multiple_order_documents(self):
+        """Verify uploading multiple documents in a single request."""
+        import io
+        self._login(1)
+
+        # First create an order without items
+        order = OrderMasterService.create_order(
+            org_id=1,
+            customer_id=self.cust1.id,
+            order_title="Order For Document Upload Test",
+            items_data=[],
+            actor_id=1,
+        )
+
+        doc1_data = (io.BytesIO(b"%PDF-1.4 test document 1 content"), "drawing1.pdf")
+        doc2_data = (io.BytesIO(b"%PDF-1.4 test document 2 content"), "drawing2.pdf")
+
+        res = self.client.post(
+            f"/orders/{order.id}/documents/upload",
+            data={
+                "title": "Site Plan Elevation",
+                "document_type": "OTHER",
+                "files": [doc1_data, doc2_data],
+            },
+            content_type="multipart/form-data",
+            headers={"Accept": "application/json"},
+        )
+        self.assertEqual(res.status_code, 201)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["uploaded_count"], 2)
+        self.assertEqual(len(data["documents"]), 2)
+
+        # Check DB
+        docs = OrderDocument.query.filter_by(order_id=order.id).all()
+        self.assertEqual(len(docs), 2)
+        titles = [d.title for d in docs]
+        self.assertIn("Site Plan Elevation - drawing1.pdf", titles)
+        self.assertIn("Site Plan Elevation - drawing2.pdf", titles)
 
 
 if __name__ == "__main__":

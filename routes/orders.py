@@ -2596,46 +2596,82 @@ def create_revision(order_id: int):
 @login_required
 @require_roles("admin", "manager", "employee")
 def upload_order_document(order_id: int):
-    """Securely upload an order document with tenant isolation and quota checks."""
+    """Securely upload one or more order documents with tenant isolation and quota checks."""
     org_id = _get_org_id()
     actor_id = _get_actor_id() or 1
 
-    file = request.files.get("file")
+    uploaded_files = (
+        request.files.getlist("files")
+        or request.files.getlist("files[]")
+        or request.files.getlist("file")
+    )
+    valid_files = [f for f in uploaded_files if f and getattr(f, "filename", None) and f.filename.strip()]
     doc_type = request.form.get("document_type", OrderDocumentType.OTHER.value)
-    title = request.form.get("title")
+    title = (request.form.get("title") or "").strip()
     is_cust_visible = request.form.get("is_customer_visible") in ("true", "1", "True", True)
     wants_json = request.is_json or request.headers.get("Accept") == "application/json"
 
-    try:
-        doc = OMSDocumentService.save_order_document(
-            org_id=org_id,
-            order_id=order_id,
-            file=file,
-            document_type=doc_type,
-            title=title,
-            is_customer_visible=is_cust_visible,
-            uploaded_by_id=actor_id,
-        )
+    if not valid_files:
+        msg = "Please select at least one document to upload."
         if wants_json:
-            return jsonify({
-                "success": True,
-                "document_id": doc.id,
-                "title": doc.title,
-                "document_type": doc.document_type,
-                "file_size": doc.file_size,
-                "message": f"Document '{doc.title}' uploaded successfully.",
-            }), 201
-        flash(f"Document '{doc.title}' uploaded successfully.", "order_success")
-    except OMSError as e:
-        if wants_json:
-            return jsonify({"success": False, "error": str(e)}), 400
-        flash(f"Upload failed: {str(e)}", "order_error")
-    except Exception as e:
-        current_app.logger.exception("Unexpected error uploading order document")
-        if wants_json:
-            return jsonify({"success": False, "error": str(e)}), 500
-        flash(f"Upload failed: {str(e)}", "order_error")
+            return jsonify({"success": False, "error": msg}), 400
+        flash(msg, "order_error")
+        return redirect(url_for("orders.detail_order", order_id=order_id))
 
+    saved_docs = []
+    errors = []
+
+    for f in valid_files:
+        if len(valid_files) == 1:
+            doc_title = title if title else f.filename
+        else:
+            doc_title = f"{title} - {f.filename}" if title else f.filename
+
+        try:
+            doc = OMSDocumentService.save_order_document(
+                org_id=org_id,
+                order_id=order_id,
+                file=f,
+                document_type=doc_type,
+                title=doc_title,
+                is_customer_visible=is_cust_visible,
+                uploaded_by_id=actor_id,
+            )
+            saved_docs.append(doc)
+        except OMSError as e:
+            errors.append(f"{f.filename}: {str(e)}")
+        except Exception as e:
+            current_app.logger.exception(f"Unexpected error uploading document {f.filename}")
+            errors.append(f"{f.filename}: {str(e)}")
+
+    if not saved_docs and errors:
+        err_msg = "Upload failed: " + "; ".join(errors)
+        if wants_json:
+            return jsonify({"success": False, "error": err_msg}), 400
+        flash(err_msg, "order_error")
+        return redirect(url_for("orders.detail_order", order_id=order_id))
+
+    success_msg = f"{len(saved_docs)} document(s) uploaded successfully."
+    if errors:
+        success_msg += f" Note: {len(errors)} file(s) failed: " + "; ".join(errors)
+
+    if wants_json:
+        return jsonify({
+            "success": True,
+            "uploaded_count": len(saved_docs),
+            "documents": [
+                {
+                    "document_id": d.id,
+                    "title": d.title,
+                    "document_type": d.document_type,
+                    "file_size": d.file_size,
+                }
+                for d in saved_docs
+            ],
+            "message": success_msg,
+        }), 201
+
+    flash(success_msg, "order_success" if not errors else "order_warning")
     return redirect(url_for("orders.detail_order", order_id=order_id))
 
 

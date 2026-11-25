@@ -2630,12 +2630,12 @@
     <!-- Document Upload Modal -->
     <div id="docUploadModal" class="modal-overlay">
         <div class="modal-box">
-            <h3>📤 Upload Order Document</h3>
+            <h3>📤 Upload Order Documents</h3>
             <form method="POST" action="{{ url_for('orders.upload_order_document', order_id=ord.id) }}" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="oms-fg">
-                    <label for="doc_title">Document Title <span style="color:#ef4444;">*</span></label>
-                    <input type="text" name="title" id="doc_title" placeholder="e.g. Architectural Elevation Drawing v2" required>
+                    <label for="doc_title">Document Title / Note <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">(Optional - defaults to filename)</span></label>
+                    <input type="text" name="title" id="doc_title" placeholder="e.g. Architectural Elevation Drawing v2">
                 </div>
                 <div class="oms-fg">
                     <label for="doc_type">Document Category <span style="color:#ef4444;">*</span></label>
@@ -2652,8 +2652,9 @@
                     </select>
                 </div>
                 <div class="oms-fg">
-                    <label for="doc_file">Select File (PDF, Images, Excel, Word — max 15 MB) <span style="color:#ef4444;">*</span></label>
-                    <input type="file" name="file" id="doc_file" required accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.csv">
+                    <label for="doc_files">Select Files (PDF, Images, Excel, Word, DWG — max 15 MB each) <span style="color:#ef4444;">*</span></label>
+                    <input type="file" name="files" id="doc_files" multiple required accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.csv,.dwg" onchange="onModalFilesSelected(this)">
+                    <div id="modalFilesSelectedList" style="margin-top:6px; display:flex; flex-direction:column; gap:4px; font-size:0.8rem; max-height:120px; overflow-y:auto;"></div>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px; margin-bottom:1rem;">
                     <input type="checkbox" name="is_customer_visible" id="is_cust_vis" value="true">
@@ -2661,7 +2662,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-action outline" onclick="closeModal('docUploadModal')">Cancel</button>
-                    <button type="submit" class="btn-action gold">Upload Document</button>
+                    <button type="submit" class="btn-action gold">Upload Documents</button>
                 </div>
             </form>
         </div>
@@ -3022,6 +3023,34 @@
             const form = document.getElementById('vendorPayForm');
             if (form) form.action = `/orders/{{ ord.id }}/vendor-bills/${billId}/pay`;
             openModal('vendorPayModal');
+        }
+
+        /* ── Multi-File Selection Display for Document Modal ── */
+        function onModalFilesSelected(input) {
+            const listEl = document.getElementById('modalFilesSelectedList');
+            if (!listEl) return;
+            if (input.files && input.files.length > 0) {
+                let html = `<div style="font-weight:600; color:var(--primary-navy); margin-bottom:2px;">📎 ${input.files.length} document(s) selected:</div>`;
+                for (let i = 0; i < input.files.length; i++) {
+                    const f = input.files[i];
+                    const sz = (f.size / (1024 * 1024)).toFixed(2);
+                    const szStr = sz > 0.01 ? sz + ' MB' : (f.size / 1024).toFixed(0) + ' KB';
+                    html += `<div style="color:#475569; padding:2px 0;">• <strong>${escapeHtmlDetail(f.name)}</strong> (${szStr})</div>`;
+                }
+                listEl.innerHTML = html;
+            } else {
+                listEl.innerHTML = '';
+            }
+        }
+
+        function escapeHtmlDetail(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
 
         /* ── ESC to close modals ── */

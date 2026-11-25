@@ -1480,8 +1480,8 @@
                     <div class="section-header-left">
                         <div class="section-badge-num">04</div>
                         <div class="section-title-wrap">
-                            <h2><span>📦</span> Order Line Items &amp; Products</h2>
-                            <p>Catalogue products, custom architectural glass, quantities, rates, and tax breakdown</p>
+                            <h2><span>📦</span> Order Line Items &amp; Products <span style="font-size:0.75rem; font-weight:600; color:var(--text-muted);">(Optional)</span></h2>
+                            <p>Catalogue products, custom architectural glass, quantities, rates, and tax breakdown (can be added now or later in Order Profile)</p>
                         </div>
                     </div>
                     <div class="section-header-right">
@@ -1497,10 +1497,10 @@
                             <thead>
                                 <tr>
                                     <th style="width: 20%;">Catalogue Product</th>
-                                    <th style="width: 25%;">Item Description <span style="color:#ef4444;">*</span></th>
+                                    <th style="width: 25%;">Item Description</th>
                                     <th style="width: 8%;">UOM</th>
-                                    <th style="width: 9%;">Quantity <span style="color:#ef4444;">*</span></th>
-                                    <th style="width: 10%;">Unit Price (₹) <span style="color:#ef4444;">*</span></th>
+                                    <th style="width: 9%;">Quantity</th>
+                                    <th style="width: 10%;">Unit Price (₹)</th>
                                     <th style="width: 8%;">Discount (₹)</th>
                                     <th style="width: 7%;">GST %</th>
                                     <th style="width: 11%;">Line Total (₹)</th>
@@ -1530,7 +1530,7 @@
                     <div class="section-header-left">
                         <div class="section-badge-num">05</div>
                         <div class="section-title-wrap">
-                            <h2><span>💰</span> Commercial Terms &amp; Financial Summary</h2>
+                            <h2><span>💰</span> Commercial Terms &amp; Financial Summary <span style="font-size:0.75rem; font-weight:600; color:var(--text-muted);">(Optional Defaults)</span></h2>
                             <p>Payment milestones, advance terms, freight charges, GST treatment, and net order ledger</p>
                         </div>
                     </div>
@@ -1796,9 +1796,10 @@
                 <div class="section-body">
                     <div class="form-row-2">
                         <div class="form-group-custom">
-                            <label for="order_documents">Upload Architectural Drawings / Project Documents</label>
-                            <input type="file" name="order_documents" id="order_documents" class="form-control-custom" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.dwg">
-                            <small style="color:var(--text-muted); font-size:0.75rem;">Supported: PDF, Images, Word, Excel, CAD drawings up to 15MB each.</small>
+                            <label for="order_documents">Upload Architectural Drawings / Project Documents <span style="font-size:0.75rem; font-weight:600; color:var(--text-muted);">(Multiple files supported)</span></label>
+                            <input type="file" name="order_documents" id="order_documents" class="form-control-custom" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.csv,.dwg" onchange="displaySelectedOrderDocs(this)">
+                            <div id="orderDocsSelectedList" style="margin-top:8px; display:flex; flex-direction:column; gap:4px; font-size:0.8rem;"></div>
+                            <small style="color:var(--text-muted); font-size:0.75rem;">Supported: PDF, Images, Word, Excel, CAD drawings up to 15MB each. You can select multiple documents at once.</small>
                         </div>
                         <div class="form-group-custom">
                             <label for="notes">Internal Execution Notes</label>
@@ -3306,7 +3307,7 @@
                     </select>
                 </td>
                 <td>
-                    <input type="text" name="item_description_${idx}" id="itemDesc_${idx}" placeholder="Description *" required>
+                    <input type="text" name="item_description_${idx}" id="itemDesc_${idx}" placeholder="Description (Optional)">
                     <input type="hidden" name="sku_${idx}" id="itemSku_${idx}">
                 </td>
                 <td>
@@ -3320,10 +3321,10 @@
                     </select>
                 </td>
                 <td>
-                    <input type="number" step="0.001" min="0.001" name="quantity_${idx}" id="itemQty_${idx}" value="1.000" oninput="calculateItemRow(${idx})" required>
+                    <input type="number" step="0.001" min="0.001" name="quantity_${idx}" id="itemQty_${idx}" value="1.000" oninput="calculateItemRow(${idx})">
                 </td>
                 <td>
-                    <input type="number" step="0.01" min="0.00" name="unit_price_${idx}" id="itemPrice_${idx}" value="0.00" oninput="calculateItemRow(${idx})" required>
+                    <input type="number" step="0.01" min="0.00" name="unit_price_${idx}" id="itemPrice_${idx}" value="0.00" oninput="calculateItemRow(${idx})">
                 </td>
                 <td>
                     <input type="number" step="0.01" min="0.00" name="discount_amount_${idx}" id="itemDisc_${idx}" value="0.00" oninput="calculateItemRow(${idx})">
@@ -3509,29 +3510,32 @@
                 return;
             }
 
-            // Validate Section 04 Line Items
+            // Validate Section 04 Line Items (Optional: validate item details only if entered)
             const rows = document.getElementById('itemsTbody').querySelectorAll('tr');
-            if (rows.length === 0) {
-                showToast('Please add at least one line item to the order.', 'error');
-                document.getElementById('cardItems').classList.remove('collapsed');
-                return;
-            }
-
-            let hasValidItem = false;
             for (let r of rows) {
-                const idx = r.id.split('_')[1];
-                const desc = document.getElementById(`itemDesc_${idx}`)?.value.trim();
+                const rowId = r.id;
+                if (!rowId || !rowId.startsWith('itemRow_')) continue;
+                const idx = rowId.split('_')[1];
+                const desc = (document.getElementById(`itemDesc_${idx}`)?.value || '').trim();
                 const qty = parseFloat(document.getElementById(`itemQty_${idx}`)?.value) || 0;
-                if (desc && qty > 0) {
-                    hasValidItem = true;
-                    break;
-                }
-            }
+                const price = parseFloat(document.getElementById(`itemPrice_${idx}`)?.value) || 0;
+                const prodSel = document.getElementById(`prodSelect_${idx}`)?.value;
 
-            if (!hasValidItem) {
-                showToast('Please provide a valid description and quantity for line items.', 'error');
-                document.getElementById('cardItems').classList.remove('collapsed');
-                return;
+                // If user selected a product or entered price or filled description, validate line item
+                if (desc || prodSel || price > 0) {
+                    if (!desc) {
+                        showToast('Please provide an item description for all added line items.', 'error');
+                        document.getElementById('cardItems').classList.remove('collapsed');
+                        document.getElementById(`itemDesc_${idx}`)?.focus();
+                        return;
+                    }
+                    if (qty <= 0) {
+                        showToast(`Quantity for item "${desc}" must be greater than zero.`, 'error');
+                        document.getElementById('cardItems').classList.remove('collapsed');
+                        document.getElementById(`itemQty_${idx}`)?.focus();
+                        return;
+                    }
+                }
             }
 
             // Set action type
@@ -3539,6 +3543,24 @@
 
             // Submit form
             document.getElementById('masterOrderForm').submit();
+        }
+
+        /* Order Documents multi-file selection indicator */
+        function displaySelectedOrderDocs(input) {
+            const listEl = document.getElementById('orderDocsSelectedList');
+            if (!listEl) return;
+            if (input.files && input.files.length > 0) {
+                let html = `<div style="font-weight:600; color:var(--primary-navy); margin-bottom:4px;">📎 ${input.files.length} document(s) attached:</div>`;
+                for (let i = 0; i < input.files.length; i++) {
+                    const f = input.files[i];
+                    const sz = (f.size / (1024 * 1024)).toFixed(2);
+                    const szStr = sz > 0.01 ? sz + ' MB' : (f.size / 1024).toFixed(0) + ' KB';
+                    html += `<div style="color:#475569; padding:2px 0;">• <strong>${escapeHtml(f.name)}</strong> (${szStr})</div>`;
+                }
+                listEl.innerHTML = html;
+            } else {
+                listEl.innerHTML = '';
+            }
         }
 
         /* Delivery Challan file selection indicator */

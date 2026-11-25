@@ -304,8 +304,8 @@ class OrderMasterService:
         entity_mode: str = "customer",
     ) -> OrderMaster:
         """Create a new Master Order with initial items and audit snapshot."""
-        if not items_data:
-            raise OMSValidationError("An order must contain at least one order item.")
+        if items_data is None:
+            items_data = []
 
         effective_notes = f"[{order_title}] {notes}" if order_title and notes else (order_title or notes)
 
