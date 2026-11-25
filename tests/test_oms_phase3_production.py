@@ -391,6 +391,7 @@ class TestOMSPhase3Production(unittest.TestCase):
                 org_id=1,
                 customer_id=1,
                 order_title="Notification & Audit Verification Order",
+                assigned_to_id=2,
                 items_data=[
                     {
                         "product_id": 1,
@@ -413,11 +414,12 @@ class TestOMSPhase3Production(unittest.TestCase):
         self.assertEqual(resp_trans.status_code, 200)
 
         with self.app.app_context():
-            # Notifications distributed to managers/admins (excluding actor)
+            # Notifications distributed only to directly involved stakeholders (excluding actor)
             notifs = Notification.query.filter_by(organization_id=1).all()
             self.assertGreater(len(notifs), 0)
             status_notif = [n for n in notifs if "CONFIRMED" in n.title]
             self.assertGreater(len(status_notif), 0)
+            self.assertEqual([n.recipient_id for n in status_notif], [2])
             self.assertIn(f"/orders/{order_id}", status_notif[0].link)
 
             # ActivityLog entry created

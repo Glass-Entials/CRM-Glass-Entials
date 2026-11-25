@@ -1,6 +1,16 @@
 from datetime import datetime, timedelta
 from typing import Optional, List, Set
-from model import db, OrderMaster, Employee, User, UserRole, Notification
+from sqlalchemy import or_
+from model import (
+    db,
+    OrderMaster,
+    OrderFittingVisit,
+    OrderVendorProcurement,
+    OrderDelivery,
+    Employee,
+    User,
+    Notification,
+)
 from utils.notifications import create_notification
 from utils.activity_service import ActivityService
 
@@ -11,32 +21,55 @@ class OMSNotificationService:
     @classmethod
     def get_order_stakeholders(cls, org_id: int, order: OrderMaster) -> Set[int]:
         """
-        Identify stakeholder employee IDs for an order:
-        - Order creator / assigned employees
-        - Organization Admins & Managers
+        Identify directly involved stakeholder employee IDs for an order:
+        - Order creator (`created_by_id`)
+        - Assigned employee / PM (`assigned_to_id`)
+        - Assigned fitting technician(s) on active fitting visits
+        - Procurement PO owner(s) on active POs
+        - Assigned delivery owner(s) on active deliveries
         """
-        recipient_ids: Set[int] = set()
+        candidate_ids: Set[int] = set()
 
-        if hasattr(order, "created_by_id") and order.created_by_id:
-            recipient_ids.add(order.created_by_id)
+        if getattr(order, "created_by_id", None):
+            candidate_ids.add(order.created_by_id)
 
-        if hasattr(order, "assigned_to_id") and order.assigned_to_id:
-            recipient_ids.add(order.assigned_to_id)
+        if getattr(order, "assigned_to_id", None):
+            candidate_ids.add(order.assigned_to_id)
 
-        # Include org managers/admins
-        admin_managers = (
+        order_id = getattr(order, "id", None)
+        if order_id:
+            for visit in OrderFittingVisit.query.filter_by(
+                order_id=order_id, organization_id=org_id, is_deleted=False
+            ).all():
+                if visit.technician_id:
+                    candidate_ids.add(visit.technician_id)
+
+            for po in OrderVendorProcurement.query.filter_by(
+                order_id=order_id, organization_id=org_id, is_deleted=False
+            ).all():
+                if po.created_by_id:
+                    candidate_ids.add(po.created_by_id)
+
+            for delv in OrderDelivery.query.filter_by(
+                order_id=order_id, organization_id=org_id, is_deleted=False
+            ).all():
+                if delv.delivered_by_id:
+                    candidate_ids.add(delv.delivered_by_id)
+
+        if not candidate_ids:
+            return set()
+
+        valid_emps = (
             Employee.query.join(User, Employee.user_id == User.id)
             .filter(
+                Employee.id.in_(candidate_ids),
                 Employee.organization_id == org_id,
-                User.role.in_([UserRole.ADMIN, UserRole.MANAGER]),
-                User.is_active == True,
+                or_(Employee.is_deleted == False, Employee.is_deleted.is_(None)),
+                or_(User.is_active == True, User.is_active.is_(None)),
             )
             .all()
         )
-        for emp in admin_managers:
-            recipient_ids.add(emp.id)
-
-        return recipient_ids
+        return {emp.id for emp in valid_emps}
 
     @classmethod
     def _is_duplicate_notification(

@@ -1307,6 +1307,11 @@ def transition_status(order_id: int):
     wants_json = request.is_json or request.headers.get("Accept") == "application/json"
 
     try:
+        prev_order = OrderMaster.query.filter_by(
+            id=order_id, organization_id=org_id, is_deleted=False
+        ).first()
+        prev_status = prev_order.status if prev_order else None
+
         order = OrderMasterService.transition_order_status(
             org_id=org_id,
             order_id=order_id,
@@ -1319,7 +1324,7 @@ def transition_status(order_id: int):
             OMSNotificationService.notify_status_transition(
                 org_id=org_id,
                 order=order,
-                from_status=None,
+                from_status=prev_status,
                 to_status=order.status,
                 actor_id=actor_id,
             )
@@ -2656,7 +2661,7 @@ def upload_order_document(order_id: int):
         success_msg += f" Note: {len(errors)} file(s) failed: " + "; ".join(errors)
 
     if wants_json:
-        return jsonify({
+        resp_payload = {
             "success": True,
             "uploaded_count": len(saved_docs),
             "documents": [
@@ -2669,7 +2674,10 @@ def upload_order_document(order_id: int):
                 for d in saved_docs
             ],
             "message": success_msg,
-        }), 201
+        }
+        if len(saved_docs) == 1:
+            resp_payload["document_id"] = saved_docs[0].id
+        return jsonify(resp_payload), 201
 
     flash(success_msg, "order_success" if not errors else "order_warning")
     return redirect(url_for("orders.detail_order", order_id=order_id))

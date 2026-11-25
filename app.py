@@ -218,7 +218,9 @@ def utility_processor():
             from model import Notification
 
             return Notification.query.filter_by(
-                recipient_id=current_user.employee.id, is_read=False
+                recipient_id=current_user.employee.id,
+                organization_id=current_user.organization_id,
+                is_read=False,
             ).count()
         return 0
 
