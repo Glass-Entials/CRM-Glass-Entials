@@ -106,6 +106,7 @@
 .module-badge.contacts  { background: rgba(139,92,246,0.1); color: #7c3aed; }
 .module-badge.projects  { background: rgba(245,158,11,0.1); color: #d97706; }
 .module-badge.tasks     { background: rgba(239,68,68,0.1);  color: #dc2626; }
+.module-badge.orders    { background: rgba(212,175,55,0.14); color: #b45309; }
 
 /* ─── Table Overrides ──────────────────────────────────────────── */
 .trash-panel {
@@ -254,6 +255,8 @@
                 <td style="font-weight:600; color:var(--primary-color);">
                     {% if record.module_name == 'contacts' %}
                         {{ record.first_name }} {{ record.last_name or '' }}
+                    {% elif record.module_name == 'orders' %}
+                        {{ record.master_order_number }}{% if record.order_title %} — {{ record.order_title }}{% endif %}
                     {% else %}
                         {{ record.name or record.title or '—' }}
                     {% endif %}

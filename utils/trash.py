@@ -15,6 +15,11 @@ from model import (
     QuotationTaxSummary, QuotationTermLink, CRMDocument,
     ContactActivity, ContactNote, ContactSystemLog, ContactDocument,
     Payment, PaymentRemark, PaymentDocument,
+    OrderMaster, OrderItem, OrderVendorProcurement, OrderItemVendorAllocation,
+    OrderProcurementItem, OrderConsignment, ConsignmentItem,
+    OrderDelivery, DeliveryItem, OrderFittingVisit, FittingVisitItem,
+    OrderPaymentAllocation, VendorBill, VendorBillItem, VendorPayment,
+    OrderDocument, OrderRevision, OrderStatusHistory, OrderExceptionalClosure,
 )
 from utils.activity import log_activity
 
@@ -44,6 +49,7 @@ TRASH_MODELS = {
     "contacts":  Contact,
     "projects":  Project,
     "tasks":     Task,
+    "orders":    OrderMaster,
 }
 
 
@@ -153,6 +159,27 @@ DependencyRegistry.register("tasks", TaskActivity, "task_id", "task_id", "Activi
 DependencyRegistry.register("tasks", ActivityLog, "task_id", "task_id", "Audit Logs", False, DeletePriority.ACTIVITY)
 DependencyRegistry.register("tasks", TaskFollowupRequest, "task_id", "task_id", "Followup Requests", False, DeletePriority.TASK)
 
+# Register Orders (strict leaf-to-parent priority order for RESTRICT foreign keys)
+DependencyRegistry.register("orders", VendorPayment, "order_id", "order_id", "Vendor Payments", False, 3)
+DependencyRegistry.register("orders", VendorBillItem, "order_id", "order_id", "Vendor Bill Items", False, 3)
+DependencyRegistry.register("orders", DeliveryItem, "order_id", "order_id", "Delivery Items", False, 4)
+DependencyRegistry.register("orders", FittingVisitItem, "order_id", "order_id", "Fitting Visit Items", False, 4)
+DependencyRegistry.register("orders", ConsignmentItem, "order_id", "order_id", "Consignment Items", False, 5)
+DependencyRegistry.register("orders", VendorBill, "order_id", "order_id", "Vendor Bills", False, 6)
+DependencyRegistry.register("orders", OrderConsignment, "order_id", "order_id", "Consignments", False, 6)
+DependencyRegistry.register("orders", OrderProcurementItem, "order_id", "order_id", "Procurement Items", False, 6)
+DependencyRegistry.register("orders", OrderItemVendorAllocation, "order_id", "order_id", "Vendor Allocations", False, 7)
+DependencyRegistry.register("orders", OrderVendorProcurement, "order_id", "order_id", "Purchase Orders", False, 8)
+DependencyRegistry.register("orders", OrderDelivery, "order_id", "order_id", "Deliveries", False, 8)
+DependencyRegistry.register("orders", OrderFittingVisit, "order_id", "order_id", "Fitting Visits", False, 8)
+DependencyRegistry.register("orders", OrderPaymentAllocation, "order_id", "order_id", "Payment Allocations", False, 8)
+DependencyRegistry.register("orders", ActivityLog, "order_id", "order_id", "Audit Logs", False, 9)
+DependencyRegistry.register("orders", OrderStatusHistory, "order_id", "order_id", "Status History", False, 9)
+DependencyRegistry.register("orders", OrderRevision, "order_id", "order_id", "Revisions", False, 9)
+DependencyRegistry.register("orders", OrderExceptionalClosure, "order_id", "order_id", "Closures", False, 9)
+DependencyRegistry.register("orders", OrderItem, "order_id", "order_id", "Order Items", False, 9)
+DependencyRegistry.register("orders", OrderDocument, "order_id", "order_id", "Order Documents", False, 9)
+
 
 # ---------------------------------------------------------------------------
 # TrashManager
@@ -167,6 +194,9 @@ class TrashManager:
     def _record_display_name(module_name, record):
         if module_name == "contacts":
             return f"{record.first_name} {record.last_name or ''}".strip()
+        if module_name == "orders":
+            title = getattr(record, "order_title", None)
+            return f"{record.master_order_number} — {title}" if title else record.master_order_number
         return getattr(record, "name", None) or getattr(record, "title", None) or f"#{record.id}"
 
     @staticmethod
@@ -175,8 +205,8 @@ class TrashManager:
         # Special polymorphic mapping for ActivityLog
         if model_cls.__name__ == 'ActivityLog':
             entity_type_map = {
-                "leads": "lead", "customers": "customer", "contacts": "contact", 
-                "projects": "project", "tasks": "task"
+                "leads": "lead", "customers": "customer", "contacts": "contact",
+                "projects": "project", "tasks": "task", "orders": "order",
             }
             etype = entity_type_map.get(module_name)
             if etype and hasattr(model_cls, "entity_type") and hasattr(model_cls, "entity_id"):
@@ -310,6 +340,8 @@ class TrashManager:
                         logging.info(f"  [Delete Direct] {entry['model_cls'].__name__} ({entry['label']}) Priority:{entry['priority']}: {count}/{matched} deleted.")
 
             # Phase 4: delete parent
+            if module_name == "orders":
+                db.session.expire(record)
             db.session.delete(record)
             db.session.commit()
 
@@ -368,14 +400,75 @@ class TrashManager:
 
         try:
             record.is_deleted = False
-            record.deleted_at = None
-            record.deleted_by = None
+            if hasattr(type(record), "deleted_at"):
+                record.deleted_at = None
+            if hasattr(type(record), "deleted_by"):
+                record.deleted_by = None
+            if module_name == "orders":
+                actor = actor_id or record.created_by_id
+                db.session.add(OrderStatusHistory(
+                    order_id=record.id,
+                    organization_id=org_id,
+                    status_type="MASTER",
+                    from_status=record.status,
+                    to_status=record.status,
+                    remarks="Order restored from Trash Management.",
+                    changed_by_id=actor,
+                ))
             db.session.commit()
             log_activity(f"{module_name}_restored", org_id=org_id, actor_id=actor_id, extra=f"Restored {name_display}")
             return True, f"{name_display} restored successfully."
         except Exception:
             db.session.rollback()
             return False, "Unable to restore record. Please try again."
+
+
+def _apply_trash_search(query, model, mod_name, search):
+    """Apply module-aware search filter for Trash Management."""
+    if not search:
+        return query
+    like = f"%{search}%"
+    if mod_name == "orders":
+        return query.filter(
+            (model.master_order_number.ilike(like))
+            | (model.notes.ilike(like))
+            | (model.shipping_address.ilike(like))
+        )
+    if hasattr(model, "name"):
+        return query.filter(model.name.ilike(like))
+    if hasattr(model, "title"):
+        return query.filter(model.title.ilike(like))
+    if mod_name == "contacts":
+        return query.filter(
+            (model.first_name.ilike(like)) | (model.last_name.ilike(like))
+        )
+    return query
+
+
+def _hydrate_order_trash_metadata(records, org_id):
+    """Populate deleted_at / deleted_by for soft-deleted OrderMaster rows without schema changes."""
+    order_records = [r for r in records if isinstance(r, OrderMaster)]
+    if not order_records:
+        return
+    order_ids = [r.id for r in order_records]
+    histories = (
+        OrderStatusHistory.query.filter(
+            OrderStatusHistory.organization_id == org_id,
+            OrderStatusHistory.order_id.in_(order_ids),
+        )
+        .order_by(OrderStatusHistory.id.desc())
+        .all()
+    )
+    delete_hist_by_order = {}
+    latest_hist_by_order = {}
+    for h in histories:
+        latest_hist_by_order.setdefault(h.order_id, h)
+        if h.order_id not in delete_hist_by_order and h.remarks and "soft-deleted" in h.remarks.lower():
+            delete_hist_by_order[h.order_id] = h
+    for order in order_records:
+        hist = delete_hist_by_order.get(order.id) or latest_hist_by_order.get(order.id)
+        order.deleted_at = hist.created_at if hist else order.updated_at
+        order.deleted_by = hist.changed_by_id if hist else order.created_by_id
 
 
 # ---------------------------------------------------------------------------
@@ -386,17 +479,10 @@ def get_trashed_records(module_name, org_id, page=1, per_page=30, search=None):
         all_records = []
         for mod_name, model in TRASH_MODELS.items():
             query = model.query.filter_by(organization_id=org_id, is_deleted=True)
-            if search:
-                if hasattr(model, 'name'):
-                    query = query.filter(model.name.ilike(f"%{search}%"))
-                elif hasattr(model, 'title'):
-                    query = query.filter(model.title.ilike(f"%{search}%"))
-                elif mod_name == "contacts":
-                    query = query.filter(
-                        (model.first_name.ilike(f"%{search}%")) |
-                        (model.last_name.ilike(f"%{search}%"))
-                    )
+            query = _apply_trash_search(query, model, mod_name, search)
             records = query.all()
+            if mod_name == "orders":
+                _hydrate_order_trash_metadata(records, org_id)
             for r in records:
                 r.module_name = mod_name
             all_records.extend(records)
@@ -409,17 +495,11 @@ def get_trashed_records(module_name, org_id, page=1, per_page=30, search=None):
     if not model:
         return None
     query = model.query.filter_by(organization_id=org_id, is_deleted=True)
-    if search:
-        if hasattr(model, 'name'):
-            query = query.filter(model.name.ilike(f"%{search}%"))
-        elif hasattr(model, 'title'):
-            query = query.filter(model.title.ilike(f"%{search}%"))
-        elif module_name == "contacts":
-            query = query.filter(
-                (model.first_name.ilike(f"%{search}%")) |
-                (model.last_name.ilike(f"%{search}%"))
-            )
-    pagination = query.order_by(model.deleted_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    query = _apply_trash_search(query, model, module_name, search)
+    order_col = getattr(model, "deleted_at", None) or getattr(model, "updated_at", model.id)
+    pagination = query.order_by(order_col.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    if module_name == "orders":
+        _hydrate_order_trash_metadata(pagination.items, org_id)
     for item in pagination.items:
         item.module_name = module_name
     return pagination
