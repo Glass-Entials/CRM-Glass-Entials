@@ -524,12 +524,15 @@ class OMSOrderTrackingDashboardTests(unittest.TestCase):
         self.assertEqual(data["orders"][0]["tracking_card"]["master_order_number"], order.master_order_number)
 
     def test_21_dashboard_renders_three_dot_menu_and_modals(self):
-        """21. Orders Dashboard cards include 3-dot menu (Edit, Change Status, Delete) and modals."""
+        """21. Orders Dashboard cards include 3-dot menu (Edit, Change Status, Delete) with valid HTML payloads."""
+        import json
+        from html.parser import HTMLParser
+
         self._login(1)
         order = OrderMasterService.create_order(
             org_id=1,
             customer_id=1,
-            order_title="Three Dot Menu Verification Order",
+            order_title='Three Dot "Quoted" & \'Menu\' Order',
             items_data=[],
             action_type="confirm_order",
             actor_id=1,
@@ -546,6 +549,31 @@ class OMSOrderTrackingDashboardTests(unittest.TestCase):
         self.assertIn("quickEditModal", html)
         self.assertIn("quickStatusModal", html)
         self.assertIn("deleteOrderModal", html)
+
+        # Parse rendered <button> tags to guarantee onclick handlers & JSON data-* attributes are uncorrupted
+        class MenuButtonParser(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.buttons = []
+
+            def handle_starttag(self, tag, attrs):
+                if tag == "button":
+                    self.buttons.append(dict(attrs))
+
+        parser = MenuButtonParser()
+        parser.feed(html)
+        by_onclick = {b.get("onclick"): b for b in parser.buttons if b.get("onclick")}
+        self.assertIn("openQuickEditModal(this)", by_onclick)
+        self.assertIn("openQuickStatusModal(this)", by_onclick)
+        self.assertIn("openDeleteOrderModal(this)", by_onclick)
+
+        edit_data = json.loads(by_onclick["openQuickEditModal(this)"]["data-order"])
+        status_data = json.loads(by_onclick["openQuickStatusModal(this)"]["data-status"])
+        delete_data = json.loads(by_onclick["openDeleteOrderModal(this)"]["data-delete"])
+        self.assertEqual(edit_data["id"], order.id)
+        self.assertEqual(status_data["number"], order.master_order_number)
+        self.assertEqual(status_data["status"], order.status)
+        self.assertEqual(delete_data["title"], 'Three Dot "Quoted" & \'Menu\' Order')
 
     def test_22_dashboard_quick_edit_updates_order_and_redirects(self):
         """22. Quick Edit modal updates title, priority, PM, amount and redirects back to dashboard."""

@@ -1212,19 +1212,32 @@
                                     "net_order_amount": (ord.net_order_amount|float)|string,
                                     "shipping_address": ord.shipping_address or '',
                                     "notes": clean_notes,
-                                    "detail_url": url_for('orders.detail_order', order_id=ord.id)
+                                    "detail_url": url_for('orders.detail_order', order_id=ord.id),
+                                    "action_url": url_for('orders.update_order_box', order_id=ord.id)
+                                } %}
+                                {% set status_payload = {
+                                    "id": ord.id,
+                                    "number": ord.master_order_number,
+                                    "status": ord.status or '',
+                                    "action_url": url_for('orders.transition_status', order_id=ord.id)
+                                } %}
+                                {% set delete_payload = {
+                                    "id": ord.id,
+                                    "number": ord.master_order_number,
+                                    "title": card.project_title or ord.order_title or 'Order',
+                                    "action_url": url_for('orders.delete_order', order_id=ord.id)
                                 } %}
                                 <div class="order-card-actions-menu">
                                     <button type="button" class="btn-three-dots" onclick="toggleOrderCardMenu(event, {{ ord.id }})" title="Order Actions" aria-label="Order Actions">⋮</button>
                                     <div class="order-dots-dropdown" id="order-menu-{{ ord.id }}">
-                                        <button type="button" data-order='{{ edit_payload | tojson }}' onclick="openQuickEditModal(this)">
+                                        <button type="button" data-order="{{ edit_payload | tojson | forceescape }}" onclick="openQuickEditModal(this)">
                                             <span>✏️</span> Edit Order
                                         </button>
-                                        <button type="button" onclick="openQuickStatusModal({{ ord.id }}, {{ ord.master_order_number|tojson }}, {{ ord.status|tojson }})">
+                                        <button type="button" data-status="{{ status_payload | tojson | forceescape }}" onclick="openQuickStatusModal(this)">
                                             <span>⚡</span> Change Status
                                         </button>
                                         <hr>
-                                        <button type="button" class="danger-action" onclick="openDeleteOrderModal({{ ord.id }}, {{ ord.master_order_number|tojson }}, {{ (card.project_title or ord.order_title or 'Order')|tojson }})">
+                                        <button type="button" class="danger-action" data-delete="{{ delete_payload | tojson | forceescape }}" onclick="openDeleteOrderModal(this)">
                                             <span>🗑️</span> Delete Order
                                         </button>
                                     </div>
@@ -1553,7 +1566,7 @@
         function openQuickEditModal(btn) {
             const data = JSON.parse(btn.getAttribute('data-order'));
             document.getElementById('qeModalTitle').textContent = `✏️ Edit Order — ${data.number}`;
-            document.getElementById('quickEditForm').action = `/orders/${data.id}/update-box`;
+            document.getElementById('quickEditForm').action = data.action_url || `/orders/${data.id}/update-box`;
             document.getElementById('qe_order_title').value = data.title || '';
             document.getElementById('qe_priority').value = (data.priority || 'MEDIUM').toUpperCase();
             document.getElementById('qe_due_date').value = data.expected_delivery_date || '';
@@ -1566,9 +1579,13 @@
         }
 
         // 2. Quick Change Status Modal
-        function openQuickStatusModal(orderId, orderNumber, currentStatus) {
+        function openQuickStatusModal(btn) {
+            const data = JSON.parse(btn.getAttribute('data-status'));
+            const orderId = data.id;
+            const orderNumber = data.number || '';
+            const currentStatus = data.status || '';
             document.getElementById('qsModalTitle').textContent = `⚡ Change Status — ${orderNumber}`;
-            document.getElementById('quickStatusForm').action = `/orders/${orderId}/status`;
+            document.getElementById('quickStatusForm').action = data.action_url || `/orders/${orderId}/status`;
             document.getElementById('qs_current_badge').textContent = currentStatus.replace(/_/g, ' ');
             document.getElementById('qs_remarks').value = '';
 
@@ -1619,8 +1636,12 @@
         }
 
         // 3. Soft Delete Order Modal
-        function openDeleteOrderModal(orderId, orderNumber, orderTitle) {
-            document.getElementById('deleteOrderForm').action = `/orders/${orderId}/delete`;
+        function openDeleteOrderModal(btn) {
+            const data = JSON.parse(btn.getAttribute('data-delete'));
+            const orderId = data.id;
+            const orderNumber = data.number || '';
+            const orderTitle = data.title || 'Order';
+            document.getElementById('deleteOrderForm').action = data.action_url || `/orders/${orderId}/delete`;
             document.getElementById('del_reason').value = '';
             document.getElementById('delOrderDesc').innerHTML =
                 `Are you sure you want to remove <strong>${escapeHtml(orderNumber)}</strong> (${escapeHtml(orderTitle)}) from active orders? ` +
