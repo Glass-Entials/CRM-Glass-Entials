@@ -240,10 +240,10 @@ class OrderMasterService:
 
     @staticmethod
     def lock_order(org_id: int, order_id: int) -> OrderMaster:
-        """Acquire pessimistic row-level lock on the parent OrderMaster within transaction."""
+        """Acquire pessimistic row-level lock on the active OrderMaster within transaction."""
         order = (
             db.session.query(OrderMaster)
-            .filter_by(id=order_id, organization_id=org_id)
+            .filter_by(id=order_id, organization_id=org_id, is_deleted=False)
             .with_for_update()
             .first()
         )
@@ -827,6 +827,54 @@ class OrderMasterService:
         return order
 
     @classmethod
+    def soft_delete_order(
+        cls,
+        org_id: int,
+        order_id: int,
+        actor_id: Optional[int] = None,
+        reason: Optional[str] = None,
+    ) -> OrderMaster:
+        """
+        Soft-delete an OrderMaster within the given organization without removing DB records.
+        Sets is_deleted=True and logs immutable audit history.
+        """
+        order = cls.lock_order(org_id, order_id)
+        order.is_deleted = True
+
+        actor = actor_id or order.created_by_id
+        clean_reason = (reason or "").strip()
+        remarks = (
+            f"Order soft-deleted: {clean_reason}"
+            if clean_reason
+            else "Order soft-deleted from Orders Dashboard."
+        )
+
+        hist = OrderStatusHistory(
+            order_id=order.id,
+            organization_id=org_id,
+            status_type="MASTER",
+            from_status=order.status,
+            to_status=order.status,
+            remarks=remarks,
+            changed_by_id=actor,
+        )
+        db.session.add(hist)
+
+        try:
+            from utils.activity_service import ActivityService
+            ActivityService.log(
+                action="order_soft_deleted",
+                entity_type="order",
+                entity_id=order.id,
+                entity_name=order.master_order_number,
+                description=remarks,
+            )
+        except Exception:
+            pass
+
+        return order
+
+    @classmethod
     def exceptional_close_order(
         cls,
         org_id: int,
@@ -931,7 +979,7 @@ class OrderMasterService:
         """Aggregate comprehensive unified cockpit data for an order."""
         order = (
             OrderMaster.query
-            .filter_by(id=order_id, organization_id=org_id)
+            .filter_by(id=order_id, organization_id=org_id, is_deleted=False)
             .first()
         )
         if not order:
@@ -946,9 +994,15 @@ class OrderMasterService:
             except Exception:
                 initial_snapshot = {}
 
-        # Derive human-friendly order title
+        # Derive human-friendly order title (prefer latest [Title] prefix in notes if edited)
+        parsed_note_title = (
+            order.notes[1:order.notes.index("]")]
+            if order.notes and order.notes.startswith("[") and "]" in order.notes
+            else None
+        )
         order_title = (
-            initial_snapshot.get("order_title")
+            parsed_note_title
+            or initial_snapshot.get("order_title")
             or order.order_title
             or f"Order #{order.master_order_number}"
         )

@@ -71,7 +71,7 @@ from services.oms import (
     OMSTenantIsolationError,
 )
 from services.oms.order_master_service import detect_lead_customer
-from utils.security import require_roles
+from utils.security import require_roles, safe_redirect_target
 orders_bp = Blueprint("orders", __name__, url_prefix="/orders")
 
 
@@ -178,7 +178,51 @@ def list_orders():
 
     # Fetch lookup data for dashboard filters
     vendors = Vendor.query.filter_by(organization_id=org_id, is_deleted=False).order_by(Vendor.company_name.asc()).all()
-    project_managers = Employee.query.filter_by(organization_id=org_id).order_by(Employee.name.asc()).all()
+    project_managers = (
+        Employee.query.filter_by(organization_id=org_id)
+        .filter(Employee.is_deleted.isnot(True))
+        .order_by(Employee.name.asc())
+        .all()
+    )
+
+    from services.oms.order_master_service import VALID_MASTER_TRANSITIONS
+    LIFECYCLE_ORDER = [
+        "CONFIRMED",
+        "IN_PROCUREMENT",
+        "PARTIALLY_RECEIVED",
+        "RECEIVED",
+        "IN_DELIVERY",
+        "PARTIALLY_DELIVERED",
+        "DELIVERED",
+        "IN_FITTING",
+        "COMPLETED",
+        "CLOSED",
+        "ON_HOLD",
+        "CANCELLED",
+        "DRAFT",
+    ]
+    status_labels_map = {
+        "DRAFT": "Draft (Pending Confirmation)",
+        "CONFIRMED": "Confirmed (Ready for Procurement)",
+        "IN_PROCUREMENT": "In Procurement / PO Issued",
+        "PARTIALLY_RECEIVED": "Partially Received from Vendor",
+        "RECEIVED": "Fabrication Complete / QC Passed",
+        "IN_DELIVERY": "In Delivery / Out for Transit",
+        "PARTIALLY_DELIVERED": "Partially Delivered to Site",
+        "DELIVERED": "Delivered / POD Signed",
+        "IN_FITTING": "Site Installation / Fitting Active",
+        "COMPLETED": "Completed & Handed Over",
+        "CLOSED": "Closed & Reconciled",
+        "ON_HOLD": "Put On Hold",
+        "CANCELLED": "Cancel Order",
+    }
+    valid_transitions_by_status = {}
+    for st_val, allowed in VALID_MASTER_TRANSITIONS.items():
+        ordered = [s for s in LIFECYCLE_ORDER if s in allowed]
+        for s in allowed:
+            if s not in ordered:
+                ordered.append(s)
+        valid_transitions_by_status[st_val] = ordered
 
     if request.is_json or request.headers.get("Accept") == "application/json":
         serialized_orders = [
@@ -230,6 +274,8 @@ def list_orders():
         vendors=vendors,
         project_managers=project_managers,
         master_statuses=[s.value for s in MasterOrderStatus],
+        valid_transitions_by_status=valid_transitions_by_status,
+        status_labels_map=status_labels_map,
     )
 
 
@@ -1348,7 +1394,8 @@ def transition_status(order_id: int):
             return jsonify({"success": False, "error": str(e)}), 500
         flash(f"Unexpected error: {str(e)}", "order_error")
 
-    return redirect(url_for("orders.detail_order", order_id=order_id))
+    next_url = request.form.get("next") or request.args.get("next")
+    return redirect(safe_redirect_target(next_url, url_for("orders.detail_order", order_id=order_id)))
 
 
 @orders_bp.route("/<int:order_id>/update-box", methods=["POST"])
@@ -1377,6 +1424,17 @@ def update_order_box(order_id: int):
     try:
         if box_name == "identity":
             section_label = "Order Header Identity"
+            if "order_title" in data:
+                new_title = str(data.get("order_title") or "").strip()
+                raw_notes = str(data.get("notes") if "notes" in data else (order.notes or "")).strip()
+                if raw_notes.startswith("[") and "]" in raw_notes:
+                    raw_notes = raw_notes[raw_notes.index("]") + 1:].strip()
+                if new_title:
+                    order.notes = f"[{new_title}] {raw_notes}" if raw_notes else f"[{new_title}]"
+                else:
+                    order.notes = raw_notes or None
+            elif "notes" in data:
+                order.notes = data["notes"].strip()
             if "priority" in data and data["priority"]:
                 order.priority = str(data["priority"]).strip().upper()
             if "shipping_address" in data:
@@ -1385,25 +1443,34 @@ def update_order_box(order_id: int):
                 order.billing_address = data["billing_address"].strip()
             if "site_address" in data:
                 order.site_address = data["site_address"].strip()
-            if "notes" in data:
-                order.notes = data["notes"].strip()
-            if "expected_delivery_date" in data and data["expected_delivery_date"]:
-                try:
-                    order.expected_delivery_date = datetime.strptime(data["expected_delivery_date"].strip(), "%Y-%m-%d")
-                except ValueError:
-                    pass
-            if "net_order_amount" in data and data["net_order_amount"]:
+            if "expected_delivery_date" in data:
+                exp_str = str(data["expected_delivery_date"] or "").strip()
+                if exp_str:
+                    try:
+                        order.expected_delivery_date = datetime.strptime(exp_str, "%Y-%m-%d")
+                    except ValueError:
+                        pass
+                else:
+                    order.expected_delivery_date = None
+            if "net_order_amount" in data and str(data["net_order_amount"]).strip() != "":
                 try:
                     val = Decimal(str(data["net_order_amount"]).replace(",", "").strip())
                     order.net_order_amount = val
                     order.total_ordered_amount = val
                 except Exception:
                     pass
-            if "assigned_to_id" in data and data["assigned_to_id"]:
-                try:
-                    order.assigned_to_id = int(data["assigned_to_id"])
-                except (ValueError, TypeError):
-                    pass
+            if "assigned_to_id" in data:
+                raw_pm = str(data["assigned_to_id"] or "").strip()
+                if raw_pm == "":
+                    order.assigned_to_id = None
+                else:
+                    try:
+                        pm_id = int(raw_pm)
+                        pm_emp = Employee.query.filter_by(id=pm_id, organization_id=org_id).first()
+                        if pm_emp:
+                            order.assigned_to_id = pm_emp.id
+                    except (ValueError, TypeError):
+                        pass
 
         elif box_name == "customer":
             section_label = "Customer & Lead Details"
@@ -1619,7 +1686,57 @@ def update_order_box(order_id: int):
             return jsonify({"success": False, "error": str(e)}), 500
         flash(f"An unexpected error occurred: {str(e)}", "order_error")
 
-    return redirect(url_for("orders.detail_order", order_id=order_id))
+    next_url = request.form.get("next") or request.args.get("next")
+    return redirect(safe_redirect_target(next_url, url_for("orders.detail_order", order_id=order_id)))
+
+
+@orders_bp.route("/<int:order_id>/delete", methods=["POST"])
+@login_required
+@require_roles("admin", "manager", "employee")
+def delete_order(order_id: int):
+    """Soft-delete a Master Order (sets is_deleted=True without removing DB records)."""
+    org_id = _get_org_id()
+    actor_id = _get_actor_id()
+    wants_json = request.is_json or request.headers.get("Accept") == "application/json"
+    data = request.get_json(silent=True) or request.form
+    reason = (data.get("reason") or "").strip() if data else ""
+
+    try:
+        order = OrderMasterService.soft_delete_order(
+            org_id=org_id,
+            order_id=order_id,
+            actor_id=actor_id,
+            reason=reason or None,
+        )
+        db.session.commit()
+        if wants_json:
+            return jsonify({
+                "success": True,
+                "order_id": order.id,
+                "master_order_number": order.master_order_number,
+                "is_deleted": order.is_deleted,
+                "message": f"Order {order.master_order_number} deleted successfully.",
+            }), 200
+        flash(f"Order {order.master_order_number} deleted successfully.", "order_success")
+    except OMSTenantIsolationError as e:
+        db.session.rollback()
+        if wants_json:
+            return jsonify({"success": False, "error": str(e)}), 404
+        flash(str(e), "order_error")
+    except OMSError as e:
+        db.session.rollback()
+        if wants_json:
+            return jsonify({"success": False, "error": str(e)}), 400
+        flash(f"Delete failed: {str(e)}", "order_error")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"Unexpected error deleting order {order_id}")
+        if wants_json:
+            return jsonify({"success": False, "error": str(e)}), 500
+        flash(f"An unexpected error occurred: {str(e)}", "order_error")
+
+    next_url = request.form.get("next") or request.referrer
+    return redirect(safe_redirect_target(next_url, url_for("orders.list_orders")))
 
 
 @orders_bp.route("/<int:order_id>/documents/<int:doc_id>/preview", methods=["GET"])

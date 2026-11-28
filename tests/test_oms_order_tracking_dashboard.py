@@ -523,6 +523,153 @@ class OMSOrderTrackingDashboardTests(unittest.TestCase):
         self.assertIn("tracking_card", data["orders"][0])
         self.assertEqual(data["orders"][0]["tracking_card"]["master_order_number"], order.master_order_number)
 
+    def test_21_dashboard_renders_three_dot_menu_and_modals(self):
+        """21. Orders Dashboard cards include 3-dot menu (Edit, Change Status, Delete) and modals."""
+        self._login(1)
+        order = OrderMasterService.create_order(
+            org_id=1,
+            customer_id=1,
+            order_title="Three Dot Menu Verification Order",
+            items_data=[],
+            action_type="confirm_order",
+            actor_id=1,
+        )
+
+        resp = self.client.get("/orders/")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+        self.assertIn(order.master_order_number, html)
+        self.assertIn(f"order-menu-{order.id}", html)
+        self.assertIn("Edit Order", html)
+        self.assertIn("Change Status", html)
+        self.assertIn("Delete Order", html)
+        self.assertIn("quickEditModal", html)
+        self.assertIn("quickStatusModal", html)
+        self.assertIn("deleteOrderModal", html)
+
+    def test_22_dashboard_quick_edit_updates_order_and_redirects(self):
+        """22. Quick Edit modal updates title, priority, PM, amount and redirects back to dashboard."""
+        self._login(1)
+        order = OrderMasterService.create_order(
+            org_id=1,
+            customer_id=1,
+            order_title="Original Dashboard Title",
+            items_data=[],
+            action_type="confirm_order",
+            actor_id=1,
+        )
+
+        resp = self.client.post(
+            f"/orders/{order.id}/update-box",
+            data={
+                "box_name": "identity",
+                "order_title": "Updated Dashboard Title",
+                "priority": "URGENT",
+                "expected_delivery_date": "2026-12-15",
+                "assigned_to_id": "1",
+                "net_order_amount": "25000.00",
+                "shipping_address": "New Site Address, Pune",
+                "notes": "Updated from 3-dot menu",
+                "next": "/orders/?scope=active",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/orders/?scope=active", resp.headers.get("Location", ""))
+
+        db.session.expire_all()
+        updated = db.session.get(OrderMaster, order.id)
+        self.assertEqual(updated.order_title, "Updated Dashboard Title")
+        self.assertEqual(updated.priority, "URGENT")
+        self.assertEqual(updated.assigned_to_id, 1)
+        self.assertEqual(updated.net_order_amount, Decimal("25000.00"))
+        self.assertEqual(updated.shipping_address, "New Site Address, Pune")
+
+    def test_23_dashboard_quick_status_change_and_redirect(self):
+        """23. Quick Change Status modal transitions status cleanly and redirects back to dashboard."""
+        self._login(1)
+        order = OrderMasterService.create_order(
+            org_id=1,
+            customer_id=1,
+            order_title="Status Change Menu Order",
+            items_data=[],
+            action_type="confirm_order",
+            actor_id=1,
+        )
+
+        resp = self.client.post(
+            f"/orders/{order.id}/status",
+            data={
+                "to_status": MasterOrderStatus.IN_PROCUREMENT.value,
+                "remarks": "Changed from 3-dot status modal",
+                "next": "/orders/?scope=active",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/orders/?scope=active", resp.headers.get("Location", ""))
+
+        db.session.expire_all()
+        updated = db.session.get(OrderMaster, order.id)
+        self.assertEqual(updated.status, MasterOrderStatus.IN_PROCUREMENT.value)
+
+    def test_24_soft_delete_order_preserves_db_record_and_isolates_tenant(self):
+        """24. Soft-delete marks is_deleted=True, keeps DB row, hides from UI/cockpit, enforces tenant isolation."""
+        self._login(1)
+        order = OrderMasterService.create_order(
+            org_id=1,
+            customer_id=1,
+            order_title="Order To Soft Delete",
+            items_data=[],
+            action_type="confirm_order",
+            actor_id=1,
+        )
+
+        # Cross-tenant delete attempt from Org 2 must fail with 404 and leave order intact
+        self._login(2)
+        resp_cross = self.client.post(
+            f"/orders/{order.id}/delete",
+            data={"reason": "Unauthorized delete"},
+            headers={"Accept": "application/json"},
+        )
+        self.assertEqual(resp_cross.status_code, 404)
+        self.assertFalse(db.session.get(OrderMaster, order.id).is_deleted)
+
+        # Authorized Org 1 soft delete
+        self._login(1)
+        resp_del = self.client.post(
+            f"/orders/{order.id}/delete",
+            data={"reason": "Duplicate entry", "next": "/orders/?scope=active"},
+            follow_redirects=False,
+        )
+        self.assertEqual(resp_del.status_code, 302)
+        self.assertIn("/orders/?scope=active", resp_del.headers.get("Location", ""))
+
+        db.session.expire_all()
+        deleted_row = db.session.get(OrderMaster, order.id)
+        # Record still exists in DB with is_deleted=True
+        self.assertIsNotNone(deleted_row)
+        self.assertTrue(deleted_row.is_deleted)
+
+        # Audit entry recorded in OrderStatusHistory
+        hist = OrderStatusHistory.query.filter_by(order_id=order.id, organization_id=1).order_by(OrderStatusHistory.id.desc()).first()
+        self.assertIsNotNone(hist)
+        self.assertIn("Duplicate entry", hist.remarks)
+
+        # Hidden from Orders Dashboard & list_orders
+        list_res = OrderMasterService.list_orders(org_id=1, scope="all")
+        self.assertEqual(list_res.total, 0)
+        resp_html = self.client.get("/orders/")
+        html1 = resp_html.get_data(as_text=True)
+        self.assertIn("deleted successfully", html1)
+        self.assertNotIn(f"order-card-{order.id}", html1)
+        resp_html2 = self.client.get("/orders/")
+        self.assertNotIn(order.master_order_number, resp_html2.get_data(as_text=True))
+
+        # Cockpit detail access blocked for soft-deleted order
+        with self.assertRaises(OMSValidationError):
+            OrderMasterService.get_order_cockpit_details(org_id=1, order_id=order.id)
+
 
 if __name__ == "__main__":
     unittest.main()

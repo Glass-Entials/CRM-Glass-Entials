@@ -294,6 +294,7 @@ class OMSNotificationService:
         overdue_orders = (
             OrderMaster.query.filter(
                 OrderMaster.organization_id == org_id,
+                OrderMaster.is_deleted == False,
                 OrderMaster.status.notin_(["COMPLETED", "CLOSED", "CANCELLED"]),
                 OrderMaster.expected_delivery_date != None,
                 OrderMaster.expected_delivery_date < now,

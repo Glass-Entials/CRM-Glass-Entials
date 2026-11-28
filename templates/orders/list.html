@@ -331,7 +331,7 @@
             margin-bottom: 1.6rem;
             transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
         }
 
         .order-tracking-card:hover {
@@ -348,6 +348,7 @@
             flex-wrap: wrap;
             gap: 1.25rem;
             border-bottom: 1px solid rgba(13, 27, 42, 0.05);
+            border-radius: 14px 14px 0 0;
         }
 
         .card-header-left {
@@ -689,6 +690,184 @@
             gap: 10px;
             font-size: 0.8rem;
             color: var(--text-muted);
+            border-radius: 0 0 14px 14px;
+        }
+
+        /* ── 3-Dot Order Card Actions Menu ── */
+        .order-card-actions-menu {
+            position: relative;
+            display: inline-block;
+        }
+        .btn-three-dots {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid rgba(13, 27, 42, 0.14);
+            background: #ffffff;
+            color: var(--primary-navy);
+            font-size: 1.15rem;
+            font-weight: 800;
+            line-height: 1;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.18s ease;
+        }
+        .btn-three-dots:hover,
+        .order-card-actions-menu.open .btn-three-dots {
+            background: #f8fafc;
+            border-color: var(--accent-gold);
+            color: var(--primary-navy);
+            box-shadow: 0 2px 8px rgba(13, 27, 42, 0.08);
+        }
+        .order-dots-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            min-width: 188px;
+            background: #ffffff;
+            border: 1px solid rgba(13, 27, 42, 0.12);
+            border-radius: 10px;
+            box-shadow: 0 12px 30px rgba(13, 27, 42, 0.14);
+            padding: 6px;
+            z-index: 120;
+            text-align: left;
+        }
+        .order-card-actions-menu.open .order-dots-dropdown {
+            display: block;
+        }
+        .order-dots-dropdown button,
+        .order-dots-dropdown a {
+            width: 100%;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 0.55rem 0.75rem;
+            border: none;
+            background: transparent;
+            border-radius: 7px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--primary-navy);
+            text-decoration: none;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.15s ease;
+        }
+        .order-dots-dropdown button:hover,
+        .order-dots-dropdown a:hover {
+            background: #f1f5f9;
+        }
+        .order-dots-dropdown hr {
+            border: none;
+            border-top: 1px solid rgba(13, 27, 42, 0.07);
+            margin: 5px 4px;
+        }
+        .order-dots-dropdown button.danger-action {
+            color: #dc2626;
+        }
+        .order-dots-dropdown button.danger-action:hover {
+            background: rgba(239, 68, 68, 0.09);
+        }
+
+        /* ── Dashboard Modals (Edit / Status / Soft Delete) ── */
+        .oms-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(13, 27, 42, 0.52);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .oms-modal-box {
+            background: #ffffff;
+            border-radius: 14px;
+            max-width: 540px;
+            width: 100%;
+            max-height: 92vh;
+            overflow-y: auto;
+            padding: 1.75rem;
+            box-shadow: 0 24px 60px rgba(13, 27, 42, 0.22);
+            border: 1px solid rgba(13, 27, 42, 0.08);
+        }
+        .oms-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.85rem;
+            border-bottom: 1px solid rgba(13, 27, 42, 0.07);
+        }
+        .oms-modal-header h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--primary-navy);
+        }
+        .oms-modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            line-height: 1;
+        }
+        .oms-fg {
+            margin-bottom: 1rem;
+        }
+        .oms-fg label {
+            display: block;
+            font-size: 0.74rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+        .oms-fg input,
+        .oms-fg select,
+        .oms-fg textarea {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 0.65rem 0.85rem;
+            border: 1px solid rgba(13, 27, 42, 0.16);
+            border-radius: 8px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.86rem;
+            color: var(--primary-navy);
+            background: #f8fafc;
+        }
+        .oms-fg input:focus,
+        .oms-fg select:focus,
+        .oms-fg textarea:focus {
+            outline: none;
+            background: #ffffff;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.14);
+        }
+        .oms-fg-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.85rem;
+        }
+        @media (max-width: 560px) {
+            .oms-fg-grid { grid-template-columns: 1fr; }
+        }
+        .oms-modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(13, 27, 42, 0.07);
         }
 
         .milestone-left {
@@ -1017,9 +1196,39 @@
                         </div>
 
                         <div class="card-header-right">
-                            <div class="order-value-display">
-                                <span class="order-value-label">Order Value</span>
-                                <span class="order-value-amount">{{ card.order_value_formatted }}</span>
+                            <div style="display:flex; align-items:flex-start; gap:12px;">
+                                <div class="order-value-display">
+                                    <span class="order-value-label">Order Value</span>
+                                    <span class="order-value-amount">{{ card.order_value_formatted }}</span>
+                                </div>
+                                {% set clean_notes = (ord.notes[ord.notes.index(']') + 1:].strip() if (ord.notes and ord.notes.startswith('[') and ']' in ord.notes) else (ord.notes or '')) %}
+                                {% set edit_payload = {
+                                    "id": ord.id,
+                                    "number": ord.master_order_number,
+                                    "title": card.project_title or ord.order_title or '',
+                                    "priority": ord.priority or 'MEDIUM',
+                                    "expected_delivery_date": ord.expected_delivery_date.strftime('%Y-%m-%d') if ord.expected_delivery_date else '',
+                                    "assigned_to_id": ord.assigned_to_id or '',
+                                    "net_order_amount": (ord.net_order_amount|float)|string,
+                                    "shipping_address": ord.shipping_address or '',
+                                    "notes": clean_notes,
+                                    "detail_url": url_for('orders.detail_order', order_id=ord.id)
+                                } %}
+                                <div class="order-card-actions-menu">
+                                    <button type="button" class="btn-three-dots" onclick="toggleOrderCardMenu(event, {{ ord.id }})" title="Order Actions" aria-label="Order Actions">⋮</button>
+                                    <div class="order-dots-dropdown" id="order-menu-{{ ord.id }}">
+                                        <button type="button" data-order='{{ edit_payload | tojson }}' onclick="openQuickEditModal(this)">
+                                            <span>✏️</span> Edit Order
+                                        </button>
+                                        <button type="button" onclick="openQuickStatusModal({{ ord.id }}, {{ ord.master_order_number|tojson }}, {{ ord.status|tojson }})">
+                                            <span>⚡</span> Change Status
+                                        </button>
+                                        <hr>
+                                        <button type="button" class="danger-action" onclick="openDeleteOrderModal({{ ord.id }}, {{ ord.master_order_number|tojson }}, {{ (card.project_title or ord.order_title or 'Order')|tojson }})">
+                                            <span>🗑️</span> Delete Order
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             <a href="{{ url_for('orders.detail_order', order_id=ord.id) }}" class="btn-inspect-360" title="Inspect complete 360° Order Details">
                                 Inspect 360° <span>→</span>
@@ -1170,7 +1379,141 @@
 
     </main>
 
+    <!-- ══ QUICK EDIT ORDER MODAL ══ -->
+    <div id="quickEditModal" class="oms-modal-overlay">
+        <div class="oms-modal-box">
+            <div class="oms-modal-header">
+                <h3 id="qeModalTitle">✏️ Edit Order</h3>
+                <button type="button" class="oms-modal-close" onclick="closeOmsModal('quickEditModal')">&times;</button>
+            </div>
+            <form id="quickEditForm" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="box_name" value="identity">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+
+                <div class="oms-fg">
+                    <label for="qe_order_title">Order Title</label>
+                    <input type="text" name="order_title" id="qe_order_title" placeholder="Order title / project name">
+                </div>
+
+                <div class="oms-fg-grid">
+                    <div class="oms-fg">
+                        <label for="qe_priority">Priority</label>
+                        <select name="priority" id="qe_priority">
+                            <option value="LOW">LOW</option>
+                            <option value="MEDIUM">MEDIUM</option>
+                            <option value="HIGH">HIGH</option>
+                            <option value="URGENT">URGENT</option>
+                        </select>
+                    </div>
+                    <div class="oms-fg">
+                        <label for="qe_due_date">Expected Delivery Date</label>
+                        <input type="date" name="expected_delivery_date" id="qe_due_date">
+                    </div>
+                </div>
+
+                <div class="oms-fg-grid">
+                    <div class="oms-fg">
+                        <label for="qe_pm">Assigned Project Manager</label>
+                        <select name="assigned_to_id" id="qe_pm">
+                            <option value="">— Unassigned —</option>
+                            {% for pm in project_managers %}
+                            <option value="{{ pm.id }}">{{ pm.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="oms-fg">
+                        <label for="qe_net_amount">Net Order Value (₹)</label>
+                        <input type="number" step="0.01" min="0" name="net_order_amount" id="qe_net_amount">
+                    </div>
+                </div>
+
+                <div class="oms-fg">
+                    <label for="qe_shipping_addr">Shipping / Site Address</label>
+                    <input type="text" name="shipping_address" id="qe_shipping_addr" placeholder="Delivery / site address">
+                </div>
+
+                <div class="oms-fg">
+                    <label for="qe_notes">Internal Notes</label>
+                    <textarea name="notes" id="qe_notes" rows="2" placeholder="Additional remarks..."></textarea>
+                </div>
+
+                <div class="oms-modal-footer" style="justify-content:space-between;">
+                    <a id="qe_full_link" href="#" style="font-size:0.8rem; font-weight:700; color:var(--accent-gold-dark); text-decoration:none;">
+                        Open Full 360° Edit →
+                    </a>
+                    <div style="display:flex; gap:10px;">
+                        <button type="button" class="btn-luxury outline" onclick="closeOmsModal('quickEditModal')">Cancel</button>
+                        <button type="submit" class="btn-luxury gold">Save Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ══ CHANGE ORDER STATUS MODAL ══ -->
+    <div id="quickStatusModal" class="oms-modal-overlay">
+        <div class="oms-modal-box">
+            <div class="oms-modal-header">
+                <h3 id="qsModalTitle">⚡ Change Order Status</h3>
+                <button type="button" class="oms-modal-close" onclick="closeOmsModal('quickStatusModal')">&times;</button>
+            </div>
+            <div style="background:#f8fafc; border:1px solid rgba(13,27,42,0.08); border-radius:8px; padding:0.75rem 1rem; margin-bottom:1.1rem; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:0.76rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Current Status</span>
+                <span id="qs_current_badge" class="badge-status st-confirmed"></span>
+            </div>
+            <form id="quickStatusForm" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+
+                <div class="oms-fg">
+                    <label for="qs_to_status">Target Lifecycle Status <span style="color:#ef4444;">*</span></label>
+                    <select name="to_status" id="qs_to_status" required></select>
+                    <small id="qs_terminal_hint" style="display:none; color:#b91c1c; font-weight:600; font-size:0.78rem; margin-top:5px;">
+                        This order is in a terminal status and cannot be transitioned further.
+                    </small>
+                </div>
+
+                <div class="oms-fg">
+                    <label for="qs_remarks">Transition Remarks <span style="color:#ef4444;">*</span></label>
+                    <textarea name="remarks" id="qs_remarks" rows="3" required placeholder="Reason / milestone note for status update..."></textarea>
+                </div>
+
+                <div class="oms-modal-footer">
+                    <button type="button" class="btn-luxury outline" onclick="closeOmsModal('quickStatusModal')">Cancel</button>
+                    <button type="submit" id="qs_submit_btn" class="btn-luxury gold">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ══ SOFT DELETE ORDER MODAL ══ -->
+    <div id="deleteOrderModal" class="oms-modal-overlay">
+        <div class="oms-modal-box" style="max-width:440px;">
+            <div class="oms-modal-header">
+                <h3 style="color:#dc2626;">🗑️ Delete Order</h3>
+                <button type="button" class="oms-modal-close" onclick="closeOmsModal('deleteOrderModal')">&times;</button>
+            </div>
+            <p id="delOrderDesc" style="margin:0 0 1rem; font-size:0.9rem; color:var(--text-dark); line-height:1.55;"></p>
+            <form id="deleteOrderForm" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+                <div class="oms-fg">
+                    <label for="del_reason">Deletion Reason (Optional Audit Note)</label>
+                    <input type="text" name="reason" id="del_reason" placeholder="e.g. Duplicate draft or cancelled entry">
+                </div>
+                <div class="oms-modal-footer">
+                    <button type="button" class="btn-luxury outline" onclick="closeOmsModal('deleteOrderModal')">Cancel</button>
+                    <button type="submit" class="btn-luxury" style="background:#dc2626; color:#ffffff; border-color:#dc2626;">Yes, Delete Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
+        const VALID_TRANSITIONS_BY_STATUS = {{ (valid_transitions_by_status or {}) | tojson }};
+        const STATUS_LABELS_MAP = {{ (status_labels_map or {}) | tojson }};
+
         // Export dropdown menu interactions
         document.querySelectorAll('.export-trigger').forEach(btn => {
             btn.addEventListener('click', e => {
@@ -1178,8 +1521,124 @@
                 btn.closest('.export-dropdown').classList.toggle('open');
             });
         });
-        document.addEventListener('click', () => {
+
+        // 3-Dot Order Card Menu interactions
+        function toggleOrderCardMenu(e, orderId) {
+            e.stopPropagation();
+            const targetMenu = document.getElementById(`order-menu-${orderId}`).closest('.order-card-actions-menu');
+            const isOpen = targetMenu.classList.contains('open');
+            document.querySelectorAll('.order-card-actions-menu.open').forEach(m => m.classList.remove('open'));
+            if (!isOpen) {
+                targetMenu.classList.add('open');
+            }
+        }
+
+        function closeAllDropdowns() {
             document.querySelectorAll('.export-dropdown.open').forEach(d => d.classList.remove('open'));
+            document.querySelectorAll('.order-card-actions-menu.open').forEach(m => m.classList.remove('open'));
+        }
+        document.addEventListener('click', closeAllDropdowns);
+
+        function openOmsModal(id) {
+            closeAllDropdowns();
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'flex';
+        }
+        function closeOmsModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        }
+
+        // 1. Quick Edit Order Modal
+        function openQuickEditModal(btn) {
+            const data = JSON.parse(btn.getAttribute('data-order'));
+            document.getElementById('qeModalTitle').textContent = `✏️ Edit Order — ${data.number}`;
+            document.getElementById('quickEditForm').action = `/orders/${data.id}/update-box`;
+            document.getElementById('qe_order_title').value = data.title || '';
+            document.getElementById('qe_priority').value = (data.priority || 'MEDIUM').toUpperCase();
+            document.getElementById('qe_due_date').value = data.expected_delivery_date || '';
+            document.getElementById('qe_pm').value = data.assigned_to_id ? String(data.assigned_to_id) : '';
+            document.getElementById('qe_net_amount').value = data.net_order_amount || '0.00';
+            document.getElementById('qe_shipping_addr').value = data.shipping_address || '';
+            document.getElementById('qe_notes').value = data.notes || '';
+            document.getElementById('qe_full_link').href = data.detail_url || `/orders/${data.id}`;
+            openOmsModal('quickEditModal');
+        }
+
+        // 2. Quick Change Status Modal
+        function openQuickStatusModal(orderId, orderNumber, currentStatus) {
+            document.getElementById('qsModalTitle').textContent = `⚡ Change Status — ${orderNumber}`;
+            document.getElementById('quickStatusForm').action = `/orders/${orderId}/status`;
+            document.getElementById('qs_current_badge').textContent = currentStatus.replace(/_/g, ' ');
+            document.getElementById('qs_remarks').value = '';
+
+            const sel = document.getElementById('qs_to_status');
+            const hint = document.getElementById('qs_terminal_hint');
+            const submitBtn = document.getElementById('qs_submit_btn');
+            sel.innerHTML = '';
+
+            const allowed = VALID_TRANSITIONS_BY_STATUS[currentStatus] || [];
+            if (allowed.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'No further transitions available';
+                sel.appendChild(opt);
+                sel.disabled = true;
+                hint.style.display = 'block';
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = '0.5';
+            } else {
+                sel.disabled = false;
+                hint.style.display = 'none';
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = '— Select Target Status —';
+                sel.appendChild(placeholder);
+
+                allowed.forEach(st => {
+                    const opt = document.createElement('option');
+                    opt.value = st;
+                    opt.textContent = `→ ${STATUS_LABELS_MAP[st] || st}`;
+                    sel.appendChild(opt);
+                });
+            }
+            openOmsModal('quickStatusModal');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // 3. Soft Delete Order Modal
+        function openDeleteOrderModal(orderId, orderNumber, orderTitle) {
+            document.getElementById('deleteOrderForm').action = `/orders/${orderId}/delete`;
+            document.getElementById('del_reason').value = '';
+            document.getElementById('delOrderDesc').innerHTML =
+                `Are you sure you want to remove <strong>${escapeHtml(orderNumber)}</strong> (${escapeHtml(orderTitle)}) from active orders? ` +
+                `<span style="color:var(--text-muted); display:block; margin-top:6px; font-size:0.82rem;">This performs a soft delete — historical database records and audit trails are preserved.</span>`;
+            openOmsModal('deleteOrderModal');
+        }
+
+        // Backdrop & ESC close
+        document.querySelectorAll('.oms-modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', e => {
+                if (e.target === overlay) overlay.style.display = 'none';
+            });
+        });
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                closeAllDropdowns();
+                document.querySelectorAll('.oms-modal-overlay').forEach(m => m.style.display = 'none');
+            }
         });
     </script>
 </body>
