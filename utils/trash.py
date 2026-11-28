@@ -505,6 +505,14 @@ def get_trashed_records(module_name, org_id, page=1, per_page=30, search=None):
     return pagination
 
 
+def get_trash_counts(org_id):
+    """Return soft-deleted record counts keyed by module name for an organization."""
+    counts = {}
+    for mod_name, model in TRASH_MODELS.items():
+        counts[mod_name] = model.query.filter_by(organization_id=org_id, is_deleted=True).count()
+    return counts
+
+
 def restore_record(module_name, record_id, org_id, actor_id):
     return TrashManager.restore(module_name, record_id, org_id, actor_id)
 

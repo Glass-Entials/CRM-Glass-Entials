@@ -1,422 +1,994 @@
 {% extends "base.html" %}
 
-{% block title %}Trash Management | GlassEntials{% endblock %}
+{% block title %}Trash Management | GlassEntials CRM{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/customer.css') }}?v=3">
 <style>
-/* ─── Page Header ─────────────────────────────────────────────── */
-.trash-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 2rem;
-}
-.trash-header-icon {
-    width: 52px; height: 52px;
-    background: linear-gradient(135deg, rgba(220,53,69,0.12) 0%, rgba(220,53,69,0.06) 100%);
-    border-radius: 14px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.5rem;
-    border: 1px solid rgba(220,53,69,0.15);
-}
-.trash-header h1 {
-    font-size: 1.75rem;
-    font-weight: 800;
-    color: var(--primary-color);
-    margin: 0;
-    letter-spacing: -0.03em;
-}
-.trash-header p {
-    color: #64748b;
-    font-size: 0.9rem;
-    margin: 0.15rem 0 0;
-}
+    :root {
+        --tm-navy: #0d1b2a;
+        --tm-gold: #d4af37;
+        --tm-gold-dark: #b89628;
+        --tm-surface: #ffffff;
+        --tm-canvas: #fdfcf9;
+        --tm-border: rgba(13, 27, 42, 0.08);
+        --tm-muted: #64748b;
+        --tm-danger: #dc2626;
+    }
 
-/* ─── Toolbar ─────────────────────────────────────────────────── */
-.trash-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-}
-.trash-filters {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex: 1;
-    flex-wrap: wrap;
-}
-.trash-select {
-    padding: 0.75rem 1rem;
-    border: 1.5px solid rgba(13, 27, 42, 0.12);
-    border-radius: 10px;
-    font-family: var(--font-body);
-    font-size: 0.9rem;
-    background: #fff;
-    color: var(--primary-color);
-    font-weight: 600;
-    cursor: pointer;
-    outline: none;
-    transition: border-color 0.2s;
-    min-width: 160px;
-}
-.trash-select:focus { border-color: var(--accent-gold); }
-.trash-search-wrap {
-    position: relative;
-    flex: 1; min-width: 200px; max-width: 380px;
-}
-.trash-search-wrap svg {
-    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-    color: #94a3b8;
-}
-.trash-search-input {
-    width: 100%;
-    padding: 0.75rem 1rem 0.75rem 2.6rem;
-    border: 1.5px solid rgba(13, 27, 42, 0.12);
-    border-radius: 10px;
-    font-family: var(--font-body);
-    font-size: 0.9rem;
-    background: #fff;
-    outline: none;
-    transition: border-color 0.2s;
-    box-sizing: border-box;
-}
-.trash-search-input:focus { border-color: var(--accent-gold); box-shadow: 0 0 0 3px rgba(212,175,55,0.12); }
-.trash-bulk-actions {
-    display: flex;
-    gap: 10px;
-    flex-shrink: 0;
-}
+    body.dashboard-page {
+        background-color: var(--tm-canvas);
+    }
 
-/* ─── Module Badge ─────────────────────────────────────────────── */
-.module-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-.module-badge.customers { background: rgba(16,185,129,0.1); color: #059669; }
-.module-badge.leads     { background: rgba(59,130,246,0.1); color: #2563eb; }
-.module-badge.contacts  { background: rgba(139,92,246,0.1); color: #7c3aed; }
-.module-badge.projects  { background: rgba(245,158,11,0.1); color: #d97706; }
-.module-badge.tasks     { background: rgba(239,68,68,0.1);  color: #dc2626; }
-.module-badge.orders    { background: rgba(212,175,55,0.14); color: #b45309; }
+    .trash-shell {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 1.75rem 2rem 3.5rem;
+    }
 
-/* ─── Table Overrides ──────────────────────────────────────────── */
-.trash-panel {
-    background: #fff;
-    border-radius: 20px;
-    border: 1px solid rgba(13,27,42,0.06);
-    box-shadow: 0 4px 24px rgba(13,27,42,0.05);
-    overflow: hidden;
-}
-.trash-panel .customer-table { margin-top: 0; }
-.trash-panel .customer-table th { text-align: left; }
-.trash-panel .customer-table td:first-child {
-    color: unset;
-    font-weight: unset;
-    width: 40px;
-}
-.trash-pill-restore {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 5px 14px;
-    border-radius: 20px;
-    border: 1.5px solid var(--accent-gold);
-    color: var(--accent-gold);
-    background: rgba(212,175,55,0.06);
-    font-family: var(--font-body);
-    font-size: 0.8rem; font-weight: 700;
-    cursor: pointer; transition: all 0.2s ease;
-}
-.trash-pill-restore:hover { background: var(--accent-gold); color: #fff; }
-.trash-pill-delete {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 5px 14px;
-    border-radius: 20px;
-    border: 1.5px solid #dc3545;
-    color: #dc3545;
-    background: rgba(220,53,69,0.05);
-    font-family: var(--font-body);
-    font-size: 0.8rem; font-weight: 700;
-    cursor: pointer; transition: all 0.2s ease;
-}
-.trash-pill-delete:hover { background: #dc3545; color: #fff; }
+    /* ── Luxury Page Header Card ── */
+    .trash-hero-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        background: var(--tm-surface);
+        border: 1px solid var(--tm-border);
+        border-top: 4px solid var(--tm-gold);
+        border-radius: 16px;
+        padding: 1.65rem 2rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 4px 20px rgba(13, 27, 42, 0.035);
+    }
 
-/* ─── Pagination ───────────────────────────────────────────────── */
-.trash-pagination {
-    display: flex; align-items: center; justify-content: center;
-    gap: 10px; margin-top: 1.5rem;
-}
-.trash-pagination a {
-    padding: 8px 18px; border-radius: 8px;
-    border: 1.5px solid rgba(13,27,42,0.12);
-    color: var(--primary-color); font-weight: 600; font-size: 0.85rem;
-    text-decoration: none; transition: all 0.2s;
-}
-.trash-pagination a:hover { border-color: var(--accent-gold); color: var(--accent-gold); }
-.trash-pagination .page-info {
-    color: #64748b; font-size: 0.85rem; font-weight: 600;
-}
+    .trash-hero-left {
+        display: flex;
+        align-items: center;
+        gap: 1.15rem;
+    }
 
-/* ─── Modal Animations ─────────────────────────────────────────── */
-@keyframes modalSlideIn {
-    from { opacity: 0; transform: translateY(30px) scale(0.97); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes warnPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(220,53,69,0.25); }
-    50%       { box-shadow: 0 0 0 14px rgba(220,53,69,0); }
-}
+    .trash-emblem {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, rgba(212, 175, 55, 0.14), rgba(212, 175, 55, 0.05));
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        color: var(--tm-gold-dark);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .trash-hero-title h1 {
+        margin: 0;
+        font-family: var(--font-heading, 'Playfair Display', serif);
+        font-size: 1.85rem;
+        font-weight: 700;
+        color: var(--tm-navy);
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+    }
+
+    .trash-hero-title p {
+        margin: 0.3rem 0 0;
+        font-size: 0.88rem;
+        color: var(--tm-muted);
+        font-weight: 500;
+    }
+
+    .trash-hero-stats {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        flex-wrap: wrap;
+    }
+
+    .trash-stat-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0.55rem 1rem;
+        border-radius: 999px;
+        background: #f8fafc;
+        border: 1px solid var(--tm-border);
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--tm-navy);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .trash-stat-pill .stat-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--tm-gold);
+    }
+
+    .trash-stat-pill strong {
+        font-weight: 800;
+        color: var(--tm-navy);
+    }
+
+    /* ── Module Tabs Strip ── */
+    .trash-tabs-strip {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        overflow-x: auto;
+        padding: 0.2rem 0 0.9rem;
+        margin-bottom: 0.9rem;
+        scrollbar-width: thin;
+    }
+
+    .trash-tab-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0.55rem 1rem;
+        border-radius: 999px;
+        background: var(--tm-surface);
+        border: 1px solid rgba(13, 27, 42, 0.1);
+        color: var(--tm-muted);
+        font-size: 0.82rem;
+        font-weight: 600;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: all 0.18s ease;
+        box-shadow: 0 1px 4px rgba(13, 27, 42, 0.02);
+    }
+
+    .trash-tab-pill:hover {
+        border-color: rgba(212, 175, 55, 0.55);
+        color: var(--tm-navy);
+        transform: translateY(-1px);
+    }
+
+    .trash-tab-pill.active {
+        background: var(--tm-navy);
+        border-color: var(--tm-navy);
+        color: #ffffff;
+        box-shadow: 0 6px 16px rgba(13, 27, 42, 0.15);
+    }
+
+    .trash-tab-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 20px;
+        padding: 0 7px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        background: #f1f5f9;
+        color: var(--tm-navy);
+    }
+
+    .trash-tab-pill.active .trash-tab-count {
+        background: rgba(212, 175, 55, 0.24);
+        color: #f8fafc;
+    }
+
+    /* ── Filter & Bulk Control Console ── */
+    .trash-console {
+        background: var(--tm-surface);
+        border: 1px solid var(--tm-border);
+        border-radius: 14px;
+        padding: 0.9rem 1.15rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        box-shadow: 0 2px 10px rgba(13, 27, 42, 0.025);
+    }
+
+    .trash-search-form {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        flex: 1;
+        min-width: 260px;
+        flex-wrap: wrap;
+    }
+
+    .trash-search-box {
+        position: relative;
+        flex: 1;
+        min-width: 220px;
+        max-width: 420px;
+    }
+
+    .trash-search-box svg {
+        position: absolute;
+        left: 13px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        pointer-events: none;
+    }
+
+    .trash-search-field {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.62rem 1rem 0.62rem 2.45rem;
+        border: 1px solid rgba(13, 27, 42, 0.14);
+        border-radius: 9px;
+        font-family: var(--font-body);
+        font-size: 0.86rem;
+        color: var(--tm-navy);
+        background: #f8fafc;
+        transition: all 0.2s ease;
+    }
+
+    .trash-search-field:focus {
+        outline: none;
+        background: #ffffff;
+        border-color: var(--tm-gold);
+        box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.14);
+    }
+
+    .tm-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 0.6rem 1.05rem;
+        border-radius: 9px;
+        font-family: var(--font-body);
+        font-size: 0.82rem;
+        font-weight: 700;
+        border: 1px solid transparent;
+        cursor: pointer;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: all 0.18s ease;
+    }
+
+    .tm-btn-gold {
+        background: linear-gradient(135deg, var(--tm-gold), var(--tm-gold-dark));
+        color: #ffffff;
+        box-shadow: 0 3px 10px rgba(212, 175, 55, 0.22);
+    }
+
+    .tm-btn-gold:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 5px 14px rgba(212, 175, 55, 0.32);
+    }
+
+    .tm-btn-ghost {
+        background: #ffffff;
+        color: var(--tm-navy);
+        border-color: rgba(13, 27, 42, 0.14);
+    }
+
+    .tm-btn-ghost:hover {
+        background: #f8fafc;
+        border-color: var(--tm-navy);
+    }
+
+    .tm-btn-restore-bulk {
+        background: rgba(16, 185, 129, 0.08);
+        color: #047857;
+        border-color: rgba(16, 185, 129, 0.28);
+    }
+
+    .tm-btn-restore-bulk:hover {
+        background: #059669;
+        color: #ffffff;
+        border-color: #059669;
+    }
+
+    .tm-btn-delete-bulk {
+        background: rgba(220, 38, 38, 0.06);
+        color: #dc2626;
+        border-color: rgba(220, 38, 38, 0.25);
+    }
+
+    .tm-btn-delete-bulk:hover {
+        background: #dc2626;
+        color: #ffffff;
+        border-color: #dc2626;
+    }
+
+    .trash-bulk-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+    }
+
+    .selection-counter {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--tm-muted);
+        padding: 0.35rem 0.75rem;
+        background: #f8fafc;
+        border-radius: 999px;
+        border: 1px solid var(--tm-border);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .selection-counter.has-selection {
+        background: rgba(212, 175, 55, 0.12);
+        border-color: rgba(212, 175, 55, 0.35);
+        color: var(--tm-navy);
+    }
+
+    /* ── Elevated Table Card ── */
+    .trash-table-card {
+        background: var(--tm-surface);
+        border: 1px solid var(--tm-border);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 8px 30px rgba(13, 27, 42, 0.04);
+    }
+
+    .trash-table-scroll {
+        overflow-x: auto;
+    }
+
+    .trash-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 780px;
+    }
+
+    .trash-table thead th {
+        text-align: left;
+        padding: 0.95rem 1.25rem;
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        border-bottom: 1px solid rgba(13, 27, 42, 0.07);
+        white-space: nowrap;
+    }
+
+    .trash-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        transition: background-color 0.15s ease;
+    }
+
+    .trash-table tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    .trash-table tbody tr:hover {
+        background: #fcfbfa;
+    }
+
+    .trash-table tbody td {
+        padding: 1rem 1.25rem;
+        vertical-align: middle;
+        color: var(--tm-navy);
+        font-size: 0.88rem;
+    }
+
+    .trash-checkbox {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--tm-navy);
+        cursor: pointer;
+    }
+
+    .record-id-tag {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 6px;
+        background: #f8fafc;
+        border: 1px solid rgba(13, 27, 42, 0.08);
+        font-size: 0.76rem;
+        font-weight: 700;
+        color: var(--tm-gold-dark);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Module Badges ── */
+    .module-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 11px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .module-badge::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .module-badge.customers { background: rgba(16, 185, 129, 0.1); color: #059669; }
+    .module-badge.leads     { background: rgba(59, 130, 246, 0.1); color: #2563eb; }
+    .module-badge.contacts  { background: rgba(139, 92, 246, 0.1); color: #7c3aed; }
+    .module-badge.projects  { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+    .module-badge.tasks     { background: rgba(239, 68, 68, 0.1);  color: #dc2626; }
+    .module-badge.orders    { background: rgba(212, 175, 55, 0.15); color: #a16207; }
+
+    /* ── Record Primary + Subtitle ── */
+    .record-cell-main {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .record-primary {
+        font-weight: 700;
+        color: var(--tm-navy);
+        font-size: 0.9rem;
+    }
+
+    .record-secondary {
+        font-size: 0.77rem;
+        color: var(--tm-muted);
+        font-weight: 500;
+    }
+
+    /* ── Actor Cell ── */
+    .actor-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .actor-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #0d1b2a, #1e3a5f);
+        color: #f3e5ab;
+        font-size: 0.7rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        text-transform: uppercase;
+    }
+
+    .actor-avatar.system {
+        background: #f1f5f9;
+        color: #64748b;
+    }
+
+    .time-cell {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--tm-muted);
+        font-size: 0.82rem;
+        font-weight: 500;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Row Action Pills ── */
+    .row-actions-group {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 7px;
+    }
+
+    .trash-pill-restore {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 0.42rem 0.9rem;
+        border-radius: 8px;
+        border: 1px solid rgba(212, 175, 55, 0.45);
+        color: #92400e;
+        background: rgba(212, 175, 55, 0.08);
+        font-family: var(--font-body);
+        font-size: 0.78rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.16s ease;
+    }
+
+    .trash-pill-restore:hover {
+        background: var(--tm-gold);
+        border-color: var(--tm-gold);
+        color: #ffffff;
+    }
+
+    .trash-pill-delete {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 0.42rem 0.9rem;
+        border-radius: 8px;
+        border: 1px solid rgba(220, 38, 38, 0.28);
+        color: #dc2626;
+        background: rgba(220, 38, 38, 0.05);
+        font-family: var(--font-body);
+        font-size: 0.78rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.16s ease;
+    }
+
+    .trash-pill-delete:hover {
+        background: #dc2626;
+        border-color: #dc2626;
+        color: #ffffff;
+    }
+
+    /* ── Pagination Footer ── */
+    .trash-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.35rem;
+        border-top: 1px solid #f1f5f9;
+        background: #fafafa;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .trash-page-meta {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--tm-muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .trash-pagination {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .trash-pagination a {
+        padding: 0.45rem 0.95rem;
+        border-radius: 8px;
+        border: 1px solid rgba(13, 27, 42, 0.14);
+        background: #ffffff;
+        color: var(--tm-navy);
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-decoration: none;
+        transition: all 0.16s ease;
+    }
+
+    .trash-pagination a:hover {
+        border-color: var(--tm-gold);
+        color: var(--tm-gold-dark);
+    }
+
+    /* ── Empty State ── */
+    .trash-empty-state {
+        padding: 4.5rem 2rem;
+        text-align: center;
+    }
+
+    .trash-empty-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 1rem;
+        border-radius: 18px;
+        background: #f8fafc;
+        border: 1px solid var(--tm-border);
+        color: #94a3b8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .trash-empty-state h3 {
+        margin: 0 0 0.35rem;
+        font-family: var(--font-heading, 'Playfair Display', serif);
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--tm-navy);
+    }
+
+    .trash-empty-state p {
+        margin: 0 auto 1.25rem;
+        max-width: 380px;
+        font-size: 0.86rem;
+        color: var(--tm-muted);
+    }
+
+    /* ── Modal Styling ── */
+    .tm-modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(13, 27, 42, 0.56);
+        backdrop-filter: blur(5px);
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .tm-modal-box {
+        background: #ffffff;
+        border-radius: 18px;
+        padding: 2rem;
+        max-width: 470px;
+        width: 100%;
+        border: 1px solid var(--tm-border);
+        box-shadow: 0 28px 70px rgba(13, 27, 42, 0.24);
+        animation: modalSlideIn 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalSlideIn {
+        from { opacity: 0; transform: translateY(18px) scale(0.98); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes warnPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.22); }
+        50%       { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+    }
+
+    @media (max-width: 768px) {
+        .trash-shell {
+            padding: 1rem 1rem 3rem;
+        }
+        .trash-hero-card {
+            padding: 1.25rem;
+        }
+        .trash-hero-title h1 {
+            font-size: 1.45rem;
+        }
+        .trash-console {
+            padding: 0.85rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<main class="container">
+<main class="trash-shell">
 
-<!-- Page Header -->
-<div class="trash-header">
-    <div class="trash-header-icon">🗑</div>
-    <div>
-        <h1>Trash Management</h1>
-        <p>Restore or permanently delete soft-deleted records.</p>
-    </div>
-</div>
-
-<!-- Toolbar -->
-<div class="trash-toolbar">
-    <form method="GET" class="trash-filters" id="trashFilterForm">
-        <select name="module" class="trash-select" onchange="document.getElementById('trashFilterForm').submit()">
-            <option value="all" {% if current_module == 'all' %}selected{% endif %}>🗂 All Modules</option>
-            {% for mod in modules %}
-            <option value="{{ mod }}" {% if current_module == mod %}selected{% endif %}>
-                {{ mod.capitalize() }}
-            </option>
-            {% endfor %}
-        </select>
-
-        <div class="trash-search-wrap">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
-            <input type="text" name="search" class="trash-search-input"
-                placeholder="Search {{ current_module if current_module != 'all' else 'all modules' }}..."
-                value="{{ search }}">
-        </div>
-
-        <button type="submit" class="btn-action gold" style="white-space:nowrap; border-radius:10px;">Search</button>
-    </form>
-
-    <div class="trash-bulk-actions">
-        <button type="button" class="btn-action outline" style="border-radius:10px; white-space:nowrap;" onclick="bulkAction('restore')">
-            ↺ Restore Selected
-        </button>
-        <button type="button" class="btn-action outline" style="border-color:#dc3545; color:#dc3545; border-radius:10px; white-space:nowrap;" onclick="bulkAction('delete')">
-            🗑 Delete Selected
-        </button>
-    </div>
-</div>
-
-<!-- Table -->
-<div class="trash-panel">
-    <table class="customer-table" style="width:100%;">
-        <thead>
-            <tr>
-                <th style="width:40px; padding-left:1.5rem;">
-                    <input type="checkbox" id="selectAll" onclick="toggleSelectAll()" style="width:16px;height:16px;cursor:pointer;">
-                </th>
-                <th>ID</th>
-                {% if current_module == 'all' %}<th>Module</th>{% endif %}
-                <th>Name / Title</th>
-                <th>Deleted By</th>
-                <th>Deleted At</th>
-                <th style="text-align:right; padding-right:1.5rem;">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for record in records %}
-            <tr>
-                <td style="padding-left:1.5rem;">
-                    <input type="checkbox" class="record-select" value="{{ record.module_name }}:{{ record.id }}" style="width:16px;height:16px;cursor:pointer;">
-                </td>
-                <td style="font-weight:700; color:var(--accent-gold);">#{{ record.id }}</td>
-
-                {% if current_module == 'all' %}
-                <td>
-                    <span class="module-badge {{ record.module_name }}">{{ record.module_name }}</span>
-                </td>
-                {% endif %}
-
-                <td style="font-weight:600; color:var(--primary-color);">
-                    {% if record.module_name == 'contacts' %}
-                        {{ record.first_name }} {{ record.last_name or '' }}
-                    {% elif record.module_name == 'orders' %}
-                        {{ record.master_order_number }}{% if record.order_title %} — {{ record.order_title }}{% endif %}
-                    {% else %}
-                        {{ record.name or record.title or '—' }}
-                    {% endif %}
-                </td>
-
-                <td style="color:#64748b; font-size:0.9rem;">
-                    {% if record.deleted_by %}
-                        <span style="display:inline-flex;align-items:center;gap:5px;">
-                            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            {{ user_map.get(record.deleted_by|string, 'User #' ~ record.deleted_by) }}
-                        </span>
-                    {% else %}
-                        <span style="color:#94a3b8;">System</span>
-                    {% endif %}
-                </td>
-
-                <td style="color:#64748b; font-size:0.875rem;">
-                    {% if record.deleted_at %}
-                        <span style="display:inline-flex;align-items:center;gap:5px;">
-                            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                            {{ record.deleted_at | ist('%d %b %Y, %H:%M') }}
-                        </span>
-                    {% else %}
-                        <span style="color:#94a3b8;">Unknown</span>
-                    {% endif %}
-                </td>
-
-                <td style="text-align:right; padding-right:1.5rem;">
-                    <div style="display:flex; gap:8px; justify-content:flex-end;">
-                        <form action="{{ url_for('trash.restore_item', module=record.module_name, record_id=record.id) }}" method="POST" style="margin:0;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="trash-pill-restore" onclick="return confirm('Restore this item?');">
-                                ↺ Restore
-                            </button>
-                        </form>
-                        <button type="button" class="trash-pill-delete"
-                            onclick="openDeleteModal('{{ record.module_name }}', {{ record.id }}, '{{ url_for('trash.delete_item', module=record.module_name, record_id=record.id) }}')">
-                            🗑 Delete
-                        </button>
-                    </div>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="{{ 7 if current_module == 'all' else 6 }}" style="padding:5rem 2rem; text-align:center; border:none;">
-                    <div style="display:flex; flex-direction:column; align-items:center; gap:14px;">
-                        <div style="font-size:3rem; opacity:0.12;">🗑</div>
-                        <h3 style="font-weight:800; font-size:1.2rem; color:var(--primary-color); margin:0;">Trash is empty</h3>
-                        <p style="color:#94a3b8; margin:0; font-size:0.9rem;">No deleted records found{% if current_module != 'all' %} in {{ current_module }}{% endif %}.</p>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<!-- Pagination -->
-{% if pagination and pagination.pages > 1 %}
-<div class="trash-pagination">
-    {% if pagination.has_prev %}
-    <a href="{{ url_for('trash.trash_list', module=current_module, page=pagination.prev_num, search=search) }}">« Prev</a>
-    {% endif %}
-    <span class="page-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
-    {% if pagination.has_next %}
-    <a href="{{ url_for('trash.trash_list', module=current_module, page=pagination.next_num, search=search) }}">Next »</a>
-    {% endif %}
-</div>
-{% endif %}
-
-
-<!-- ═══════ Enterprise Delete Confirmation Modal ═══════ -->
-<div id="deleteConfirmModal" style="
-    display:none; position:fixed; inset:0; z-index:9999;
-    background:rgba(13,27,42,0.55); backdrop-filter:blur(6px);
-    align-items:center; justify-content:center;
-" onclick="if(event.target===this) closeDeleteModal()">
-
-    <div style="
-        background:#fff; border-radius:24px; padding:2.5rem 2rem;
-        max-width:480px; width:92%;
-        box-shadow:0 30px 100px rgba(13,27,42,0.2);
-        animation:modalSlideIn 0.3s cubic-bezier(0.16,1,0.3,1);
-    ">
-        <!-- Animated Warning -->
-        <div style="text-align:center; margin-bottom:1.5rem;">
-            <div style="
-                width:76px; height:76px; margin:0 auto;
-                background:rgba(220,53,69,0.08); border-radius:50%;
-                display:flex; align-items:center; justify-content:center;
-                animation:warnPulse 1.6s ease-in-out infinite;
-            ">
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#dc3545" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+    <!-- Hero Header Card -->
+    <section class="trash-hero-card">
+        <div class="trash-hero-left">
+            <div class="trash-emblem" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                    <path d="M10 11v6"></path>
+                    <path d="M14 11v6"></path>
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
                 </svg>
+            </div>
+            <div class="trash-hero-title">
+                <h1>Trash Management</h1>
+                <p>Recover soft-deleted CRM records or inspect dependencies prior to permanent removal.</p>
             </div>
         </div>
 
-        <h3 style="text-align:center; font-size:1.3rem; font-weight:800; color:var(--primary-color); margin:0 0 0.35rem;">
-            ⚠ Permanently Delete Record
-        </h3>
-        <p style="text-align:center; color:#64748b; font-size:0.875rem; margin-bottom:1.5rem; line-height:1.6;">
-            This record is connected with other business data.<br>
-            <strong style="color:var(--primary-color);">The following records will also be permanently deleted.</strong>
-        </p>
+        <div class="trash-hero-stats">
+            <div class="trash-stat-pill">
+                <span class="stat-dot"></span>
+                <span>Total in Trash: <strong>{{ total_trashed }}</strong></span>
+            </div>
+            {% if current_module != 'all' %}
+            <div class="trash-stat-pill">
+                <span>{{ current_module.capitalize() }}: <strong>{{ module_counts.get(current_module, 0) }}</strong></span>
+            </div>
+            {% endif %}
+        </div>
+    </section>
 
-        <div id="modalRecordName" style="
-            text-align:center; font-size:1rem; font-weight:700; color:var(--primary-color);
-            margin-bottom:1rem; padding:0.65rem 1rem;
-            background:rgba(13,27,42,0.04); border-radius:10px;
-            border:1px solid rgba(13,27,42,0.07);
-        "></div>
+    <!-- Module Pill Tabs -->
+    <nav class="trash-tabs-strip" aria-label="Trash Module Filters">
+        <a href="{{ url_for('trash.trash_list', module='all', search=search) }}"
+           class="trash-tab-pill {% if current_module == 'all' %}active{% endif %}">
+            <span>All Modules</span>
+            <span class="trash-tab-count">{{ total_trashed }}</span>
+        </a>
+        {% for mod in modules %}
+        <a href="{{ url_for('trash.trash_list', module=mod, search=search) }}"
+           class="trash-tab-pill {% if current_module == mod %}active{% endif %}">
+            <span>{{ mod.capitalize() }}</span>
+            <span class="trash-tab-count">{{ module_counts.get(mod, 0) }}</span>
+        </a>
+        {% endfor %}
+    </nav>
 
-        <div id="modalDepsContainer" style="margin-bottom:1.25rem; display:flex; flex-direction:column; gap:8px;"></div>
+    <!-- Search & Bulk Control Console -->
+    <section class="trash-console">
+        <form method="GET" action="{{ url_for('trash.trash_list') }}" class="trash-search-form" id="trashFilterForm">
+            <input type="hidden" name="module" value="{{ current_module }}">
+            <div class="trash-search-box">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" name="search" class="trash-search-field"
+                    placeholder="Search {{ current_module if current_module != 'all' else 'orders, customers, leads, tasks' }}..."
+                    value="{{ search }}">
+            </div>
+            <button type="submit" class="tm-btn tm-btn-gold">Search</button>
+            {% if search or current_module != 'all' %}
+            <a href="{{ url_for('trash.trash_list') }}" class="tm-btn tm-btn-ghost">Reset</a>
+            {% endif %}
+        </form>
 
-        <div id="modalNoDepsMsg" style="
-            display:none; text-align:center; color:#64748b; font-size:0.875rem;
-            padding:0.9rem; background:rgba(220,53,69,0.04);
-            border-radius:10px; margin-bottom:1.25rem;
-            border:1px dashed rgba(220,53,69,0.2);
-        ">
-            No related records found. Only this record will be deleted.
+        <div class="trash-bulk-bar">
+            <span id="selectionCounter" class="selection-counter">0 Selected</span>
+            <button type="button" class="tm-btn tm-btn-restore-bulk" onclick="bulkAction('restore')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="1 4 1 10 7 10"></polyline>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                </svg>
+                Restore Selected
+            </button>
+            <button type="button" class="tm-btn tm-btn-delete-bulk" onclick="bulkAction('delete')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                </svg>
+                Delete Selected
+            </button>
+        </div>
+    </section>
+
+    <!-- Elevated Records Table Card -->
+    <section class="trash-table-card">
+        <div class="trash-table-scroll">
+            <table class="trash-table">
+                <thead>
+                    <tr>
+                        <th style="width:44px; padding-left:1.35rem;">
+                            <input type="checkbox" id="selectAll" class="trash-checkbox" onclick="toggleSelectAll()" aria-label="Select all records">
+                        </th>
+                        <th>ID</th>
+                        {% if current_module == 'all' %}<th>Module</th>{% endif %}
+                        <th>Record Details</th>
+                        <th>Deleted By</th>
+                        <th>Deleted At</th>
+                        <th style="text-align:right; padding-right:1.35rem;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td style="padding-left:1.35rem;">
+                            <input type="checkbox" class="record-select trash-checkbox" value="{{ record.module_name }}:{{ record.id }}" onchange="updateSelectionCount()" aria-label="Select record {{ record.id }}">
+                        </td>
+                        <td>
+                            <span class="record-id-tag">#{{ record.id }}</span>
+                        </td>
+
+                        {% if current_module == 'all' %}
+                        <td>
+                            <span class="module-badge {{ record.module_name }}">{{ record.module_name }}</span>
+                        </td>
+                        {% endif %}
+
+                        <td>
+                            <div class="record-cell-main">
+                                {% if record.module_name == 'contacts' %}
+                                    <span class="record-primary">{{ record.first_name }} {{ record.last_name or '' }}</span>
+                                    {% if record.email or record.phone %}
+                                    <span class="record-secondary">{{ record.email or record.phone }}</span>
+                                    {% endif %}
+                                {% elif record.module_name == 'orders' %}
+                                    <span class="record-primary">{{ record.master_order_number }}</span>
+                                    <span class="record-secondary">
+                                        {{ record.order_title or 'Architectural Glazing Order' }}
+                                        {% if record.status %} &middot; {{ record.status.replace('_', ' ') }}{% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="record-primary">{{ record.name or record.title or 'Untitled Record' }}</span>
+                                    {% if record.company or record.email or record.phone_number %}
+                                    <span class="record-secondary">{{ record.company or record.email or record.phone_number }}</span>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <td>
+                            {% if record.deleted_by %}
+                                {% set actor_name = user_map.get(record.deleted_by|string, 'User #' ~ record.deleted_by) %}
+                                <div class="actor-chip">
+                                    <span class="actor-avatar">{{ actor_name[:2] }}</span>
+                                    <span style="font-weight:600; font-size:0.84rem; color:var(--tm-navy);">{{ actor_name }}</span>
+                                </div>
+                            {% else %}
+                                <div class="actor-chip">
+                                    <span class="actor-avatar system">SY</span>
+                                    <span style="font-size:0.83rem; color:#94a3b8;">System</span>
+                                </div>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if record.deleted_at %}
+                                <span class="time-cell">
+                                    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                    </svg>
+                                    {{ record.deleted_at | ist('%d %b %Y, %H:%M') }}
+                                </span>
+                            {% else %}
+                                <span style="color:#94a3b8; font-size:0.82rem;">Unknown</span>
+                            {% endif %}
+                        </td>
+
+                        <td style="text-align:right; padding-right:1.35rem;">
+                            <div class="row-actions-group">
+                                <form action="{{ url_for('trash.restore_item', module=record.module_name, record_id=record.id) }}" method="POST" style="margin:0;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="trash-pill-restore" onclick="return confirm('Restore this item back to active CRM records?');">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="1 4 1 10 7 10"></polyline>
+                                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                                        </svg>
+                                        Restore
+                                    </button>
+                                </form>
+                                <button type="button" class="trash-pill-delete"
+                                    data-module="{{ record.module_name }}"
+                                    data-record-id="{{ record.id }}"
+                                    data-delete-url="{{ url_for('trash.delete_item', module=record.module_name, record_id=record.id) }}"
+                                    onclick="openDeleteModal(this.dataset.module, this.dataset.recordId, this.dataset.deleteUrl)">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                                    </svg>
+                                    Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="{{ 7 if current_module == 'all' else 6 }}" style="border:none;">
+                            <div class="trash-empty-state">
+                                <div class="trash-empty-icon">
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+                                    </svg>
+                                </div>
+                                <h3>Trash is empty</h3>
+                                <p>No soft-deleted records found{% if current_module != 'all' %} in {{ current_module }}{% endif %}{% if search %} matching "{{ search }}"{% endif %}.</p>
+                                {% if current_module != 'all' or search %}
+                                <a href="{{ url_for('trash.trash_list') }}" class="tm-btn tm-btn-ghost">View All Modules</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
-        <p style="text-align:center; font-size:0.78rem; color:#dc3545; font-weight:700; margin-bottom:1.5rem; letter-spacing:0.02em;">
-            ⛔ THIS ACTION CANNOT BE UNDONE
-        </p>
+        {% if pagination and pagination.total > 0 %}
+        <div class="trash-footer">
+            <span class="trash-page-meta">
+                Showing Page {{ pagination.page }} of {{ pagination.pages }} &middot; {{ pagination.total }} Total Record{{ '' if pagination.total == 1 else 's' }}
+            </span>
+            {% if pagination.pages > 1 %}
+            <div class="trash-pagination">
+                {% if pagination.has_prev %}
+                <a href="{{ url_for('trash.trash_list', module=current_module, page=pagination.prev_num, search=search) }}">← Previous</a>
+                {% endif %}
+                {% if pagination.has_next %}
+                <a href="{{ url_for('trash.trash_list', module=current_module, page=pagination.next_num, search=search) }}">Next →</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </section>
 
-        <div style="display:flex; gap:12px; justify-content:center;">
-            <button onclick="closeDeleteModal()" style="
-                padding:0.8rem 2rem; border-radius:12px;
-                border:1.5px solid rgba(13,27,42,0.15);
-                font-family:var(--font-body); font-weight:600; font-size:0.9rem;
-                background:#fff; color:var(--primary-color); cursor:pointer;
-                transition:all 0.2s;
-            " onmouseover="this.style.background='rgba(13,27,42,0.04)'" onmouseout="this.style.background='#fff'">
-                Cancel
-            </button>
-            <form id="deleteConfirmForm" method="POST" style="margin:0;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" id="deleteConfirmBtn" style="
-                    padding:0.8rem 2rem; border-radius:12px; border:none;
-                    font-family:var(--font-body); font-weight:700; font-size:0.9rem;
-                    background:linear-gradient(135deg,#e74c3c 0%,#c0392b 100%);
-                    color:#fff; cursor:pointer;
-                    box-shadow:0 4px 18px rgba(220,53,69,0.35);
-                    transition:all 0.2s;
-                " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
-                    🗑 Delete Everything
+    <!-- Enterprise Permanent Delete Confirmation Modal -->
+    <div id="deleteConfirmModal" class="tm-modal-overlay" onclick="if(event.target===this) closeDeleteModal()">
+        <div class="tm-modal-box">
+            <div style="text-align:center; margin-bottom:1.25rem;">
+                <div style="
+                    width:68px; height:68px; margin:0 auto;
+                    background:rgba(220,38,38,0.08); border-radius:50%;
+                    display:flex; align-items:center; justify-content:center;
+                    animation:warnPulse 1.8s ease-in-out infinite;
+                ">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+            </div>
+
+            <h3 style="text-align:center; font-family:var(--font-heading, 'Playfair Display', serif); font-size:1.35rem; font-weight:700; color:var(--tm-navy); margin:0 0 0.4rem;">
+                Permanently Delete Record
+            </h3>
+            <p style="text-align:center; color:var(--tm-muted); font-size:0.85rem; margin:0 0 1.25rem; line-height:1.55;">
+                This permanently removes the record and any linked child entries from the database.
+            </p>
+
+            <div id="modalRecordName" style="
+                text-align:center; font-size:0.92rem; font-weight:700; color:var(--tm-navy);
+                margin-bottom:1rem; padding:0.7rem 1rem;
+                background:#f8fafc; border-radius:10px;
+                border:1px solid rgba(13,27,42,0.08);
+            "></div>
+
+            <div id="modalDepsContainer" style="margin-bottom:1.15rem; display:flex; flex-direction:column; gap:6px;"></div>
+
+            <div id="modalNoDepsMsg" style="
+                display:none; text-align:center; color:var(--tm-muted); font-size:0.83rem;
+                padding:0.8rem 1rem; background:rgba(220,38,38,0.04);
+                border-radius:10px; margin-bottom:1.15rem;
+                border:1px dashed rgba(220,38,38,0.22);
+            ">
+                No linked child records found. Only this record will be removed.
+            </div>
+
+            <p style="text-align:center; font-size:0.74rem; color:#dc2626; font-weight:700; margin:0 0 1.35rem; letter-spacing:0.06em; text-transform:uppercase;">
+                This action cannot be undone
+            </p>
+
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button type="button" onclick="closeDeleteModal()" class="tm-btn tm-btn-ghost" style="padding:0.7rem 1.6rem;">
+                    Cancel
                 </button>
-            </form>
+                <form id="deleteConfirmForm" method="POST" style="margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" id="deleteConfirmBtn" class="tm-btn" style="
+                        padding:0.7rem 1.6rem;
+                        background:linear-gradient(135deg,#ef4444,#b91c1c);
+                        color:#ffffff;
+                        box-shadow:0 4px 14px rgba(220,38,38,0.28);
+                    ">
+                        Delete Permanently
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
-</div>
 
 <script>
 const SCAN_URL = '{{ url_for("trash.scan_dependencies") }}';
 let _modalOpen = false;
+
+function escapeTrashHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function updateSelectionCount() {
+    const all = document.querySelectorAll('.record-select');
+    const checked = document.querySelectorAll('.record-select:checked');
+    const counter = document.getElementById('selectionCounter');
+    const selectAll = document.getElementById('selectAll');
+    if (counter) {
+        counter.textContent = `${checked.length} Selected`;
+        counter.classList.toggle('has-selection', checked.length > 0);
+    }
+    if (selectAll && all.length > 0) {
+        selectAll.checked = checked.length === all.length;
+    }
+}
 
 function openDeleteModal(module, recordId, deleteUrl) {
     const modal  = document.getElementById('deleteConfirmModal');
@@ -431,11 +1003,11 @@ function openDeleteModal(module, recordId, deleteUrl) {
     noEl.style.display = 'none';
     form.action        = deleteUrl;
     btn.disabled       = true;
-    btn.textContent    = '🔍 Scanning…';
+    btn.textContent    = 'Scanning…';
     modal.style.display= 'flex';
     _modalOpen = true;
 
-    fetch(`${SCAN_URL}?module=${module}&record_id=${recordId}`)
+    fetch(`${SCAN_URL}?module=${encodeURIComponent(module)}&record_id=${encodeURIComponent(recordId)}`)
         .then(r => {
             if (!r.ok && r.status !== 404 && r.status !== 400 && r.status !== 500) {
                 throw new Error(`HTTP ${r.status}`);
@@ -445,32 +1017,31 @@ function openDeleteModal(module, recordId, deleteUrl) {
         .then(data => {
             if (!data.success) {
                 nameEl.textContent = data.message || 'Record not found';
-                btn.textContent = '🗑 Delete Anyway';
+                btn.textContent = 'Delete Permanently';
                 btn.disabled = false;
                 return;
             }
 
-            nameEl.textContent = `${module.charAt(0).toUpperCase()+module.slice(1)} — ${data.record_name}`;
+            nameEl.textContent = `${module.charAt(0).toUpperCase() + module.slice(1)} — ${data.record_name}`;
 
             if (data.has_dependencies) {
                 for (const [label, count] of Object.entries(data.dependencies)) {
                     const row = document.createElement('div');
-                    row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0.6rem 1rem;background:rgba(220,53,69,0.05);border-radius:10px;border-left:3px solid #dc3545;margin-bottom:4px;';
-                    row.innerHTML = `<span style="font-size:0.9rem;color:var(--primary-color);font-weight:600;">${label}</span>
-                        <span style="background:#dc3545;color:#fff;font-size:0.75rem;font-weight:700;padding:2px 12px;border-radius:20px;">${count}</span>`;
+                    row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0.55rem 0.9rem;background:rgba(220,38,38,0.04);border-radius:9px;border-left:3px solid #dc2626;';
+                    row.innerHTML = `<span style="font-size:0.84rem;color:var(--tm-navy);font-weight:600;">${escapeTrashHtml(label)}</span>
+                        <span style="background:#dc2626;color:#fff;font-size:0.74rem;font-weight:700;padding:2px 10px;border-radius:999px;font-variant-numeric:tabular-nums;">${escapeTrashHtml(count)}</span>`;
                     depsEl.appendChild(row);
                 }
             } else {
                 noEl.style.display = 'block';
             }
-            btn.textContent = '🗑 Delete Everything';
+            btn.textContent = 'Delete Everything';
             btn.disabled = false;
         })
-        .catch(err => {
+        .catch(() => {
             nameEl.textContent = 'Could not load dependency info';
-            btn.textContent = '🗑 Delete Anyway';
+            btn.textContent = 'Delete Permanently';
             btn.disabled = false;
-            console.error('Scan error:', err);
         });
 }
 
@@ -478,19 +1049,26 @@ function closeDeleteModal() {
     document.getElementById('deleteConfirmModal').style.display = 'none';
     _modalOpen = false;
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && _modalOpen) closeDeleteModal(); });
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && _modalOpen) closeDeleteModal();
+});
 
 function toggleSelectAll() {
     const checked = document.getElementById('selectAll').checked;
     document.querySelectorAll('.record-select').forEach(cb => cb.checked = checked);
+    updateSelectionCount();
 }
 
 function bulkAction(action) {
     const vals = Array.from(document.querySelectorAll('.record-select:checked')).map(cb => cb.value);
-    if (!vals.length) { alert('Please select at least one item.'); return; }
+    if (!vals.length) {
+        alert('Please select at least one item.');
+        return;
+    }
     const msg = action === 'restore'
-        ? 'Restore all selected items?'
-        : 'Permanently delete all selected items? This CANNOT be undone.';
+        ? `Restore ${vals.length} selected item(s)?`
+        : `Permanently delete ${vals.length} selected item(s)? This CANNOT be undone.`;
     if (!confirm(msg)) return;
     fetch('{{ url_for("trash.bulk_action") }}', {
         method: 'POST',
@@ -505,4 +1083,3 @@ function bulkAction(action) {
 
 </main>
 {% endblock %}
-

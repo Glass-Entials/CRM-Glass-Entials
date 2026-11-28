@@ -2,7 +2,14 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_required, current_user
 from model import UserRole, db
 from utils.security import require_roles
-from utils.trash import get_trashed_records, restore_record, permanently_delete_record, TRASH_MODELS, TrashManager
+from utils.trash import (
+    get_trashed_records,
+    get_trash_counts,
+    restore_record,
+    permanently_delete_record,
+    TRASH_MODELS,
+    TrashManager,
+)
 
 trash_bp = Blueprint("trash", __name__, url_prefix="/workplace/trash")
 
@@ -33,6 +40,8 @@ def trash_list():
     ).all() if deleted_by_ids else Employee.query.filter_by(organization_id=org_id).all()
     
     user_map = {str(emp.id): emp.name for emp in employees}
+    module_counts = get_trash_counts(org_id)
+    total_trashed = sum(module_counts.values())
 
     return render_template(
         "trash/list.html",
@@ -41,6 +50,8 @@ def trash_list():
         current_module=module,
         search=search,
         modules=list(TRASH_MODELS.keys()),
+        module_counts=module_counts,
+        total_trashed=total_trashed,
         user_map=user_map
     )
 

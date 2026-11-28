@@ -141,7 +141,7 @@ class TrashOrdersIntegrationTestCase(unittest.TestCase):
         resp_del = self.client.post(f"/orders/{order.id}/delete", data={"reason": "Entered twice"}, follow_redirects=False)
         self.assertEqual(resp_del.status_code, 302)
 
-        # Visible in Trash Management (All Modules & Orders filter + search)
+        # Visible in Trash Management (All Modules & Orders filter + search + premium module tabs/counts)
         resp_all = self.client.get("/workplace/trash/")
         self.assertEqual(resp_all.status_code, 200)
         html_all = resp_all.get_data(as_text=True)
@@ -149,6 +149,8 @@ class TrashOrdersIntegrationTestCase(unittest.TestCase):
         self.assertIn("Skyline Facade Glazing", html_all)
         self.assertIn("Aarav Mehta", html_all)
         self.assertIn("orders", html_all)
+        self.assertIn("Total in Trash:", html_all)
+        self.assertIn("trash-tabs-strip", html_all)
 
         resp_mod = self.client.get(f"/workplace/trash/?module=orders&search={order.master_order_number}")
         self.assertEqual(resp_mod.status_code, 200)
