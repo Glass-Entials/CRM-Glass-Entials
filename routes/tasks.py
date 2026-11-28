@@ -1,10 +1,17 @@
+import calendar
+from datetime import datetime, date
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, jsonify
 from flask_login import login_required, current_user
-from model import db, Task, Employee, Project, Lead, TaskStatus, DailyTask, UserRole, TaskActivity, TaskActivityType, CallResult, TaskFollowupRequest, TaskFollowupResponse, TaskFollowupPriority, TaskFollowupStatus
+from model import (
+    db, Task, Employee, Project, Lead, TaskStatus, DailyTask, UserRole,
+    TaskActivity, TaskActivityType, CallResult, TaskFollowupRequest,
+    TaskFollowupResponse, TaskFollowupPriority, TaskFollowupStatus,
+    OrganizationMember, OrgMemberRole,
+)
 from utils.activity import log_activity, build_changes
 from utils.notifications import create_notification
-from utils.security import tenant_record_id
-from datetime import datetime
+from utils.security import tenant_record_id, role_value
+from utils.timezone import utcnow, to_ist
 
 tasks_bp = Blueprint("tasks", __name__)
 
@@ -382,52 +389,221 @@ def view_task(task_id):
     )
 
 
+_MONTH_NAMES = [
+    (1, "January"), (2, "February"), (3, "March"), (4, "April"),
+    (5, "May"), (6, "June"), (7, "July"), (8, "August"),
+    (9, "September"), (10, "October"), (11, "November"), (12, "December"),
+]
+
+
+def _is_privileged_daily_task_user(user, org_id: int) -> bool:
+    """Return True for Admin, Manager, Super Admin, or Org Owner/Admin in org_id."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    r_val = role_value(user)
+    if r_val in ("admin", "manager", "super_admin", "superadmin"):
+        return True
+    if org_id:
+        member = OrganizationMember.query.filter_by(
+            user_id=user.id, organization_id=org_id, status="active"
+        ).first()
+        if member and member.role in (OrgMemberRole.OWNER, OrgMemberRole.ADMIN):
+            return True
+    return False
+
+
+def _get_current_org_employee(user, org_id: int):
+    """Resolve the active Employee record for the authenticated user within org_id."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return None
+    return (
+        Employee.query.filter_by(user_id=user.id, organization_id=org_id)
+        .filter(Employee.is_deleted.isnot(True))
+        .first()
+    )
+
+
+def _resolve_month_year(args, today_ist: date):
+    """
+    Resolve (year, month) from either ?month_num=&year= or ?month=YYYY-MM.
+    Defaults cleanly to today_ist's (year, month).
+    """
+    year = today_ist.year
+    month = today_ist.month
+
+    month_num_raw = args.get("month_num")
+    year_raw = args.get("year")
+    month_str = (args.get("month") or "").strip()
+
+    if month_num_raw or year_raw:
+        try:
+            if month_num_raw:
+                m = int(month_num_raw)
+                if 1 <= m <= 12:
+                    month = m
+            if year_raw:
+                y = int(year_raw)
+                if 2000 <= y <= 2100:
+                    year = y
+        except (TypeError, ValueError):
+            pass
+    elif month_str:
+        try:
+            parsed = datetime.strptime(month_str, "%Y-%m")
+            if 2000 <= parsed.year <= 2100:
+                year = parsed.year
+                month = parsed.month
+        except ValueError:
+            pass
+
+    return year, month
+
+
 @tasks_bp.route("/daily-tasks")
 @login_required
 def daily_tasks_list():
     org_id = current_user.organization_id
-    date_filter = request.args.get("date")
-    if not date_filter:
-        date_filter = datetime.utcnow().strftime("%Y-%m-%d")
-    
-    emp_filter = request.args.get("employee_id")
+    today_ist = to_ist(utcnow()).date()
+    is_privileged = _is_privileged_daily_task_user(current_user, org_id)
+    current_emp = _get_current_org_employee(current_user, org_id)
 
-    query = DailyTask.query.filter_by(organization_id=org_id)
+    # Determine view mode strictly on the backend:
+    # - Employees are always locked to 'my_monthly' (ignore view_mode / employee_id params)
+    # - Admin / Manager / Super Admin default to 'all_daily', or can switch to 'my_monthly'
+    if not is_privileged:
+        view_mode = "my_monthly"
+    else:
+        req_mode = (request.args.get("view_mode") or "").strip()
+        view_mode = req_mode if req_mode in ("all_daily", "my_monthly") else "all_daily"
 
-    # Role-based restriction
-    if current_user.role.value not in ["admin", "manager"]:
-        employee = Employee.query.filter_by(user_id=current_user.id).first()
-        if employee:
-            query = query.filter_by(employee_id=employee.id)
-        else:
-            return render_template(
-                "tasks/daily_tasks.html", daily_tasks=[], employees=[]
-            )
-    elif emp_filter:
-        emp_id = tenant_record_id(Employee, emp_filter, org_id, is_deleted=False)
-        query = query.filter_by(employee_id=emp_id)
+    sel_year, sel_month = _resolve_month_year(request.args, today_ist)
+    last_day = calendar.monthrange(sel_year, sel_month)[1]
+    month_start = date(sel_year, sel_month, 1)
+    month_end = date(sel_year, sel_month, last_day)
 
-    # Date Filtering
-    if date_filter:
-        try:
-            filter_date = datetime.strptime(date_filter, "%Y-%m-%d").date()
-            query = query.filter_by(date=filter_date)
-        except:
-            pass
+    prev_year, prev_month = (sel_year - 1, 12) if sel_month == 1 else (sel_year, sel_month - 1)
+    next_year, next_month = (sel_year + 1, 1) if sel_month == 12 else (sel_year, sel_month + 1)
 
-    all_daily_tasks = query.order_by(DailyTask.date.desc()).all()
+    year_choices = sorted(
+        set(range(today_ist.year - 3, today_ist.year + 2)) | {sel_year}
+    )
+
+    date_filter = request.args.get("date") or today_ist.strftime("%Y-%m-%d")
+    emp_filter = request.args.get("employee_id") if (is_privileged and view_mode == "all_daily") else None
+    from_date_str = (request.args.get("from_date") or "").strip()
+    to_date_str = (request.args.get("to_date") or "").strip()
+
+    effective_start = month_start
+    effective_end = month_end
+    all_daily_tasks = []
+
+    base_query = DailyTask.query.filter_by(organization_id=org_id)
+
+    if view_mode == "my_monthly":
+        # Strictly scoped to logged-in user's own employee record
+        if current_emp:
+            query = base_query.filter(DailyTask.employee_id == current_emp.id)
+
+            from_dt = None
+            to_dt = None
+            range_valid = True
+
+            if from_date_str:
+                try:
+                    from_dt = datetime.strptime(from_date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    flash("Invalid From Date format.", "taskerror")
+                    from_date_str = ""
+                    range_valid = False
+
+            if to_date_str:
+                try:
+                    to_dt = datetime.strptime(to_date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    flash("Invalid To Date format.", "taskerror")
+                    to_date_str = ""
+                    range_valid = False
+
+            if range_valid and from_dt and to_dt and from_dt > to_dt:
+                flash("From Date cannot be later than To Date.", "taskerror")
+                range_valid = False
+
+            if range_valid:
+                if from_dt:
+                    effective_start = max(month_start, from_dt)
+                if to_dt:
+                    effective_end = min(month_end, to_dt)
+
+                if effective_start <= effective_end:
+                    all_daily_tasks = (
+                        query.filter(
+                            DailyTask.date >= effective_start,
+                            DailyTask.date <= effective_end,
+                        )
+                        .order_by(DailyTask.date.desc(), DailyTask.created_at.desc())
+                        .all()
+                    )
+                else:
+                    flash(
+                        f"Selected date range falls outside {month_start.strftime('%B %Y')}.",
+                        "taskerror",
+                    )
+    else:
+        # Mode A (All Employees - Date Wise) — Admin / Manager / Super Admin only
+        query = base_query
+        if emp_filter:
+            emp_id = tenant_record_id(Employee, emp_filter, org_id, is_deleted=False)
+            if emp_id:
+                query = query.filter_by(employee_id=emp_id)
+
+        if date_filter:
+            try:
+                filter_date = datetime.strptime(date_filter, "%Y-%m-%d").date()
+                query = query.filter_by(date=filter_date)
+            except ValueError:
+                flash("Invalid date filter provided.", "taskerror")
+
+        all_daily_tasks = query.order_by(
+            DailyTask.date.desc(), DailyTask.created_at.desc()
+        ).all()
+
     employees = (
-        Employee.query.filter_by(organization_id=org_id).all()
-        if current_user.role.value in ["admin", "manager"]
+        Employee.query.filter_by(organization_id=org_id)
+        .filter(Employee.is_deleted.isnot(True))
+        .order_by(Employee.name.asc())
+        .all()
+        if is_privileged
         else []
     )
+
+    total_hours = round(sum((t.hours_spent or 0.0) for t in all_daily_tasks), 2)
 
     return render_template(
         "tasks/daily_tasks.html",
         daily_tasks=all_daily_tasks,
         employees=employees,
+        is_privileged=is_privileged,
+        view_mode=view_mode,
         selected_date=date_filter,
         selected_emp=emp_filter,
+        selected_month=sel_month,
+        selected_year=sel_year,
+        selected_month_str=f"{sel_year:04d}-{sel_month:02d}",
+        selected_month_label=month_start.strftime("%B %Y"),
+        month_start_str=month_start.strftime("%Y-%m-%d"),
+        month_end_str=month_end.strftime("%Y-%m-%d"),
+        effective_start_label=effective_start.strftime("%d %b %Y"),
+        effective_end_label=effective_end.strftime("%d %b %Y"),
+        from_date=from_date_str,
+        to_date=to_date_str,
+        prev_month=prev_month,
+        prev_year=prev_year,
+        next_month=next_month,
+        next_year=next_year,
+        month_choices=_MONTH_NAMES,
+        year_choices=year_choices,
+        total_hours=total_hours,
+        total_logs=len(all_daily_tasks),
     )
 
 
@@ -435,11 +611,13 @@ def daily_tasks_list():
 @login_required
 def add_daily_task():
     org_id = current_user.organization_id
-    employee = Employee.query.filter_by(user_id=current_user.id).first()
+    employee = _get_current_org_employee(current_user, org_id)
 
     if not employee:
         flash("Employee profile not found.", "taskerror")
         return redirect(url_for("tasks.daily_tasks_list"))
+
+    today_ist = to_ist(utcnow()).date()
 
     if request.method == "POST":
         date_str = request.form.get("date")
@@ -456,7 +634,7 @@ def add_daily_task():
             task_date = (
                 datetime.strptime(date_str, "%Y-%m-%d").date()
                 if date_str
-                else datetime.utcnow().date()
+                else today_ist
             )
             new_daily_task = DailyTask(
                 employee_id=employee.id,
@@ -482,9 +660,7 @@ def add_daily_task():
                         entity_type="daily_task",
                         entity_id=new_daily_task.id,
                         organization_id=org_id,
-                        uploader_id=(
-                            current_user.employee.id if current_user.employee else None
-                        ),
+                        uploader_id=employee.id,
                         description=f"Attached to daily log: {task_date}",
                     )
 
@@ -497,12 +673,10 @@ def add_daily_task():
             flash("An error occurred. Please try again.", "taskerror")
             return redirect(url_for("tasks.add_daily_task"))
 
-    from datetime import date
-
     projects = Project.query.filter_by(organization_id=org_id, is_deleted=False).all()
     return render_template(
         "tasks/add_daily_task.html",
-        today_date=date.today().strftime("%Y-%m-%d"),
+        today_date=today_ist.strftime("%Y-%m-%d"),
         projects=projects,
     )
 
@@ -518,8 +692,8 @@ def add_daily_task():
 def view_daily_task(task_id):
     org_id = current_user.organization_id
     task = DailyTask.query.filter_by(id=task_id, organization_id=org_id).first_or_404()
-    if current_user.role.value not in ["admin", "manager"]:
-        emp = Employee.query.filter_by(user_id=current_user.id).first()
+    if not _is_privileged_daily_task_user(current_user, org_id):
+        emp = _get_current_org_employee(current_user, org_id)
         if not emp or task.employee_id != emp.id:
             return jsonify({"error": "Access denied"}), 403
     docs = []
@@ -543,8 +717,8 @@ def view_daily_task(task_id):
 def edit_daily_task(task_id):
     org_id = current_user.organization_id
     task = DailyTask.query.filter_by(id=task_id, organization_id=org_id).first_or_404()
-    if current_user.role.value not in ["admin", "manager"]:
-        emp = Employee.query.filter_by(user_id=current_user.id).first()
+    if not _is_privileged_daily_task_user(current_user, org_id):
+        emp = _get_current_org_employee(current_user, org_id)
         if not emp or task.employee_id != emp.id:
             flash("You can only edit your own work logs.", "taskerror")
             return redirect(url_for("tasks.daily_tasks_list"))
@@ -589,8 +763,9 @@ def edit_daily_task(task_id):
 def delete_daily_task(task_id):
     org_id = current_user.organization_id
     task = DailyTask.query.filter_by(id=task_id, organization_id=org_id).first_or_404()
-    if current_user.role.value not in ["admin", "manager"]:
-        emp = Employee.query.filter_by(user_id=current_user.id).first()
+    is_priv = _is_privileged_daily_task_user(current_user, org_id)
+    if not is_priv:
+        emp = _get_current_org_employee(current_user, org_id)
         if not emp or task.employee_id != emp.id:
             flash("You can only delete your own work logs.", "taskerror")
             return redirect(url_for("tasks.daily_tasks_list"))
@@ -602,6 +777,9 @@ def delete_daily_task(task_id):
         db.session.rollback()
         current_app.logger.error(f"Delete daily task error: {str(e)}", exc_info=True)
         flash("An error occurred while deleting. Please try again.", "taskerror")
+    next_mode = (request.form.get("view_mode") or "").strip()
+    if is_priv and next_mode in ("all_daily", "my_monthly"):
+        return redirect(url_for("tasks.daily_tasks_list", view_mode=next_mode))
     return redirect(url_for("tasks.daily_tasks_list"))
 # ═══════════════════════════════════════════════════════════
 #  TASK ACTIVITY TIMELINE ROUTES

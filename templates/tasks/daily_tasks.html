@@ -179,10 +179,49 @@
             box-shadow: 0 4px 20px rgba(13, 27, 42, 0.04);
             border: 1px solid rgba(13, 27, 42, 0.05);
         }
+        .view-mode-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .view-mode-tabs {
+            display: inline-flex;
+            background: #f1f5f9;
+            padding: 5px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            gap: 4px;
+        }
+        .view-mode-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.65rem 1.25rem;
+            border-radius: 9px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: #475569;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .view-mode-tab:hover {
+            color: var(--primary-color);
+            background: rgba(255, 255, 255, 0.6);
+        }
+        .view-mode-tab.active {
+            background: #fff;
+            color: var(--primary-color);
+            box-shadow: 0 2px 8px rgba(13, 27, 42, 0.08);
+            border: 1px solid rgba(212, 175, 55, 0.35);
+        }
         .filter-form {
             display: flex;
             align-items: flex-end;
-            gap: 20px;
+            gap: 16px;
             flex-wrap: wrap;
         }
         .filter-group {
@@ -202,15 +241,89 @@
             border: 1px solid #e2e8f0;
             border-radius: 8px;
             font-family: var(--font-body);
-            min-width: 220px;
+            min-width: 180px;
             font-size: 0.9rem;
             color: var(--primary-color);
             background: #f8fafc;
+        }
+        .form-control-filter.compact {
+            min-width: 130px;
         }
         .form-control-filter:focus {
             outline: none;
             border-color: var(--accent-gold);
             box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+        }
+        .month-nav-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .btn-month-nav {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.8rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f8fafc;
+            color: var(--primary-color);
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-month-nav:hover {
+            border-color: var(--accent-gold);
+            background: rgba(212, 175, 55, 0.08);
+            color: var(--primary-color);
+        }
+        .period-summary-bar {
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .period-label {
+            font-size: 0.88rem;
+            color: #475569;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .period-label strong {
+            color: var(--primary-color);
+        }
+        .summary-chips {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .summary-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0.4rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            background: #f8fafc;
+            color: var(--primary-color);
+            border: 1px solid #e2e8f0;
+        }
+        .summary-chip.gold {
+            background: rgba(212, 175, 55, 0.12);
+            color: #8a6a00;
+            border-color: rgba(212, 175, 55, 0.3);
         }
         .filter-actions {
             display: flex;
@@ -289,6 +402,25 @@
                 text-align: center;
                 margin-top: 5px;
             }
+            .view-mode-tabs {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+            }
+            .view-mode-tab {
+                justify-content: center;
+            }
+            .month-nav-group {
+                width: 100%;
+            }
+            .month-nav-group .form-control-filter {
+                flex: 1;
+                min-width: 0;
+            }
+            .period-summary-bar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
         }
     </style>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo2.png') }}">
@@ -304,8 +436,18 @@
         {% with messages = get_flashed_messages(category_filter=["tasksuccess"]) %}
         {% if messages %}
         {% for message in messages %}
-        <div class="flash-message" style="padding: 1.25rem; background: #ecfdf5; border-left: 5px solid #10b981; color: #065f46; margin-bottom: 2rem; border-radius: 8px; display: flex; align-items: center; gap: 12px; font-weight: 500;">
+        <div class="flash-message" style="padding: 1.25rem; background: #ecfdf5; border-left: 5px solid #10b981; color: #065f46; margin-bottom: 1.5rem; border-radius: 8px; display: flex; align-items: center; gap: 12px; font-weight: 500;">
             <span style="font-size: 1.3rem;">✅</span> {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% with errors = get_flashed_messages(category_filter=["taskerror"]) %}
+        {% if errors %}
+        {% for error in errors %}
+        <div class="flash-message" style="padding: 1.25rem; background: #fef2f2; border-left: 5px solid #ef4444; color: #991b1b; margin-bottom: 1.5rem; border-radius: 8px; display: flex; align-items: center; gap: 12px; font-weight: 500;">
+            <span style="font-size: 1.3rem;">⚠️</span> {{ error }}
         </div>
         {% endfor %}
         {% endif %}
@@ -315,7 +457,13 @@
         <div class="page-header">
             <div class="page-title">
                 <h1>Work Log History</h1>
-                <p>Track daily progress and time investment across projects.</p>
+                <p>
+                    {% if view_mode == 'my_monthly' %}
+                        Monthly view of your personal daily work logs &amp; hours.
+                    {% else %}
+                        Track daily team progress and time investment across projects.
+                    {% endif %}
+                </p>
             </div>
             
             <div class="header-actions">
@@ -325,21 +473,82 @@
             </div>
         </div>
 
+        {% if is_privileged %}
+        <!-- Dual View Mode Selector for Admin / Manager / Super Admin -->
+        <div class="view-mode-bar">
+            <div class="view-mode-tabs" role="tablist" aria-label="Daily Tasks View Mode">
+                <a href="{{ url_for('tasks.daily_tasks_list', view_mode='all_daily', date=selected_date or '') }}"
+                   class="view-mode-tab {% if view_mode == 'all_daily' %}active{% endif %}"
+                   role="tab" aria-selected="{{ 'true' if view_mode == 'all_daily' else 'false' }}">
+                    <span>👥</span> All Employees – Date Wise
+                </a>
+                <a href="{{ url_for('tasks.daily_tasks_list', view_mode='my_monthly', month_num=selected_month, year=selected_year) }}"
+                   class="view-mode-tab {% if view_mode == 'my_monthly' %}active{% endif %}"
+                   role="tab" aria-selected="{{ 'true' if view_mode == 'my_monthly' else 'false' }}">
+                    <span>📅</span> My Tasks – Monthly
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Role-based Filter Section -->
         <div class="filter-card">
+            {% if view_mode == 'my_monthly' %}
+            <form id="monthlyFilterForm" action="{{ url_for('tasks.daily_tasks_list') }}" method="GET" class="filter-form">
+                <input type="hidden" name="view_mode" value="my_monthly">
+
+                <div class="filter-group">
+                    <label for="month_num">📆 Month Navigation</label>
+                    <div class="month-nav-group">
+                        <a href="{{ url_for('tasks.daily_tasks_list', view_mode='my_monthly', month_num=prev_month, year=prev_year) }}"
+                           class="btn-month-nav" title="Previous Month">◀ Prev</a>
+                        <select id="month_num" name="month_num" class="form-control-filter compact" onchange="clearDateRangeAndSubmit()">
+                            {% for m_val, m_name in month_choices %}
+                            <option value="{{ m_val }}" {% if selected_month == m_val %}selected{% endif %}>{{ m_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <select id="year" name="year" class="form-control-filter compact" onchange="clearDateRangeAndSubmit()" aria-label="Year">
+                            {% for yr in year_choices %}
+                            <option value="{{ yr }}" {% if selected_year == yr %}selected{% endif %}>{{ yr }}</option>
+                            {% endfor %}
+                        </select>
+                        <a href="{{ url_for('tasks.daily_tasks_list', view_mode='my_monthly', month_num=next_month, year=next_year) }}"
+                           class="btn-month-nav" title="Next Month">Next ▶</a>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label for="from_date">📅 From Date</label>
+                    <input type="date" id="from_date" name="from_date" class="form-control-filter compact"
+                           value="{{ from_date or '' }}" min="{{ month_start_str }}" max="{{ month_end_str }}">
+                </div>
+
+                <div class="filter-group">
+                    <label for="to_date">📅 To Date</label>
+                    <input type="date" id="to_date" name="to_date" class="form-control-filter compact"
+                           value="{{ to_date or '' }}" min="{{ month_start_str }}" max="{{ month_end_str }}">
+                </div>
+
+                <div class="filter-actions">
+                    <button type="submit" class="btn-filter">🔍 Apply Filters</button>
+                    <a href="{{ url_for('tasks.daily_tasks_list', view_mode='my_monthly') }}" class="btn-reset">↺ Current Month</a>
+                </div>
+            </form>
+            {% else %}
             <form action="{{ url_for('tasks.daily_tasks_list') }}" method="GET" class="filter-form">
+                <input type="hidden" name="view_mode" value="all_daily">
                 <div class="filter-group">
                     <label for="date">📅 Log Date</label>
                     <input type="date" id="date" name="date" class="form-control-filter" value="{{ selected_date or '' }}">
                 </div>
                 
-                {% if current_user.role.value in ['admin', 'manager'] %}
+                {% if is_privileged %}
                 <div class="filter-group">
                     <label for="employee_id">👥 Select Employee</label>
                     <select id="employee_id" name="employee_id" class="form-control-filter">
                         <option value="">All Staff Members</option>
                         {% for emp in employees %}
-                        <option value="{{ emp.id }}" {% if selected_emp|int == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                        <option value="{{ emp.id }}" {% if selected_emp and selected_emp|int == emp.id %}selected{% endif %}>{{ emp.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -347,9 +556,28 @@
                 
                 <div class="filter-actions">
                     <button type="submit" class="btn-filter">🔍 Apply Filters</button>
-                    <a href="{{ url_for('tasks.daily_tasks_list') }}" class="btn-reset">↺ Reset Clear</a>
+                    <a href="{{ url_for('tasks.daily_tasks_list', view_mode='all_daily') }}" class="btn-reset">↺ Reset Clear</a>
                 </div>
             </form>
+            {% endif %}
+
+            <div class="period-summary-bar">
+                <div class="period-label">
+                    {% if view_mode == 'my_monthly' %}
+                        <span>🗓️ Viewing: <strong>{{ selected_month_label }}</strong></span>
+                        <span style="color:#94a3b8;">•</span>
+                        <span>Period: <strong>{{ effective_start_label }}</strong> to <strong>{{ effective_end_label }}</strong></span>
+                    {% else %}
+                        <span>📅 Viewing: <strong>All Employees</strong></span>
+                        <span style="color:#94a3b8;">•</span>
+                        <span>Date: <strong>{{ selected_date }}</strong></span>
+                    {% endif %}
+                </div>
+                <div class="summary-chips">
+                    <span class="summary-chip">📝 {{ total_logs }} Log{{ '' if total_logs == 1 else 's' }}</span>
+                    <span class="summary-chip gold">⏱️ {{ total_hours }} HRS</span>
+                </div>
+            </div>
         </div>
 
         <!-- Optimized Table View -->
@@ -359,7 +587,7 @@
                     <thead>
                         <tr>
                             <th>Work Date</th>
-                            {% if current_user.role.value in ['admin', 'manager'] %}
+                            {% if view_mode == 'all_daily' %}
                             <th>Team Member</th>
                             {% endif %}
                             <th>Work Category</th>
@@ -380,7 +608,7 @@
                                     <span class="date-year">{{ task.date.strftime('%Y') }}</span>
                                 </div>
                             </td>
-                            {% if current_user.role.value in ['admin', 'manager'] %}
+                            {% if view_mode == 'all_daily' %}
                             <td>
                                 <div class="emp-info">
                                     <img src="{{ get_profile_pic(task.employee) }}" alt="User" class="emp-avatar">
@@ -443,12 +671,26 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="7" style="text-align: center; padding: 6rem 3rem;">
+                            <td colspan="{{ 8 if view_mode == 'all_daily' else 7 }}" style="text-align: center; padding: 6rem 3rem;">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
                                     <div style="font-size: 4rem; opacity: 0.2;">📝</div>
-                                    <h3 style="color: var(--primary-color); margin: 0; font-weight: 700;">No work logs found yet</h3>
-                                    <p style="color: var(--text-muted); max-width: 350px; margin: 0;">Start tracking your productivity by logging your first task today.</p>
-                                    <a href="{{ url_for('tasks.add_daily_task') }}" class="btn-action gold" style="text-decoration: none; margin-top: 10px;">Create First Log →</a>
+                                    <h3 style="color: var(--primary-color); margin: 0; font-weight: 700;">
+                                        {% if view_mode == 'my_monthly' %}
+                                            No work logs found for {{ selected_month_label }}
+                                        {% else %}
+                                            No work logs found for {{ selected_date }}
+                                        {% endif %}
+                                    </h3>
+                                    <p style="color: var(--text-muted); max-width: 380px; margin: 0;">
+                                        {% if view_mode == 'my_monthly' and (from_date or to_date) %}
+                                            No logs match your selected date range ({{ effective_start_label }} – {{ effective_end_label }}). Try clearing the date range or switching months.
+                                        {% elif view_mode == 'my_monthly' %}
+                                            You haven't logged any work in {{ selected_month_label }} yet.
+                                        {% else %}
+                                            No team members have logged daily tasks for this date yet.
+                                        {% endif %}
+                                    </p>
+                                    <a href="{{ url_for('tasks.add_daily_task') }}" class="btn-action gold" style="text-decoration: none; margin-top: 10px;">Create Work Log →</a>
                                 </div>
                             </td>
                         </tr>
@@ -526,6 +768,7 @@
                 <button onclick="closeDeleteModal()" style="flex:1;background:#f1f5f9;color:#475569;border:none;padding:0.9rem;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.95rem;">Cancel</button>
                 <form id="deleteForm" method="POST" style="flex:1;margin:0;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="view_mode" value="{{ view_mode }}">
                     <button type="submit" style="width:100%;background:#dc2626;color:#fff;border:none;padding:0.9rem;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.95rem;">Yes, Delete</button>
                 </form>
             </div>
@@ -533,6 +776,17 @@
     </div>
 
     <script>
+    // ── Monthly Filter Helper: clear stale date range when switching month/year ──
+    function clearDateRangeAndSubmit() {
+        var form = document.getElementById('monthlyFilterForm');
+        if (!form) return;
+        var fromEl = document.getElementById('from_date');
+        var toEl = document.getElementById('to_date');
+        if (fromEl) fromEl.value = '';
+        if (toEl) toEl.value = '';
+        form.submit();
+    }
+
     // ── View Modal ──
     function openViewModal(taskId) {
         const modal = document.getElementById('viewModal');

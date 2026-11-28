@@ -18,6 +18,7 @@ suites = [
     ("SaaS CSRF Webhook & Endpoint Security", "tests.test_saas_csrf_security"),
     ("Private Upload Storage & Tenant Scoping", "tests.test_secure_document_storage"),
     ("OMS Notification Stakeholder Scoping", "tests.test_oms_notifications"),
+    ("Daily Tasks Monthly & Role Views", "tests.test_daily_tasks_views"),
 ]
 
 results = []
